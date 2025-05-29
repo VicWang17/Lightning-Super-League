@@ -105,20 +105,7 @@
             </h2>
           </div>
           <div class="card-content">
-            <div class="news-list">
-              <div class="news-item">
-                <div class="news-time">2小时前</div>
-                <div class="news-content">球员张三在训练中表现出色，能力值提升+2</div>
-              </div>
-              <div class="news-item">
-                <div class="news-time">5小时前</div>
-                <div class="news-content">收到来自AC米兰的转会报价，目标球员：李四</div>
-              </div>
-              <div class="news-item">
-                <div class="news-time">1天前</div>
-                <div class="news-content">青训营发现了一名天赋异禀的年轻球员</div>
-              </div>
-            </div>
+            <Timeline :items="timelineItems" />
           </div>
         </div>
       </div>
@@ -200,6 +187,37 @@
 </template>
 
 <script setup lang="ts">
+import Timeline, { TimelineItem } from '@/components/Timeline.vue'
+import { ref } from 'vue'
+
+const timelineItems = ref<TimelineItem[]>([
+  {
+    type: 'success',
+    content: '球员张三在训练中表现出色，能力值提升+2',
+    time: '2小时前'
+  },
+  {
+    type: 'warning',
+    content: '收到来自AC米兰的转会报价，目标球员：李四',
+    time: '5小时前'
+  },
+  {
+    type: 'info',
+    content: '青训营发现了一名天赋异禀的年轻球员',
+    time: '1天前'
+  },
+  {
+    type: 'error',
+    content: '球员王五在训练中受伤，预计休息2周',
+    time: '2天前'
+  },
+  {
+    type: 'success',
+    content: '成功签约新球员赵六，转会费€15M',
+    time: '3天前'
+  }
+])
+
 const startTraining = () => {
   alert('训练功能开发中...')
 }
@@ -423,31 +441,6 @@ const startTraining = () => {
 .match-result.draw {
   background: rgba(255, 193, 7, 0.2);
   color: #ffc107;
-}
-
-.news-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.news-item {
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border-left: 3px solid #00f2b8;
-}
-
-.news-time {
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 4px;
-}
-
-.news-content {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
-  line-height: 1.4;
 }
 
 .status-list {

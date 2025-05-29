@@ -156,7 +156,7 @@ onUnmounted(() => {
 <style scoped>
 .main-layout {
   min-height: 100vh;
-  background: linear-gradient(135deg, #00b051 0%, #00d084 50%, #00f2b8 100%);
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
   display: flex;
   flex-direction: column;
 }
@@ -164,9 +164,9 @@ onUnmounted(() => {
 /* 顶栏样式 */
 .top-bar {
   height: 70px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(15px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(15, 15, 25, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(100, 255, 218, 0.2);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -174,6 +174,7 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
 }
 
 .top-bar-left {
@@ -299,12 +300,13 @@ onUnmounted(() => {
 /* 侧边栏样式 */
 .sidebar {
   width: 260px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(15px);
-  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(15, 15, 25, 0.95);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(100, 255, 218, 0.2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow-y: auto;
+  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
 }
 
 .sidebar-collapsed {
@@ -356,9 +358,10 @@ onUnmounted(() => {
 }
 
 .nav-link.active {
-  background: rgba(0, 242, 184, 0.15);
-  color: #00f2b8;
-  border-right: 3px solid #00f2b8;
+  background: rgba(100, 255, 218, 0.15);
+  color: #64ffda;
+  border-right: 3px solid #64ffda;
+  box-shadow: inset 0 0 20px rgba(100, 255, 218, 0.1);
 }
 
 .nav-icon {
@@ -401,7 +404,7 @@ onUnmounted(() => {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 /* 移动端遮罩层 */
