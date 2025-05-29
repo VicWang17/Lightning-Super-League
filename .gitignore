@@ -1,0 +1,113 @@
+# 前端依赖
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# 前端构建产物
+frontend/dist.zip
+frontend/dist.zip.sha256
+frontend/dist.zip.sha256.txt
+frontend/dist.zip.sha256.txt.sha256
+frontend/dist.zip.sha256.txt.sha256.txt
+frontend/dist.zip.sha256.txt.sha256.txt.sha256
+frontend/dist.zip.sha256.txt.sha256.txt.sha256.txt
+
+# 前端环境变量
+frontend/.env
+frontend/.env.*
+frontend/.env.local
+frontend/.env.*.local
+
+# 前端日志
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# 前端编辑器配置
+frontend/.idea/
+frontend/.vscode/
+frontend/*.suo
+frontend/*.ntvs*
+frontend/*.njsproj
+frontend/*.sln
+frontend/*.sw?
+
+# 后端Python
+backend/__pycache__/
+backend/*.py[cod]
+backend/*$py.class
+backend/*.so
+backend/.Python
+backend/build/
+backend/develop-eggs/
+backend/dist/
+backend/downloads/
+backend/eggs/
+backend/.eggs/
+backend/lib/
+backend/lib64/
+backend/parts/
+backend/sdist/
+backend/var/
+backend/wheels/
+backend/*.egg-info/
+backend/.installed.cfg
+backend/*.egg
+
+# 后端虚拟环境
+backend/venv/
+backend/env/
+backend/.env/
+backend/.venv/
+backend/ENV/
+
+# 后端环境变量
+backend/.env
+backend/.env.*
+backend/.env.local
+backend/.env.*.local
+
+# 后端数据库
+backend/*.db
+backend/*.sqlite3
+backend/*.sqlite
+
+# 后端日志
+backend/logs/
+backend/*.log
+
+# 后端编辑器配置
+backend/.idea/
+backend/.vscode/
+backend/*.swp
+backend/*.swo
+backend/.DS_Store
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# 测试覆盖率报告
+coverage/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+
+# 其他
+*.bak
+*.tmp
+*.temp
+.cache/
+.temp/
+.tmp/
+

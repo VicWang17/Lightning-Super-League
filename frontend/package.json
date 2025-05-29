@@ -1,0 +1,36 @@
+{
+  "name": "lightning-super-league-frontend",
+  "version": "1.0.0",
+  "description": "闪电超级联赛 - 足球经理游戏前端",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit"
+  },
+  "keywords": [
+    "vue",
+    "typescript",
+    "football",
+    "manager",
+    "game"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^22.10.6",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vueuse/core": "^12.2.1",
+    "axios": "^1.7.9",
+    "naive-ui": "^2.40.1",
+    "pinia": "^2.2.8",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "vue-tsc": "^2.2.10"
+  }
+}
