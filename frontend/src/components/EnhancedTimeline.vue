@@ -188,7 +188,7 @@ const toggleExpand = (index: number) => {
   }
 }
 
-const handleAction = (action: TimelineAction, item: EnhancedTimelineItem) => {
+const handleAction = (action: TimelineAction, _item: EnhancedTimelineItem) => {
   action.handler()
 }
 

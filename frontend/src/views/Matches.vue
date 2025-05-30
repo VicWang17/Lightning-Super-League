@@ -50,7 +50,7 @@
                 </div>
                 
                 <div class="match-score" :class="{ finished: match.status === 'finished' }">
-                  <div v-if="match.status === 'finished'" class="score">
+                  <div v-if="match.status === 'finished' && match.score" class="score">
                     {{ match.score.home }} - {{ match.score.away }}
                   </div>
                   <div v-else class="vs">VS</div>

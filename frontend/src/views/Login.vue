@@ -117,7 +117,7 @@ const registerRules = {
   ],
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+    { type: 'email' as const, message: '请输入正确的邮箱格式', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -126,7 +126,7 @@ const registerRules = {
   confirmPassword: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
     {
-      validator: (rule: any, value: string) => {
+      validator: (_rule: any, value: string) => {
         return value === registerForm.password
       },
       message: '两次输入的密码不一致',

@@ -36,6 +36,7 @@
         </div>
         <p class="game-subtitle">Lightning Super League</p>
         <div class="tagline">未来足球经理体验，就在今朝</div>
+        <div class="tagline">Bilibili闪电杰尼倾情开发</div>
       </div>
 
       <!-- 主按钮区域 - 提前到更显眼的位置 -->
@@ -146,7 +147,7 @@ const handleImageError = () => {
 // 在mounted时尝试预加载图片
 onMounted(() => {
   const particles = document.querySelectorAll('.particle')
-  particles.forEach((particle: Element, index: number) => {
+  particles.forEach((particle: Element, _index: number) => {
     const element = particle as HTMLElement
     element.style.left = Math.random() * 100 + '%'
     element.style.top = Math.random() * 100 + '%'

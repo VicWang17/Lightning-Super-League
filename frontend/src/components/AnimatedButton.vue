@@ -27,9 +27,7 @@ interface Props {
   isLoading?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  isLoading: false
-})
+defineProps<Props>()
 
 const emit = defineEmits<{
   click: []
