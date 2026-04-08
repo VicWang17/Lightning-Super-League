@@ -1,44 +1,69 @@
+"""
+Lightning Super League - FastAPI Application Entry Point
+"""
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from app.api import auth, teams, players, matches
-from app.core.config import settings
 
+from app.config import get_settings
+from app.dependencies import engine, redis_client
+from app.routers import health
+
+settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler"""
+    # Startup
+    print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    yield
+    # Shutdown
+    print("👋 Shutting down...")
+    await engine.dispose()
+    await redis_client.close()
+
+
+# Create FastAPI application
 app = FastAPI(
-    title="闪电超级联赛 API",
-    description="高度拟真的在线足球经理游戏后端API",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="闪电超级联赛 - 在线足球经理游戏 API",
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    lifespan=lifespan
 )
 
-# CORS配置
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 路由注册
-app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
-app.include_router(teams.router, prefix="/api/teams", tags=["球队"])
-app.include_router(players.router, prefix="/api/players", tags=["球员"])
-app.include_router(matches.router, prefix="/api/matches", tags=["比赛"])
+
+# Include routers
+app.include_router(health.router)
+
 
 @app.get("/")
 async def root():
-    return JSONResponse(content={
-        "message": "欢迎来到闪电超级联赛 API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    })
+    """Root endpoint"""
+    return {
+        "name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "docs": "/docs" if settings.DEBUG else None
+    }
 
-@app.get("/health")
-async def health_check():
-    return JSONResponse(content={"status": "healthy"})
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=settings.DEBUG
+    )

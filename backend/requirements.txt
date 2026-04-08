@@ -1,14 +1,30 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-sqlalchemy==2.0.23
-alembic==1.12.1
-pydantic==2.5.0
-pydantic-settings==2.1.0
-python-multipart==0.0.6
-passlib[bcrypt]==1.7.4
-python-jose[cryptography]==3.3.0
-redis==5.0.1
-pymysql==1.1.0
-cryptography==41.0.8
-python-dotenv==1.0.0
-APScheduler==3.10.4 
+# FastAPI Core
+fastapi==0.104.*
+uvicorn[standard]==0.24.*
+
+# Data Validation
+pydantic==2.5.*
+pydantic-settings==2.1.*
+
+# Database
+sqlalchemy[asyncio]==2.0.*
+asyncmy==0.2.*
+alembic==1.12.*
+
+# Cache
+redis==5.0.*
+
+# Authentication
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+
+# Scheduling
+apscheduler==3.10.*
+
+# Utilities
+python-dotenv==1.0.*
+httpx==0.25.*
+
+# Testing
+pytest==7.4.*
+pytest-asyncio==0.21.*

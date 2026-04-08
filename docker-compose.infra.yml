@@ -1,0 +1,48 @@
+# 基础设施服务 - 数据库和缓存
+# 用法: docker-compose -f docker-compose.infra.yml up -d
+
+services:
+  # Database - MySQL 8.0
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: lightning_league
+      MYSQL_USER: lightning
+      MYSQL_PASSWORD: lightning_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "lightning", "-plightning_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - lightning-network
+
+  # Cache - Redis 7
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lightning-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  lightning-network:
+    driver: bridge
