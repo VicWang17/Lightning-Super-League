@@ -18,6 +18,8 @@
 
 ### 启动项目
 
+#### 方式一：Docker 全栈启动（推荐）
+
 ```bash
 # 使用 Make (推荐)
 make build    # 构建镜像
@@ -28,6 +30,26 @@ make dev      # 启动并查看日志
 docker-compose up -d    # 后台启动
 docker-compose up       # 前台启动 (查看日志)
 ```
+
+#### 方式二：本地独立启动后端
+
+适用于仅开发后端或前端已单独启动的场景：
+
+```bash
+# 1. 先启动基础设施（MySQL + Redis）
+make infra-up
+
+# 2. 启动后端服务
+make backend
+
+# 或手动启动（需在 backend 目录下）
+cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**本地启动后端的前提条件：**
+- Python 3.11+
+- 安装依赖：`pip install -r backend/requirements.txt`
+- 配置环境变量（复制 `backend/.env.example` 到 `backend/.env`）
 
 服务启动后访问:
 - 前端: http://localhost:5173

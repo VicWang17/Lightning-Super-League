@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Trophy, Users, Shield, Swords, Zap } from 'lucide-react'
+import { useAuthStore } from '../../stores/auth'
 
 // 动画配置
 const fadeInUp = {
@@ -51,6 +52,8 @@ const features = [
 ]
 
 export default function Home() {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
   const [isScrolled, setIsScrolled] = useState(false)
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
@@ -66,6 +69,14 @@ export default function Home() {
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  const handleStartGame = () => {
+    if (isAuthenticated) {
+      navigate('/dashboard')
+    } else {
+      navigate('/login')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-[#E2E2F0] overflow-x-hidden font-sans">
@@ -93,12 +104,12 @@ export default function Home() {
             </Link>
 
             {/* 右侧 */}
-            <Link
-              to="/dashboard"
+            <button
+              onClick={handleStartGame}
               className="px-5 py-2 bg-[#0D7377] hover:bg-[#0A5A5D] text-white text-sm font-medium rounded-lg transition-colors shadow-[0_4px_12px_rgba(13,115,119,0.35)]"
             >
               进入游戏
-            </Link>
+            </button>
           </div>
         </div>
       </motion.header>
@@ -157,13 +168,13 @@ export default function Home() {
               transition={fadeInUpTransition}
               className="pt-4"
             >
-              <Link
-                to="/dashboard"
+              <button
+                onClick={handleStartGame}
                 className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-medium rounded-lg transition-all duration-200 shadow-[0_4px_20px_rgba(13,115,119,0.4)] hover:shadow-[0_8px_30px_rgba(13,115,119,0.5)] hover:-translate-y-0.5"
               >
                 立即开始
                 <Zap className="w-4 h-4" />
-              </Link>
+              </button>
             </motion.div>
 
             {/* 数据概览 */}
@@ -268,13 +279,13 @@ export default function Home() {
                 <p className="text-[#8B8BA7] mb-8">
                   立即加入，免费开启你的足球经理生涯。无需下载，即开即玩。
                 </p>
-                <Link
-                  to="/dashboard"
+                <button
+                  onClick={handleStartGame}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-medium rounded-lg transition-all duration-200 shadow-[0_4px_16px_rgba(13,115,119,0.4)]"
                 >
                   免费开始游戏
                   <Zap className="w-4 h-4" />
-                </Link>
+                </button>
               </div>
             </div>
           </motion.div>

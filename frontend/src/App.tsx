@@ -1,19 +1,8 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import MainLayout from './components/layout/MainLayout'
-import Home from './pages/Home/Index'
-import Dashboard from './pages/Dashboard/Index'
+import { RouterProvider } from 'react-router-dom'
+import { router } from './routes'
 
 function App() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-        </Route>
-      </Routes>
-    </Router>
-  )
+  return <RouterProvider router={router} />
 }
 
 export default App

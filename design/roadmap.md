@@ -18,17 +18,39 @@
 
 **时间预估**：6-8周
 
-### M1-v1.0 基础设施
+### M1-v1.0 基础设施 ✅
 
 **前端**
-- [ ] 项目基础架构搭建（技术选型、目录结构、路由配置）
-- [ ] UI组件库搭建（按钮、卡片、表单、导航等基础组件）
-- [ ] 全局样式系统（颜色、字体、间距规范）
+- [x] 项目基础架构搭建（技术选型、目录结构、路由配置）
+  - React 18 + TypeScript + Vite + Tailwind CSS
+  - react-router-dom 路由配置
+  - Zustand 状态管理
+- [x] UI组件库搭建（按钮、卡片、表单、导航等基础组件）
+  - Button: 支持多种变体、尺寸、加载状态
+  - Card: 卡片容器、Header/Content/Footer 子组件
+  - Input: 输入框、支持标签、错误提示、图标
+  - Modal: 模态框、支持 ConfirmModal 预设
+  - Badge: 徽章组件
+  - Avatar: 头像组件
+- [x] 全局样式系统（颜色、字体、间距规范）
+  - Tailwind 配置: 深色主题配色（背景色、边框色、文字色、品牌色）
+  - 字体: Inter + Roboto Mono
+  - CSS 组件类: card、btn-primary、stat-number 等
 
 **后端**
-- [ ] 项目基础架构搭建
-- [ ] 数据库设计（用户表、球队表、球员表、比赛表等核心表结构）
-- [ ] API接口规范定义
+- [x] 项目基础架构搭建
+  - FastAPI 框架
+  - SQLAlchemy 2.0 + asyncmy (MySQL) / aiosqlite (SQLite)
+  - Redis 缓存支持
+  - APScheduler 定时任务
+  - JWT 认证结构
+- [x] API接口规范定义
+  - BaseSchema: 响应包装、分页、错误响应
+  - User: 用户注册/登录/信息
+  - Team: 球队 CRUD + 财务/统计
+  - Player: 球员 CRUD + 能力值/合同
+  - League: 联赛/积分榜/赛程
+  - Match: 比赛/直播/统计
 
 ### M1-v1.1 用户系统
 

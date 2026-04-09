@@ -16,7 +16,7 @@
   }
   
   .card-hover {
-    @apply hover:border-[#0D7377]/40 transition-all duration-250 hover:-translate-y-0.5;
+    @apply hover:border-[#0D7377]/40 transition-all duration-normal hover:-translate-y-0.5;
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
   }
   
