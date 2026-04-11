@@ -14,10 +14,10 @@ from app.core.security import decode_token
 
 settings = get_settings()
 
-# Database engine
+# Database engine (SQL 日志在生产环境关闭)
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
+    echo=False,  # 禁用 SQL 日志，使用应用级日志
     future=True
 )
 
@@ -57,20 +57,28 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
     """Get current authenticated user from JWT token"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if not credentials:
+        logger.warning("No credentials provided")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    logger.info(f"Received token: {credentials.credentials[:20]}...")
     payload = decode_token(credentials.credentials)
     if not payload:
+        logger.warning("Failed to decode token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    logger.info(f"Token payload: {payload}")
     
     user_id = payload.get("sub")
     if not user_id:

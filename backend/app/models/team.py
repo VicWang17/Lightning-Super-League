@@ -71,8 +71,8 @@ class Team(Base):
     season: Mapped["Season"] = relationship("Season", back_populates="teams")
     finances: Mapped["TeamFinance"] = relationship("TeamFinance", back_populates="team", uselist=False)
     players: Mapped[list["Player"]] = relationship("Player", back_populates="team")
-    home_matches: Mapped[list["Match"]] = relationship("Match", foreign_keys="Match.home_team_id", back_populates="home_team")
-    away_matches: Mapped[list["Match"]] = relationship("Match", foreign_keys="Match.away_team_id", back_populates="away_team")
+    home_fixtures: Mapped[list["Fixture"]] = relationship("Fixture", foreign_keys="Fixture.home_team_id", back_populates="home_team")
+    away_fixtures: Mapped[list["Fixture"]] = relationship("Fixture", foreign_keys="Fixture.away_team_id", back_populates="away_team")
     standing: Mapped["LeagueStanding"] = relationship("LeagueStanding", back_populates="team", uselist=False)
     
     def __repr__(self) -> str:

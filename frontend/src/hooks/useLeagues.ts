@@ -30,7 +30,7 @@ export function useLeagueSystems() {
 }
 
 // 获取联赛列表
-export function useLeagues(systemId?: string) {
+export function useLeagues(systemCode?: string) {
   const [leagues, setLeagues] = useState<League[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -39,20 +39,25 @@ export function useLeagues(systemId?: string) {
     const fetchLeagues = async () => {
       try {
         setLoading(true)
-        const url = systemId ? `/leagues?system_id=${systemId}` : '/leagues'
+        setError(null)
+        const url = systemCode ? `/leagues?system_code=${systemCode}` : '/leagues'
         const response = await api.get<League[]>(url)
         if (response.success) {
           setLeagues(response.data)
+        } else {
+          setError(response.message || '获取联赛列表失败')
+          setLeagues([])
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : '获取联赛列表失败')
+        setLeagues([])
       } finally {
         setLoading(false)
       }
     }
 
     fetchLeagues()
-  }, [systemId])
+  }, [systemCode])
 
   return { leagues, loading, error }
 }
@@ -66,18 +71,25 @@ export function useLeagueDetail(leagueId: string | undefined) {
   useEffect(() => {
     if (!leagueId) {
       setLoading(false)
+      setError('联赛ID不能为空')
       return
     }
 
     const fetchLeague = async () => {
       try {
         setLoading(true)
+        setError(null)
         const response = await api.get<LeagueDetail>(`/leagues/${leagueId}`)
         if (response.success) {
           setLeague(response.data)
+        } else {
+          setError(response.message || '获取联赛详情失败')
+          setLeague(null)
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : '获取联赛详情失败')
+        const errorMsg = err instanceof Error ? err.message : '获取联赛详情失败'
+        setError(errorMsg)
+        setLeague(null)
       } finally {
         setLoading(false)
       }

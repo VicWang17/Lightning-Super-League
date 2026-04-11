@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Zap, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
@@ -9,7 +9,11 @@ import Button from '../../components/ui/Button'
 
 export default function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setUser } = useAuthStore()
+  
+  // 获取 redirect 参数，如果没有则默认跳转到 dashboard
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
   
   const [formData, setFormData] = useState({
     email: '',
@@ -32,7 +36,7 @@ export default function Login() {
 
       if (response.success && response.data) {
         setUser(response.data)
-        navigate('/dashboard')
+        navigate(redirectTo)
       } else {
         setError(response.message || '登录失败')
       }
@@ -189,11 +193,11 @@ export default function Login() {
           className="mt-6 p-4 bg-[#0D7377]/10 border border-[#0D7377]/30 rounded-lg"
         >
           <p className="text-xs text-[#8B8BA7] text-center">
-            <span className="text-[#0D7377] font-medium">开发环境测试账号：</span>
+            <span className="text-[#0D7377] font-medium">测试账号：</span>
             <br />
-            邮箱: ai_east_l1_001@lightning.dev
+            邮箱: ai_east_1_1@ai.com
             <br />
-            密码: 123456
+            密码: ai_password
           </p>
         </motion.div>
       </div>

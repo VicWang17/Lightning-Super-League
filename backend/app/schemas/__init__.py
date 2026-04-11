@@ -15,8 +15,13 @@ from app.schemas.player import (
 )
 from app.schemas.league import (
     LeagueResponse, LeagueDetailResponse, LeagueSystemResponse,
-    LeagueStandingItem, MatchResponse, SeasonResponse,
+    LeagueStandingItem,
     TopScorerItem, TopAssistItem, CleanSheetItem
+)
+from app.schemas.season import (
+    SeasonResponse, SeasonDetailResponse, SeasonDayResponse,
+    SeasonCalendarResponse, TeamFixtureResponse, TodayFixtureResponse,
+    SeasonStatusForDisplay
 )
 
 __all__ = [
@@ -53,9 +58,15 @@ __all__ = [
     "LeagueDetailResponse",
     "LeagueSystemResponse",
     "LeagueStandingItem",
-    "MatchResponse",
-    "SeasonResponse",
     "TopScorerItem",
     "TopAssistItem",
     "CleanSheetItem",
+    # Season
+    "SeasonResponse",
+    "SeasonDetailResponse",
+    "SeasonDayResponse",
+    "SeasonCalendarResponse",
+    "TeamFixtureResponse",
+    "TodayFixtureResponse",
+    "SeasonStatusForDisplay",
 ]

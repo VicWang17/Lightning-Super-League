@@ -13,7 +13,7 @@ from app.schemas.league import (
     LeagueStandingItem, StandingTeamInfo, MatchResponse, MatchTeamInfo,
     SeasonResponse, TopScorerItem, TopAssistItem, CleanSheetItem
 )
-from app.models import LeagueSystem, League, Season, LeagueStanding, Match, MatchStatus, Team, Player
+from app.models import LeagueSystem, League, Season, LeagueStanding, Fixture, FixtureStatus, Team, Player
 from app.dependencies import get_db
 
 router = APIRouter(prefix="/leagues", tags=["联赛"])
@@ -55,16 +55,26 @@ async def list_league_systems(db: AsyncSession = Depends(get_db)):
 )
 async def list_leagues(
     system_id: Optional[str] = Query(None, description="联赛体系ID筛选"),
+    system_code: Optional[str] = Query(None, description="联赛体系代码筛选（EAST/WEST/SOUTH/NORTH）"),
     db: AsyncSession = Depends(get_db)
 ):
     """
     获取所有联赛列表
     
-    - **system_id**: 按联赛体系筛选（可选）
+    - **system_id**: 按联赛体系ID筛选（可选）
+    - **system_code**: 按联赛体系代码筛选（可选，EAST/WEST/SOUTH/NORTH）
     """
     query = select(League).options(selectinload(League.system))
     
-    if system_id:
+    if system_code:
+        # 通过 code 查找 system_id
+        system_result = await db.execute(
+            select(LeagueSystem).where(LeagueSystem.code == system_code.upper())
+        )
+        system = system_result.scalar_one_or_none()
+        if system:
+            query = query.where(League.system_id == system.id)
+    elif system_id:
         query = query.where(League.system_id == system_id)
     
     result = await db.execute(query.order_by(League.system_id, League.level))
@@ -184,19 +194,19 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
     if current_season:
         # 已完成的比赛
         recent_result = await db.execute(
-            select(Match)
+            select(Fixture)
             .options(
-                selectinload(Match.home_team),
-                selectinload(Match.away_team)
+                selectinload(Fixture.home_team),
+                selectinload(Fixture.away_team)
             )
             .where(
                 and_(
-                    Match.league_id == league_id,
-                    Match.season_id == current_season.id,
-                    Match.status == MatchStatus.FINISHED
+                    Fixture.league_id == league_id,
+                    Fixture.season_id == current_season.id,
+                    Fixture.status == FixtureStatus.FINISHED
                 )
             )
-            .order_by(Match.scheduled_at.desc())
+            .order_by(Fixture.scheduled_at.desc())
             .limit(5)
         )
         recent = recent_result.scalars().all()
@@ -204,7 +214,7 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
         for match in recent:
             recent_matches.append(MatchResponse(
                 id=str(match.id),
-                matchday=match.matchday,
+                matchday=match.round_number,
                 home_team=MatchTeamInfo(
                     id=str(match.home_team.id),
                     name=match.home_team.name,
@@ -223,19 +233,19 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
         
         # 即将进行的比赛
         upcoming_result = await db.execute(
-            select(Match)
+            select(Fixture)
             .options(
-                selectinload(Match.home_team),
-                selectinload(Match.away_team)
+                selectinload(Fixture.home_team),
+                selectinload(Fixture.away_team)
             )
             .where(
                 and_(
-                    Match.league_id == league_id,
-                    Match.season_id == current_season.id,
-                    Match.status.in_([MatchStatus.SCHEDULED, MatchStatus.ONGOING])
+                    Fixture.league_id == league_id,
+                    Fixture.season_id == current_season.id,
+                    Fixture.status.in_([FixtureStatus.SCHEDULED, FixtureStatus.ONGOING])
                 )
             )
-            .order_by(Match.scheduled_at)
+            .order_by(Fixture.scheduled_at)
             .limit(5)
         )
         upcoming = upcoming_result.scalars().all()
@@ -243,7 +253,7 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
         for match in upcoming:
             upcoming_matches.append(MatchResponse(
                 id=str(match.id),
-                matchday=match.matchday,
+                matchday=match.round_number,
                 home_team=MatchTeamInfo(
                     id=str(match.home_team.id),
                     name=match.home_team.name,
@@ -277,11 +287,11 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
             teams_count=teams_count,
             current_season=SeasonResponse(
                 id=str(current_season.id),
-                name=current_season.name,
+                season_number=current_season.season_number,
+                name=f"第{current_season.season_number}赛季",
                 start_date=current_season.start_date,
                 end_date=current_season.end_date,
-                status=current_season.status,
-                transfer_window_open=current_season.transfer_window_open
+                status=current_season.status
             ) if current_season else None,
             standings=standings_data,
             recent_matches=recent_matches,
@@ -368,7 +378,7 @@ async def get_league_table(
 async def get_league_schedule(
     league_id: str,
     season_id: Optional[str] = Query(None, description="赛季ID（默认当前赛季）"),
-    matchday: Optional[int] = Query(None, description="轮次"),
+    round_number: Optional[int] = Query(None, description="轮次"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -376,7 +386,7 @@ async def get_league_schedule(
     
     - **league_id**: 联赛ID
     - **season_id**: 赛季ID（可选）
-    - **matchday**: 轮次（可选）
+    - **round_number**: 轮次（可选）
     """
     # 如果没有指定赛季，获取当前赛季
     if not season_id:
@@ -390,20 +400,20 @@ async def get_league_schedule(
     if not season_id:
         return ResponseSchema(success=True, data=[])
     
-    query = select(Match).options(
-        selectinload(Match.home_team),
-        selectinload(Match.away_team)
+    query = select(Fixture).options(
+        selectinload(Fixture.home_team),
+        selectinload(Fixture.away_team)
     ).where(
         and_(
-            Match.league_id == league_id,
-            Match.season_id == season_id
+            Fixture.league_id == league_id,
+            Fixture.season_id == season_id
         )
     )
     
-    if matchday:
-        query = query.where(Match.matchday == matchday)
+    if round_number:
+        query = query.where(Fixture.round_number == round_number)
     
-    query = query.order_by(Match.matchday, Match.scheduled_at)
+    query = query.order_by(Fixture.round_number, Fixture.scheduled_at)
     
     result = await db.execute(query)
     matches = result.scalars().all()
@@ -413,7 +423,7 @@ async def get_league_schedule(
         data=[
             MatchResponse(
                 id=str(match.id),
-                matchday=match.matchday,
+                matchday=match.round_number,
                 home_team=MatchTeamInfo(
                     id=str(match.home_team.id),
                     name=match.home_team.name,

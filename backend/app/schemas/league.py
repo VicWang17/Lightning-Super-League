@@ -43,11 +43,11 @@ class LeagueResponse(BaseSchema):
 class SeasonResponse(BaseSchema):
     """Season response"""
     id: str
-    name: str
+    season_number: int
+    name: str  # 从 season_number 生成，如 "第1赛季"
     start_date: datetime
-    end_date: datetime
+    end_date: Optional[datetime]
     status: SeasonStatus
-    transfer_window_open: bool
 
 
 class StandingTeamInfo(BaseSchema):

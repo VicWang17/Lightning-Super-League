@@ -7,7 +7,8 @@ import {
   Target,
   ArrowUpRight,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  List
 } from 'lucide-react'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useTopScorers, useTopAssists } from '../../hooks/useLeagues'
 import type { LeagueStanding, Match } from '../../types/league'
@@ -178,7 +179,7 @@ function LeagueDetail() {
   const { id } = useParams<{ id: string }>()
   const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'scorers' | 'assists'>('standings')
   
-  const { league, loading: leagueLoading } = useLeagueDetail(id)
+  const { league, loading: leagueLoading, error: leagueError } = useLeagueDetail(id)
   const { standings, loading: standingsLoading } = useLeagueTable(id)
   const { matches, loading: matchesLoading } = useLeagueSchedule(id)
   const { scorers, loading: scorersLoading } = useTopScorers(id, 10)
@@ -198,7 +199,11 @@ function LeagueDetail() {
       <div className="max-w-[1200px] text-center py-20">
         <Trophy className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
         <h2 className="text-xl font-bold text-white mb-2">联赛未找到</h2>
-        <p className="text-[#8B8BA7] mb-6">该联赛不存在或已被删除</p>
+        <p className="text-[#8B8BA7] mb-2">该联赛不存在或已被删除</p>
+        {leagueError && (
+          <p className="text-red-400 text-sm mb-6">错误: {leagueError}</p>
+        )}
+        <p className="text-[#4B4B6A] text-xs mb-6">联赛ID: {id || '未提供'}</p>
         <Link to="/leagues" className="btn-primary inline-flex items-center gap-2">
           <ChevronLeft className="w-4 h-4" />
           返回联赛列表
@@ -217,14 +222,23 @@ function LeagueDetail() {
 
   return (
     <div className="max-w-[1200px]">
-      {/* 返回按钮 */}
-      <Link 
-        to="/leagues"
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
-      >
-        <ChevronLeft className="w-4 h-4" />
-        返回联赛列表
-      </Link>
+      {/* 返回按钮和所有联赛链接 */}
+      <div className="flex items-center justify-between mb-4">
+        <Link 
+          to="/dashboard"
+          className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          返回首页
+        </Link>
+        <Link 
+          to="/leagues/all"
+          className="inline-flex items-center gap-1 text-sm text-[#0D7377] hover:text-white transition-colors"
+        >
+          <List className="w-4 h-4" />
+          所有联赛
+        </Link>
+      </div>
 
       {/* 联赛信息头部 */}
       <div className="card mb-6 bg-gradient-to-br from-[#0D4A4D]/30 to-[#12121A]">
@@ -261,7 +275,8 @@ function LeagueDetail() {
             </div>
             {league.current_season && (
               <p className="text-xs text-[#4B4B6A] mt-2">
-                赛季时间: {new Date(league.current_season.start_date).toLocaleDateString('zh-CN')} - {new Date(league.current_season.end_date).toLocaleDateString('zh-CN')}
+                赛季时间: {new Date(league.current_season.start_date).toLocaleDateString('zh-CN')}
+                {league.current_season.end_date && ` - ${new Date(league.current_season.end_date).toLocaleDateString('zh-CN')}`}
               </p>
             )}
           </div>

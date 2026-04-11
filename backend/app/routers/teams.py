@@ -1,8 +1,10 @@
 """
 Team management API routes
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import List, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.schemas import (
     ResponseSchema,
@@ -13,8 +15,59 @@ from app.schemas import (
     TeamSummary,
     ErrorResponse,
 )
+from app.dependencies import get_db, get_current_user
+from app.models import Team, League
+from app.core.logging import get_logger
 
 router = APIRouter(prefix="/teams", tags=["球队"])
+logger = get_logger("app.teams")
+
+
+@router.get(
+    "/my-team",
+    response_model=ResponseSchema[dict],
+    summary="获取我的球队",
+    description="获取当前登录用户的球队信息",
+)
+async def get_my_team(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取当前登录用户的球队
+    """
+    user_id = current_user.get("user_id")
+    logger.info(f"获取用户球队: user_id={user_id}")
+    
+    # 查询用户的球队
+    result = await db.execute(
+        select(Team, League).join(League, Team.current_league_id == League.id, isouter=True)
+        .where(Team.user_id == user_id)
+    )
+    row = result.first()
+    
+    if not row:
+        logger.warning(f"用户没有球队: user_id={user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="您还没有球队"
+        )
+    
+    team, league = row
+    logger.info(f"返回球队信息: team_id={team.id}, name={team.name}, current_league_id={team.current_league_id}")
+    
+    return ResponseSchema(
+        success=True,
+        data={
+            "id": team.id,
+            "name": team.name,
+            "short_name": team.short_name,
+            "reputation": team.reputation,
+            "overall_rating": team.overall_rating,
+            "current_league_id": team.current_league_id,
+            "league_name": league.name if league else None,
+        }
+    )
 
 
 @router.get(

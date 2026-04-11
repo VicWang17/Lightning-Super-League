@@ -25,11 +25,11 @@ export interface League {
 
 export interface Season {
   id: string
+  season_number: number
   name: string
   start_date: string
-  end_date: string
+  end_date?: string
   status: 'upcoming' | 'ongoing' | 'completed'
-  transfer_window_open: boolean
 }
 
 export interface StandingTeam {

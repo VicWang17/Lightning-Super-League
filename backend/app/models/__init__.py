@@ -7,11 +7,17 @@ from app.models.team import Team, TeamStatus, TeamFinance
 from app.models.league import (
     LeagueSystem,
     League,
+    LeagueStanding,
+)
+from app.models.season import (
     Season,
     SeasonStatus,
-    LeagueStanding,
-    Match,
-    MatchStatus,
+    Fixture,
+    FixtureType,
+    FixtureStatus,
+    CupCompetition,
+    CupGroup,
+    CupByeTeam,
 )
 from app.models.player import (
     Player,
@@ -34,11 +40,16 @@ __all__ = [
     # League
     "LeagueSystem",
     "League",
+    "LeagueStanding",
+    # Season & Cup
     "Season",
     "SeasonStatus",
-    "LeagueStanding",
-    "Match",
-    "MatchStatus",
+    "Fixture",
+    "FixtureType",
+    "FixtureStatus",
+    "CupCompetition",
+    "CupGroup",
+    "CupByeTeam",
     # Player
     "Player",
     "PlayerPosition",

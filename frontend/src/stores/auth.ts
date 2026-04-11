@@ -36,6 +36,7 @@ interface AuthState {
   
   // Actions
   setUser: (user: UserWithToken) => void
+  setToken: (tokenData: TokenData) => void
   logout: () => void
   setLoading: (loading: boolean) => void
   getToken: () => string | null
@@ -59,6 +60,13 @@ export const useAuthStore = create<AuthState>()(
           token: token.access_token,
           refreshToken: token.refresh_token,
           isAuthenticated: true,
+        })
+      },
+      
+      setToken: (tokenData: TokenData) => {
+        set({
+          token: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
         })
       },
       

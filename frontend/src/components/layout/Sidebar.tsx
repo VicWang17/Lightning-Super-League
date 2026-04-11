@@ -1,5 +1,6 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
+import { useState, useEffect } from 'react'
 import { 
   LayoutDashboard, 
   Users, 
@@ -10,20 +11,19 @@ import {
   Zap,
   LogOut
 } from 'lucide-react'
+import { useAuthStore } from '../../stores/auth'
+import api from '../../api/client'
 
-// 当前用户的球队所在的联赛ID（东区超级联赛 - 第一个联赛）
-// 实际应用中应该从用户状态或API获取
-const USER_TEAM_LEAGUE_ID = 'f1efeae9-f824-4a6d-a2a7-d9ce5791b785'
+interface Team {
+  id: string
+  name: string
+  current_league_id: string | null
+  league_name?: string | null
+}
 
 const menuItems = [
   { path: '/dashboard', label: '总览', icon: LayoutDashboard },
   { path: '/team/players', label: '球队', icon: Users },
-  { 
-    path: `/leagues/${USER_TEAM_LEAGUE_ID}`, // 指向用户球队所在的联赛
-    label: '联赛', 
-    icon: Trophy,
-    matchPaths: ['/leagues'] // 匹配所有联赛相关路径
-  },
   { path: '/match/schedule', label: '赛程', icon: CalendarDays },
   { path: '/transfer/market', label: '转会', icon: ArrowLeftRight },
   { path: '/youth', label: '青训', icon: Sprout },
@@ -31,6 +31,33 @@ const menuItems = [
 
 function Sidebar() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
+  const [team, setTeam] = useState<Team | null>(null)
+  const [isLoadingTeam, setIsLoadingTeam] = useState(false)
+  
+  useEffect(() => {
+    // 获取当前用户的球队信息
+    const fetchTeam = async () => {
+      setIsLoadingTeam(true)
+      try {
+        const response = await api.get<Team>('/teams/my-team')
+        if (response.success) {
+          setTeam(response.data)
+        }
+      } catch (error) {
+        // 用户可能没有球队，这是正常的
+        console.log('[Sidebar] 用户没有球队或获取失败')
+      } finally {
+        setIsLoadingTeam(false)
+      }
+    }
+    
+    if (user) {
+      fetchTeam()
+    }
+  }, [user])
   
   // Check if a menu item is active
   const isActive = (item: typeof menuItems[0]) => {
@@ -41,14 +68,19 @@ function Sidebar() {
       return currentPath === '/dashboard'
     }
     
-    // For items with matchPaths, check if current path starts with any of them
-    if ('matchPaths' in item && item.matchPaths) {
-      return item.matchPaths.some(path => currentPath.startsWith(path))
-    }
-    
     // Default: check if current path starts with item path
     return currentPath.startsWith(item.path)
   }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
+  // 获取用户显示名和首字母
+  const displayName = user?.nickname || user?.username || 'Manager'
+  const firstLetter = displayName.charAt(0).toUpperCase()
+  const userLevel = user?.level || 1
 
   return (
     <aside className="w-60 bg-[#12121A] border-r border-[#2D2D44] flex flex-col h-screen sticky top-0">
@@ -81,6 +113,26 @@ function Sidebar() {
               </Link>
             </li>
           ))}
+          
+          {/* 联赛菜单项 - 动态指向用户所在联赛 */}
+          <li>
+            <Link
+              to={team?.current_league_id ? `/leagues/${team.current_league_id}` : '/leagues'}
+              onClick={() => {
+                console.log('[Sidebar] 点击联赛菜单, team=', team, 'current_league_id=', team?.current_league_id)
+              }}
+              className={clsx(
+                'flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200',
+                location.pathname.startsWith('/leagues')
+                  ? 'bg-[#0D7377] text-white shadow-[0_4px_12px_rgba(13,115,119,0.25)]'
+                  : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D]'
+              )}
+            >
+              <Trophy className="w-4 h-4" />
+              <span className="text-sm font-medium">联赛</span>
+              {isLoadingTeam && <span className="ml-auto text-xs text-[#4B4B6A]">加载中...</span>}
+            </Link>
+          </li>
         </ul>
         
         {/* 次级导航 - 查看所有联赛 */}
@@ -104,13 +156,17 @@ function Sidebar() {
       <div className="p-4 border-t border-[#2D2D44]">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#0D4A4D] border border-[#0D7377]/30 flex items-center justify-center">
-            <span className="text-sm font-medium text-white">M</span>
+            <span className="text-sm font-medium text-white">{firstLetter}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Manager</p>
-            <p className="text-xs text-[#4B4B6A]">Lv.12</p>
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            <p className="text-xs text-[#4B4B6A]">Lv.{userLevel}</p>
           </div>
-          <button className="p-1.5 text-[#4B4B6A] hover:text-white transition-colors">
+          <button 
+            onClick={handleLogout}
+            className="p-1.5 text-[#4B4B6A] hover:text-white transition-colors"
+            title="退出登录"
+          >
             <LogOut className="w-4 h-4" />
           </button>
         </div>

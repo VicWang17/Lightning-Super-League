@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { 
   Trophy, 
   ChevronRight, 
@@ -7,7 +7,15 @@ import {
   Swords
 } from 'lucide-react'
 import { useLeagueSystems, useLeagues } from '../../hooks/useLeagues'
+import api from '../../api/client'
 import type { League } from '../../types/league'
+
+// 用户球队类型
+interface UserTeam {
+  id: string
+  name: string
+  current_league_id?: string | null
+}
 
 // 联赛级别配置
 const LEVEL_CONFIG = [
@@ -116,6 +124,34 @@ function SystemSection({ systemCode, systemName, description }: { systemCode: st
 function LeagueList() {
   const { systems, loading: systemsLoading } = useLeagueSystems()
   const [selectedSystem, setSelectedSystem] = useState<string | null>(null)
+  const [userLeagueId, setUserLeagueId] = useState<string | null>(null)
+  const location = useLocation()
+  
+  // 判断是否是"所有联赛"页面
+  const isAllLeaguesPage = location.pathname === '/leagues/all'
+  
+  // 获取用户球队所在联赛ID
+  useEffect(() => {
+    console.log('[LeagueList] 开始获取用户球队信息...')
+    api.get<UserTeam>('/teams/my-team').then(response => {
+      console.log('[LeagueList] API 响应:', response)
+      if (response.success && response.data.current_league_id) {
+        console.log('[LeagueList] 设置 league_id:', response.data.current_league_id)
+        setUserLeagueId(response.data.current_league_id)
+      } else {
+        console.log('[LeagueList] 没有 current_league_id, response:', response)
+      }
+    }).catch(error => {
+      console.error('[LeagueList] 获取球队信息失败:', error)
+    })
+  }, [])
+  
+  // 如果不是"所有联赛"页面，且已获取到联赛ID，直接导航到当前联赛
+  console.log('[LeagueList] 检查重定向: isAllLeaguesPage=', isAllLeaguesPage, 'userLeagueId=', userLeagueId)
+  if (!isAllLeaguesPage && userLeagueId) {
+    console.log('[LeagueList] 执行重定向到:', `/leagues/${userLeagueId}`)
+    return <Navigate to={`/leagues/${userLeagueId}`} replace />
+  }
   
   const filteredSystems = selectedSystem 
     ? systems.filter(s => s.code === selectedSystem)

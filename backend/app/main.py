@@ -8,28 +8,33 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.dependencies import engine, redis_client
-from app.routers import (
-    health,
-    auth,
-    users,
-    teams,
-    players,
-    leagues,
-    matches,
-)
+from app.core.logging import setup_logging, get_logger
+from app.core.middleware import LoggingMiddleware, ProcessTimeHeader
+from app.routers.health import router as health_router
+from app.routers.auth import router as auth_router
+from app.routers.users import router as users_router
+from app.routers.teams import router as teams_router
+from app.routers.players import router as players_router
+from app.routers.leagues import router as leagues_router
+from app.routers.matches import router as matches_router
+from app.routers.seasons import router as seasons_router
 
 settings = get_settings()
+
+# 配置日志
+setup_logging(debug=settings.DEBUG)
+logger = get_logger("app")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     # Startup
-    print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    print(f"📚 API Documentation: http://localhost:8000/docs")
+    logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"📚 API Documentation: http://localhost:8000/docs")
     yield
     # Shutdown
-    print("👋 Shutting down...")
+    logger.info("👋 Shutting down...")
     await engine.dispose()
     await redis_client.close()
 
@@ -50,6 +55,7 @@ app = FastAPI(
         {"name": "球员", "description": "球员管理"},
         {"name": "联赛", "description": "联赛信息、积分榜、赛程"},
         {"name": "比赛", "description": "比赛数据、直播、统计"},
+        {"name": "赛季", "description": "赛季管理、赛程生成、比赛调度"},
     ],
 )
 
@@ -62,15 +68,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 请求日志中间件
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(ProcessTimeHeader)
+
 
 # Include routers
-app.include_router(health.router)
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(users.router, prefix="/api/v1")
-app.include_router(teams.router, prefix="/api/v1")
-app.include_router(players.router, prefix="/api/v1")
-app.include_router(leagues.router, prefix="/api/v1")
-app.include_router(matches.router, prefix="/api/v1")
+app.include_router(health_router)
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1")
+app.include_router(teams_router, prefix="/api/v1")
+app.include_router(players_router, prefix="/api/v1")
+app.include_router(leagues_router, prefix="/api/v1")
+app.include_router(matches_router, prefix="/api/v1")
+app.include_router(seasons_router, prefix="/api/v1")
 
 
 @app.get("/")

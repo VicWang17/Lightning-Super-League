@@ -1,4 +1,4 @@
-.PHONY: help infra-up infra-down infra-logs frontend backend dev
+.PHONY: help infra-up infra-down infra-logs frontend backend dev init-system init-season
 
 # 默认显示帮助
 help:
@@ -8,6 +8,10 @@ help:
 	@echo "  make infra-up      启动 MySQL + Redis"
 	@echo "  make infra-down    停止基础设施"
 	@echo "  make infra-logs    查看基础设施日志"
+	@echo ""
+	@echo "系统初始化:"
+	@echo "  make init-system   初始化基础数据（联赛、球队、用户、球员）"
+	@echo "  make init-season   创建新赛季（赛程、积分榜）"
 	@echo ""
 	@echo "本地开发:"
 	@echo "  make frontend      启动前端 (npm run dev)"
@@ -24,6 +28,21 @@ infra-up:
 	@echo "✅ MySQL 和 Redis 已启动"
 	@echo "   MySQL: localhost:3306"
 	@echo "   Redis: localhost:6379"
+
+# 系统初始化（删除所有数据并重新创建基础数据，不创建赛季）
+init-system:
+	@echo "⚡ 正在初始化系统基础数据..."
+	cd backend && python -m scripts.init_system
+	@echo "✅ 系统基础数据初始化完成"
+	@echo ""
+	@echo "下一步: 创建赛季和赛程"
+	@echo "   make init-season"
+
+# 赛季初始化（创建新赛季和完整赛程）
+init-season:
+	@echo "⚡ 正在初始化赛季..."
+	cd backend && python -m scripts.init_season
+	@echo "✅ 赛季初始化完成"
 
 infra-down:
 	docker-compose -f docker-compose.infra.yml down

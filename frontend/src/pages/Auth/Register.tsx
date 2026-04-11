@@ -55,7 +55,7 @@ export default function Register() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#8B8BA7]">密码：</span>
-                <span className="text-[#E2E2F0] font-mono">123456</span>
+                <span className="text-[#E2E2F0] font-mono">ai_password</span>
               </div>
             </div>
           </div>

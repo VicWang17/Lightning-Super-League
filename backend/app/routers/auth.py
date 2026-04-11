@@ -143,20 +143,73 @@ async def login(
     summary="刷新令牌",
     description="使用刷新令牌获取新的访问令牌",
 )
-async def refresh_token(refresh_token: str):
+async def refresh_token(
+    refresh_token: str,
+    db: AsyncSession = Depends(get_db)
+):
     """
     刷新访问令牌
     
     - **refresh_token**: 刷新令牌
     """
-    # TODO: 实现令牌刷新逻辑
+    from app.core.security import decode_token
+    
+    # 验证 refresh token
+    payload = decode_token(refresh_token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的刷新令牌",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 检查 token 类型
+    token_type = payload.get("type")
+    if token_type != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的令牌类型",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 获取用户 ID
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的令牌内容",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 查询用户是否存在
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(int(user_id))
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在",
+        )
+    
+    # 检查用户状态
+    if user.status.value == "banned":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="账号已被封禁",
+        )
+    
+    # 生成新的 token
+    token_data = {"sub": str(user.id), "email": user.email}
+    new_access_token = create_access_token(token_data)
+    new_refresh_token = create_refresh_token(token_data)
+    
     return ResponseSchema(
         success=True,
         message="令牌刷新成功",
         data=TokenResponse(
-            access_token="new_access_token",
-            refresh_token="new_refresh_token",
-            expires_in=1800,
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            expires_in=1800,  # 30分钟
         ),
     )
 

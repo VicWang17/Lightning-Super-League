@@ -77,57 +77,10 @@ class League(Base):
     system: Mapped["LeagueSystem"] = relationship("LeagueSystem", back_populates="leagues")
     teams: Mapped[list["Team"]] = relationship("Team", back_populates="league")
     standings: Mapped[list["LeagueStanding"]] = relationship("LeagueStanding", back_populates="league")
-    matches: Mapped[list["Match"]] = relationship("Match", back_populates="league")
+    fixtures: Mapped[list["Fixture"]] = relationship("Fixture")
     
     def __repr__(self) -> str:
         return f"<League(id={self.id}, name={self.name}, level={self.level})>"
-
-
-# ==================== 赛季 ====================
-
-class SeasonStatus(str, PyEnum):
-    """Season status enumeration"""
-    UPCOMING = "upcoming"      # 即将开始
-    ONGOING = "ongoing"        # 进行中
-    COMPLETED = "completed"    # 已结束
-
-
-class Season(Base):
-    """Season model - 赛季表
-    
-    说明：
-    - 命名：S1, S2, S3...
-    - 单赛季时长：42天
-    - 时间：精确到0点 (UTC)
-    """
-    __tablename__ = "seasons"
-    
-    name: Mapped[str] = mapped_column(String(50), nullable=False)  # 如 "S1", "S2"
-    
-    # 时间（精确到0点）
-    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)  # 赛季开始 00:00
-    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)    # 赛季结束 00:00
-    
-    # 状态
-    status: Mapped[SeasonStatus] = mapped_column(
-        Enum(SeasonStatus),
-        default=SeasonStatus.UPCOMING,
-        nullable=False,
-        index=True
-    )
-    
-    # 转会窗口
-    transfer_window_open: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    transfer_window_start: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    transfer_window_end: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    
-    # 关联关系
-    teams: Mapped[list["Team"]] = relationship("Team", back_populates="season")
-    standings: Mapped[list["LeagueStanding"]] = relationship("LeagueStanding", back_populates="season")
-    matches: Mapped[list["Match"]] = relationship("Match", back_populates="season")
-    
-    def __repr__(self) -> str:
-        return f"<Season(id={self.id}, name={self.name}, status={self.status})>"
 
 
 # ==================== 积分榜 ====================
@@ -190,7 +143,7 @@ class LeagueStanding(Base):
     
     # 关联关系
     league: Mapped["League"] = relationship("League", back_populates="standings")
-    season: Mapped["Season"] = relationship("Season", back_populates="standings")
+    # 注意：season关系在新season.py中定义，这里只保留外键
     team: Mapped["Team"] = relationship("Team", back_populates="standing")
     
     def __repr__(self) -> str:
@@ -201,91 +154,3 @@ class LeagueStanding(Base):
         return self.goals_for - self.goals_against
 
 
-# ==================== 比赛 ====================
-
-class MatchStatus(str, PyEnum):
-    """Match status enumeration"""
-    SCHEDULED = "scheduled"    # 已安排
-    ONGOING = "ongoing"        # 进行中
-    FINISHED = "finished"      # 已结束
-    POSTPONED = "postponed"    # 推迟
-    CANCELLED = "cancelled"    # 取消
-
-
-class Match(Base):
-    """Match model - 比赛表
-    
-    说明：
-    - 联赛比赛：每个联赛体系每赛季240场比赛（30场×16队÷2）
-    - 全服4个体系共960场联赛比赛
-    - 杯赛暂时不做
-    """
-    __tablename__ = "matches"
-    
-    # 外键 - 赛季和联赛
-    season_id: Mapped[str] = mapped_column(
-        ForeignKey("seasons.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
-    )
-    league_id: Mapped[str] = mapped_column(
-        ForeignKey("leagues.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
-    )
-    
-    # 轮次
-    matchday: Mapped[int] = mapped_column(Integer, nullable=False, index=True)  # 第几轮
-    
-    # 对阵双方
-    home_team_id: Mapped[str] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
-    )
-    away_team_id: Mapped[str] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
-    )
-    
-    # 比分
-    home_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    
-    # 状态
-    status: Mapped[MatchStatus] = mapped_column(
-        Enum(MatchStatus),
-        default=MatchStatus.SCHEDULED,
-        nullable=False,
-        index=True
-    )
-    
-    # 比赛时间
-    scheduled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    
-    # 比赛统计（赛后填充）
-    home_possession: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 主队控球率
-    away_possession: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 客队控球率
-    home_shots: Mapped[int | None] = mapped_column(Integer, nullable=True)       # 主队射门
-    away_shots: Mapped[int | None] = mapped_column(Integer, nullable=True)       # 客队射门
-    home_shots_on_target: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 主队射正
-    away_shots_on_target: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 客队射正
-    
-    # MVP
-    mvp_player_id: Mapped[str | None] = mapped_column(
-        ForeignKey("players.id", ondelete="SET NULL"),
-        nullable=True
-    )
-    
-    # 关联关系
-    season: Mapped["Season"] = relationship("Season", back_populates="matches")
-    league: Mapped["League"] = relationship("League", back_populates="matches")
-    home_team: Mapped["Team"] = relationship("Team", foreign_keys=[home_team_id], back_populates="home_matches")
-    away_team: Mapped["Team"] = relationship("Team", foreign_keys=[away_team_id], back_populates="away_matches")
-    mvp_player: Mapped["Player"] = relationship("Player")
-    
-    def __repr__(self) -> str:
-        return f"<Match(id={self.id}, matchday={self.matchday}, {self.home_team_id} vs {self.away_team_id})>"

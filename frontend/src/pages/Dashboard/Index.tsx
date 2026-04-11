@@ -16,37 +16,24 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../../api/client'
+import { useAuthStore } from '../../stores/auth'
 import type { League } from '../../types/league'
 
-// Mock user team data - in real app, this would come from auth context or API
-const MOCK_USER_TEAM = {
-  id: '1',
-  name: '东方巨龙',
-  short_name: '巨龙',
-  reputation: 1800,
-  overall_rating: 72,
-  attack: 74,
-  midfield: 70,
-  defense: 71,
-  league_position: 3,
-  points: 24,
-  played: 11,
-  won: 8,
-  drawn: 0,
-  lost: 3,
-  goals_for: 26,
-  goals_against: 14,
-  form: 'WWDLW',
-  league_id: '1', // 东区超级联赛
-  next_match: {
-    opponent: '南海蛟龙',
-    is_home: true,
-    date: '2天后',
-    time: '20:00'
-  }
+// 球队类型定义
+interface Team {
+  id: string
+  name: string
+  short_name?: string
+  reputation: number
+  overall_rating: number
+  attack: number
+  midfield: number
+  defense: number
+  league_id?: string
+  league_name?: string
 }
 
-// Mock recent matches
+// Mock recent matches - TODO: 从API获取真实数据
 const MOCK_RECENT_MATCHES = [
   { opponent: '紫电龙骑', result: 'W' as const, score: '3:1', date: '2天前', is_home: true },
   { opponent: '青龙偃月', result: 'W' as const, score: '2:0', date: '5天前', is_home: false },
@@ -210,35 +197,71 @@ function LeagueCard({ league }: { league: League }) {
 
 function Dashboard() {
   const [leagues, setLeagues] = useState<League[]>([])
+  const [team, setTeam] = useState<Team | null>(null)
   const [loading, setLoading] = useState(true)
+  const user = useAuthStore((state) => state.user)
 
   useEffect(() => {
-    const fetchLeagues = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get<League[]>('/leagues')
-        if (response.success) {
-          // Only show top 4 leagues (one from each system, level 1)
-          const topLeagues = response.data.filter(l => l.level === 1).slice(0, 4)
+        // 获取联赛列表
+        const leaguesResponse = await api.get<League[]>('/leagues')
+        if (leaguesResponse.success) {
+          const topLeagues = leaguesResponse.data.filter(l => l.level === 1).slice(0, 4)
           setLeagues(topLeagues)
         }
+
+        // 获取当前用户的球队
+        const teamResponse = await api.get<Team>('/teams/my-team')
+        if (teamResponse.success) {
+          setTeam(teamResponse.data)
+        }
       } catch (error) {
-        console.error('Failed to fetch leagues:', error)
+        console.error('Failed to fetch data:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchLeagues()
+    fetchData()
   }, [])
 
-  const team = MOCK_USER_TEAM
+  // 如果没有获取到球队，使用占位数据
+  const displayTeam: Team = team || {
+    id: '1',
+    name: user?.nickname || '我的球队',
+    reputation: 1000,
+    overall_rating: 50,
+    attack: 50,
+    midfield: 50,
+    defense: 50,
+    league_id: undefined,
+    league_name: undefined,
+  }
+
+  // 临时计算字段（等待真实数据API）
+  const league_position = 3
+  const points = 24
+  const played = 11
+  const won = 8
+  const drawn = 0
+  const lost = 3
+  const goals_for = 26
+  const goals_against = 14
+  const form = 'WWDLW'
+  const next_match = {
+    opponent: '下场比赛',
+    is_home: true,
+    date: '2天后',
+    time: '20:00'
+  }
 
   return (
     <div className="space-y-6 max-w-[1600px]">
       {/* 欢迎区域 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">欢迎回来，经理</h1>
+          <h1 className="text-2xl font-bold text-white">欢迎回来，{user?.nickname || '经理'}</h1>
           <p className="text-sm text-[#8B8BA7] mt-1">以下是您球队的最新概况</p>
         </div>
         <Link 
@@ -254,32 +277,32 @@ function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           label="联赛排名" 
-          value={`#${team.league_position}`}
-          subtext={`${team.points} 积分 · ${team.played} 场次`}
+          value={`#${league_position}`}
+          subtext={`${points} 积分 · ${played} 场次`}
           trend="up"
           trendValue="↑ 2"
           icon={Trophy}
         />
         <StatCard 
           label="本赛季战绩" 
-          value={`${team.won}-${team.drawn}-${team.lost}`}
+          value={`${won}-${drawn}-${lost}`}
           subtext="胜 - 平 - 负"
           trend="up"
-          trendValue={`${Math.round((team.won / team.played) * 100)}%`}
+          trendValue={`${Math.round((won / played) * 100)}%`}
           icon={Swords}
         />
         <StatCard 
           label="球队总评" 
-          value={team.overall_rating.toString()}
-          subtext={`进攻 ${team.attack} · 防守 ${team.defense}`}
+          value={displayTeam.overall_rating.toString()}
+          subtext={`进攻 ${displayTeam.attack} · 防守 ${displayTeam.defense}`}
           trend="neutral"
           trendValue="-"
           icon={Zap}
         />
         <StatCard 
           label="净胜球" 
-          value={`+${team.goals_for - team.goals_against}`}
-          subtext={`${team.goals_for} 进球 · ${team.goals_against} 失球`}
+          value={`+${goals_for - goals_against}`}
+          subtext={`${goals_for} 进球 · ${goals_against} 失球`}
           trend="up"
           trendValue="+3"
           icon={Target}
@@ -307,26 +330,26 @@ function Dashboard() {
                 <span className="text-3xl">🐉</span>
               </div>
               <div className="flex-1">
-                <h2 className="text-2xl font-bold">{team.name}</h2>
-                <p className="text-sm text-[#8B8BA7] mt-1">声望值 {team.reputation} · 东区超级联赛</p>
+                <h2 className="text-2xl font-bold">{displayTeam.name}</h2>
+                <p className="text-sm text-[#8B8BA7] mt-1">声望值 {displayTeam.reputation} · 东区超级联赛</p>
                 <div className="flex items-center gap-4 mt-3">
                   <div className="flex items-center gap-1.5 text-sm">
                     <Target className="w-4 h-4 text-red-400" />
-                    <span>进攻 {team.attack}</span>
+                    <span>进攻 {displayTeam.attack}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm">
                     <Zap className="w-4 h-4 text-[#0D7377]" />
-                    <span>中场 {team.midfield}</span>
+                    <span>中场 {displayTeam.midfield}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm">
                     <Shield className="w-4 h-4 text-emerald-400" />
-                    <span>防守 {team.defense}</span>
+                    <span>防守 {displayTeam.defense}</span>
                   </div>
                 </div>
               </div>
               <div className="hidden md:block">
                 <p className="text-xs text-[#8B8BA7] mb-2">近期状态</p>
-                <FormIndicator form={team.form} />
+                <FormIndicator form={form} />
               </div>
             </div>
 
@@ -335,28 +358,28 @@ function Dashboard() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[#8B8BA7]">进攻</span>
-                  <span className="text-sm font-medium stat-number">{team.attack}</span>
+                  <span className="text-sm font-medium stat-number">{displayTeam.attack}</span>
                 </div>
                 <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${team.attack}%` }} />
+                  <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${displayTeam.attack}%` }} />
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[#8B8BA7]">中场</span>
-                  <span className="text-sm font-medium stat-number">{team.midfield}</span>
+                  <span className="text-sm font-medium stat-number">{displayTeam.midfield}</span>
                 </div>
                 <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[#0D7377] to-[#14A085] rounded-full" style={{ width: `${team.midfield}%` }} />
+                  <div className="h-full bg-gradient-to-r from-[#0D7377] to-[#14A085] rounded-full" style={{ width: `${displayTeam.midfield}%` }} />
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[#8B8BA7]">防守</span>
-                  <span className="text-sm font-medium stat-number">{team.defense}</span>
+                  <span className="text-sm font-medium stat-number">{displayTeam.defense}</span>
                 </div>
                 <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{ width: `${team.defense}%` }} />
+                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{ width: `${displayTeam.defense}%` }} />
                 </div>
               </div>
             </div>
@@ -427,19 +450,19 @@ function Dashboard() {
                 <div className="w-14 h-14 rounded-xl bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
                   <span className="text-2xl">🐉</span>
                 </div>
-                <p className="text-sm font-medium truncate">{team.name}</p>
+                <p className="text-sm font-medium truncate">{displayTeam.name}</p>
                 <p className="text-xs text-[#8B8BA7]">主</p>
               </div>
               <div className="text-center px-4">
                 <p className="text-2xl font-bold stat-number text-[#0D7377]">VS</p>
-                <p className="text-xs text-[#4B4B6A] mt-1">{team.next_match.date}</p>
-                <p className="text-xs text-[#0D7377]">{team.next_match.time}</p>
+                <p className="text-xs text-[#4B4B6A] mt-1">{next_match.date}</p>
+                <p className="text-xs text-[#0D7377]">{next_match.time}</p>
               </div>
               <div className="text-center flex-1">
                 <div className="w-14 h-14 rounded-xl bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
                   <span className="text-2xl">🌊</span>
                 </div>
-                <p className="text-sm font-medium truncate">{team.next_match.opponent}</p>
+                <p className="text-sm font-medium truncate">{next_match.opponent}</p>
                 <p className="text-xs text-[#8B8BA7]">客</p>
               </div>
             </div>
@@ -473,8 +496,8 @@ function Dashboard() {
               <QuickAction 
                 icon={Trophy} 
                 label="查看排名" 
-                desc="联赛积分榜和射手榜"
-                to={`/leagues/${team.league_id}`}
+                desc={displayTeam.league_id ? "联赛积分榜和射手榜" : "请先加入联赛"}
+                to={displayTeam.league_id ? `/leagues/${displayTeam.league_id}` : '/leagues'}
               />
               <QuickAction 
                 icon={Calendar} 

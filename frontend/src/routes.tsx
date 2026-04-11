@@ -15,10 +15,10 @@ import TeamDetail from './pages/Team/Detail'
 import PlayerDetail from './pages/Team/PlayerDetail'
 
 // Match Pages
+import Schedule from './pages/Match/Schedule'
 const LiveMatch = () => <div>Live Match Page (待实现)</div>
 const PreMatch = () => <div>Pre Match Page (待实现)</div>
 const PostMatch = () => <div>Post Match Page (待实现)</div>
-const Schedule = () => <div>Schedule Page (待实现)</div>
 
 // Transfer Pages
 const TransferMarket = () => <div>Transfer Market Page (待实现)</div>
@@ -157,6 +157,10 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: '',
+                element: <LeagueList />,
+              },
+              {
+                path: 'all',
                 element: <LeagueList />,
               },
               {
