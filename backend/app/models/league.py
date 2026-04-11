@@ -4,7 +4,7 @@ League models - 联赛体系相关模型
 from datetime import datetime, date
 from enum import Enum as PyEnum
 
-from sqlalchemy import String, Integer, ForeignKey, DateTime, Enum, Boolean, Date, Text
+from sqlalchemy import String, Integer, ForeignKey, DateTime, Enum, Boolean, Date, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -95,9 +95,9 @@ class LeagueStanding(Base):
     """
     __tablename__ = "league_standings"
     
-    # 联合唯一约束
+    # 联合唯一约束：每支球队每个赛季只有一条记录
     __table_args__ = (
-        # 每支球队每个赛季只有一条记录
+        UniqueConstraint('season_id', 'team_id', name='uix_season_team'),
     )
     
     # 外键
@@ -113,8 +113,7 @@ class LeagueStanding(Base):
     )
     team_id: Mapped[str] = mapped_column(
         ForeignKey("teams.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True  # 每支球队在当前赛季只有一条积分榜记录
+        nullable=False
     )
     
     # 排名

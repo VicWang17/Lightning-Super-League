@@ -89,6 +89,8 @@ class SeasonService:
         if season.status != SeasonStatus.ONGOING:
             raise ValueError(f"Season is not ongoing: {season.status}")
         
+        next_day = season.current_day + 1
+        
         # 获取当天比赛
         fixtures = await self.scheduler.process_matchday(season)
         
@@ -96,7 +98,7 @@ class SeasonService:
         results = []
         for fixture in fixtures:
             result = await self.simulator.simulate(fixture)
-            await self.simulator.apply_result(fixture, result)
+            await self.simulator.apply_result(fixture, result, self.db)
             results.append({
                 "fixture_id": fixture.id,
                 "type": fixture.fixture_type.value,

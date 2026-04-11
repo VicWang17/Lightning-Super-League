@@ -1,13 +1,15 @@
 """
 Match simulator interface - 比赛模拟接口
-
-现在只提供接口占位，后续实现完整比赛模拟逻辑
 """
+import random
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from app.models.season import Fixture, FixtureStatus
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.season import Fixture, FixtureStatus, FixtureType
+from app.services.standing_service import StandingService
 
 
 @dataclass
@@ -31,20 +33,7 @@ class MatchSimulator:
     
     @staticmethod
     async def simulate(fixture: Fixture) -> MatchResult:
-        """
-        模拟单场比赛
-        
-        现在只返回占位结果，后续实现完整逻辑：
-        - 读取双方球队数据
-        - 计算实力对比
-        - 模拟比赛过程
-        - 生成比赛事件
-        - 返回完整结果
-        """
-        # TODO: 实现真实比赛模拟
-        # 现在返回随机比分作为占位
-        import random
-        
+        """模拟单场比赛 - 纯随机比分"""
         home_score = random.randint(0, 4)
         away_score = random.randint(0, 4)
         
@@ -58,15 +47,27 @@ class MatchSimulator:
             away_shots=random.randint(5, 20),
             home_shots_on_target=random.randint(2, 10),
             away_shots_on_target=random.randint(2, 10),
-            mvp_player_id=None,  # TODO: 选择MVP
+            mvp_player_id=None,
             events=[]
         )
     
     @staticmethod
-    async def apply_result(fixture: Fixture, result: MatchResult) -> None:
-        """将比赛结果应用到Fixture"""
+    async def apply_result(
+        fixture: Fixture, 
+        result: MatchResult, 
+        db: AsyncSession = None
+    ) -> None:
+        """将比赛结果应用到Fixture并更新积分榜"""
         fixture.home_score = result.home_score
         fixture.away_score = result.away_score
         fixture.status = FixtureStatus.FINISHED
         fixture.finished_at = datetime.utcnow()
-        # TODO: 更新积分榜、杯赛晋级等
+        
+        # 更新积分榜（联赛比赛）
+        if db and fixture.fixture_type == FixtureType.LEAGUE:
+            standing_service = StandingService(db)
+            await standing_service.update_from_fixture(fixture)
+            # 重新计算排名
+            await standing_service.recalculate_positions(
+                fixture.league_id, fixture.season_id
+            )

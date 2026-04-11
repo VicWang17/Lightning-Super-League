@@ -232,10 +232,13 @@ class JennyCupGenerator:
         for league in tier3_leagues:
             tier3_teams.extend(league)
         
-        # 第1轮：三级球队随机配对
+        # 第1轮：三级球队随机配对（需要偶数支球队）
         random.shuffle(tier3_teams)
         round1_matches = []
-        for i in range(64):
+        # 使用实际拥有的三级球队数，但不超过128支（64场）
+        num_teams = min(len(tier3_teams), 128)
+        num_teams = num_teams // 2 * 2  # 确保是偶数
+        for i in range(num_teams // 2):
             round1_matches.append(MatchPair(tier3_teams[i*2], tier3_teams[i*2+1]))
         
         # 后续淘汰赛占位
