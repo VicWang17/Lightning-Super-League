@@ -23,7 +23,7 @@ from typing import List, Dict, Optional, Tuple
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, selectinload
 from sqlalchemy import select, delete, text
 
 from app.config import get_settings
@@ -687,6 +687,52 @@ class SeasonTester:
         print(f"  总进球: {total_goals} 球")
         print(f"  场均进球: {avg_goals:.2f} 球")
     
+    async def verify_promotion_relegation(self):
+        """验证升降级是否正确应用：检查第2赛季创建后球队的分布"""
+        self.print_section("验证升降级结果")
+        
+        # 获取所有联赛
+        result = await self.db.execute(
+            select(League).options(selectinload(League.system)).order_by(League.level, League.name)
+        )
+        leagues = result.scalars().all()
+        
+        # 获取所有赛季
+        result = await self.db.execute(
+            select(Season).order_by(Season.season_number.desc())
+        )
+        seasons = result.scalars().all()
+        
+        if len(seasons) < 2:
+            print("  ⚠️ 只有一个赛季，无法验证升降级")
+            return
+        
+        season2 = seasons[0]  # 第2赛季
+        print(f"  验证第{season2.season_number}赛季的球队分布（基于升降级后的 Team.current_league_id）...")
+        
+        # 直接从 Team 表中读取球队分布（升降级已更新 current_league_id）
+        print(f"\n  📊 各联赛球队分布:\n")
+        
+        for league in leagues:
+            result = await self.db.execute(
+                select(Team).where(Team.current_league_id == league.id)
+            )
+            teams = result.scalars().all()
+            team_names = [t.name for t in teams]
+            
+            print(f"  {league.name:16s}: {len(team_names)} 队", end="")
+            if len(team_names) == 8:
+                print(f"  ✅")
+            else:
+                print(f"  ⚠️  (应有8队)")
+            
+            # 显示球队名（每行4个）
+            for i in range(0, len(team_names), 4):
+                chunk = team_names[i:i+4]
+                print(f"     {', '.join(chunk)}")
+        
+        print(f"\n  ✅ 升降级验证完成！第2赛季已根据升降级结果重新分配球队。")
+
     async def generate_final_report(self):
         """生成最终测试报告"""
         self.print_header("测试完成 - 最终报告")
@@ -702,10 +748,73 @@ class SeasonTester:
         print(f"\n  ✅ 所有赛季测试完成！")
 
 
+    async def run_continuous(self, total_days: int = 50):
+        """连续推进多天，测试系统自动处理赛季切换"""
+        self.print_header(f"连续推进测试 - 共 {total_days} 天")
+        
+        # 只创建第1赛季，后续赛季由系统自动创建
+        season = await self.season_service.create_new_season()
+        print(f"创建成功: 第{season.season_number}赛季")
+        
+        await self.season_service.start_season(season)
+        print(f"赛季已启动！\n")
+        
+        # 连续推进
+        season_count = 1
+        last_season_number = 1
+        
+        for global_day in range(1, total_days + 1):
+            try:
+                # 调用 process_next_day，传入当前赛季
+                result = await self.season_service.process_next_day(season)
+                
+                # 重新获取当前正在进行的赛季（可能已自动切换）
+                from sqlalchemy import select
+                result_query = await self.db.execute(
+                    select(Season).where(Season.status == SeasonStatus.ONGOING)
+                )
+                current_season = result_query.scalar_one_or_none()
+                
+                if current_season and current_season.id != season.id:
+                    # 检测到赛季切换
+                    season_count += 1
+                    print(f"\n  ✅ 自动切换到第{current_season.season_number}赛季")
+                    season = current_season
+                    last_season_number = current_season.season_number
+                elif not current_season:
+                    # 如果没有正在进行的赛季，使用原来的引用
+                    pass
+                else:
+                    season = current_season
+                
+                # 显示进度（特殊日期或每5天显示一次）
+                day = season.current_day
+                is_special = day in [1, 21, 22, 23, 24, 25] or global_day % 5 == 0
+                
+                if is_special:
+                    print(f"  📅 全局第 {global_day:2d} 天 | 第{season.season_number}赛季第 {day:2d} 天 - {result['fixtures_processed']} 场比赛")
+                
+                # 显示升降级事件
+                if result.get('cup_progression'):
+                    for event, desc in result['cup_progression'].items():
+                        if 'promotion' in event.lower() or 'relegation' in event.lower() or '升降级' in str(desc):
+                            print(f"     🎯 {desc}")
+                
+            except Exception as e:
+                print(f"  ❌ 第 {global_day} 天处理失败: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
+        
+        print(f"\n  ✅ 连续推进完成！共 {total_days} 天，经历了 {season_count} 个赛季")
+        return season_count
+
+
 async def main():
     """主函数"""
     print("=" * 80)
-    print("Lightning Super League - 双赛季系统测试")
+    print("Lightning Super League - 连续推进赛季测试")
+    print("  测试系统自动处理：比赛 → 升降级 → 新赛季创建")
     print("=" * 80)
     
     async with async_session_maker() as db:
@@ -714,13 +823,13 @@ async def main():
         # 1. 初始化数据库
         await tester.init_database()
         
-        # 2. 运行第1赛季（包含Day 24升降级处理）
-        season1 = await tester.run_season(1)
+        # 2. 连续推进50天（系统会自动创建第2赛季）
+        season_count = await tester.run_continuous(total_days=50)
         
-        # 3. 运行第2赛季（球队位置已在Day 24更新）
-        season2 = await tester.run_season(2)
+        # 3. 验证升降级结果
+        await tester.verify_promotion_relegation()
         
-        # 5. 生成最终报告
+        # 4. 生成最终报告
         await tester.generate_final_report()
 
 

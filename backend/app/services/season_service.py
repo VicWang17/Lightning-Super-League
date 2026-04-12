@@ -46,7 +46,7 @@ class SeasonService:
         """创建新赛季"""
         # 获取上一个赛季编号
         result = await self.db.execute(
-            select(Season).order_by(Season.season_number.desc())
+            select(Season).order_by(Season.season_number.desc()).limit(1)
         )
         last_season = result.scalar_one_or_none()
         next_season_number = (last_season.season_number + 1) if last_season else 1
@@ -87,7 +87,28 @@ class SeasonService:
         await self.scheduler.start_season(season)
     
     async def process_next_day(self, season: Season) -> Dict:
-        """处理下一天的比赛"""
+        """处理下一天的比赛
+        
+        如果当前赛季已结束（current_day >= total_days），
+        自动创建并切换到新赛季
+        """
+        # 检测是否需要自动创建新赛季
+        if season.current_day >= season.total_days:
+            print(f"\n  🔄 第{season.season_number}赛季已结束，自动创建新赛季...")
+            
+            # 结束当前赛季
+            season.status = SeasonStatus.FINISHED
+            await self.db.commit()
+            
+            # 创建新赛季
+            new_season = await self.create_new_season()
+            await self.start_season(new_season)
+            
+            print(f"  ✅ 第{new_season.season_number}赛季已启动！\n")
+            
+            # 递归调用以处理新赛季的第一天
+            return await self.process_next_day(new_season)
+        
         if season.status != SeasonStatus.ONGOING:
             raise ValueError(f"Season is not ongoing: {season.status}")
         
