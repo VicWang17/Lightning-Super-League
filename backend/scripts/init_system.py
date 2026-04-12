@@ -52,9 +52,16 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def generate_user_email(system_code: str, league_level: int, index: int) -> str:
-    """生成AI用户邮箱"""
-    return f"ai_{system_code.lower()}_l{league_level}_{index:03d}@lightning.dev"
+def generate_user_email(system_code: str, league_level: int, league_index: int, index: int) -> str:
+    """生成AI用户邮箱
+    
+    Args:
+        system_code: 体系代码 (EAST/WEST/SOUTH/NORTH)
+        league_level: 联赛级别 (1/2/3/4)
+        league_index: 同级别联赛的索引 (1/2/...)
+        index: 球队在联赛中的索引 (1-8)
+    """
+    return f"ai_{system_code.lower()}_l{league_level}_{league_index}_{index:03d}@lightning.dev"
 
 
 def generate_user_username(team_name: str) -> str:
@@ -96,7 +103,7 @@ async def init_league_systems(db: AsyncSession) -> dict:
             name=data["name"],
             code=code,
             description=data["description"],
-            max_teams_per_league=16
+            max_teams_per_league=8
         )
         db.add(system)
         await db.flush()
@@ -112,25 +119,40 @@ async def init_leagues(db: AsyncSession, systems: dict) -> dict:
     print("\n📋 初始化联赛...")
     
     leagues = {}
+    
     for system_code, system_data in LEAGUE_SYSTEMS.items():
         system = systems[system_code]
         
+        # 按级别分组计数器
+        level_counters = {1: 0, 2: 0, 3: 0, 4: 0}
+        
         for league_data in system_data["leagues"]:
             level = league_data["level"]
+            level_counters[level] += 1
             
-            # 根据级别设置升降级规则
+            # 根据级别设置升降级规则（新赛制：8队联赛）
+            # 规则：冠军直升，最后1名直降，附加赛决定第2个名额
             if level == 1:
+                # 顶级联赛：无升级，最后1名降级，第7名参加附加赛
                 promotion_spots = 0
-                relegation_spots = 4
-                has_promotion_playoff = False
-                has_relegation_playoff = False
-            elif level == 2:
-                promotion_spots = 4
-                relegation_spots = 4
+                relegation_spots = 1
                 has_promotion_playoff = False
                 has_relegation_playoff = True
-            else:
-                promotion_spots = 3 if level == 3 else 1
+            elif level == 2:
+                # 次级联赛：冠军直升，最后2名降级，第2名参加附加赛
+                promotion_spots = 1
+                relegation_spots = 2
+                has_promotion_playoff = True
+                has_relegation_playoff = False
+            elif level == 3:
+                # 三级联赛：冠军直升，无直降，亚军参加附加赛
+                promotion_spots = 1
+                relegation_spots = 0
+                has_promotion_playoff = True
+                has_relegation_playoff = False
+            else:  # level == 4
+                # 四级联赛：冠军直升，无直降，亚军参加附加赛
+                promotion_spots = 1
                 relegation_spots = 0
                 has_promotion_playoff = True
                 has_relegation_playoff = False
@@ -139,7 +161,7 @@ async def init_leagues(db: AsyncSession, systems: dict) -> dict:
                 name=league_data["name"],
                 level=level,
                 system_id=system.id,
-                max_teams=16,
+                max_teams=8,
                 promotion_spots=promotion_spots,
                 relegation_spots=relegation_spots,
                 has_promotion_playoff=has_promotion_playoff,
@@ -148,7 +170,9 @@ async def init_leagues(db: AsyncSession, systems: dict) -> dict:
             db.add(league)
             await db.flush()
             
-            leagues[f"{system_code}_L{level}"] = league
+            # 使用带索引的key，如 EAST_L1_1, EAST_L3_1, EAST_L3_2
+            league_key = f"{system_code}_L{level}_{level_counters[level]}"
+            leagues[league_key] = league
             print(f"   ✅ {league_data['name']} (Level {level})")
     
     await db.commit()
@@ -165,10 +189,16 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
     
     team_index = 0
     
+    # 按体系分组计数器
+    system_level_counters = {}
+    for system_code in LEAGUE_SYSTEMS.keys():
+        system_level_counters[system_code] = {1: 0, 2: 0, 3: 0, 4: 0}
+    
     for system_code, system_data in LEAGUE_SYSTEMS.items():
         for league_data in system_data["leagues"]:
             level = league_data["level"]
-            league_key = f"{system_code}_L{level}"
+            system_level_counters[system_code][level] += 1
+            league_key = f"{system_code}_L{level}_{system_level_counters[system_code][level]}"
             league = leagues[league_key]
             
             for idx, (team_name, user_display_name) in enumerate(league_data["teams"], 1):
@@ -177,7 +207,7 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
                 # 创建AI用户
                 user = User(
                     username=generate_user_username(team_name),
-                    email=generate_user_email(system_code, level, idx),
+                    email=generate_user_email(system_code, level, system_level_counters[system_code][level], idx),
                     hashed_password=hashed_password,
                     nickname=user_display_name,
                     is_ai=True,
@@ -342,11 +372,17 @@ async def show_summary(db: AsyncSession):
     result = await db.execute(select(Player))
     players_count = len(result.scalars().all())
     
-    print(f"\n🏟️ 联赛体系: {systems_count} 个")
-    print(f"📋 联赛: {leagues_count} 个")
+    print(f"\n🏟️ 联赛体系: {systems_count} 个（东区/西区/南区/北区）")
+    print(f"📋 联赛: {leagues_count} 个（每体系8个联赛）")
     print(f"👤 AI用户: {users_count} 个")
-    print(f"⚽ 球队: {teams_count} 支")
-    print(f"🏃 球员: {players_count} 人")
+    print(f"⚽ 球队: {teams_count} 支（每联赛8队）")
+    print(f"🏃 球员: {players_count} 人（每队18人）")
+    
+    print(f"\n📌 联赛结构:")
+    print(f"   - 顶级联赛（超级联赛）: 4个联赛 × 8队")
+    print(f"   - 次级联赛（甲级联赛）: 4个联赛 × 8队")
+    print(f"   - 三级联赛（乙级联赛A/B）: 8个联赛 × 8队")
+    print(f"   - 四级联赛（丙级联赛A/B/C/D）: 16个联赛 × 8队")
     
     print(f"\n⚠️  注意: 尚未创建赛季")
     print(f"   请运行: python -m scripts.init_season")

@@ -144,15 +144,23 @@ async def login(
     description="使用刷新令牌获取新的访问令牌",
 )
 async def refresh_token(
-    refresh_token: str,
+    request_data: dict,
     db: AsyncSession = Depends(get_db)
 ):
     """
     刷新访问令牌
     
-    - **refresh_token**: 刷新令牌
+    - **refresh_token**: 刷新令牌 (在请求体中传递)
     """
     from app.core.security import decode_token
+    
+    # 从请求体中获取 refresh token
+    refresh_token = request_data.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="缺少刷新令牌",
+        )
     
     # 验证 refresh token
     payload = decode_token(refresh_token)

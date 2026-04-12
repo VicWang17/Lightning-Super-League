@@ -2,9 +2,9 @@
 Schedule generation algorithms - 赛程生成算法
 
 包含：
-1. 联赛圆形轮转算法（16队双循环）
-2. 闪电杯赛程算法（64队，小组赛+淘汰赛）
-3. 杰尼杯赛程算法（192队，首轮+淘汰赛）
+1. 联赛圆形轮转算法（8队双循环，14轮）
+2. 闪电杯赛程算法（32队，8组小组赛+淘汰赛）
+3. 杰尼杯赛程算法（体系内56队，预选赛+淘汰赛）
 4. 赛程合并与日期分配
 """
 import random
@@ -66,33 +66,33 @@ class LeagueScheduleGenerator:
     @staticmethod
     def generate(teams: List[str], league_id: str) -> LeagueSchedule:
         """
-        生成16队双循环赛程（30轮）
+        生成8队双循环赛程（14轮）
         
         算法：圆形轮转法 + 随机打乱轮次
-        - 位置0固定，其余15队顺时针轮转
-        - 每轮8场比赛（左半区vs右半区镜像）
-        - 前15轮主场，后15轮交换主客场
-        - 最后将30轮随机打乱，避免球队连续主/客场
+        - 位置0固定，其余7队顺时针轮转
+        - 每轮4场比赛（左半区vs右半区镜像）
+        - 前7轮主场，后7轮交换主客场
+        - 最后将14轮随机打乱，避免球队连续主/客场
         """
-        assert len(teams) == 16, "联赛必须有16支球队"
+        assert len(teams) == 8, "联赛必须有8支球队"
         
         # 随机打乱（创建赛季时执行一次）
         shuffled = teams.copy()
         random.shuffle(shuffled)
         
         rounds = []
-        rotating = shuffled[1:]  # 15队参与轮转
+        rotating = shuffled[1:]  # 7队参与轮转
         
-        for round_num in range(1, 31):
+        for round_num in range(1, 15):
             # 构建本轮位置分布
-            positions = [shuffled[0]] + rotating  # 16个位置
+            positions = [shuffled[0]] + rotating  # 8个位置
             
             matches = []
-            is_second_half = round_num > 15  # 第16轮开始交换主客场
+            is_second_half = round_num > 7  # 第8轮开始交换主客场
             
-            for i in range(8):
+            for i in range(4):
                 home = positions[i]
-                away = positions[15 - i]  # 镜像位置
+                away = positions[7 - i]  # 镜像位置
                 
                 # 第二轮循环交换主客场
                 if is_second_half:
@@ -105,7 +105,7 @@ class LeagueScheduleGenerator:
             # 轮转：最后一个元素移到第一个后面
             rotating = [rotating[-1]] + rotating[:-1]
         
-        # 随机打乱30轮的顺序，使主客场分布更均匀
+        # 随机打乱14轮的顺序，使主客场分布更均匀
         random.shuffle(rounds)
         
         # 重新分配轮次编号
@@ -120,34 +120,35 @@ class LeagueScheduleGenerator:
 class LightningCupGenerator:
     """闪电杯赛程生成器"""
     
-    GROUP_NAMES = [chr(ord('A') + i) for i in range(16)]  # A-P
+    GROUP_NAMES = [chr(ord('A') + i) for i in range(8)]  # A-H
     
     @classmethod
     def generate(
         cls,
         competition_id: str,
-        top_leagues: List[List[str]]  # 4个顶级联赛，每个16队
+        top_leagues: List[List[str]]  # 4个顶级联赛，每个8队
     ) -> Tuple[CupSchedule, List[CupGroup]]:
         """
-        生成闪电杯赛程（64队）
+        生成闪电杯赛程（32队）
         
         赛制：
-        - 小组赛：64队分16组，每组4队，单循环3轮
-        - 淘汰赛：32强->16强->8强->4强->决赛，共5轮
-        - 总计：3 + 5 = 8轮
+        - 小组赛：32队分8组，每组4队，单循环3轮
+        - 淘汰赛：16强->8强->半决赛->决赛，共4轮
+        - 总计：3 + 4 = 7轮
         """
-        # 收集64队并随机分组
+        # 收集32队并随机分组
         all_teams = []
         for league in top_leagues:
             all_teams.extend(league)
         
+        assert len(all_teams) == 32, "闪电杯必须有32支球队"
         random.shuffle(all_teams)
         
-        # 分16组
+        # 分8组
         group_schedules = []
         cup_groups = []
         
-        for i in range(16):
+        for i in range(8):
             group_name = cls.GROUP_NAMES[i]
             group_teams = all_teams[i*4:(i+1)*4]
             
@@ -181,17 +182,15 @@ class LightningCupGenerator:
             ))
         
         # 淘汰赛占位（小组赛结束后填充）
-        # 32强: 16场比赛（16组前2名=32队）
-        # 16强: 8场
+        # 16强: 8场比赛（8组前2名=16队）
         # 8强: 4场
         # 半决赛: 2场
         # 决赛: 1场
         knockout_rounds = [
-            RoundSchedule(4, []),  # ROUND_32 - 待填充
-            RoundSchedule(5, []),  # ROUND_16 - 待填充
-            RoundSchedule(6, []),  # QUARTER - 待填充
-            RoundSchedule(7, []),  # SEMI - 待填充
-            RoundSchedule(8, []),  # FINAL - 待填充
+            RoundSchedule(4, []),  # ROUND_16 - 待填充
+            RoundSchedule(5, []),  # QUARTER - 待填充
+            RoundSchedule(6, []),  # SEMI - 待填充
+            RoundSchedule(7, []),  # FINAL - 待填充
         ]
         
         return CupSchedule(competition_id, group_schedules, knockout_rounds), cup_groups
@@ -201,59 +200,65 @@ class LightningCupGenerator:
 
 @dataclass
 class JennyCupSchedule(CupSchedule):
-    """杰尼杯赛程（包含轮空球队）"""
-    bye_team_ids: List[str]  # 首轮轮空的二级球队
+    """杰尼杯赛程（体系内杯赛）"""
+    system_code: str  # 所属体系代码
+    tier2_teams: List[str]  # 次级联赛8支球队（作为种子直接进入32强）
 
 
 class JennyCupGenerator:
-    """杰尼杯赛程生成器"""
+    """杰尼杯赛程生成器（体系内杯赛）"""
     
     @classmethod
     def generate(
         cls,
         competition_id: str,
-        tier2_leagues: List[List[str]],  # 8个二级联赛，每个16队
-        tier3_leagues: List[List[str]]   # 8个三级联赛，每个16队
+        system_code: str,
+        tier2_league: List[str],      # 次级联赛8队（种子）
+        tier3_leagues: List[List[str]],  # 2个三级联赛，各8队
+        tier4_leagues: List[List[str]]   # 4个四级联赛，各8队
     ) -> JennyCupSchedule:
         """
-        生成杰尼杯赛程（192队）
+        生成杰尼杯赛程（体系内56队）
         
         赛制：
-        - 第1轮：三级联赛128队参赛，64场（二级64队轮空）
-        - 第2轮：64支胜者 + 64支二级 = 128进64
-        - 第3-8轮：淘汰赛 64->32->16->8->4->决赛
-        - 总计：1 + 7 = 8轮
+        - 预选赛：48支非种子球队（三级16+四级32）参赛，24场，决出24支球队
+        - 32强：24支预选赛胜者 + 8支次级联赛种子 = 32队
+        - 淘汰赛：32强->16强->8强->半决赛->决赛，共5轮
+        - 总计：1 + 5 = 6轮
         """
-        tier2_teams = []
-        for league in tier2_leagues:
-            tier2_teams.extend(league)
-        
-        tier3_teams = []
+        # 收集48支非种子球队
+        non_seed_teams = []
         for league in tier3_leagues:
-            tier3_teams.extend(league)
+            non_seed_teams.extend(league)
+        for league in tier4_leagues:
+            non_seed_teams.extend(league)
         
-        # 第1轮：三级球队随机配对（需要偶数支球队）
-        random.shuffle(tier3_teams)
+        assert len(non_seed_teams) == 48, f"杰尼杯非种子球队应为48支，实际{len(non_seed_teams)}支"
+        assert len(tier2_league) == 8, f"杰尼杯种子球队应为8支，实际{len(tier2_league)}支"
+        
+        # 预选赛：48队随机配对
+        random.shuffle(non_seed_teams)
         round1_matches = []
-        # 使用实际拥有的三级球队数，但不超过128支（64场）
-        num_teams = min(len(tier3_teams), 128)
-        num_teams = num_teams // 2 * 2  # 确保是偶数
-        for i in range(num_teams // 2):
-            round1_matches.append(MatchPair(tier3_teams[i*2], tier3_teams[i*2+1]))
+        for i in range(24):  # 24场比赛
+            round1_matches.append(MatchPair(non_seed_teams[i*2], non_seed_teams[i*2+1]))
         
         # 后续淘汰赛占位
         knockout_rounds = [
-            RoundSchedule(1, round1_matches),  # 首轮：三级球队
-            RoundSchedule(2, []),  # 128进64（首轮胜者+二级轮空）
-            RoundSchedule(3, []),  # 64进32
-            RoundSchedule(4, []),  # 32进16
-            RoundSchedule(5, []),  # 16进8
-            RoundSchedule(6, []),  # 8进4
-            RoundSchedule(7, []),  # 半决赛
-            RoundSchedule(8, []),  # 决赛
+            RoundSchedule(1, round1_matches),  # 预选赛：48进24
+            RoundSchedule(2, []),  # 32强（24胜者+8种子）
+            RoundSchedule(3, []),  # 16强
+            RoundSchedule(4, []),  # 8强
+            RoundSchedule(5, []),  # 半决赛
+            RoundSchedule(6, []),  # 决赛
         ]
         
-        return JennyCupSchedule(competition_id, None, knockout_rounds, tier2_teams)
+        return JennyCupSchedule(
+            competition_id=competition_id,
+            group_schedules=None,
+            knockout_rounds=knockout_rounds,
+            system_code=system_code,
+            tier2_teams=tier2_league
+        )
 
 
 # ============== 日期分配与合并 ==============
@@ -261,10 +266,11 @@ class JennyCupGenerator:
 class ScheduleMerger:
     """赛程合并器 - 将联赛和杯赛赛程合并到统一时间线"""
     
-    # 默认配置
-    CUP_START_DAY = 6       # 杯赛第1轮在第几天
-    CUP_INTERVAL = 3        # 杯赛间隔天数
-    CUP_ROUNDS = 8          # 杯赛共8轮
+    # 26天赛季配置
+    CUP_START_DAY = 4       # 杯赛第1轮在第4天
+    CUP_INTERVAL = 2        # 杯赛间隔天数（每2天一轮）
+    CUP_ROUNDS = 7          # 闪电杯共7轮
+    JENNY_CUP_ROUNDS = 6    # 杰尼杯共6轮
     KICKOFF_HOUR = 20       # 开球时间（20:00）
     
     @classmethod
@@ -273,45 +279,52 @@ class ScheduleMerger:
         season_start: datetime,
         league_schedules: List[LeagueSchedule],
         lightning_cup: CupSchedule,
-        jenny_cup: CupSchedule,
+        jenny_cups: List[JennyCupSchedule],  # 4个体系的杰尼杯
         season_id: str,
-        cup_competition_ids: Dict[str, str]  # {"LIGHTNING": id, "JENNY": id}
+        cup_competition_ids: Dict[str, str]  # {"LIGHTNING": id, "JENNY_EAST": id, ...}
     ) -> List[Fixture]:
         """
         将所有赛程合并并分配日期
         
-        时间线：
-        - Day 1-30: 联赛每天一轮
-        - Day 6,9,12,15,18,21,24,27: 杯赛
-        - Day 31-42: 休赛期（无比赛）
+        26天时间线：
+        - Day 1-20: 联赛14轮（其中穿插杯赛7轮）
+        - Day 21: 闪电杯决赛
+        - Day 22: 休赛
+        - Day 23-24: 升降级附加赛
+        - Day 25-26: 休赛期
         """
         fixtures = []
         
-        # 1. 联赛赛程（Day 1-30）
+        # 1. 联赛赛程（Day 1-20，与杯赛交错）
+        # 联赛日：1,2,3,5,7,9,11,13,15,16,17,18,19,20（14轮）
+        league_days = [1, 2, 3, 5, 7, 9, 11, 13, 15, 16, 17, 18, 19, 20]
+        
         for league_schedule in league_schedules:
             for round_schedule in league_schedule.rounds:
-                match_date = season_start + timedelta(days=round_schedule.round_number - 1)
-                kickoff = match_date.replace(hour=cls.KICKOFF_HOUR, minute=0, second=0)
-                
-                for match in round_schedule.matches:
-                    fixtures.append(Fixture(
-                        season_id=season_id,
-                        fixture_type=FixtureType.LEAGUE,
-                        season_day=round_schedule.round_number,
-                        scheduled_at=kickoff,
-                        round_number=round_schedule.round_number,
-                        league_id=league_schedule.league_id,
-                        cup_competition_id=None,
-                        cup_group_name=None,
-                        cup_stage=None,
-                        home_team_id=match.home_team_id,
-                        away_team_id=match.away_team_id,
-                        status=FixtureStatus.SCHEDULED
-                    ))
+                day_index = round_schedule.round_number - 1
+                if day_index < len(league_days):
+                    day = league_days[day_index]
+                    match_date = season_start + timedelta(days=day - 1)
+                    kickoff = match_date.replace(hour=cls.KICKOFF_HOUR, minute=0, second=0)
+                    
+                    for match in round_schedule.matches:
+                        fixtures.append(Fixture(
+                            season_id=season_id,
+                            fixture_type=FixtureType.LEAGUE,
+                            season_day=day,
+                            scheduled_at=kickoff,
+                            round_number=round_schedule.round_number,
+                            league_id=league_schedule.league_id,
+                            cup_competition_id=None,
+                            cup_group_name=None,
+                            cup_stage=None,
+                            home_team_id=match.home_team_id,
+                            away_team_id=match.away_team_id,
+                            status=FixtureStatus.SCHEDULED
+                        ))
         
         # 2. 闪电杯赛程
-        cup_days = [cls.CUP_START_DAY + i * cls.CUP_INTERVAL for i in range(cls.CUP_ROUNDS)]
-        # cup_days = [6, 9, 12, 15, 18, 21, 24, 27]
+        cup_days = [4, 6, 8, 10, 12, 14, 21]  # 7个杯赛日（第21天决赛）
         
         # 小组赛（3轮）
         if lightning_cup.group_schedules:
@@ -338,48 +351,40 @@ class ScheduleMerger:
                             status=FixtureStatus.SCHEDULED
                         ))
         
-        # 淘汰赛（5轮）- 对阵待填充
-        for round_idx in range(3, 8):  # 第4-8轮是淘汰赛
-            day = cup_days[round_idx]
-            match_date = season_start + timedelta(days=day - 1)
-            kickoff = match_date.replace(hour=cls.KICKOFF_HOUR, minute=0, second=0)
-            
-            stage_map = {
-                3: "ROUND_32",
-                4: "ROUND_16",
-                5: "QUARTER",
-                6: "SEMI",
-                7: "FINAL"
-            }
-            
-            # 这里创建占位fixture，实际对阵后续填充
-            # 现在先不创建，等小组赛结束后再创建
-            pass
+        # 淘汰赛（4轮）- 对阵待填充
+        # 第4-7轮是淘汰赛，对阵在小组赛结束后生成
         
-        # 3. 杰尼杯赛程
-        for round_idx in range(8):  # 8轮
-            day = cup_days[round_idx]
+        # 3. 杰尼杯赛程（4个体系各自独立）
+        for jenny_cup in jenny_cups:
+            cup_id = cup_competition_ids.get(f"JENNY_{jenny_cup.system_code}")
+            if not cup_id:
+                continue
+            
+            # 杰尼杯6轮：与闪电杯前6轮同一天（第21天是闪电杯决赛，杰尼杯决赛在第14天）
+            jenny_cup_days = [4, 6, 8, 10, 12, 14]  # 6轮
+            
+            # 预选赛（第1轮）
+            round_schedule = jenny_cup.knockout_rounds[0]
+            day = jenny_cup_days[0]
             match_date = season_start + timedelta(days=day - 1)
             kickoff = match_date.replace(hour=cls.KICKOFF_HOUR, minute=0, second=0)
             
-            if round_idx == 0:
-                # 第1轮：三级球队比赛
-                round_schedule = jenny_cup.knockout_rounds[0]
-                for match in round_schedule.matches:
-                    fixtures.append(Fixture(
-                        season_id=season_id,
-                        fixture_type=FixtureType.CUP_JENNY,
-                        season_day=day,
-                        scheduled_at=kickoff,
-                        round_number=1,
-                        league_id=None,
-                        cup_competition_id=cup_competition_ids["JENNY"],
-                        cup_group_name=None,
-                        cup_stage="ROUND_128",  # 首轮192进128
-                        home_team_id=match.home_team_id,
-                        away_team_id=match.away_team_id,
-                        status=FixtureStatus.SCHEDULED
-                    ))
+            for match in round_schedule.matches:
+                fixtures.append(Fixture(
+                    season_id=season_id,
+                    fixture_type=FixtureType.CUP_JENNY,
+                    season_day=day,
+                    scheduled_at=kickoff,
+                    round_number=1,
+                    league_id=None,
+                    cup_competition_id=cup_id,
+                    cup_group_name=None,
+                    cup_stage="ROUND_48",  # 预选赛48进24
+                    home_team_id=match.home_team_id,
+                    away_team_id=match.away_team_id,
+                    status=FixtureStatus.SCHEDULED
+                ))
+            
             # 后续轮次待填充
         
         return fixtures
@@ -410,26 +415,26 @@ class SeasonScheduler:
             current_day=0,
             current_league_round=0,
             current_cup_round=0,
-            total_days=42,
-            league_days=30,
-            cup_start_day=6,
-            cup_interval=3,
-            offseason_start=31
+            total_days=26,
+            league_days=20,  # 联赛在20天内完成（与杯赛交错）
+            cup_start_day=4,
+            cup_interval=2,
+            offseason_start=22
         )
         self.db.add(season)
         await self.db.flush()  # 获取season.id
         
         # 2. 创建杯赛定义
-        # 闪电杯
+        # 闪电杯（全服32队）
         top_leagues = [l for l in leagues if l.level == 1]
         lightning_cup = CupCompetition(
             season_id=season.id,
             name="闪电杯",
             code="LIGHTNING_CUP",
             eligible_league_levels=[1],
-            total_teams=64,
+            total_teams=32,
             has_group_stage=True,
-            group_count=16,
+            group_count=8,
             teams_per_group=4,
             group_rounds=3,
             current_round=0,
@@ -439,29 +444,33 @@ class SeasonScheduler:
         self.db.add(lightning_cup)
         await self.db.flush()
         
-        # 杰尼杯
-        jenny_cup = CupCompetition(
-            season_id=season.id,
-            name="杰尼杯",
-            code="JENNY_CUP",
-            eligible_league_levels=[2, 3],
-            total_teams=192,
-            has_group_stage=False,
-            group_count=0,
-            teams_per_group=0,
-            group_rounds=0,
-            current_round=0,
-            status=SeasonStatus.PENDING,
-            winner_team_id=None
-        )
-        self.db.add(jenny_cup)
-        await self.db.flush()
+        # 杰尼杯（4个体系各自独立，每体系56队）
+        jenny_cups = []
+        systems = ["EAST", "WEST", "SOUTH", "NORTH"]
+        for system_code in systems:
+            jenny_cup = CupCompetition(
+                season_id=season.id,
+                name=f"杰尼杯-{system_code}",
+                code=f"JENNY_CUP_{system_code}",
+                eligible_league_levels=[2, 3, 4],
+                total_teams=56,
+                has_group_stage=False,
+                group_count=0,
+                teams_per_group=0,
+                group_rounds=0,
+                current_round=0,
+                status=SeasonStatus.PENDING,
+                winner_team_id=None
+            )
+            self.db.add(jenny_cup)
+            await self.db.flush()
+            jenny_cups.append((system_code, jenny_cup))
         
         # 3. 生成联赛赛程
         league_schedules = []
         for league in leagues:
             teams = teams_by_league.get(league.id, [])
-            if len(teams) != 16:
+            if len(teams) != 8:
                 continue
             team_ids = [t.id for t in teams]
             schedule = LeagueScheduleGenerator.generate(team_ids, league.id)
@@ -473,41 +482,56 @@ class SeasonScheduler:
             [t.id for t in teams_by_league.get(l.id, [])]
             for l in top_leagues
         ]
-        lightning_schedule, cup_groups = LightningCupGenerator.generate(
-            lightning_cup.id,
-            top_league_teams
-        )
-        for group in cup_groups:
-            self.db.add(group)
+        top_league_teams = [teams for teams in top_league_teams if len(teams) == 8]
         
-        # 杰尼杯
-        tier2_leagues = [l for l in leagues if l.level == 2]
-        tier3_leagues = [l for l in leagues if l.level == 3]
-        tier2_teams = [[t.id for t in teams_by_league.get(l.id, [])] for l in tier2_leagues]
-        tier3_teams = [[t.id for t in teams_by_league.get(l.id, [])] for l in tier3_leagues]
-        jenny_schedule = JennyCupGenerator.generate(
-            jenny_cup.id,
-            tier2_teams,
-            tier3_teams
-        )
-        
-        # 存储轮空球队（第2轮加入）
-        from app.models.season import CupByeTeam
-        for team_id in jenny_schedule.bye_team_ids:
-            bye_team = CupByeTeam(
-                competition_id=jenny_cup.id,
-                team_id=team_id,
-                round_number=2
+        lightning_schedule = None
+        cup_groups = []
+        if len(top_league_teams) >= 4:
+            lightning_schedule, cup_groups = LightningCupGenerator.generate(
+                lightning_cup.id,
+                top_league_teams[:4]
             )
-            self.db.add(bye_team)
+            for group in cup_groups:
+                self.db.add(group)
+        
+        # 杰尼杯（每体系独立）
+        jenny_cup_schedules = []
+        for system_code, jenny_cup in jenny_cups:
+            # 获取该体系的球队
+            system_leagues = [l for l in leagues if l.system.code == system_code]
+            tier2 = [l for l in system_leagues if l.level == 2]
+            tier3 = [l for l in system_leagues if l.level == 3]
+            tier4 = [l for l in system_leagues if l.level == 4]
+            
+            tier2_teams = [[t.id for t in teams_by_league.get(l.id, [])] for l in tier2]
+            tier3_teams = [[t.id for t in teams_by_league.get(l.id, [])] for l in tier3]
+            tier4_teams = [[t.id for t in teams_by_league.get(l.id, [])] for l in tier4]
+            
+            # 展平列表
+            tier2_flat = [t for sublist in tier2_teams for t in sublist]
+            tier3_flat = [t for sublist in tier3_teams for t in sublist]
+            tier4_flat = [t for sublist in tier4_teams for t in sublist]
+            
+            if len(tier2_flat) == 8 and len(tier3_flat) == 16 and len(tier4_flat) == 32:
+                jenny_schedule = JennyCupGenerator.generate(
+                    jenny_cup.id,
+                    system_code,
+                    tier2_flat,
+                    [tier3_flat[:8], tier3_flat[8:16]],
+                    [tier4_flat[:8], tier4_flat[8:16], tier4_flat[16:24], tier4_flat[24:32]]
+                )
+                jenny_cup_schedules.append(jenny_schedule)
         
         # 5. 合并赛程并创建Fixture记录
-        cup_ids = {"LIGHTNING": lightning_cup.id, "JENNY": jenny_cup.id}
+        cup_ids = {"LIGHTNING": lightning_cup.id}
+        for system_code, jenny_cup in jenny_cups:
+            cup_ids[f"JENNY_{system_code}"] = jenny_cup.id
+        
         fixtures = ScheduleMerger.assign_dates(
             start_date,
             league_schedules,
             lightning_schedule,
-            jenny_schedule,
+            jenny_cup_schedules,
             season.id,
             cup_ids
         )
@@ -541,17 +565,18 @@ class SeasonScheduler:
         # 更新赛季天数
         season.current_day = next_day
         
-        # 更新联赛轮次（如果是联赛日）
-        if next_day <= 30:
-            season.current_league_round = next_day
+        # 更新联赛轮次
+        league_days = [1, 2, 3, 5, 7, 9, 11, 13, 15, 16, 17, 18, 19, 20]
+        if next_day in league_days:
+            season.current_league_round = league_days.index(next_day) + 1
         
-        # 更新杯赛轮次（如果是杯赛日）
-        cup_days = [6, 9, 12, 15, 18, 21, 24, 27]
+        # 更新杯赛轮次
+        cup_days = [4, 6, 8, 10, 12, 14, 21]
         if next_day in cup_days:
             season.current_cup_round = cup_days.index(next_day) + 1
         
         # 检查赛季结束
-        if next_day >= 42:
+        if next_day >= 26:
             season.status = SeasonStatus.FINISHED
             season.end_date = datetime.utcnow()
         

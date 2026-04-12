@@ -7,7 +7,7 @@ from typing import Optional, List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from app.models.season import Season, SeasonStatus, Fixture, FixtureType, FixtureStatus
+from app.models.season import Season, SeasonStatus, Fixture, FixtureType, FixtureStatus, CupCompetition
 from app.models.league import League
 from app.models.team import Team
 from app.services.scheduler import SeasonScheduler, ScheduleMerger
@@ -130,7 +130,7 @@ class SeasonService:
         """
         from app.models.season import CupCompetition
         
-        cup_days = [6, 9, 12, 15, 18, 21, 24, 27]
+        cup_days = [6, 8, 10, 12, 14, 15, 21]  # 杯赛晋级处理日（闪电杯+杰尼杯）
         
         if day not in cup_days:
             return {}
@@ -146,35 +146,107 @@ class SeasonService:
         for comp in competitions:
             if comp.code == "LIGHTNING_CUP":
                 # 闪电杯晋级处理
-                if day == 12:  # 小组赛结束，生成32强
+                if day == 8:  # 小组赛结束，生成16强（day 10比赛）
                     count = await self.cup_progression.fill_lightning_cup_knockout_fixtures(comp, season)
-                    results["lightning_cup"] = f"Generated {count} ROUND_32 fixtures"
-                elif day == 15:  # 32强结束，生成16强
-                    count = await self.cup_progression.fill_next_knockout_round(comp, season, "ROUND_32")
-                    results["lightning_cup_16"] = f"Generated {count} ROUND_16 fixtures"
-                elif day == 18:  # 16强结束，生成8强
+                    results["lightning_cup"] = f"Generated {count} ROUND_16 fixtures"
+                elif day == 10:  # 16强结束，生成8强（day 12比赛）
                     count = await self.cup_progression.fill_next_knockout_round(comp, season, "ROUND_16")
                     results["lightning_cup_quarter"] = f"Generated {count} QUARTER fixtures"
-                elif day == 21:  # 8强结束，生成半决赛
+                elif day == 12:  # 8强结束，生成半决赛（day 14比赛）
                     count = await self.cup_progression.fill_next_knockout_round(comp, season, "QUARTER")
                     results["lightning_cup_semi"] = f"Generated {count} SEMI fixtures"
-                elif day == 24:  # 半决赛结束，生成决赛
+                elif day == 14:  # 半决赛结束，生成决赛（day 21比赛）
                     count = await self.cup_progression.fill_next_knockout_round(comp, season, "SEMI")
                     results["lightning_cup_final"] = f"Generated {count} FINAL fixtures"
+                elif day == 21:  # 决赛已结束，设置冠军
+                    winner = await self._get_cup_winner(comp)
+                    if winner:
+                        comp.winner_team_id = winner
+                        results["lightning_cup_winner"] = f"Winner set: {winner}"
                     
-            elif comp.code == "JENNY_CUP":
-                # 杰尼杯晋级处理
-                if day == 6:  # 第1轮结束，生成第2轮（128进64）
-                    count = await self.cup_progression.fill_jenny_cup_round_2(comp, season)
-                    results["jenny_cup"] = f"Generated {count} ROUND_128 fixtures"
-                elif day >= 9:  # 从第3轮开始
-                    cup_round_idx = cup_days.index(day)  # 0-based: 6->0, 9->1, 12->2...
-                    actual_round = cup_round_idx + 1  # 杯赛实际轮次（1-based）
-                    if actual_round >= 3:  # 从第3轮开始
-                        count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, actual_round - 1)
-                        results["jenny_cup_next"] = f"Generated {count} round {actual_round} fixtures"
+            elif comp.code.startswith("JENNY_CUP_"):
+                # 杰尼杯晋级处理（JENNY_CUP_EAST, JENNY_CUP_NORTH, JENNY_CUP_SOUTH, JENNY_CUP_WEST）
+                if day == 6:  # 第1轮（预选赛）结束，生成第2轮（32强）
+                    # 获取该体系次级联赛（Level 2）的8支球队作为种子
+                    system_code = comp.code.replace('JENNY_CUP_', '')
+                    tier2_teams = await self._get_jenny_cup_tier2_teams(system_code)
+                    count = await self.cup_progression.fill_jenny_cup_round_2(comp, season, tier2_teams)
+                    results[f"jenny_cup_{system_code.lower()}"] = f"Generated {count} ROUND_32 fixtures"
+                elif day == 8:  # 32强结束，生成16强（day 10比赛）
+                    count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, 2)
+                    results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_16"] = f"Generated {count} ROUND_16 fixtures"
+                elif day == 10:  # 16强结束，生成8强（day 12比赛）
+                    count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, 3)
+                    results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_quarter"] = f"Generated {count} QUARTER fixtures"
+                elif day == 12:  # 8强结束，生成半决赛（day 14比赛）
+                    count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, 4)
+                    results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_semi"] = f"Generated {count} SEMI fixtures"
+                elif day == 14:  # 半决赛结束，生成决赛（day 15比赛）
+                    count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, 5)
+                    results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_final"] = f"Generated {count} FINAL fixtures"
+                elif day == 15:  # 决赛结束，设置冠军
+                    winner = await self._get_cup_winner(comp)
+                    if winner:
+                        comp.winner_team_id = winner
+                        results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_winner"] = f"Winner set: {winner}"
         
         return results
+    
+    async def _get_cup_winner(self, competition: CupCompetition) -> Optional[str]:
+        """
+        获取杯赛冠军（决赛胜者）
+        """
+        # 获取决赛比赛
+        result = await self.db.execute(
+            select(Fixture).where(
+                and_(
+                    Fixture.cup_competition_id == competition.id,
+                    Fixture.cup_stage == "FINAL",
+                    Fixture.status == FixtureStatus.FINISHED
+                )
+            )
+        )
+        final = result.scalar_one_or_none()
+        
+        if not final:
+            return None
+        
+        # 返回胜者
+        if final.home_score > final.away_score:
+            return final.home_team_id
+        elif final.away_score > final.home_score:
+            return final.away_team_id
+        else:
+            # 平局按主队晋级（或可以实现点球规则）
+            return final.home_team_id
+    
+    async def _get_jenny_cup_tier2_teams(self, system_code: str) -> List[str]:
+        """
+        获取杰尼杯次级联赛种子球队（该体系Level 2联赛的8支球队）
+        """
+        from app.models.league import LeagueSystem
+        
+        # 获取该体系的次级联赛（Level 2）
+        result = await self.db.execute(
+            select(League).join(LeagueSystem).where(
+                and_(
+                    LeagueSystem.code == system_code,
+                    League.level == 2
+                )
+            )
+        )
+        tier2_league = result.scalar_one_or_none()
+        
+        if not tier2_league:
+            return []
+        
+        # 获取该联赛的8支球队
+        result = await self.db.execute(
+            select(Team).where(Team.current_league_id == tier2_league.id)
+        )
+        teams = result.scalars().all()
+        
+        return [t.id for t in teams]
     
     async def get_today_fixtures(self, season: Season) -> List[Fixture]:
         """获取今天（当前天）的所有比赛"""

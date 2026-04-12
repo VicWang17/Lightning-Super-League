@@ -123,7 +123,6 @@ class CupCompetition(Base):
     # 关联关系
     season: Mapped["Season"] = relationship("Season", back_populates="cup_competitions")
     groups: Mapped[list["CupGroup"]] = relationship("CupGroup", back_populates="competition")
-    bye_teams: Mapped[list["CupByeTeam"]] = relationship("CupByeTeam")
     
     def __repr__(self) -> str:
         return f"<CupCompetition(name={self.name}, season={self.season_id})>"
@@ -160,29 +159,6 @@ class CupGroup(Base):
     
     def __repr__(self) -> str:
         return f"<CupGroup(name={self.name}, competition={self.competition_id})>"
-
-
-class CupByeTeam(Base):
-    """CupByeTeam model - 杯赛轮空球队表（仅杰尼杯使用）
-    
-    说明：
-    - 记录杰尼杯中首轮轮空的二级联赛球队
-    - 第1轮结束后，这些球队加入第2轮
-    """
-    __tablename__ = "cup_bye_teams"
-    
-    competition_id: Mapped[str] = mapped_column(
-        ForeignKey("cup_competitions.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
-    )
-    
-    team_id: Mapped[str] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"),
-        nullable=False
-    )
-    
-    round_number: Mapped[int] = mapped_column(Integer, nullable=False)  # 从第几轮开始参赛
 
 
 class Fixture(Base):

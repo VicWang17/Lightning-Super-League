@@ -161,8 +161,8 @@ class ApiClient {
       }
 
       // 更新 store 中的 token
-      const { token } = data.data
-      useAuthStore.getState().setToken(token)
+      const tokenData = data.data
+      useAuthStore.getState().setToken(tokenData)
       
       console.log('[API] Token refreshed successfully')
       return true
@@ -191,13 +191,23 @@ class ApiClient {
     formData.append('username', credentials.username)
     formData.append('password', credentials.password)
 
-    return this.requestWithAuth<UserWithToken>('/auth/login', {
+    const url = `${this.baseUrl}/auth/login`
+    const response = await fetch(url, {
       method: 'POST',
       body: formData,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
       },
     })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || '登录失败')
+    }
+
+    return data
   }
 
   async logout() {

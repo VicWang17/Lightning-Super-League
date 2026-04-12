@@ -21,8 +21,8 @@ interface UserTeam {
 const LEVEL_CONFIG = [
   { name: '超级联赛', color: 'from-amber-500 to-yellow-400', bgColor: 'from-amber-500/20 to-amber-600/5', borderColor: 'border-amber-500/30', icon: '👑' },
   { name: '甲级联赛', color: 'from-slate-300 to-slate-400', bgColor: 'from-slate-400/20 to-slate-500/5', borderColor: 'border-slate-400/30', icon: '🥈' },
-  { name: '乙级联赛A', color: 'from-orange-500 to-orange-600', bgColor: 'from-orange-600/20 to-orange-700/5', borderColor: 'border-orange-600/30', icon: '🥉' },
-  { name: '乙级联赛B', color: 'from-stone-400 to-stone-500', bgColor: 'from-stone-500/20 to-stone-600/5', borderColor: 'border-stone-500/30', icon: '🏅' },
+  { name: '乙级联赛', color: 'from-orange-500 to-orange-600', bgColor: 'from-orange-600/20 to-orange-700/5', borderColor: 'border-orange-600/30', icon: '🥉' },
+  { name: '丙级联赛', color: 'from-stone-400 to-stone-500', bgColor: 'from-stone-500/20 to-stone-600/5', borderColor: 'border-stone-500/30', icon: '🏅' },
 ]
 
 // 体系图标和颜色
@@ -70,11 +70,11 @@ function LeagueCard({ league }: { league: League }) {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-[#8B8BA7]" />
-                <span className="text-sm text-[#8B8BA7]">{league.teams_count} 支球队</span>
+                <span className="text-sm text-[#8B8BA7]">{league.teams_count || 8} 支球队</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Swords className="w-4 h-4 text-[#8B8BA7]" />
-                <span className="text-sm text-[#8B8BA7]">30 轮比赛</span>
+                <span className="text-sm text-[#8B8BA7]">14 轮比赛</span>
               </div>
             </div>
             <span className={`text-xs px-2 py-1 rounded-full bg-gradient-to-r ${systemConfig.gradient} border border-white/10`}>
@@ -168,7 +168,7 @@ function LeagueList() {
           <h1 className="text-3xl font-bold text-white">所有联赛</h1>
         </div>
         <p className="text-[#8B8BA7] ml-13">
-          闪电超级联赛共有 4 个联赛体系，16 个联赛，256 支球队
+          闪电超级联赛共有 4 个联赛体系，32 个联赛，256 支球队
         </p>
       </div>
 
@@ -243,7 +243,7 @@ function LeagueList() {
             <div className="text-sm text-[#8B8BA7] mt-1">联赛体系</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold stat-number text-[#0D7377]">16</div>
+            <div className="text-3xl font-bold stat-number text-[#0D7377]">32</div>
             <div className="text-sm text-[#8B8BA7] mt-1">联赛</div>
           </div>
           <div className="text-center">

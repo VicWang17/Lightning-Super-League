@@ -18,7 +18,7 @@ class LeagueSystem(Base):
     说明：
     - 共4个联赛体系：东区、西区、南区、北区
     - 每个体系独立，有自己的升降级链条
-    - 每个体系包含64支球队（16队 × 4级联赛）
+    - 每个体系包含64支球队（8队 × 8个联赛）
     """
     __tablename__ = "league_systems"
     
@@ -27,7 +27,7 @@ class LeagueSystem(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     # 配置
-    max_teams_per_league: Mapped[int] = mapped_column(Integer, default=16, nullable=False)
+    max_teams_per_league: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
     
     # 关联关系
     leagues: Mapped[list["League"]] = relationship("League", back_populates="system")
@@ -42,18 +42,23 @@ class League(Base):
     """League model - 联赛表
     
     说明：
-    - 每个联赛体系包含4个级别：
-      * Level 1: 顶级联赛（超级联赛）- 16支球队
-      * Level 2: 次级联赛（甲级联赛）- 16支球队  
-      * Level 3: 三级联赛A（乙A联赛）- 16支球队
-      * Level 4: 三级联赛B（乙B联赛）- 16支球队
-    - 全服总计：4个体系 × 4个联赛 = 16个联赛，256支球队
+    - 每个联赛体系包含4个级别，共8个联赛：
+      * Level 1: 顶级联赛（超级联赛）- 8支球队
+      * Level 2: 次级联赛（甲级联赛）- 8支球队  
+      * Level 3: 三级联赛A + 三级联赛B（乙级联赛）- 各8支球队
+      * Level 4: 四级联赛A/B/C/D（丙级联赛）- 各8支球队
+    - 全服总计：4个体系 × 8个联赛 = 32个联赛，256支球队
+    
+    升降级附加赛规则（两天制）：
+    - 顶级 ↔ 次级：顶级第7名 vs 次级第2名（1场定胜负）
+    - 次级 ↔ 三级：第1天：3A亚军 vs 3B亚军；第2天：胜者 vs 次级第7名
+    - 三级 ↔ 四级：第1天：4A亚军 vs 4B亚军；第2天：胜者 vs 3A第7名（3A/4A/4B组）
     """
     __tablename__ = "leagues"
     
     # 基本信息
-    name: Mapped[str] = mapped_column(String(50), nullable=False)  # 超级联赛/甲级联赛/乙A联赛/乙B联赛
-    level: Mapped[int] = mapped_column(Integer, nullable=False, index=True)  # 1=顶级, 2=次级, 3=乙A, 4=乙B
+    name: Mapped[str] = mapped_column(String(50), nullable=False)  # 超级联赛/甲级联赛/乙级联赛A/丙级联赛A等
+    level: Mapped[int] = mapped_column(Integer, nullable=False, index=True)  # 1=顶级, 2=次级, 3=三级, 4=四级
     
     # 外键
     system_id: Mapped[str] = mapped_column(
@@ -63,15 +68,23 @@ class League(Base):
     )
     
     # 配置
-    max_teams: Mapped[int] = mapped_column(Integer, default=16, nullable=False)
+    max_teams: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
     
-    # 升降级规则（每个体系内部）
-    # 顶级联赛(1) <-> 次级联赛(2): 后4名降级，前4名升级
-    # 次级联赛(2) <-> 三级联赛(3): 后4名降级，冠军直接升级(2×2=4)，亚军附加赛(2×1=2)
-    promotion_spots: Mapped[int] = mapped_column(Integer, default=4, nullable=False)  # 升级名额
-    relegation_spots: Mapped[int] = mapped_column(Integer, default=4, nullable=False)  # 降级名额
-    has_promotion_playoff: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # 是否有升级附加赛
-    has_relegation_playoff: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # 是否有降级附加赛
+    # 升降级规则
+    # 直升名额（冠军直接升级）
+    promotion_spots: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    # 直降名额（最后一名直接降级）  
+    relegation_spots: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    # 是否有升级附加赛（第2天与上级联赛第7名争夺名额）
+    has_promotion_playoff: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # 是否有降级附加赛（本级联赛第7名参与）
+    has_relegation_playoff: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # 对应上级联赛ID（用于附加赛匹配，如3A对应4A和4B）
+    parent_league_id: Mapped[str | None] = mapped_column(
+        ForeignKey("leagues.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
     
     # 关联关系
     system: Mapped["LeagueSystem"] = relationship("LeagueSystem", back_populates="leagues")

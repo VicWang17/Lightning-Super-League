@@ -17,7 +17,6 @@ from app.models.season import (
     FixtureStatus,
     CupCompetition,
     CupGroup,
-    CupByeTeam,
 )
 from app.models.player import (
     Player,
@@ -49,7 +48,6 @@ __all__ = [
     "FixtureStatus",
     "CupCompetition",
     "CupGroup",
-    "CupByeTeam",
     # Player
     "Player",
     "PlayerPosition",
