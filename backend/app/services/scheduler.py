@@ -406,6 +406,15 @@ class SeasonScheduler:
         teams_by_league: Dict[str, List[Team]]
     ) -> Season:
         """创建新赛季并生成完整赛程"""
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+        
+        # 重新查询leagues以eager load system关系
+        league_ids = [l.id for l in leagues]
+        result = await self.db.execute(
+            select(League).options(selectinload(League.system)).where(League.id.in_(league_ids))
+        )
+        leagues = result.scalars().all()
         
         # 1. 创建赛季
         season = Season(
@@ -415,11 +424,11 @@ class SeasonScheduler:
             current_day=0,
             current_league_round=0,
             current_cup_round=0,
-            total_days=26,
+            total_days=25,
             league_days=20,  # 联赛在20天内完成（与杯赛交错）
             cup_start_day=4,
             cup_interval=2,
-            offseason_start=22
+            offseason_start=24
         )
         self.db.add(season)
         await self.db.flush()  # 获取season.id
@@ -575,8 +584,8 @@ class SeasonScheduler:
         if next_day in cup_days:
             season.current_cup_round = cup_days.index(next_day) + 1
         
-        # 检查赛季结束
-        if next_day >= 26:
+        # 检查赛季结束（Day 25休赛期后结束）
+        if next_day >= 25:
             season.status = SeasonStatus.FINISHED
             season.end_date = datetime.utcnow()
         

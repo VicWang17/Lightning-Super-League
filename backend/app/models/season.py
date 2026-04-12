@@ -24,6 +24,7 @@ class FixtureType(str, PyEnum):
     CUP_LIGHTNING_GROUP = "cup_lightning_group"    # 闪电杯小组赛
     CUP_LIGHTNING_KNOCKOUT = "cup_lightning_knockout"  # 闪电杯淘汰赛
     CUP_JENNY = "cup_jenny"              # 杰尼杯
+    PLAYOFF = "playoff"                  # 升降级附加赛
 
 
 class FixtureStatus(str, PyEnum):

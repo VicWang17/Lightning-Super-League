@@ -42,7 +42,7 @@ class CupProgressionService:
     
     # ==================== 小组赛排名计算 ====================
     
-    async def calculate_group_standings(self, cup_group: CupGroup) -> List[GroupStanding]:
+    async def calculate_group_standings(self, cup_group: CupGroup, season_id: str) -> List[GroupStanding]:
         """
         计算小组排名
         
@@ -55,10 +55,11 @@ class CupProgressionService:
         team_ids = cup_group.team_ids
         standings = {team_id: GroupStanding(team_id=team_id) for team_id in team_ids}
         
-        # 获取该小组的所有比赛
+        # 获取该小组的所有比赛（限定当前赛季）
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
+                    Fixture.season_id == season_id,
                     Fixture.cup_group_name == cup_group.name,
                     Fixture.fixture_type == FixtureType.CUP_LIGHTNING_GROUP,
                     Fixture.status == FixtureStatus.FINISHED
@@ -103,7 +104,7 @@ class CupProgressionService:
         
         return sorted_standings
     
-    async def process_group_stage_completion(self, competition_id: str) -> Dict[str, List[str]]:
+    async def process_group_stage_completion(self, competition_id: str, season_id: str) -> Dict[str, List[str]]:
         """
         处理小组赛结束，计算所有小组排名并返回晋级球队
         
@@ -117,7 +118,7 @@ class CupProgressionService:
         group_results = {}
         
         for group in groups:
-            standings = await self.calculate_group_standings(group)
+            standings = await self.calculate_group_standings(group, season_id)
             
             # 前2名晋级
             qualified = [s.team_id for s in standings[:2]]
@@ -216,7 +217,7 @@ class CupProgressionService:
         返回生成的比赛数量
         """
         # 1. 计算小组排名
-        group_results = await self.process_group_stage_completion(competition.id)
+        group_results = await self.process_group_stage_completion(competition.id, season.id)
         
         # 2. 生成16强对阵
         fixture_pairs = self.generate_round_of_16_fixtures(group_results)
@@ -381,6 +382,14 @@ class CupProgressionService:
             else:
                 round1_winners.append(f.away_team_id)
         
+        # 检查球队数量
+        if len(round1_winners) != 24:
+            print(f"  ⚠️  杰尼杯预选赛胜者数量不对: {len(round1_winners)}/24")
+            return 0
+        if len(tier2_teams) != 8:
+            print(f"  ⚠️  杰尼杯种子球队数量不对: {len(tier2_teams)}/8")
+            return 0
+        
         # 合并：24支预选赛胜者 + 8支次级联赛种子 = 32队
         all_teams = round1_winners + tier2_teams
         
@@ -397,22 +406,23 @@ class CupProgressionService:
         kickoff = match_date.replace(hour=20, minute=0, second=0)
         
         created_count = 0
-        for i in range(0, 32, 2):
-            fixture = Fixture(
-                season_id=season.id,
-                fixture_type=FixtureType.CUP_JENNY,
-                season_day=round2_day,
-                scheduled_at=kickoff,
-                round_number=2,
-                league_id=None,
-                cup_competition_id=competition.id,
-                cup_stage="ROUND_32",
-                home_team_id=all_teams[i],
-                away_team_id=all_teams[i+1],
-                status=FixtureStatus.SCHEDULED
-            )
-            self.db.add(fixture)
-            created_count += 1
+        for i in range(0, len(all_teams), 2):
+            if i + 1 < len(all_teams):
+                fixture = Fixture(
+                    season_id=season.id,
+                    fixture_type=FixtureType.CUP_JENNY,
+                    season_day=round2_day,
+                    scheduled_at=kickoff,
+                    round_number=2,
+                    league_id=None,
+                    cup_competition_id=competition.id,
+                    cup_stage="ROUND_32",
+                    home_team_id=all_teams[i],
+                    away_team_id=all_teams[i+1],
+                    status=FixtureStatus.SCHEDULED
+                )
+                self.db.add(fixture)
+                created_count += 1
         
         competition.current_round = 2
         await self.db.commit()

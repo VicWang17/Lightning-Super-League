@@ -13,6 +13,7 @@ from app.models.team import Team
 from app.services.scheduler import SeasonScheduler, ScheduleMerger
 from app.services.match_simulator import MatchSimulator
 from app.services.cup_progression import CupProgressionService
+from app.services.promotion_service import PromotionService
 
 
 class SeasonService:
@@ -23,6 +24,7 @@ class SeasonService:
         self.scheduler = SeasonScheduler(db)
         self.simulator = MatchSimulator()
         self.cup_progression = CupProgressionService(db)
+        self.promotion_service = PromotionService(db)
     
     async def get_current_season(self) -> Optional[Season]:
         """获取当前进行中的赛季"""
@@ -113,6 +115,11 @@ class SeasonService:
         # 处理杯赛晋级
         progression_results = await self._process_cup_progression(season, next_day)
         
+        # 处理赛季结束和升降级
+        promotion_results = await self._process_promotion_relegation(season, next_day)
+        if promotion_results:
+            progression_results.update(promotion_results)
+        
         return {
             "season_day": season.current_day,
             "fixtures_processed": len(results),
@@ -169,7 +176,7 @@ class SeasonService:
                 if day == 6:  # 第1轮（预选赛）结束，生成第2轮（32强）
                     # 获取该体系次级联赛（Level 2）的8支球队作为种子
                     system_code = comp.code.replace('JENNY_CUP_', '')
-                    tier2_teams = await self._get_jenny_cup_tier2_teams(system_code)
+                    tier2_teams = await self._get_jenny_cup_tier2_teams(system_code, season)
                     count = await self.cup_progression.fill_jenny_cup_round_2(comp, season, tier2_teams)
                     results[f"jenny_cup_{system_code.lower()}"] = f"Generated {count} ROUND_32 fixtures"
                 elif day == 8:  # 32强结束，生成16强（day 10比赛）
@@ -220,9 +227,10 @@ class SeasonService:
             # 平局按主队晋级（或可以实现点球规则）
             return final.home_team_id
     
-    async def _get_jenny_cup_tier2_teams(self, system_code: str) -> List[str]:
+    async def _get_jenny_cup_tier2_teams(self, system_code: str, season: Season) -> List[str]:
         """
         获取杰尼杯次级联赛种子球队（该体系Level 2联赛的8支球队）
+        从该赛季的联赛赛程中获取，而不是依赖 Team.current_league_id
         """
         from app.models.league import LeagueSystem
         
@@ -240,13 +248,26 @@ class SeasonService:
         if not tier2_league:
             return []
         
-        # 获取该联赛的8支球队
+        # 从该赛季的联赛赛程中获取球队（而不是依赖 current_league_id）
+        # 查询该联赛在本赛季的所有联赛赛程（LEAGUE类型的比赛）
         result = await self.db.execute(
-            select(Team).where(Team.current_league_id == tier2_league.id)
+            select(Fixture).where(
+                and_(
+                    Fixture.season_id == season.id,
+                    Fixture.fixture_type == FixtureType.LEAGUE,
+                    Fixture.league_id == tier2_league.id
+                )
+            )
         )
-        teams = result.scalars().all()
+        fixtures = result.scalars().all()
         
-        return [t.id for t in teams]
+        # 从赛程中提取所有参与过的球队ID（去重）
+        team_ids = set()
+        for f in fixtures:
+            team_ids.add(f.home_team_id)
+            team_ids.add(f.away_team_id)
+        
+        return list(team_ids)
     
     async def get_today_fixtures(self, season: Season) -> List[Fixture]:
         """获取今天（当前天）的所有比赛"""
@@ -336,3 +357,375 @@ class SeasonService:
             })
         
         return [calendar[day] for day in sorted(calendar.keys())]
+    
+    async def _process_promotion_relegation(self, season: Season, day: int) -> Dict:
+        """
+        处理升降级和附加赛
+        
+        Day 21: 闪电杯决赛结束，处理赛季结束，计算升降级并创建附加赛
+        Day 22: 附加赛预选赛 (Day 1)
+        Day 23: 附加赛决赛 (Day 2)，应用最终升降级
+        Day 24-25: 休赛期
+        """
+        results = {}
+        
+        if day == 21:
+            # 闪电杯决赛结束，赛季正式结束，计算升降级并创建附加赛
+            print(f"\n  📊 闪电杯决赛结束，处理赛季结束，计算升降级...")
+            promotion_data = await self.promotion_service.process_season_end(season)
+            
+            # 创建附加赛赛程
+            if promotion_data['playoff_teams']:
+                playoff_fixtures = await self.promotion_service.create_playoff_fixtures(
+                    season, promotion_data['playoff_teams']
+                )
+                results['playoff_fixtures_created'] = len(playoff_fixtures)
+                print(f"  📝 创建附加赛: {len(playoff_fixtures)} 场")
+            
+            # 保存升降级数据供后续使用
+            season._promotion_data = promotion_data
+            
+            # 显示直升/直降信息
+            auto_up = len(promotion_data['auto_promotions'])
+            auto_down = len(promotion_data['auto_relegations'])
+            print(f"  ⬆️ 直升: {auto_up} 队")
+            print(f"  ⬇️ 直降: {auto_down} 队")
+            
+        elif day == 22:
+            # 附加赛预选赛日，比赛由主循环模拟
+            # 预选赛后创建Day 23的决赛对阵
+            playoff_fixtures = await self._create_playoff_finals(season)
+            if playoff_fixtures:
+                results['playoff_finals_created'] = len(playoff_fixtures)
+                print(f"  📝 创建附加赛决赛: {len(playoff_fixtures)} 场")
+            
+        elif day == 24:
+            # Day 24 休赛期，统一处理所有升降级
+            print(f"\n  📊 处理赛季升降级...")
+            
+            # 获取之前保存的升降级数据
+            promotion_data = getattr(season, '_promotion_data', {
+                'auto_promotions': [],
+                'auto_relegations': []
+            })
+            
+            # 处理附加赛结果，确定最终升降级名单
+            final_results = await self._process_playoff_results(
+                season, promotion_data
+            )
+            
+            # 应用球队位置变更
+            await self.promotion_service.apply_team_movements(
+                final_results['final_promotions'],
+                final_results['final_relegations']
+            )
+            
+            results['final_promotions'] = len(final_results['final_promotions'])
+            results['final_relegations'] = len(final_results['final_relegations'])
+            print(f"  ✅ 升降级完成: {results['final_promotions']} 升级, {results['final_relegations']} 降级")
+        
+        return results
+    
+    async def _create_playoff_finals(self, season: Season) -> List[Fixture]:
+        """
+        根据Day 22预选赛结果创建Day 23决赛
+        
+        每个体系需要创建：
+        1. L1第7 vs L2第2（1场）- 已在playoff_teams中
+        2. L2第6 vs L3预赛胜者（1场）  
+        3. L3A第6 vs L4A-B预赛胜者（1场）
+        4. L3B第6 vs L4C-D预赛胜者（1场）
+        共4场/体系 × 4体系 = 16场
+        """
+        from app.models.league import LeagueSystem, LeagueStanding
+        
+        fixtures = []
+        
+        # 获取Day 22的附加赛结果
+        result = await self.db.execute(
+            select(Fixture).where(
+                and_(
+                    Fixture.season_id == season.id,
+                    Fixture.fixture_type == FixtureType.PLAYOFF,
+                    Fixture.season_day == 22,
+                    Fixture.status == FixtureStatus.FINISHED
+                )
+            )
+        )
+        day22_fixtures = result.scalars().all()
+        
+        # 建立预选赛胜者映射 {体系名_类型: 胜者ID}
+        winners = {}
+        for f in day22_fixtures:
+            stage = f.cup_stage or ""
+            winner_id = f.home_team_id if f.home_score > f.away_score else f.away_team_id
+            if f.home_score == f.away_score:
+                winner_id = f.home_team_id
+            
+            # 从 cup_stage 提取体系名（格式: P_L3亚军预赛-东区 或 P_L4A-L4B亚军预赛-东区）
+            if "L3亚军预赛-" in stage:
+                system = stage.split("-")[-1]  # 取最后一部分（体系名）
+                winners[f"{system}_L3"] = winner_id
+            elif "L4A-L4B亚军预赛-" in stage:
+                system = stage.split("-")[-1]
+                winners[f"{system}_L4AB"] = winner_id
+            elif "L4C-L4D亚军预赛-" in stage:
+                system = stage.split("-")[-1]
+                winners[f"{system}_L4CD"] = winner_id
+        
+        # Day 23 决赛时间
+        day23_date = season.start_date + timedelta(days=22)
+        day23_kickoff = day23_date.replace(hour=20, minute=0, second=0)
+        
+        # 获取升降级数据（包含L1-L2决赛对阵）
+        promotion_data = getattr(season, '_promotion_data', {})
+        playoff_teams = promotion_data.get('playoff_teams', {})
+        
+        # 1. 创建L1-L2决赛（4场）
+        for match_name, (home_id, away_id) in playoff_teams.items():
+            if "-L3" not in match_name and "-L4" not in match_name and "亚军预赛" not in match_name:
+                if home_id and away_id:  # 确保不是占位符
+                    short_name = match_name.replace("联赛", "").replace("附加赛", "")
+                    fixture = Fixture(
+                        season_id=season.id,
+                        fixture_type=FixtureType.PLAYOFF,
+                        season_day=23,
+                        scheduled_at=day23_kickoff,
+                        round_number=2,
+                        league_id=None,
+                        cup_competition_id=None,
+                        cup_group_name=None,
+                        cup_stage=f"F_{short_name[:15]}",
+                        home_team_id=home_id,
+                        away_team_id=away_id,
+                        status=FixtureStatus.SCHEDULED
+                    )
+                    self.db.add(fixture)
+                    fixtures.append(fixture)
+        
+        # 2. 查询所有体系，创建L2-L3和L3-L4决赛
+        systems_result = await self.db.execute(select(LeagueSystem))
+        systems = systems_result.scalars().all()
+        
+        for system in systems:
+            # 获取该体系的所有联赛
+            leagues_result = await self.db.execute(
+                select(League).where(League.system_id == system.id)
+            )
+            leagues = leagues_result.scalars().all()
+            
+            l1 = next((l for l in leagues if l.level == 1), None)
+            l2 = next((l for l in leagues if l.level == 2), None)
+            l3_leagues = [l for l in leagues if l.level == 3]
+            l4_leagues = [l for l in leagues if l.level == 4]
+            
+            if not l1 or not l2 or len(l3_leagues) < 2 or len(l4_leagues) < 4:
+                continue
+            
+            l3a, l3b = sorted(l3_leagues, key=lambda x: x.name)[:2]
+            l4a, l4b, l4c, l4d = sorted(l4_leagues, key=lambda x: x.name)[:4]
+            
+            # 获取积分榜
+            l2_standings = await self._get_league_standings(l2.id, season.id)
+            l3a_standings = await self._get_league_standings(l3a.id, season.id)
+            l3b_standings = await self._get_league_standings(l3b.id, season.id)
+            
+            sys_name = system.name  # 使用中文名（东区、西区等）
+            
+            # 创建L2-L3决赛：L2第6名 vs L3预赛胜者
+            l3_key = f"{sys_name}_L3"
+            l3_winner = winners.get(l3_key)
+            if len(l2_standings) >= 6 and l3_winner:
+                    fixture = Fixture(
+                        season_id=season.id,
+                        fixture_type=FixtureType.PLAYOFF,
+                        season_day=23,
+                        scheduled_at=day23_kickoff,
+                        round_number=2,
+                        league_id=None,
+                        cup_competition_id=None,
+                        cup_group_name=None,
+                        cup_stage=f"F_L2L3_{system.code[:8]}",
+                        home_team_id=l2_standings[5].team_id,  # L2第6名
+                        away_team_id=l3_winner,
+                        status=FixtureStatus.SCHEDULED
+                    )
+                    self.db.add(fixture)
+                    fixtures.append(fixture)
+            
+            # 创建L3-L4决赛1：L3A第6名 vs L4A-B预赛胜者
+            l4ab_key = f"{sys_name}_L4AB"
+            l4ab_winner = winners.get(l4ab_key)
+            if len(l3a_standings) >= 6 and l4ab_winner:
+                if l4ab_winner:
+                    fixture = Fixture(
+                        season_id=season.id,
+                        fixture_type=FixtureType.PLAYOFF,
+                        season_day=23,
+                        scheduled_at=day23_kickoff,
+                        round_number=2,
+                        league_id=None,
+                        cup_competition_id=None,
+                        cup_group_name=None,
+                        cup_stage=f"F_L3AL4_{system.code[:8]}",
+                        home_team_id=l3a_standings[5].team_id,  # L3A第6名
+                        away_team_id=l4ab_winner,
+                        status=FixtureStatus.SCHEDULED
+                    )
+                    self.db.add(fixture)
+                    fixtures.append(fixture)
+            
+            # 创建L3-L4决赛2：L3B第6名 vs L4C-D预赛胜者
+            l4cd_key = f"{sys_name}_L4CD"
+            l4cd_winner = winners.get(l4cd_key)
+            if len(l3b_standings) >= 6 and l4cd_winner:
+                if l4cd_winner:
+                    fixture = Fixture(
+                        season_id=season.id,
+                        fixture_type=FixtureType.PLAYOFF,
+                        season_day=23,
+                        scheduled_at=day23_kickoff,
+                        round_number=2,
+                        league_id=None,
+                        cup_competition_id=None,
+                        cup_group_name=None,
+                        cup_stage=f"F_L3BL4_{system.code[:8]}",
+                        home_team_id=l3b_standings[5].team_id,  # L3B第6名
+                        away_team_id=l4cd_winner,
+                        status=FixtureStatus.SCHEDULED
+                    )
+                    self.db.add(fixture)
+                    fixtures.append(fixture)
+        
+        await self.db.commit()
+        return fixtures
+    
+    async def _get_league_standings(self, league_id: str, season_id: str):
+        """获取联赛积分榜"""
+        from app.models.league import LeagueStanding
+        result = await self.db.execute(
+            select(LeagueStanding).where(
+                and_(
+                    LeagueStanding.league_id == league_id,
+                    LeagueStanding.season_id == season_id
+                )
+            ).order_by(LeagueStanding.position)
+        )
+        return list(result.scalars().all())
+    
+    async def _process_playoff_results(
+        self,
+        season: Season,
+        promotion_data: Dict
+    ) -> Dict[str, List]:
+        """
+        处理附加赛结果，确定最终升降级名单
+        
+        附加赛规则：
+        - L1-L2: L1第7 vs L2第2，胜者升级/保级，败者降级/留级
+        - L2-L3: L2第6 vs L3预赛胜者，胜者升级/保级，败者降级/留级  
+        - L3-L4: L3第6 vs L4预赛胜者，胜者升级/保级，败者降级/留级
+        """
+        auto_promotions = list(promotion_data.get('auto_promotions', []))
+        auto_relegations = list(promotion_data.get('auto_relegations', []))
+        
+        #  playoff_promotions 和 playoff_relegations 用于存储附加赛产生的升降级
+        playoff_promotions = []
+        playoff_relegations = []
+        
+        # 获取Day 23的附加赛结果
+        result = await self.db.execute(
+            select(Fixture).where(
+                and_(
+                    Fixture.season_id == season.id,
+                    Fixture.fixture_type == FixtureType.PLAYOFF,
+                    Fixture.season_day == 23,
+                    Fixture.status == FixtureStatus.FINISHED
+                )
+            )
+        )
+        day23_fixtures = result.scalars().all()
+        
+        # 获取所有联赛信息
+        from sqlalchemy.orm import selectinload
+        result = await self.db.execute(
+            select(League).options(selectinload(League.system))
+        )
+        leagues = {l.id: l for l in result.scalars().all()}
+        
+        # 获取所有球队信息
+        result = await self.db.execute(select(Team))
+        teams = {t.id: t for t in result.scalars().all()}
+        
+        # 建立联赛层级映射 {league_id: level}
+        league_levels = {l.id: l.level for l in leagues.values()}
+        
+        for fixture in day23_fixtures:
+            # 确定胜者
+            if fixture.home_score > fixture.away_score:
+                winner_id = fixture.home_team_id
+                loser_id = fixture.away_team_id
+            elif fixture.away_score > fixture.home_score:
+                winner_id = fixture.away_team_id
+                loser_id = fixture.home_team_id
+            else:
+                # 平局按主队获胜
+                winner_id = fixture.home_team_id
+                loser_id = fixture.away_team_id
+            
+            winner_team = teams.get(winner_id)
+            loser_team = teams.get(loser_id)
+            
+            if not winner_team or not loser_team:
+                continue
+            
+            # 根据球队当前所在联赛层级确定升降级
+            winner_level = league_levels.get(winner_team.current_league_id, 0)
+            loser_level = league_levels.get(loser_team.current_league_id, 0)
+            
+            stage = fixture.cup_stage or ""
+            
+            # L1-L2附加赛: L1第7(主队, level=1) vs L2第2(客队, level=2)
+            # L2第2胜则升级, L1第7败则降级
+            if "L1-L2" in stage or "超级-甲级" in stage or "超级联赛-甲级联赛" in stage:
+                # L2球队(低级别)获胜 -> 升级
+                if winner_level > loser_level:  # winner是L2球队
+                    # 找到L1联赛(需要知道是哪个L1)
+                    l1_league = next((l for l in leagues.values() if l.level == 1 and loser_team.current_league_id == l.id), None)
+                    l2_league = next((l for l in leagues.values() if l.level == 2 and winner_team.current_league_id == l.id), None)
+                    if l1_league and l2_league:
+                        playoff_promotions.append((winner_id, l2_league.id, l1_league.id))
+                        playoff_relegations.append((loser_id, l1_league.id, l2_league.id))
+                else:  # L1球队获胜，保级成功，不需要额外处理
+                    pass
+            
+            # L2-L3附加赛: L2第6(主队, level=2) vs L3预赛胜者(客队, level=3)
+            # L3球队获胜 -> 升级, L2第6败则降级
+            elif "L2L3" in stage:
+                if winner_level > loser_level:  # winner是L3球队
+                    l2_league = next((l for l in leagues.values() if l.level == 2 and loser_team.current_league_id == l.id), None)
+                    l3_league = next((l for l in leagues.values() if l.level == 3 and winner_team.current_league_id == l.id), None)
+                    if l2_league and l3_league:
+                        playoff_promotions.append((winner_id, l3_league.id, l2_league.id))
+                        playoff_relegations.append((loser_id, l2_league.id, l3_league.id))
+            
+            # L3-L4附加赛: L3第6(主队, level=3) vs L4预赛胜者(客队, level=4)
+            # L4球队获胜 -> 升级, L3第6败则降级
+            elif "L3AL4" in stage or "L3BL4" in stage:
+                if winner_level > loser_level:  # winner是L4球队
+                    l3_league = next((l for l in leagues.values() if l.level == 3 and loser_team.current_league_id == l.id), None)
+                    l4_league = next((l for l in leagues.values() if l.level == 4 and winner_team.current_league_id == l.id), None)
+                    if l3_league and l4_league:
+                        playoff_promotions.append((winner_id, l4_league.id, l3_league.id))
+                        playoff_relegations.append((loser_id, l3_league.id, l4_league.id))
+        
+        # 合并所有升降级
+        final_promotions = auto_promotions + playoff_promotions
+        final_relegations = auto_relegations + playoff_relegations
+        
+        return {
+            'final_promotions': final_promotions,
+            'final_relegations': final_relegations,
+            'playoff_promotions': playoff_promotions,
+            'playoff_relegations': playoff_relegations
+        }
