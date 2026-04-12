@@ -39,7 +39,6 @@ class Team(Base):
     founded_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     
     # 球队属性
-    reputation: Mapped[int] = mapped_column(Integer, default=1000, nullable=False)  # 声望值
     overall_rating: Mapped[int] = mapped_column(Integer, default=50, nullable=False)  # 总评
     
     # 状态

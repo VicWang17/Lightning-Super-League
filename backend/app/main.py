@@ -18,6 +18,7 @@ from app.routers.players import router as players_router
 from app.routers.leagues import router as leagues_router
 from app.routers.matches import router as matches_router
 from app.routers.seasons import router as seasons_router
+from app.routers.cups import router as cups_router
 
 settings = get_settings()
 
@@ -56,6 +57,7 @@ app = FastAPI(
         {"name": "联赛", "description": "联赛信息、积分榜、赛程"},
         {"name": "比赛", "description": "比赛数据、直播、统计"},
         {"name": "赛季", "description": "赛季管理、赛程生成、比赛调度"},
+        {"name": "杯赛", "description": "杯赛信息、小组赛、淘汰赛"},
     ],
 )
 
@@ -82,6 +84,7 @@ app.include_router(players_router, prefix="/api/v1")
 app.include_router(leagues_router, prefix="/api/v1")
 app.include_router(matches_router, prefix="/api/v1")
 app.include_router(seasons_router, prefix="/api/v1")
+app.include_router(cups_router, prefix="/api/v1")
 
 
 @app.get("/")

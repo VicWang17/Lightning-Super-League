@@ -66,7 +66,6 @@ class TeamResponse(TeamBase):
     user_id: int
     league_id: Optional[int] = None
     status: TeamStatus = TeamStatus.ACTIVE
-    reputation: int = Field(default=1000, description="声望值")
     overall_rating: int = Field(default=50, description="总评")
     created_at: datetime
     updated_at: datetime
@@ -84,3 +83,23 @@ class TeamSummary(BaseSchema):
     logo_url: Optional[str] = None
     overall_rating: int
     league_position: Optional[int] = None
+
+
+class DashboardStats(BaseSchema):
+    """Dashboard statistics for a team"""
+    # 联赛排名相关
+    league_position: Optional[int] = None
+    points: int = 0
+    played: int = 0
+    won: int = 0
+    drawn: int = 0
+    lost: int = 0
+    goals_for: int = 0
+    goals_against: int = 0
+    goal_difference: int = 0
+    
+    # 近期状态 (例如: "WWDLW")
+    recent_form: str = ""
+    
+    # 下场比赛
+    next_match: Optional[dict] = None

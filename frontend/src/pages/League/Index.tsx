@@ -165,7 +165,7 @@ function LeagueList() {
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0D7377] to-[#0A5A5D] flex items-center justify-center">
             <Trophy className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white">所有联赛</h1>
+          <h1 className="text-3xl font-bold text-white">联赛</h1>
         </div>
         <p className="text-[#8B8BA7] ml-13">
           闪电超级联赛共有 4 个联赛体系，32 个联赛，256 支球队

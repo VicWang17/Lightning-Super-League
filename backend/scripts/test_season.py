@@ -1,21 +1,32 @@
 #!/usr/bin/env python3
 """
-赛季测试脚本 - 完整赛季模拟测试（支持双赛季+升降级测试）
+赛季测试脚本 - 支持手动控制和自动模式
 
 用法:
-    cd backend && python -m scripts.test_season
+    cd backend && python -m scripts.test_season                    # 交互式模式（默认）
+    cd backend && python -m scripts.test_season --init             # 仅初始化数据库
+    cd backend && python -m scripts.test_season --next             # 推进一天
+    cd backend && python -m scripts.test_season --next 5           # 推进5天
+    cd backend && python -m scripts.test_season --auto 50          # 自动推进50天（原模式）
+    cd backend && python -m scripts.test_season --standings        # 显示当前积分榜
+    cd backend && python -m scripts.test_season --fixtures         # 显示今日赛程
 
-功能:
-    1. 自动初始化数据库
-    2. 运行完整第1赛季
-    3. 处理升降级
-    4. 运行完整第2赛季
-    5. 生成最终报告
+交互式命令:
+    n, next     - 推进到下一天
+    a, auto N   - 自动推进N天
+    s, standings - 显示积分榜
+    f, fixtures  - 显示今日赛程
+    c, cups      - 显示杯赛情况
+    r, results   - 显示最近比赛结果
+    i, info      - 显示当前赛季信息
+    h, help      - 显示帮助
+    q, quit      - 退出
 """
 
 import asyncio
 import sys
 import os
+import argparse
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 
@@ -24,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, selectinload
-from sqlalchemy import select, delete, text
+from sqlalchemy import select, delete, text, and_
 
 from app.config import get_settings
 from app.models.base import Base
@@ -40,8 +51,6 @@ from app.services.standing_service import StandingService
 
 
 # 初始化系统数据
-# 球队命名规则：每个体系需要 8+8+16+32 = 64 个队名
-# Level 1: 8队, Level 2: 8队, Level 3: 16队(2联赛), Level 4: 32队(4联赛)
 TEAM_NAMES = {
     "EAST": {
         1: ["东方巨龙", "南海蛟龙", "西海金龙", "北海苍龙", "青龙偃月", "白虎啸天", "朱雀焚霞", "玄武镇海"],
@@ -87,32 +96,21 @@ TEAM_NAMES = {
 
 
 def get_tier_team_names(system: str, tier: int, league_idx: int, team_idx: int) -> Tuple[str, str]:
-    """获取指定层级球队的名称
-    
-    Args:
-        system: 体系代码
-        tier: 级别 (1-4)
-        league_idx: 在该级别内的联赛索引 (0-based)
-        team_idx: 在该联赛内的球队索引 (0-based)
-    """
-    # 计算在完整球队列表中的全局索引
+    """获取指定层级球队的名称"""
     if tier == 1:
-        global_idx = team_idx  # 0-7
+        global_idx = team_idx
     elif tier == 2:
-        global_idx = 8 + team_idx  # 8-15
+        global_idx = 8 + team_idx
     elif tier == 3:
-        global_idx = 16 + league_idx * 8 + team_idx  # 16-31
-    else:  # tier == 4
-        global_idx = 32 + league_idx * 8 + team_idx  # 32-63
+        global_idx = 16 + league_idx * 8 + team_idx
+    else:
+        global_idx = 32 + league_idx * 8 + team_idx
     
     base_names = TEAM_NAMES[system].get(tier, [])
     
-    # 为重复层级选择正确的子列表
     if tier == 3:
-        # Level 3: 2个联赛，16个队名
         base_names = base_names[league_idx * 8 : (league_idx + 1) * 8]
     elif tier == 4:
-        # Level 4: 4个联赛，32个队名
         base_names = base_names[league_idx * 8 : (league_idx + 1) * 8]
     
     if team_idx < len(base_names):
@@ -121,7 +119,7 @@ def get_tier_team_names(system: str, tier: int, league_idx: int, team_idx: int) 
 
 
 class SeasonTester:
-    """赛季测试器"""
+    """赛季测试器 - 支持手动控制"""
     
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -129,6 +127,25 @@ class SeasonTester:
         self.standing_service = StandingService(db)
         self.all_reports = []
         self.current_report = None
+        self._current_season: Optional[Season] = None
+    
+    @property
+    async def current_season(self) -> Optional[Season]:
+        """获取当前正在进行的赛季"""
+        if self._current_season is None:
+            result = await self.db.execute(
+                select(Season).where(Season.status == SeasonStatus.ONGOING)
+            )
+            self._current_season = result.scalar_one_or_none()
+        return self._current_season
+    
+    async def refresh_season(self) -> Optional[Season]:
+        """刷新当前赛季"""
+        result = await self.db.execute(
+            select(Season).where(Season.status == SeasonStatus.ONGOING)
+        )
+        self._current_season = result.scalar_one_or_none()
+        return self._current_season
     
     def print_header(self, text: str):
         """打印标题"""
@@ -146,21 +163,16 @@ class SeasonTester:
         """初始化数据库"""
         self.print_header("初始化数据库")
         
-        # 删除所有表并重新创建（确保ENUM类型更新）
         print("  清理并重建数据库...")
         
-        # 重新创建所有表（使用 SQLAlchemy 自动处理依赖关系）
         from app.dependencies import engine
         async with engine.begin() as conn:
-            # 先删除所有表（按依赖顺序）
             await conn.run_sync(Base.metadata.drop_all)
-            # 重新创建所有表
             await conn.run_sync(Base.metadata.create_all)
         
         print("  ✅ 数据库表已重建")
         
         print("  创建联赛体系...")
-        # 创建4个联赛体系
         systems = []
         for code, name in [("EAST", "东区"), ("WEST", "西区"), ("SOUTH", "南区"), ("NORTH", "北区")]:
             system = LeagueSystem(code=code, name=name)
@@ -168,11 +180,9 @@ class SeasonTester:
             systems.append(system)
         await self.db.flush()
         
-        # 创建联赛（每体系: 1个L1 + 1个L2 + 2个L3 + 4个L4 = 8个联赛，共56队用于杰尼杯）
         print("  创建联赛...")
         leagues = []
         for system in systems:
-            # Level 1: 1个联赛（8队，闪电杯）
             league = League(
                 name=f"{system.name}超级联赛",
                 level=1,
@@ -182,7 +192,6 @@ class SeasonTester:
             self.db.add(league)
             leagues.append(league)
             
-            # Level 2: 1个联赛（8队，杰尼杯种子）
             league = League(
                 name=f"{system.name}甲级联赛",
                 level=2,
@@ -192,7 +201,6 @@ class SeasonTester:
             self.db.add(league)
             leagues.append(league)
             
-            # Level 3: 2个联赛（16队，杰尼杯预选赛）
             for i in range(2):
                 league = League(
                     name=f"{system.name}乙级联赛{'AB'[i]}",
@@ -203,7 +211,6 @@ class SeasonTester:
                 self.db.add(league)
                 leagues.append(league)
             
-            # Level 4: 4个联赛（32队，杰尼杯预选赛）
             for i in range(4):
                 league = League(
                     name=f"{system.name}丙级联赛{'ABCD'[i]}",
@@ -215,10 +222,8 @@ class SeasonTester:
                 leagues.append(league)
         await self.db.flush()
         
-        # 创建球队和用户
         print("  创建球队和球员...")
         for system in systems:
-            # 按级别分组联赛
             system_leagues = [l for l in leagues if l.system_id == system.id]
             leagues_by_level = {1: [], 2: [], 3: [], 4: []}
             for league in system_leagues:
@@ -226,31 +231,26 @@ class SeasonTester:
             
             for level in range(1, 5):
                 for league_idx, league in enumerate(leagues_by_level[level]):
-                    teams_in_league = []
                     for team_idx in range(8):
                         team_name, user_email = get_tier_team_names(system.code, level, league_idx, team_idx)
                         
-                        # 创建AI用户
                         user = User(
                             email=user_email,
                             username=team_name,
-                            hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # "password"
+                            hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
                             is_ai=True,
                             status=UserStatus.ACTIVE
                         )
                         self.db.add(user)
                         await self.db.flush()
                         
-                        # 创建球队
                         team = Team(
                             name=team_name,
                             user_id=user.id,
                             current_league_id=league.id
                         )
                         self.db.add(team)
-                        teams_in_league.append(team)
                         
-                        # 为球队创建18名球员
                         for j in range(18):
                             from datetime import date
                             player = Player(
@@ -277,6 +277,73 @@ class SeasonTester:
         await self.db.commit()
         print("  ✅ 数据库初始化完成！")
     
+    async def display_current_status(self):
+        """显示当前赛季状态"""
+        season = await self.refresh_season()
+        
+        if not season:
+            # 检查是否有任何赛季
+            result = await self.db.execute(
+                select(Season).order_by(Season.season_number.desc())
+            )
+            last_season = result.scalar_one_or_none()
+            
+            if last_season:
+                print(f"\n  📅 第{last_season.season_number}赛季已结束")
+                print(f"     状态: {last_season.status.value}")
+                print(f"     最终比赛日: Day {last_season.current_day}")
+            else:
+                print("\n  ⚠️  没有活跃的赛季")
+            return
+        
+        print(f"\n  📅 第{season.season_number}赛季 - Day {season.current_day}/25")
+        print(f"     状态: {season.status.value}")
+        
+        # 显示今日赛程
+        await self.display_today_fixtures(season)
+    
+    async def display_today_fixtures(self, season: Season):
+        """显示今日赛程"""
+        result = await self.db.execute(
+            select(Fixture).where(
+                and_(
+                    Fixture.season_id == season.id,
+                    Fixture.season_day == season.current_day
+                )
+            ).order_by(Fixture.fixture_type)
+        )
+        fixtures = result.scalars().all()
+        
+        if not fixtures:
+            print(f"     今日无比赛")
+            return
+        
+        league_count = sum(1 for f in fixtures if f.fixture_type == FixtureType.LEAGUE)
+        cup_count = sum(1 for f in fixtures if f.fixture_type != FixtureType.LEAGUE)
+        
+        print(f"     今日赛程: {league_count}场联赛, {cup_count}场杯赛")
+        
+        for f in fixtures[:5]:  # 只显示前5场
+            home = await self.db.get(Team, f.home_team_id)
+            away = await self.db.get(Team, f.away_team_id)
+            home_name = home.name if home else "?"
+            away_name = away.name if away else "?"
+            
+            type_emoji = {
+                FixtureType.LEAGUE: "🏆",
+                FixtureType.CUP_LIGHTNING_GROUP: "⚡",
+                FixtureType.CUP_LIGHTNING_KNOCKOUT: "⚡",
+                FixtureType.CUP_JENNY: "🏅",
+                FixtureType.PLAYOFF: "🔄"
+            }.get(f.fixture_type, "⚽")
+            
+            status = "✅" if f.status == FixtureStatus.FINISHED else "⏳"
+            score = f"{f.home_score}-{f.away_score}" if f.status == FixtureStatus.FINISHED else "vs"
+            print(f"     {type_emoji} {status} {home_name[:12]:<12} {score:^5} {away_name[:12]:<12}")
+        
+        if len(fixtures) > 5:
+            print(f"     ... 还有 {len(fixtures) - 5} 场比赛")
+    
     async def display_match_result(self, result: dict, show_stage: bool = False):
         """显示单场比赛结果"""
         home_team = await self.db.get(Team, result['home_team'])
@@ -292,7 +359,6 @@ class SeasonTester:
             "cup_jenny": "🏅"
         }.get(result['type'], "⚽")
         
-        # 添加比赛阶段信息
         stage_info = ""
         if show_stage and result.get('cup_stage'):
             stage_map = {
@@ -310,9 +376,6 @@ class SeasonTester:
     
     async def display_cup_details(self, season_id: str, day: int):
         """显示杯赛日的详细信息"""
-        from sqlalchemy import select, and_
-        
-        # 查询当天的所有杯赛
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
@@ -327,7 +390,6 @@ class SeasonTester:
         if not fixtures:
             return
         
-        # 按杯赛类型分组
         cup_fixtures = {
             'lightning_group': [],
             'lightning_knockout': [],
@@ -345,19 +407,16 @@ class SeasonTester:
                     cup_fixtures['jenny'][comp_id] = []
                 cup_fixtures['jenny'][comp_id].append(f)
         
-        # 显示闪电杯小组赛
         if cup_fixtures['lightning_group']:
             print(f"\n  ⚡ 闪电杯 - 小组赛")
             for f in cup_fixtures['lightning_group']:
                 await self._display_cup_fixture(f, show_group=True)
         
-        # 显示闪电杯淘汰赛
         if cup_fixtures['lightning_knockout']:
             print(f"\n  ⚡ 闪电杯 - 淘汰赛")
             for f in cup_fixtures['lightning_knockout']:
                 await self._display_cup_fixture(f)
         
-        # 显示杰尼杯
         if cup_fixtures['jenny']:
             for comp_id, fixtures in cup_fixtures['jenny'].items():
                 if fixtures:
@@ -381,7 +440,6 @@ class SeasonTester:
         group_info = f"[{fixture.cup_group_name}] " if show_group and fixture.cup_group_name else ""
         
         if fixture.status == FixtureStatus.FINISHED:
-            # 高亮获胜方
             if fixture.home_score > fixture.away_score:
                 print(f"     {group_info}{home_name:18s} ✓ {fixture.home_score} - {fixture.away_score}   {away_name:18s}")
             elif fixture.home_score < fixture.away_score:
@@ -393,8 +451,6 @@ class SeasonTester:
     
     async def display_playoff_details(self, season_id: str, day: int):
         """显示升降级附加赛详情"""
-        from sqlalchemy import select, and_
-        
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
@@ -416,7 +472,6 @@ class SeasonTester:
             home_name = home_team.name if home_team else f.home_team_id[:8]
             away_name = away_team.name if away_team else f.away_team_id[:8]
             
-            # 解析阶段
             stage = ""
             if f.cup_stage:
                 if f.cup_stage.startswith("P_"):
@@ -434,9 +489,25 @@ class SeasonTester:
             else:
                 print(f"     {stage}{home_name:18s}   vs   {away_name:18s}")
     
-    async def display_league_standings(self, season_id: str, show_all: bool = False):
+    async def display_league_standings(self, season_id: Optional[str] = None, show_all: bool = False):
         """显示联赛积分榜"""
-        from sqlalchemy.orm import selectinload
+        if season_id is None:
+            season = await self.refresh_season()
+            if season:
+                season_id = season.id
+            else:
+                # 获取最近一个赛季
+                result = await self.db.execute(
+                    select(Season).order_by(Season.season_number.desc())
+                )
+                last_season = result.scalar_one_or_none()
+                if last_season:
+                    season_id = last_season.id
+                else:
+                    print("  ⚠️  没有找到赛季")
+                    return
+        
+        self.print_section("联赛积分榜")
         
         result = await self.db.execute(
             select(League).options(selectinload(League.system)).order_by(League.level, League.system_id)
@@ -448,7 +519,12 @@ class SeasonTester:
                 league.id, season_id
             )
             
-            if not standings or standings[0]['played'] == 0:
+            if not standings:
+                continue
+            
+            # 只显示有比赛的联赛
+            has_played = any(s['played'] > 0 for s in standings)
+            if not has_played and not show_all:
                 continue
             
             system_name = league.system.code if league.system else "未知"
@@ -456,53 +532,295 @@ class SeasonTester:
             print(f"  {'排名':<6}{'球队':<20}{'赛':<4}{'胜':<4}{'平':<4}{'负':<4}{'进球':<6}{'失球':<6}{'净胜':<6}{'积分':<6}")
             print(f"  {'─' * 70}")
             
-            display_count = len(standings) if show_all else 5
+            display_count = len(standings) if show_all else 8
             for s in standings[:display_count]:
                 marker = ""
                 if s['position'] <= 2 and league.level > 1:
-                    marker = "⬆️"  # 升级区
+                    marker = "⬆️"
                 elif s['position'] <= 4 and league.level == 1:
-                    marker = "🏆"  # 顶级联赛欧战区
+                    marker = "🏆"
                 elif s['position'] > 6:
-                    marker = "⬇️"  # 降级区
+                    marker = "⬇️"
                 
                 print(f"  {s['position']:<6}{s['team_name'][:18]:<20}{s['played']:<4}{s['won']:<4}{s['drawn']:<4}{s['lost']:<4}{s['goals_for']:<6}{s['goals_against']:<6}{s['goal_difference']:<6}{s['points']:<6} {marker}")
     
-    async def show_promotion_relegation(self, season: Season):
-        """显示升降级情况（由系统自动处理，这里仅展示结果）"""
-        self.print_section("赛季结束 - 升降级情况")
+    async def display_cup_standings(self):
+        """显示杯赛情况"""
+        season = await self.refresh_season()
+        if not season:
+            print("  ⚠️  没有活跃的赛季")
+            return
         
-        # 显示各联赛冠军和升降级区
-        result = await self.db.execute(select(League).order_by(League.level))
-        leagues = result.scalars().all()
+        self.print_section("杯赛情况")
         
-        for league in leagues:
-            standings = await self.standing_service.get_league_standings_with_team_names(
-                league.id, season.id
+        # 闪电杯
+        result = await self.db.execute(
+            select(CupCompetition).where(
+                and_(
+                    CupCompetition.season_id == season.id,
+                    CupCompetition.name.like("%闪电杯%")
+                )
             )
-            if not standings:
+        )
+        lightning = result.scalar_one_or_none()
+        
+        if lightning:
+            print(f"\n  ⚡ 闪电杯")
+            print(f"     阶段: {lightning.stage.value}")
+            if lightning.winner_team_id:
+                winner = await self.db.get(Team, lightning.winner_team_id)
+                print(f"     冠军: {winner.name if winner else '未知'}")
+            
+            # 显示当前进行中的比赛
+            result = await self.db.execute(
+                select(Fixture).where(
+                    and_(
+                        Fixture.cup_competition_id == lightning.id,
+                        Fixture.status == FixtureStatus.SCHEDULED
+                    )
+                ).order_by(Fixture.season_day)
+            )
+            upcoming = result.scalars().all()
+            if upcoming:
+                print(f"     即将进行: {len(upcoming)} 场比赛")
+        
+        # 杰尼杯
+        result = await self.db.execute(
+            select(CupCompetition).where(
+                and_(
+                    CupCompetition.season_id == season.id,
+                    CupCompetition.name.like("%杰尼杯%")
+                )
+            )
+        )
+        jenny_comps = result.scalars().all()
+        
+        if jenny_comps:
+            print(f"\n  🏅 杰尼杯（{len(jenny_comps)} 个赛区）")
+            for comp in jenny_comps[:4]:  # 只显示前4个
+                print(f"     {comp.name}: {comp.stage.value}")
+                if comp.winner_team_id:
+                    winner = await self.db.get(Team, comp.winner_team_id)
+                    print(f"       冠军: {winner.name if winner else '未知'}")
+    
+    async def display_recent_results(self, days: int = 3):
+        """显示最近几天的比赛结果"""
+        season = await self.refresh_season()
+        if not season:
+            print("  ⚠️  没有活跃的赛季")
+            return
+        
+        self.print_section(f"最近比赛结果")
+        
+        start_day = max(1, season.current_day - days)
+        
+        for day in range(start_day, season.current_day):
+            result = await self.db.execute(
+                select(Fixture).where(
+                    and_(
+                        Fixture.season_id == season.id,
+                        Fixture.season_day == day,
+                        Fixture.status == FixtureStatus.FINISHED
+                    )
+                )
+            )
+            fixtures = result.scalars().all()
+            
+            if not fixtures:
                 continue
             
-            if league.level == 1:
-                # 顶级联赛冠军
-                print(f"  🏆 {league.name} 冠军: {standings[0]['team_name']}")
-            else:
-                # 升级区
-                up_teams = [s['team_name'] for s in standings[:2]]
-                print(f"  ⬆️ {league.name} 升级: {', '.join(up_teams)}")
+            print(f"\n  📅 Day {day} ({len(fixtures)} 场比赛)")
             
-            if league.level < 4:
-                # 降级区
-                down_teams = [s['team_name'] for s in standings[-2:]]
-                print(f"  ⬇️ {league.name} 降级: {', '.join(down_teams)}")
+            for f in fixtures[:6]:  # 每场显示前6场
+                home = await self.db.get(Team, f.home_team_id)
+                away = await self.db.get(Team, f.away_team_id)
+                home_name = home.name if home else "?"
+                away_name = away.name if away else "?"
+                
+                type_emoji = {
+                    FixtureType.LEAGUE: "🏆",
+                    FixtureType.CUP_LIGHTNING_GROUP: "⚡",
+                    FixtureType.CUP_LIGHTNING_KNOCKOUT: "⚡",
+                    FixtureType.CUP_JENNY: "🏅",
+                    FixtureType.PLAYOFF: "🔄"
+                }.get(f.fixture_type, "⚽")
+                
+                print(f"     {type_emoji} {home_name[:12]:<12} {f.home_score}-{f.away_score} {away_name[:12]:<12}")
+            
+            if len(fixtures) > 6:
+                print(f"     ... 还有 {len(fixtures) - 6} 场")
+    
+    async def process_next_day(self, count: int = 1) -> dict:
+        """推进一天或多天"""
+        season = await self.refresh_season()
         
-        print(f"\n  ℹ️  升降级由系统自动处理，新赛季将自动调整球队位置")
+        if not season:
+            print("  ⚠️  没有活跃的赛季，尝试创建新赛季...")
+            season = await self.season_service.create_new_season()
+            await self.season_service.start_season(season)
+            print(f"  ✅ 创建并启动第{season.season_number}赛季")
+            self._current_season = season
+        
+        results = {
+            'days_processed': 0,
+            'fixtures_total': 0,
+            'season_switched': False,
+            'new_season_number': None
+        }
+        
+        for i in range(count):
+            season = await self.refresh_season()
+            
+            if not season or season.status == SeasonStatus.FINISHED:
+                # 赛季已结束，尝试创建新赛季
+                season = await self.season_service.create_new_season()
+                await self.season_service.start_season(season)
+                results['season_switched'] = True
+                results['new_season_number'] = season.season_number
+                print(f"\n  ✅ 自动创建并启动第{season.season_number}赛季")
+            
+            day = season.current_day
+            
+            try:
+                result = await self.season_service.process_next_day(season)
+                results['days_processed'] += 1
+                results['fixtures_total'] += result.get('fixtures_processed', 0)
+                
+                # 显示结果
+                fixtures_processed = result.get('fixtures_processed', 0)
+                cup_events = result.get('cup_progression', {})
+                
+                if fixtures_processed > 0:
+                    # 分类统计
+                    fixture_types = {}
+                    for r in result.get('results', []):
+                        t = r['type']
+                        fixture_types[t] = fixture_types.get(t, 0) + 1
+                    
+                    type_str = ', '.join([f"{k.replace('cup_', '').replace('lightning_', '⚡').replace('jenny', '🏅')}:{v}" 
+                                          for k, v in fixture_types.items()])
+                    
+                    print(f"  📅 Day {day:2d}: {fixtures_processed:2d} 场 ({type_str})")
+                else:
+                    print(f"  📅 Day {day:2d}: 无比赛")
+                
+                # 显示杯赛事件
+                for event, desc in cup_events.items():
+                    if 'winner' in event.lower():
+                        print(f"     🏆 {desc}")
+                    elif 'promotion' in event.lower() or 'relegation' in event.lower():
+                        print(f"     🔄 {desc}")
+                
+                # 检查赛季是否刚结束
+                await self.db.refresh(season)
+                if season.status == SeasonStatus.FINISHED:
+                    print(f"\n  ✅ 第{season.season_number}赛季已结束！")
+                    
+            except Exception as e:
+                print(f"  ❌ Day {day} 处理失败: {e}")
+                import traceback
+                traceback.print_exc()
+                break
+        
+        return results
+    
+    async def interactive_mode(self):
+        """交互式模式"""
+        self.print_header("Lightning Super League - 交互式赛季控制台")
+        print("""
+  命令:
+    n, next      - 推进到下一天
+    a, auto N    - 自动推进N天
+    s, standings - 显示积分榜
+    f, fixtures  - 显示今日赛程
+    c, cups      - 显示杯赛情况
+    r, results   - 显示最近比赛结果
+    i, info      - 显示当前赛季信息
+    h, help      - 显示帮助
+    q, quit      - 退出
+        """)
+        
+        # 显示初始状态
+        await self.display_current_status()
+        
+        while True:
+            try:
+                season = await self.refresh_season()
+                day = season.current_day if season else "?"
+                season_num = season.season_number if season else "?"
+                
+                cmd = input(f"\n[S{season_num}D{day}] > ").strip().lower()
+                
+                if not cmd:
+                    continue
+                
+                parts = cmd.split()
+                action = parts[0]
+                
+                if action in ('n', 'next'):
+                    count = int(parts[1]) if len(parts) > 1 else 1
+                    await self.process_next_day(count)
+                
+                elif action in ('a', 'auto'):
+                    count = int(parts[1]) if len(parts) > 1 else 5
+                    print(f"\n  自动推进 {count} 天...")
+                    await self.process_next_day(count)
+                
+                elif action in ('s', 'standings'):
+                    await self.display_league_standings()
+                
+                elif action in ('f', 'fixtures'):
+                    season = await self.refresh_season()
+                    if season:
+                        await self.display_today_fixtures(season)
+                    else:
+                        print("  ⚠️  没有活跃的赛季")
+                
+                elif action in ('c', 'cups'):
+                    await self.display_cup_standings()
+                
+                elif action in ('r', 'results'):
+                    days = int(parts[1]) if len(parts) > 1 else 3
+                    await self.display_recent_results(days)
+                
+                elif action in ('i', 'info'):
+                    await self.display_current_status()
+                
+                elif action in ('h', 'help'):
+                    print("""
+  命令:
+    n, next [N]  - 推进N天（默认1天）
+    a, auto N    - 自动推进N天
+    s, standings - 显示积分榜
+    f, fixtures  - 显示今日赛程
+    c, cups      - 显示杯赛情况
+    r, results [N] - 显示最近N天结果（默认3天）
+    i, info      - 显示当前赛季信息
+    h, help      - 显示帮助
+    q, quit      - 退出
+                    """)
+                
+                elif action in ('q', 'quit', 'exit'):
+                    print("\n  再见！")
+                    break
+                
+                else:
+                    print(f"  未知命令: {action}，输入 h 查看帮助")
+            
+            except KeyboardInterrupt:
+                print("\n\n  再见！")
+                break
+            except Exception as e:
+                print(f"  错误: {e}")
+                import traceback
+                traceback.print_exc()
+    
+    # ============ 以下保持原有功能兼容 ============
     
     async def run_season(self, season_number: int) -> Season:
-        """运行单个赛季"""
+        """运行单个赛季（自动模式）"""
         self.print_header(f"第{season_number}赛季 - 完整模拟")
         
-        # 创建新赛季
         season = await self.season_service.create_new_season()
         self.current_report = {
             "season_number": season.season_number,
@@ -513,12 +831,10 @@ class SeasonTester:
         
         print(f"创建成功: 第{season.season_number}赛季")
         
-        # 启动赛季
         print(f"\n启动赛季...")
         await self.season_service.start_season(season)
         print(f"赛季已启动！")
         
-        # 显示赛程统计
         result = await self.db.execute(
             select(Fixture).where(Fixture.season_id == season.id)
         )
@@ -531,11 +847,10 @@ class SeasonTester:
         print(f"  • 杯赛比赛: {len(cup_fixtures)} 场")
         print(f"  • 总计: {len(all_fixtures)} 场")
         
-        # 运行每一天
         self.print_section("开始模拟比赛")
         
-        for day in range(1, 26):  # Day 1-25
-            day_report = await self.process_day(season, day)
+        for day in range(1, 26):
+            day_report = await self._process_day_auto(season, day)
             self.current_report['daily_reports'].append(day_report)
             
             await self.db.refresh(season)
@@ -544,28 +859,26 @@ class SeasonTester:
                 print(f"\n  ✅ 赛季已结束！")
                 break
         
-        # 生成赛季报告
-        await self.generate_season_report(season)
+        await self._generate_season_report(season)
         
         self.current_report['end_time'] = datetime.now().isoformat()
         self.all_reports.append(self.current_report)
         
         return season
     
-    async def process_day(self, season: Season, day: int) -> dict:
-        """处理一天的比赛"""
+    async def _process_day_auto(self, season: Season, day: int) -> dict:
+        """自动模式处理一天"""
         day_report = {
             "day": day,
             "fixtures": [],
             "cup_events": []
         }
         
-        # 特殊日期定义
-        lightning_cup_days = [4, 6, 8, 10, 12, 14, 21]  # 闪电杯比赛日
-        jenny_cup_days = [4, 6, 8, 10, 12, 14, 15]  # 杰尼杯比赛日
-        playoff_days = [22, 23]  # 升降级附加赛日
-        promotion_day = 24  # 升降级处理日
-        offseason_days = [25]  # 休赛期（Day 25）
+        lightning_cup_days = [4, 6, 8, 10, 12, 14, 21]
+        jenny_cup_days = [4, 6, 8, 10, 12, 14, 15]
+        playoff_days = [22, 23]
+        promotion_day = 24
+        offseason_days = [25]
         
         is_cup_day = day in lightning_cup_days or day in jenny_cup_days
         is_playoff_day = day in playoff_days
@@ -575,35 +888,20 @@ class SeasonTester:
         try:
             result = await self.season_service.process_next_day(season)
             
-            # 处理休赛期
             if is_offseason:
                 print(f"\n  📅 第 {day} 天 - 休赛期")
-                if result.get('cup_progression'):
-                    print(f"  🎯 事件: {', '.join(result['cup_progression'].keys())}")
                 day_report['success'] = True
                 return day_report
             
-            # 处理升降级日
             if is_promotion_day:
                 print(f"\n  📅 第 {day} 天 - 升降级处理")
-                if result.get('cup_progression'):
-                    for event, desc in result['cup_progression'].items():
-                        print(f"  🎯 {event}: {desc}")
                 day_report['success'] = True
                 return day_report
             
-            # 处理有比赛的日子
             if result['results']:
-                # 附加赛日：详细显示
                 if is_playoff_day:
                     print(f"\n  📅 第 {day} 天 - 共 {result['fixtures_processed']} 场比赛")
                     await self.display_playoff_details(season.id, day)
-                    # 显示升降级事件
-                    if result.get('cup_progression'):
-                        for event, desc in result['cup_progression'].items():
-                            if 'promotion' in event.lower() or 'relegation' in event.lower():
-                                print(f"  🎯 {event}: {desc}")
-                # 杯赛日：简化显示（只显示数量）
                 elif is_cup_day:
                     fixture_types = {}
                     for r in result['results']:
@@ -612,18 +910,15 @@ class SeasonTester:
                     type_str = ', '.join([f"{k}:{v}" for k, v in fixture_types.items()])
                     print(f"  📅 第 {day:2d} 天 - {result['fixtures_processed']:3d} 场 ({type_str})")
                     
-                    # 只在杯赛晋级日显示事件
                     if result.get('cup_progression'):
                         events = [k for k in result['cup_progression'].keys() if 'winner' in k.lower()]
                         if events:
                             print(f"  🎯 {', '.join(events)}")
-                # 普通联赛日：最简化
                 else:
                     print(f"  📅 第 {day:2d} 天 - {result['fixtures_processed']:3d} 场 (联赛)")
                 
                 day_report['fixtures'] = result['results']
             else:
-                # 无比赛日
                 print(f"  📅 第 {day:2d} 天 - 无比赛")
             
             day_report['success'] = True
@@ -633,18 +928,16 @@ class SeasonTester:
             import traceback
             error_msg = f"第 {day} 天处理失败: {str(e)}"
             print(f"  ❌ {error_msg}")
-            print(f"  📋 堆栈跟踪:")
             traceback.print_exc()
             day_report['success'] = False
             day_report['error'] = error_msg
             self.current_report['errors'].append(error_msg)
             return day_report
     
-    async def generate_season_report(self, season: Season):
+    async def _generate_season_report(self, season: Season):
         """生成赛季报告"""
         self.print_section("赛季总结")
         
-        # 显示最终积分榜（简要）
         print("\n  📊 各联赛前3名:")
         result = await self.db.execute(
             select(League).order_by(League.level)
@@ -659,7 +952,6 @@ class SeasonTester:
                 top3 = [s['team_name'] for s in standings[:3]]
                 print(f"  {league.name}: {', '.join(top3)}")
         
-        # 杯赛冠军
         print("\n  🏆 杯赛冠军:")
         result = await self.db.execute(
             select(CupCompetition).where(CupCompetition.season_id == season.id)
@@ -671,7 +963,6 @@ class SeasonTester:
                 winner = await self.db.get(Team, comp.winner_team_id)
                 print(f"  {comp.name}: {winner.name if winner else '未知'}")
         
-        # 统计
         result = await self.db.execute(
             select(Fixture).where(
                 Fixture.season_id == season.id,
@@ -687,114 +978,40 @@ class SeasonTester:
         print(f"  总进球: {total_goals} 球")
         print(f"  场均进球: {avg_goals:.2f} 球")
     
-    async def verify_promotion_relegation(self):
-        """验证升降级是否正确应用：检查第2赛季创建后球队的分布"""
-        self.print_section("验证升降级结果")
-        
-        # 获取所有联赛
-        result = await self.db.execute(
-            select(League).options(selectinload(League.system)).order_by(League.level, League.name)
-        )
-        leagues = result.scalars().all()
-        
-        # 获取所有赛季
-        result = await self.db.execute(
-            select(Season).order_by(Season.season_number.desc())
-        )
-        seasons = result.scalars().all()
-        
-        if len(seasons) < 2:
-            print("  ⚠️ 只有一个赛季，无法验证升降级")
-            return
-        
-        season2 = seasons[0]  # 第2赛季
-        print(f"  验证第{season2.season_number}赛季的球队分布（基于升降级后的 Team.current_league_id）...")
-        
-        # 直接从 Team 表中读取球队分布（升降级已更新 current_league_id）
-        print(f"\n  📊 各联赛球队分布:\n")
-        
-        for league in leagues:
-            result = await self.db.execute(
-                select(Team).where(Team.current_league_id == league.id)
-            )
-            teams = result.scalars().all()
-            team_names = [t.name for t in teams]
-            
-            print(f"  {league.name:16s}: {len(team_names)} 队", end="")
-            if len(team_names) == 8:
-                print(f"  ✅")
-            else:
-                print(f"  ⚠️  (应有8队)")
-            
-            # 显示球队名（每行4个）
-            for i in range(0, len(team_names), 4):
-                chunk = team_names[i:i+4]
-                print(f"     {', '.join(chunk)}")
-        
-        print(f"\n  ✅ 升降级验证完成！第2赛季已根据升降级结果重新分配球队。")
-
-    async def generate_final_report(self):
-        """生成最终测试报告"""
-        self.print_header("测试完成 - 最终报告")
-        
-        for report in self.all_reports:
-            print(f"\n  第{report['season_number']}赛季:")
-            print(f"    比赛日: {len(report['daily_reports'])} 天")
-            print(f"    错误数: {len(report.get('errors', []))}")
-            if report.get('errors'):
-                for err in report['errors']:
-                    print(f"      - {err}")
-        
-        print(f"\n  ✅ 所有赛季测试完成！")
-
-
     async def run_continuous(self, total_days: int = 50):
-        """连续推进多天，测试系统自动处理赛季切换"""
+        """连续推进多天（原自动模式）"""
         self.print_header(f"连续推进测试 - 共 {total_days} 天")
         
-        # 只创建第1赛季，后续赛季由系统自动创建
         season = await self.season_service.create_new_season()
         print(f"创建成功: 第{season.season_number}赛季")
         
         await self.season_service.start_season(season)
         print(f"赛季已启动！\n")
         
-        # 连续推进
         season_count = 1
-        last_season_number = 1
         
         for global_day in range(1, total_days + 1):
             try:
-                # 调用 process_next_day，传入当前赛季
                 result = await self.season_service.process_next_day(season)
                 
-                # 重新获取当前正在进行的赛季（可能已自动切换）
-                from sqlalchemy import select
                 result_query = await self.db.execute(
                     select(Season).where(Season.status == SeasonStatus.ONGOING)
                 )
                 current_season = result_query.scalar_one_or_none()
                 
                 if current_season and current_season.id != season.id:
-                    # 检测到赛季切换
                     season_count += 1
                     print(f"\n  ✅ 自动切换到第{current_season.season_number}赛季")
                     season = current_season
-                    last_season_number = current_season.season_number
-                elif not current_season:
-                    # 如果没有正在进行的赛季，使用原来的引用
-                    pass
-                else:
+                elif current_season:
                     season = current_season
                 
-                # 显示进度（特殊日期或每5天显示一次）
                 day = season.current_day
                 is_special = day in [1, 21, 22, 23, 24, 25] or global_day % 5 == 0
                 
                 if is_special:
                     print(f"  📅 全局第 {global_day:2d} 天 | 第{season.season_number}赛季第 {day:2d} 天 - {result['fixtures_processed']} 场比赛")
                 
-                # 显示升降级事件
                 if result.get('cup_progression'):
                     for event, desc in result['cup_progression'].items():
                         if 'promotion' in event.lower() or 'relegation' in event.lower() or '升降级' in str(desc):
@@ -811,26 +1028,78 @@ class SeasonTester:
 
 
 async def main():
-    """主函数"""
-    print("=" * 80)
-    print("Lightning Super League - 连续推进赛季测试")
-    print("  测试系统自动处理：比赛 → 升降级 → 新赛季创建")
-    print("=" * 80)
+    """主函数 - 支持命令行参数"""
+    parser = argparse.ArgumentParser(
+        description='Lightning Super League 赛季测试工具',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python -m scripts.test_season                    # 交互式模式
+  python -m scripts.test_season --init             # 仅初始化数据库
+  python -m scripts.test_season --next             # 推进一天
+  python -m scripts.test_season --next 5           # 推进5天
+  python -m scripts.test_season --auto 50          # 自动推进50天
+  python -m scripts.test_season --standings        # 显示积分榜
+  python -m scripts.test_season --fixtures         # 显示今日赛程
+        """
+    )
+    
+    parser.add_argument('--init', action='store_true', help='初始化数据库')
+    parser.add_argument('--next', type=int, nargs='?', const=1, metavar='N', help='推进N天（默认1天）')
+    parser.add_argument('--auto', type=int, metavar='DAYS', help='自动推进D天')
+    parser.add_argument('--standings', action='store_true', help='显示积分榜')
+    parser.add_argument('--fixtures', action='store_true', help='显示今日赛程')
+    parser.add_argument('--cups', action='store_true', help='显示杯赛情况')
+    parser.add_argument('--interactive', '-i', action='store_true', help='交互式模式（默认）')
+    
+    args = parser.parse_args()
     
     async with async_session_maker() as db:
         tester = SeasonTester(db)
         
-        # 1. 初始化数据库
-        await tester.init_database()
+        # 检查是否有命令行参数
+        has_args = any([args.init, args.next, args.auto, args.standings, args.fixtures, args.cups])
         
-        # 2. 连续推进50天（系统会自动创建第2赛季）
-        season_count = await tester.run_continuous(total_days=50)
+        if args.init:
+            await tester.init_database()
+            print("\n✅ 数据库初始化完成！")
+            return
         
-        # 3. 验证升降级结果
-        await tester.verify_promotion_relegation()
+        if args.next:
+            await tester.process_next_day(args.next)
+            return
         
-        # 4. 生成最终报告
-        await tester.generate_final_report()
+        if args.auto:
+            await tester.run_continuous(args.auto)
+            return
+        
+        if args.standings:
+            await tester.display_league_standings()
+            return
+        
+        if args.fixtures:
+            season = await tester.refresh_season()
+            if season:
+                await tester.display_today_fixtures(season)
+            else:
+                print("⚠️  没有活跃的赛季")
+            return
+        
+        if args.cups:
+            await tester.display_cup_standings()
+            return
+        
+        # 默认交互式模式
+        if not has_args or args.interactive:
+            # 检查是否需要初始化
+            result = await db.execute(select(Season))
+            has_season = result.scalar_one_or_none() is not None
+            
+            if not has_season:
+                print("检测到数据库为空，先进行初始化...")
+                await tester.init_database()
+            
+            await tester.interactive_mode()
 
 
 if __name__ == "__main__":

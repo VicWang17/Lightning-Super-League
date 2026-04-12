@@ -24,7 +24,6 @@ interface Team {
   id: string
   name: string
   short_name?: string
-  reputation: number
   overall_rating: number
   attack: number
   midfield: number
@@ -33,14 +32,36 @@ interface Team {
   league_name?: string
 }
 
-// Mock recent matches - TODO: 从API获取真实数据
-const MOCK_RECENT_MATCHES = [
-  { opponent: '紫电龙骑', result: 'W' as const, score: '3:1', date: '2天前', is_home: true },
-  { opponent: '青龙偃月', result: 'W' as const, score: '2:0', date: '5天前', is_home: false },
-  { opponent: '北海苍龙', result: 'D' as const, score: '1:1', date: '1周前', is_home: true },
-  { opponent: '赤龙焚天', result: 'W' as const, score: '4:2', date: '1周前', is_home: false },
-  { opponent: '西海金龙', result: 'L' as const, score: '0:1', date: '2周前', is_home: true },
-]
+// Dashboard 统计数据
+interface DashboardStats {
+  league_position: number | null
+  points: number
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goals_for: number
+  goals_against: number
+  goal_difference: number
+  recent_form: string
+  next_match: {
+    opponent_id: string
+    opponent_name: string
+    is_home: boolean
+    day: number
+    fixture_type: string
+  } | null
+}
+
+// 近期比赛结果
+interface RecentMatch {
+  opponent: string
+  opponent_id: string
+  result: 'W' | 'D' | 'L'
+  score: string
+  date: string
+  is_home: boolean
+}
 
 // 数据卡片组件
 function StatCard({ 
@@ -137,6 +158,8 @@ function MatchResult({ opponent, result, score, date, is_home }: {
 
 // 近期状态
 function FormIndicator({ form }: { form: string }) {
+  if (!form) return <div className="text-xs text-[#4B4B6A]">暂无数据</div>
+  
   return (
     <div className="flex items-center gap-1">
       {form.split('').map((result, idx) => {
@@ -198,12 +221,16 @@ function LeagueCard({ league }: { league: League }) {
 function Dashboard() {
   const [leagues, setLeagues] = useState<League[]>([])
   const [team, setTeam] = useState<Team | null>(null)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [recentMatches, setRecentMatches] = useState<RecentMatch[]>([])
   const [loading, setLoading] = useState(true)
   const user = useAuthStore((state) => state.user)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true)
+        
         // 获取联赛列表
         const leaguesResponse = await api.get<League[]>('/leagues')
         if (leaguesResponse.success) {
@@ -215,6 +242,17 @@ function Dashboard() {
         const teamResponse = await api.get<Team>('/teams/my-team')
         if (teamResponse.success) {
           setTeam(teamResponse.data)
+          
+          // 获取 Dashboard 统计数据
+          const statsResponse = await api.get<DashboardStats>('/teams/my-team/dashboard')
+          if (statsResponse.success) {
+            setStats(statsResponse.data)
+            
+            // 获取最近比赛详情
+            if (statsResponse.data.recent_form) {
+              await fetchRecentMatches(teamResponse.data.id)
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to fetch data:', error)
@@ -226,11 +264,57 @@ function Dashboard() {
     fetchData()
   }, [])
 
+  // 获取最近比赛详情
+  const fetchRecentMatches = async (teamId: string) => {
+    try {
+      // 获取当前赛季
+      const seasonResponse = await api.get('/seasons/current')
+      if (!seasonResponse.success) return
+      
+      const seasonNumber = (seasonResponse.data as { season_number?: number })?.season_number
+      if (!seasonNumber) return
+      
+      // 获取球队赛程
+      const fixturesResponse = await api.get(`/seasons/${seasonNumber}/teams/${teamId}/fixtures?limit=5`)
+      if (!fixturesResponse.success) return
+      
+      const fixtures = (fixturesResponse.data as { fixtures?: unknown[] })?.fixtures || []
+      
+      // 过滤已完成的比赛并格式化
+      const completed = fixtures
+        .filter((f: any) => f.status === 'finished')
+        .slice(0, 5)
+        .map((f: any) => {
+          const isHome = f.home_team_id === teamId
+          const myScore = isHome ? f.home_score : f.away_score
+          const oppScore = isHome ? f.away_score : f.home_score
+          const opponent = isHome ? f.away_team_name : f.home_team_name
+          
+          let result: 'W' | 'D' | 'L'
+          if (myScore > oppScore) result = 'W'
+          else if (myScore < oppScore) result = 'L'
+          else result = 'D'
+          
+          return {
+            opponent,
+            opponent_id: isHome ? f.away_team_id : f.home_team_id,
+            result,
+            score: `${myScore}:${oppScore}`,
+            date: `Day ${f.season_day}`,
+            is_home: isHome
+          }
+        })
+      
+      setRecentMatches(completed.reverse()) // 最新的在前面
+    } catch (error) {
+      console.error('Failed to fetch recent matches:', error)
+    }
+  }
+
   // 如果没有获取到球队，使用占位数据
   const displayTeam: Team = team || {
     id: '1',
     name: user?.nickname || '我的球队',
-    reputation: 1000,
     overall_rating: 50,
     attack: 50,
     midfield: 50,
@@ -239,22 +323,29 @@ function Dashboard() {
     league_name: undefined,
   }
 
-  // 临时计算字段（等待真实数据API）
-  const league_position = 3
-  const points = 24
-  const played = 11
-  const won = 8
-  const drawn = 0
-  const lost = 3
-  const goals_for = 26
-  const goals_against = 14
-  const form = 'WWDLW'
-  const next_match = {
-    opponent: '下场比赛',
-    is_home: true,
-    date: '2天后',
+  // 使用真实统计数据
+  const league_position = stats?.league_position ?? '-'
+  const points = stats?.points ?? 0
+  const played = stats?.played ?? 0
+  const won = stats?.won ?? 0
+  const drawn = stats?.drawn ?? 0
+  const lost = stats?.lost ?? 0
+  const goals_for = stats?.goals_for ?? 0
+  const goals_against = stats?.goals_against ?? 0
+  const goal_diff = stats?.goal_difference ?? 0
+  const form = stats?.recent_form ?? ''
+  
+  const next_match = stats?.next_match ? {
+    opponent: stats.next_match.opponent_name,
+    opponent_id: stats.next_match.opponent_id,
+    is_home: stats.next_match.is_home,
+    date: `Day ${stats.next_match.day}`,
     time: '20:00'
-  }
+  } : null
+
+  // 计算胜率趋势
+  const winRate = played > 0 ? Math.round((won / played) * 100) : 0
+  const trend = winRate >= 50 ? 'up' : winRate >= 30 ? 'neutral' : 'down'
 
   return (
     <div className="space-y-6 max-w-[1600px]">
@@ -279,32 +370,32 @@ function Dashboard() {
           label="联赛排名" 
           value={`#${league_position}`}
           subtext={`${points} 积分 · ${played} 场次`}
-          trend="up"
-          trendValue="↑ 2"
+          trend={trend as any}
+          trendValue={league_position && typeof league_position === 'number' && league_position <= 3 ? "上游" : league_position && typeof league_position === 'number' && league_position >= 6 ? "下游" : "中游"}
           icon={Trophy}
         />
         <StatCard 
           label="本赛季战绩" 
           value={`${won}-${drawn}-${lost}`}
           subtext="胜 - 平 - 负"
-          trend="up"
-          trendValue={`${Math.round((won / played) * 100)}%`}
+          trend={trend as any}
+          trendValue={`${winRate}%`}
           icon={Swords}
         />
         <StatCard 
           label="球队总评" 
-          value={displayTeam.overall_rating.toString()}
-          subtext={`进攻 ${displayTeam.attack} · 防守 ${displayTeam.defense}`}
+          value={displayTeam.overall_rating?.toString() || '-'}
+          subtext={`进攻 ${displayTeam.attack || '-'} · 防守 ${displayTeam.defense || '-'}`}
           trend="neutral"
           trendValue="-"
           icon={Zap}
         />
         <StatCard 
           label="净胜球" 
-          value={`+${goals_for - goals_against}`}
+          value={goal_diff >= 0 ? `+${goal_diff}` : `${goal_diff}`}
           subtext={`${goals_for} 进球 · ${goals_against} 失球`}
-          trend="up"
-          trendValue="+3"
+          trend={goal_diff > 0 ? 'up' : goal_diff < 0 ? 'down' : 'neutral'}
+          trendValue={goal_diff > 0 ? "+" : goal_diff < 0 ? "-" : "="}
           icon={Target}
         />
       </div>
@@ -331,19 +422,19 @@ function Dashboard() {
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold">{displayTeam.name}</h2>
-                <p className="text-sm text-[#8B8BA7] mt-1">声望值 {displayTeam.reputation} · 东区超级联赛</p>
+                <p className="text-sm text-[#8B8BA7] mt-1">{displayTeam.league_name || '暂无联赛'}</p>
                 <div className="flex items-center gap-4 mt-3">
                   <div className="flex items-center gap-1.5 text-sm">
                     <Target className="w-4 h-4 text-red-400" />
-                    <span>进攻 {displayTeam.attack}</span>
+                    <span>进攻 {displayTeam.attack || '-'}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm">
                     <Zap className="w-4 h-4 text-[#0D7377]" />
-                    <span>中场 {displayTeam.midfield}</span>
+                    <span>中场 {displayTeam.midfield || '-'}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm">
                     <Shield className="w-4 h-4 text-emerald-400" />
-                    <span>防守 {displayTeam.defense}</span>
+                    <span>防守 {displayTeam.defense || '-'}</span>
                   </div>
                 </div>
               </div>
@@ -358,28 +449,28 @@ function Dashboard() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[#8B8BA7]">进攻</span>
-                  <span className="text-sm font-medium stat-number">{displayTeam.attack}</span>
+                  <span className="text-sm font-medium stat-number">{displayTeam.attack || '-'}</span>
                 </div>
                 <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${displayTeam.attack}%` }} />
+                  <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${displayTeam.attack || 0}%` }} />
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[#8B8BA7]">中场</span>
-                  <span className="text-sm font-medium stat-number">{displayTeam.midfield}</span>
+                  <span className="text-sm font-medium stat-number">{displayTeam.midfield || '-'}</span>
                 </div>
                 <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[#0D7377] to-[#14A085] rounded-full" style={{ width: `${displayTeam.midfield}%` }} />
+                  <div className="h-full bg-gradient-to-r from-[#0D7377] to-[#14A085] rounded-full" style={{ width: `${displayTeam.midfield || 0}%` }} />
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[#8B8BA7]">防守</span>
-                  <span className="text-sm font-medium stat-number">{displayTeam.defense}</span>
+                  <span className="text-sm font-medium stat-number">{displayTeam.defense || '-'}</span>
                 </div>
                 <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{ width: `${displayTeam.defense}%` }} />
+                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{ width: `${displayTeam.defense || 0}%` }} />
                 </div>
               </div>
             </div>
@@ -423,16 +514,22 @@ function Dashboard() {
               </Link>
             </div>
             <div>
-              {MOCK_RECENT_MATCHES.map((match, idx) => (
-                <MatchResult 
-                  key={idx}
-                  opponent={match.opponent}
-                  result={match.result}
-                  score={match.score}
-                  date={match.date}
-                  is_home={match.is_home}
-                />
-              ))}
+              {recentMatches.length > 0 ? (
+                recentMatches.map((match, idx) => (
+                  <MatchResult 
+                    key={idx}
+                    opponent={match.opponent}
+                    result={match.result}
+                    score={match.score}
+                    date={match.date}
+                    is_home={match.is_home}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-8 text-[#4B4B6A]">
+                  <p>暂无比赛记录</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -445,36 +542,44 @@ function Dashboard() {
               <Clock className="w-4 h-4 text-[#0D7377]" />
               <span className="text-sm text-[#8B8BA7]">下场比赛</span>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="text-center flex-1">
-                <div className="w-14 h-14 rounded-xl bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
-                  <span className="text-2xl">🐉</span>
+            {next_match ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="text-center flex-1">
+                    <div className="w-14 h-14 rounded-xl bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl">🐉</span>
+                    </div>
+                    <p className="text-sm font-medium truncate">{displayTeam.name}</p>
+                    <p className="text-xs text-[#8B8BA7]">{next_match.is_home ? '主' : '客'}</p>
+                  </div>
+                  <div className="text-center px-4">
+                    <p className="text-2xl font-bold stat-number text-[#0D7377]">VS</p>
+                    <p className="text-xs text-[#4B4B6A] mt-1">{next_match.date}</p>
+                    <p className="text-xs text-[#0D7377]">{next_match.time}</p>
+                  </div>
+                  <div className="text-center flex-1">
+                    <div className="w-14 h-14 rounded-xl bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
+                      <span className="text-2xl">🌊</span>
+                    </div>
+                    <p className="text-sm font-medium truncate">{next_match.opponent}</p>
+                    <p className="text-xs text-[#8B8BA7]">{next_match.is_home ? '客' : '主'}</p>
+                  </div>
                 </div>
-                <p className="text-sm font-medium truncate">{displayTeam.name}</p>
-                <p className="text-xs text-[#8B8BA7]">主</p>
-              </div>
-              <div className="text-center px-4">
-                <p className="text-2xl font-bold stat-number text-[#0D7377]">VS</p>
-                <p className="text-xs text-[#4B4B6A] mt-1">{next_match.date}</p>
-                <p className="text-xs text-[#0D7377]">{next_match.time}</p>
-              </div>
-              <div className="text-center flex-1">
-                <div className="w-14 h-14 rounded-xl bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
-                  <span className="text-2xl">🌊</span>
+                <div className="mt-4 pt-4 border-t border-[#2D2D44]">
+                  <Link 
+                    to="/match/pre"
+                    className="btn-primary w-full flex items-center justify-center gap-2"
+                  >
+                    <Swords className="w-4 h-4" />
+                    赛前准备
+                  </Link>
                 </div>
-                <p className="text-sm font-medium truncate">{next_match.opponent}</p>
-                <p className="text-xs text-[#8B8BA7]">客</p>
+              </>
+            ) : (
+              <div className="text-center py-8 text-[#4B4B6A]">
+                <p>暂无安排</p>
               </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-[#2D2D44]">
-              <Link 
-                to="/match/pre"
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                <Swords className="w-4 h-4" />
-                赛前准备
-              </Link>
-            </div>
+            )}
           </div>
 
           {/* 快捷操作 */}

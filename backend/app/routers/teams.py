@@ -4,7 +4,7 @@ Team management API routes
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_, desc
 
 from app.schemas import (
     ResponseSchema,
@@ -13,10 +13,11 @@ from app.schemas import (
     TeamUpdate,
     TeamResponse,
     TeamSummary,
+    DashboardStats,
     ErrorResponse,
 )
 from app.dependencies import get_db, get_current_user
-from app.models import Team, League
+from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/teams", tags=["球队"])
@@ -62,7 +63,6 @@ async def get_my_team(
             "id": team.id,
             "name": team.name,
             "short_name": team.short_name,
-            "reputation": team.reputation,
             "overall_rating": team.overall_rating,
             "current_league_id": team.current_league_id,
             "league_name": league.name if league else None,
@@ -272,4 +272,135 @@ async def get_team_finances(team_id: int):
             "stadium_capacity": 30000,
             "ticket_price": 25.00,
         },
+    )
+
+
+@router.get(
+    "/my-team/dashboard",
+    response_model=ResponseSchema[DashboardStats],
+    summary="获取我的球队Dashboard数据",
+    description="获取当前登录球队的Dashboard统计数据，包括联赛排名、战绩、近期状态和下场比赛",
+)
+async def get_my_team_dashboard(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取当前登录用户的球队Dashboard统计数据
+    """
+    user_id = current_user.get("user_id")
+    
+    # 获取用户球队
+    result = await db.execute(
+        select(Team).where(Team.user_id == user_id)
+    )
+    team = result.scalar_one_or_none()
+    
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="您还没有球队"
+        )
+    
+    # 获取当前赛季
+    result = await db.execute(
+        select(Season).where(Season.status == "ongoing")
+    )
+    current_season = result.scalar_one_or_none()
+    
+    if not current_season:
+        # 没有进行中的赛季，返回空数据
+        return ResponseSchema(
+            success=True,
+            data=DashboardStats()
+        )
+    
+    # 获取联赛排名数据
+    standing = None
+    if team.current_league_id:
+        result = await db.execute(
+            select(LeagueStanding).where(
+                and_(
+                    LeagueStanding.team_id == team.id,
+                    LeagueStanding.league_id == team.current_league_id,
+                    LeagueStanding.season_id == current_season.id
+                )
+            )
+        )
+        standing = result.scalar_one_or_none()
+    
+    # 获取最近5场已完成的比赛结果
+    result = await db.execute(
+        select(Fixture).where(
+            and_(
+                Fixture.season_id == current_season.id,
+                Fixture.status == FixtureStatus.FINISHED,
+                (Fixture.home_team_id == team.id) | (Fixture.away_team_id == team.id)
+            )
+        ).order_by(desc(Fixture.season_day)).limit(5)
+    )
+    recent_fixtures = result.scalars().all()
+    
+    # 计算近期状态 (W/D/L)
+    form_chars = []
+    for fixture in reversed(recent_fixtures):  # 从旧到新
+        if fixture.home_team_id == team.id:
+            if fixture.home_score > fixture.away_score:
+                form_chars.append("W")
+            elif fixture.home_score < fixture.away_score:
+                form_chars.append("L")
+            else:
+                form_chars.append("D")
+        else:
+            if fixture.away_score > fixture.home_score:
+                form_chars.append("W")
+            elif fixture.away_score < fixture.home_score:
+                form_chars.append("L")
+            else:
+                form_chars.append("D")
+    recent_form = "".join(form_chars)
+    
+    # 获取下场比赛
+    result = await db.execute(
+        select(Fixture).where(
+            and_(
+                Fixture.season_id == current_season.id,
+                Fixture.status == FixtureStatus.SCHEDULED,
+                (Fixture.home_team_id == team.id) | (Fixture.away_team_id == team.id)
+            )
+        ).order_by(Fixture.season_day).limit(1)
+    )
+    next_fixture = result.scalar_one_or_none()
+    
+    next_match = None
+    if next_fixture:
+        opponent_id = next_fixture.away_team_id if next_fixture.home_team_id == team.id else next_fixture.home_team_id
+        is_home = next_fixture.home_team_id == team.id
+        
+        result = await db.execute(select(Team).where(Team.id == opponent_id))
+        opponent = result.scalar_one_or_none()
+        
+        next_match = {
+            "opponent_id": opponent_id,
+            "opponent_name": opponent.name if opponent else "未知",
+            "is_home": is_home,
+            "day": next_fixture.season_day,
+            "fixture_type": next_fixture.fixture_type.value if next_fixture.fixture_type else "league",
+        }
+    
+    return ResponseSchema(
+        success=True,
+        data=DashboardStats(
+            league_position=standing.position if standing else None,
+            points=standing.points if standing else 0,
+            played=standing.played if standing else 0,
+            won=standing.won if standing else 0,
+            drawn=standing.drawn if standing else 0,
+            lost=standing.lost if standing else 0,
+            goals_for=standing.goals_for if standing else 0,
+            goals_against=standing.goals_against if standing else 0,
+            goal_difference=standing.goal_difference if standing else 0,
+            recent_form=recent_form,
+            next_match=next_match
+        )
     )

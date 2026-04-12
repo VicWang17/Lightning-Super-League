@@ -27,7 +27,7 @@ function calculateDisplayStatus(
   // 分析今日比赛
   const hasLeague = todayFixtures.some(f => f.fixture_type === 'league')
   const hasCup = todayFixtures.some(f => 
-    f.fixture_type.includes('cup_lightning') || f.fixture_type === 'cup_jenny'
+    f.fixture_type?.includes('cup_lightning') || f.fixture_type === 'cup_jenny'
   )
   
   // 获取联赛轮次
@@ -36,7 +36,7 @@ function calculateDisplayStatus(
   
   // 获取杯赛信息
   const cupFixture = todayFixtures.find(f => 
-    f.fixture_type.includes('cup_lightning') || f.fixture_type === 'cup_jenny'
+    f.fixture_type?.includes('cup_lightning') || f.fixture_type === 'cup_jenny'
   )
   const cupRound = cupFixture?.round_number
   const cupStage = cupFixture?.cup_stage

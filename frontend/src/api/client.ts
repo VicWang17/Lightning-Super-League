@@ -322,9 +322,5 @@ interface TokenData {
   expires_in: number
 }
 
-interface UserWithToken extends User {
-  token: TokenData
-}
-
 export const api = new ApiClient(API_BASE_URL)
 export default api

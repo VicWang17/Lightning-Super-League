@@ -227,7 +227,6 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
                     short_name=team_name[:4],
                     user_id=user.id,
                     current_league_id=league.id,
-                    reputation=1000 + (4 - level) * 200 + (16 - idx) * 10,
                     overall_rating=50 + (4 - level) * 5 + (16 - idx) // 3,
                     status=TeamStatus.ACTIVE
                 )

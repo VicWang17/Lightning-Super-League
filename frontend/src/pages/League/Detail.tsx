@@ -8,7 +8,7 @@ import {
   ArrowUpRight,
   Calendar,
   TrendingUp,
-  List
+  Swords
 } from 'lucide-react'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useTopScorers, useTopAssists } from '../../hooks/useLeagues'
 import type { LeagueStanding, Match } from '../../types/league'
@@ -222,7 +222,7 @@ function LeagueDetail() {
 
   return (
     <div className="max-w-[1200px]">
-      {/* 返回按钮和所有联赛链接 */}
+      {/* 返回按钮和所有比赛链接 */}
       <div className="flex items-center justify-between mb-4">
         <Link 
           to="/dashboard"
@@ -232,11 +232,11 @@ function LeagueDetail() {
           返回首页
         </Link>
         <Link 
-          to="/leagues/all"
+          to="/cups"
           className="inline-flex items-center gap-1 text-sm text-[#0D7377] hover:text-white transition-colors"
         >
-          <List className="w-4 h-4" />
-          所有联赛
+          <Swords className="w-4 h-4" />
+          查看杯赛
         </Link>
       </div>
 

@@ -8,7 +8,7 @@ from app.schemas.user import (
     UserBase, UserCreate, UserUpdate, UserResponse, UserLogin,
     TokenResponse, UserWithToken
 )
-from app.schemas.team import TeamBase, TeamCreate, TeamUpdate, TeamResponse, TeamSummary
+from app.schemas.team import TeamBase, TeamCreate, TeamUpdate, TeamResponse, TeamSummary, DashboardStats
 from app.schemas.player import (
     PlayerBase, PlayerCreate, PlayerUpdate, PlayerResponse, 
     PlayerStats, PlayerPosition, PlayerAbility
@@ -45,6 +45,7 @@ __all__ = [
     "TeamUpdate",
     "TeamResponse",
     "TeamSummary",
+    "DashboardStats",
     # Player
     "PlayerBase",
     "PlayerCreate",

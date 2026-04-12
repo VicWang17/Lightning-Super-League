@@ -10,6 +10,10 @@ import Register from './pages/Auth/Register'
 import LeagueList from './pages/League/Index'
 import LeagueDetail from './pages/League/Detail'
 
+// Cup Pages
+import CupList from './pages/Cup/Index'
+import CupDetail from './pages/Cup/Detail'
+
 // Team Pages
 import TeamDetail from './pages/Team/Detail'
 import PlayerDetail from './pages/Team/PlayerDetail'
@@ -168,6 +172,31 @@ export const router = createBrowserRouter([
                 element: <LeagueDetail />,
               },
             ],
+          },
+          
+          // 杯赛
+          {
+            path: 'cups',
+            children: [
+              {
+                path: '',
+                element: <CupList />,
+              },
+              {
+                path: 'all',
+                element: <CupList />,
+              },
+              {
+                path: ':id',
+                element: <CupDetail />,
+              },
+            ],
+          },
+          
+          // 所有比赛（联赛+杯赛汇总）
+          {
+            path: 'competitions',
+            element: <LeagueList />,
           },
           
           // 转会市场
