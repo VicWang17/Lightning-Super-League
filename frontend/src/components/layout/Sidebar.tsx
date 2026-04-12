@@ -7,7 +7,6 @@ import {
   CalendarDays, 
   ArrowLeftRight, 
   Sprout,
-  Zap,
   LogOut,
   Swords
 } from 'lucide-react'
@@ -57,9 +56,11 @@ function Sidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-[#2D2D44]">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-[#0D7377] flex items-center justify-center shadow-[0_0_12px_rgba(13,115,119,0.4)]">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="闪电超级联赛" 
+            className="w-8 h-8 rounded-lg object-cover shadow-[0_0_12px_rgba(13,115,119,0.4)]"
+          />
           <span className="text-base font-semibold tracking-tight">闪电超级联赛</span>
         </Link>
       </div>

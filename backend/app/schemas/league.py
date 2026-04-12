@@ -123,9 +123,23 @@ class CleanSheetItem(BaseSchema):
     matches: int
 
 
+class PlayoffMatchItem(BaseSchema):
+    """Playoff match item"""
+    id: str
+    name: str  # 对阵名称，如 "东区超级-甲级附加赛"
+    round: int  # 轮次：1=预选赛，2=决赛
+    home_team: MatchTeamInfo
+    away_team: MatchTeamInfo
+    home_score: Optional[int] = None
+    away_score: Optional[int] = None
+    status: str
+    scheduled_at: datetime
+
+
 class LeagueDetailResponse(LeagueResponse):
     """League detail with standings"""
     current_season: Optional[SeasonResponse] = None
     standings: List[LeagueStandingItem] = []
     recent_matches: List[MatchResponse] = []
     upcoming_matches: List[MatchResponse] = []
+    playoffs: List[PlayoffMatchItem] = []  # 附加赛信息

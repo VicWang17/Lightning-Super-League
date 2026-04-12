@@ -71,11 +71,24 @@ export interface Match {
   scheduled_at: string
 }
 
+export interface PlayoffMatch {
+  id: string
+  name: string  // 对阵名称，如 "附加赛预选赛"
+  round: number  // 轮次：1=预选赛，2=决赛
+  home_team: MatchTeam
+  away_team: MatchTeam
+  home_score?: number
+  away_score?: number
+  status: 'scheduled' | 'ongoing' | 'finished' | 'postponed' | 'cancelled'
+  scheduled_at: string
+}
+
 export interface LeagueDetail extends League {
   current_season?: Season
   standings: LeagueStanding[]
   recent_matches: Match[]
   upcoming_matches: Match[]
+  playoffs: PlayoffMatch[]
 }
 
 export interface TopScorer {

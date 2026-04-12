@@ -8,10 +8,11 @@ import {
   ArrowUpRight,
   Calendar,
   TrendingUp,
-  Swords
+  Swords,
+  Medal
 } from 'lucide-react'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useTopScorers, useTopAssists } from '../../hooks/useLeagues'
-import type { LeagueStanding, Match } from '../../types/league'
+import type { LeagueStanding, Match, PlayoffMatch } from '../../types/league'
 
 // Tab 按钮组件
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -91,6 +92,62 @@ function StandingRow({ standing }: { standing: LeagueStanding }) {
         )}
       </td>
     </tr>
+  )
+}
+
+// 附加赛卡片组件
+function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
+  const isFinished = playoff.status === 'finished'
+  const isLive = playoff.status === 'ongoing'
+  
+  return (
+    <div className="p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Medal className="w-4 h-4 text-amber-400" />
+          <span className="text-xs font-medium text-amber-400">{playoff.name}</span>
+        </div>
+        {isLive && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-red-500 text-white animate-pulse">
+            进行中
+          </span>
+        )}
+        {isFinished && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-[#1E1E2D] text-[#8B8BA7]">
+            已结束
+          </span>
+        )}
+      </div>
+      
+      <div className="flex items-center justify-between">
+        <div className="flex-1 text-center">
+          <p className="font-medium text-white text-sm">{playoff.home_team.name}</p>
+        </div>
+        
+        <div className="px-3 text-center">
+          {isFinished || isLive ? (
+            <div className="text-xl font-bold stat-number">
+              <span className={isLive ? 'text-red-400' : 'text-white'}>
+                {playoff.home_score}
+              </span>
+              <span className="text-[#4B4B6A] mx-1">:</span>
+              <span className={isLive ? 'text-red-400' : 'text-white'}>
+                {playoff.away_score}
+              </span>
+            </div>
+          ) : (
+            <div className="text-sm font-bold text-[#4B4B6A]">VS</div>
+          )}
+          <p className="text-xs text-[#8B8BA7] mt-1">
+            {new Date(playoff.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+          </p>
+        </div>
+        
+        <div className="flex-1 text-center">
+          <p className="font-medium text-white text-sm">{playoff.away_team.name}</p>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -281,6 +338,21 @@ function LeagueDetail() {
             )}
           </div>
         </div>
+
+        {/* 附加赛信息 */}
+        {league.playoffs && league.playoffs.length > 0 && (
+          <div className="mt-6 pt-6 border-t border-[#2D2D44]">
+            <div className="flex items-center gap-2 mb-4">
+              <Medal className="w-5 h-5 text-amber-400" />
+              <h2 className="text-lg font-semibold text-white">升降级附加赛</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {league.playoffs.map(playoff => (
+                <PlayoffCard key={playoff.id} playoff={playoff} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tab 导航 */}

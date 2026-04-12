@@ -11,9 +11,10 @@ from app.schemas import ResponseSchema, ErrorResponse
 from app.schemas.league import (
     LeagueResponse, LeagueDetailResponse, LeagueSystemResponse,
     LeagueStandingItem, StandingTeamInfo, MatchResponse, MatchTeamInfo,
-    SeasonResponse, TopScorerItem, TopAssistItem, CleanSheetItem
+    SeasonResponse, TopScorerItem, TopAssistItem, CleanSheetItem, PlayoffMatchItem
 )
 from app.models import LeagueSystem, League, Season, LeagueStanding, Fixture, FixtureStatus, Team, Player
+from app.models.season import FixtureType
 from app.dependencies import get_db
 
 router = APIRouter(prefix="/leagues", tags=["联赛"])
@@ -270,6 +271,89 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
                 scheduled_at=match.scheduled_at
             ))
     
+    # 获取附加赛信息
+    # 当联赛第14轮（Day 20）打完后，显示附加赛信息
+    playoffs_data = []
+    if current_season:
+        # 检查是否已经到了附加赛阶段（联赛第14轮结束后，即 season_day >= 20）
+        # 或者当前赛季有正在进行的附加赛
+        is_playoff_time = (
+            current_season.current_league_round >= 14 or  # 联赛14轮全部结束
+            current_season.current_day >= 20 or  # 或者已经到了Day 20
+            current_season.status == "completed"  # 或者赛季已结束
+        )
+        
+        if is_playoff_time:
+            # 通过积分榜获取该联赛在该赛季的所有球队ID
+            # 注意：使用 LeagueStanding 表获取赛季中的球队，而不是 Team.current_league_id
+            # 因为赛季结束后球队可能已经被升降级
+            standings_team_result = await db.execute(
+                select(LeagueStanding.team_id).where(
+                    and_(
+                        LeagueStanding.league_id == league_id,
+                        LeagueStanding.season_id == current_season.id
+                    )
+                )
+            )
+            league_team_ids = {str(t[0]) for t in standings_team_result.all()}
+            
+            # 查询该赛季的所有附加赛（Day 22, 23, 24）
+            playoffs_result = await db.execute(
+                select(Fixture)
+                .options(
+                    selectinload(Fixture.home_team),
+                    selectinload(Fixture.away_team)
+                )
+                .where(
+                    and_(
+                        Fixture.season_id == current_season.id,
+                        Fixture.fixture_type == FixtureType.PLAYOFF,
+                        Fixture.season_day.in_([22, 23, 24])
+                    )
+                )
+                .order_by(Fixture.season_day, Fixture.scheduled_at)
+            )
+            all_playoffs = playoffs_result.scalars().all()
+            
+            for playoff in all_playoffs:
+                if not playoff.home_team or not playoff.away_team:
+                    continue
+                    
+                home_team_id = str(playoff.home_team_id) if playoff.home_team_id else None
+                away_team_id = str(playoff.away_team_id) if playoff.away_team_id else None
+                stage_name = playoff.cup_stage or ""
+                
+                # 判断是否与该联赛相关：本联赛有球队参与这场比赛
+                # 通过检查附加赛中的球队是否在该联赛的赛季积分榜中
+                is_involved = (home_team_id in league_team_ids) or (away_team_id in league_team_ids)
+                
+                if is_involved:
+                    # 生成对阵名称
+                    if "P_" in stage_name or "预赛" in stage_name:
+                        name = f"附加赛预选赛"
+                    else:
+                        name = f"附加赛决赛"
+                    
+                    playoffs_data.append(PlayoffMatchItem(
+                        id=str(playoff.id),
+                        name=name,
+                        round=1 if playoff.season_day == 22 else 2,
+                        home_team=MatchTeamInfo(
+                            id=str(playoff.home_team.id),
+                            name=playoff.home_team.name,
+                            short_name=playoff.home_team.short_name
+                        ),
+                        away_team=MatchTeamInfo(
+                            id=str(playoff.away_team.id),
+                            name=playoff.away_team.name,
+                            short_name=playoff.away_team.short_name
+                        ),
+                        home_score=playoff.home_score,
+                        away_score=playoff.away_score,
+                        status=playoff.status.value,
+                        scheduled_at=playoff.scheduled_at
+                    ))
+    
     return ResponseSchema(
         success=True,
         data=LeagueDetailResponse(
@@ -295,7 +379,8 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
             ) if current_season else None,
             standings=standings_data,
             recent_matches=recent_matches,
-            upcoming_matches=upcoming_matches
+            upcoming_matches=upcoming_matches,
+            playoffs=playoffs_data
         )
     )
 

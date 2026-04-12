@@ -95,9 +95,11 @@ export default function Home() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-lg bg-[#0D7377] flex items-center justify-center shadow-[0_0_20px_rgba(13,115,119,0.4)] group-hover:shadow-[0_0_30px_rgba(13,115,119,0.6)] transition-shadow duration-300">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="闪电超级联赛"
+                className="w-9 h-9 rounded-lg object-cover shadow-[0_0_20px_rgba(13,115,119,0.4)] group-hover:shadow-[0_0_30px_rgba(13,115,119,0.6)] transition-shadow duration-300"
+              />
               <span className="text-lg font-semibold tracking-tight">
                 闪电超级联赛
               </span>
@@ -298,9 +300,11 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Logo */}
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-[#0D7377] flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="闪电超级联赛"
+                className="w-7 h-7 rounded-md object-cover"
+              />
               <span className="text-sm font-medium">闪电超级联赛</span>
             </div>
             
