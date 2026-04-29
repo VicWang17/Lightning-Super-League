@@ -21,43 +21,46 @@ export default {
           muted: '#4B4B6A',
         },
         brand: {
-          // 草场绿为主色调（深色）
           green: '#166534',
           'green-dark': '#14532D',
           'green-light': '#4ADE80',
-          // 蓝色作为辅助
           blue: '#3B82F6',
           'blue-dark': '#2563EB',
         },
-        // 功能色
         accent: {
           red: '#EF4444',
           yellow: '#FCD34D',
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'Noto Sans SC', 'sans-serif'],
+        pixel: ['"Press Start 2P"', 'cursive'],
+        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
         mono: ['Roboto Mono', 'JetBrains Mono', 'monospace'],
       },
       maxWidth: {
         'container': '1440px',
       },
       boxShadow: {
-        'glow-green': '0 0 20px rgba(22, 101, 52, 0.4)',
-        'glow-green-lg': '0 0 40px rgba(22, 101, 52, 0.5)',
-        'card': '0 4px 6px rgba(0, 0, 0, 0.3)',
-        'card-hover': '0 12px 24px rgba(0, 0, 0, 0.4)',
+        'pixel': '4px 4px 0px rgba(0, 0, 0, 0.5)',
+        'pixel-sm': '2px 2px 0px rgba(0, 0, 0, 0.5)',
+        'pixel-lg': '6px 6px 0px rgba(0, 0, 0, 0.5)',
+        'pixel-green': '4px 4px 0px #0A5A5D',
+        'glow-green': '0 0 20px rgba(13, 115, 119, 0.4)',
+        'glow-green-lg': '0 0 40px rgba(13, 115, 119, 0.5)',
+        'card': '4px 4px 0px rgba(0, 0, 0, 0.3)',
+        'card-hover': '6px 6px 0px rgba(0, 0, 0, 0.4)',
       },
       borderRadius: {
-        'sm': '6px',
-        'md': '8px',
-        'lg': '12px',
-        'xl': '16px',
+        'none': '0px',
+        'sm': '0px',
+        'md': '0px',
+        'lg': '0px',
+        'xl': '0px',
       },
       transitionDuration: {
-        'fast': '150ms',
-        'normal': '250ms',
-        'slow': '350ms',
+        'fast': '100ms',
+        'normal': '150ms',
+        'slow': '200ms',
       },
     },
   },

@@ -64,7 +64,7 @@ export default function Login() {
           className="text-center mb-8"
         >
           <Link to="/" className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-xl bg-[#0D7377] flex items-center justify-center shadow-[0_0_30px_rgba(13,115,119,0.4)] group-hover:shadow-[0_0_40px_rgba(13,115,119,0.6)] transition-shadow duration-300">
+            <div className="w-12 h-12 bg-[#0D7377] flex items-center justify-center shadow-glow-green group-hover:shadow-glow-green transition-shadow duration-300">
               <Zap className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold text-white">闪电超级联赛</span>
@@ -77,13 +77,13 @@ export default function Login() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-[#12121A] rounded-2xl border border-[#2D2D44] p-8 shadow-2xl"
+          className="bg-[#12121A] border-2 border-[#2D2D44] p-8 shadow-pixel-lg hover:-translate-x-0.5 hover:-translate-y-0.5 transition-transform"
         >
           {error && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mb-6 p-4 bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-lg flex items-center gap-3"
+              className="mb-6 p-4 bg-[#EF4444]/10 border-2 border-[#EF4444]/30 flex items-center gap-3"
             >
               <AlertCircle className="w-5 h-5 text-[#EF4444] flex-shrink-0" />
               <p className="text-sm text-[#EF4444]">{error}</p>
@@ -132,7 +132,7 @@ export default function Login() {
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 rounded border-[#2D2D44] bg-[#0A0A0F] text-[#0D7377] focus:ring-[#0D7377]/20"
+                  className="w-4 h-4 border-2 border-[#2D2D44] bg-[#0A0A0F] text-[#0D7377] focus:ring-[#0D7377]/20"
                 />
                 <span className="text-[#8B8BA7] group-hover:text-[#E2E2F0] transition-colors">
                   记住我
@@ -140,7 +140,7 @@ export default function Login() {
               </label>
               <Link
                 to="#"
-                className="text-[#0D7377] hover:text-[#149A9E] transition-colors"
+                className="text-[#0D7377] hover:text-[#0D7377] transition-colors"
               >
                 忘记密码？
               </Link>
@@ -162,7 +162,7 @@ export default function Login() {
               还没有账号？{' '}
               <Link
                 to="/register"
-                className="text-[#0D7377] hover:text-[#149A9E] font-medium transition-colors"
+                className="text-[#0D7377] hover:text-[#0D7377] font-medium transition-colors"
               >
                 立即注册
               </Link>
@@ -190,7 +190,7 @@ export default function Login() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="mt-6 p-4 bg-[#0D7377]/10 border border-[#0D7377]/30 rounded-lg"
+          className="mt-6 p-4 bg-[#0D7377]/10 border-2 border-[#0D7377]/30"
         >
           <p className="text-xs text-[#8B8BA7] text-center">
             <span className="text-[#0D7377] font-medium">测试账号：</span>

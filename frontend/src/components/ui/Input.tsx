@@ -29,7 +29,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`
 
     const baseStyles =
-      'block w-full rounded-lg border bg-[#0A0A0F] text-[#E2E2F0] placeholder-[#4B4B6A] transition-all duration-200 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed'
+      'block w-full border-2 bg-[#0A0A0F] text-[#E2E2F0] placeholder-[#4B4B6A] transition-all duration-200 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed'
 
     const stateStyles = error
       ? 'border-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]/20'

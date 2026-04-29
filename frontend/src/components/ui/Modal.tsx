@@ -52,7 +52,7 @@ const Modal = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="fixed inset-0 bg-black/60" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -68,13 +68,13 @@ const Modal = ({
             >
               <Dialog.Panel
                 className={clsx(
-                  'w-full transform overflow-hidden rounded-xl bg-[#12121A] border border-[#2D2D44] text-left align-middle shadow-xl transition-all',
+                  'w-full transform overflow-hidden bg-[#12121A] border-2 border-[#2D2D44] text-left align-middle shadow-pixel-lg transition-all',
                   sizes[size]
                 )}
               >
                 {/* Header */}
                 {(title || showCloseButton) && (
-                  <div className="flex items-start justify-between px-6 py-4 border-b border-[#2D2D44]">
+                  <div className="flex items-start justify-between px-6 py-4 border-b-2 border-[#2D2D44]">
                     <div>
                       {title && (
                         <Dialog.Title
@@ -106,7 +106,7 @@ const Modal = ({
 
                 {/* Footer */}
                 {footer && (
-                  <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#2D2D44] bg-[#0A0A0F]/50">
+                  <div className="flex items-center justify-end gap-3 px-6 py-4 border-t-2 border-[#2D2D44] bg-[#0A0A0F]/50">
                     {footer}
                   </div>
                 )}

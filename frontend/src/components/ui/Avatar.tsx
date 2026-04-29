@@ -42,7 +42,7 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
 
     const statusColors = {
       online: 'bg-[#4ADE80]',
-      offline: 'bg-[#8B8BA7]',
+      offline: 'bg-[#4B4B6A]',
       away: 'bg-[#FCD34D]',
       busy: 'bg-[#EF4444]',
     }
@@ -78,7 +78,7 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
       <div ref={ref} className="relative inline-block" {...props}>
         <div
           className={clsx(
-            'rounded-full overflow-hidden flex items-center justify-center',
+            'rounded-none overflow-hidden flex items-center justify-center border-2 border-[#2D2D44]',
             sizes[size],
             !src && name && getColorFromName(name),
             !src && !name && 'bg-[#2D2D44]',
@@ -116,7 +116,7 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         {status && (
           <span
             className={clsx(
-              'absolute bottom-0 right-0 rounded-full border-2 border-[#0A0A0F]',
+              'absolute bottom-0 right-0 rounded-none border-2 border-[#0A0A0F]',
               statusSizes[size],
               statusColors[status]
             )}

@@ -90,7 +90,7 @@ function StatCard({
             {Icon && <Icon className="w-4 h-4 text-[#0D7377]" />}
             <p className="text-sm text-[#8B8BA7]">{label}</p>
           </div>
-          <p className="text-3xl font-bold stat-number text-white">{value}</p>
+          <p className="text-3xl font-bold pixel-number text-white">{value}</p>
         </div>
         {trend && (
           <div className={`flex items-center gap-1 text-xs ${trendColor}`}>
@@ -109,9 +109,9 @@ function QuickAction({ icon: Icon, label, desc, to }: { icon: any, label: string
   return (
     <Link 
       to={to}
-      className="flex items-center gap-4 p-4 rounded-xl bg-[#12121A] border border-[#2D2D44] hover:border-[#0D7377]/50 transition-all duration-200 group"
+      className="flex items-center gap-4 p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/50 transition-all duration-200 group hover:-translate-x-0.5 hover:-translate-y-0.5"
     >
-      <div className="w-10 h-10 rounded-lg bg-[#0D4A4D]/40 border border-[#0D7377]/30 flex items-center justify-center flex-shrink-0">
+      <div className="w-10 h-10 bg-[#0D4A4D]/40 border-2 border-[#0D7377]/30 flex items-center justify-center flex-shrink-0">
         <Icon className="w-5 h-5 text-white" />
       </div>
       <div className="flex-1 min-w-0">
@@ -139,8 +139,8 @@ function MatchResult({ opponent, result, score, date, is_home }: {
   const config = resultConfig[result]
 
   return (
-    <div className="flex items-center gap-4 py-3 border-b border-[#2D2D44] last:border-0">
-      <div className={`w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center text-xs font-bold ${config.text}`}>
+    <div className="flex items-center gap-4 py-3 border-b-2 border-[#2D2D44] last:border-0">
+      <div className={`w-8 h-8 ${config.bg} border-2 border-transparent flex items-center justify-center text-xs font-bold ${config.text}`}>
         {config.label}
       </div>
       <div className="flex-1 min-w-0">
@@ -171,7 +171,7 @@ function FormIndicator({ form }: { form: string }) {
         return (
           <div 
             key={idx} 
-            className={`w-5 h-5 rounded ${colors[result as keyof typeof colors]} flex items-center justify-center text-[10px] font-bold text-white`}
+            className={`w-5 h-5 ${colors[result as keyof typeof colors]} border-2 border-transparent flex items-center justify-center text-[10px] font-bold text-white`}
           >
             {result}
           </div>
@@ -183,34 +183,27 @@ function FormIndicator({ form }: { form: string }) {
 
 // 联赛卡片
 function LeagueCard({ league }: { league: League }) {
-  const levelColors = [
-    'from-amber-500/20 to-amber-600/5 border-amber-500/30',
-    'from-slate-400/20 to-slate-500/5 border-slate-400/30',
-    'from-orange-600/20 to-orange-700/5 border-orange-600/30',
-    'from-stone-500/20 to-stone-600/5 border-stone-500/30',
-  ]
-  
   const levelNames = ['超级联赛', '甲级联赛', '乙级联赛A', '乙级联赛B']
   
   return (
     <Link 
       to={`/leagues/${league.id}`}
-      className={`block p-4 rounded-xl bg-gradient-to-br ${levelColors[league.level - 1]} border hover:scale-[1.02] transition-transform duration-200`}
+      className={`block p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:scale-[1.02] transition-transform duration-200`}
     >
       <div className="flex items-center justify-between">
         <div>
           <h4 className="font-semibold text-white">{league.name}</h4>
           <p className="text-xs text-[#8B8BA7] mt-1">{league.teams_count} 支球队</p>
         </div>
-        <div className="w-10 h-10 rounded-lg bg-[#12121A]/60 flex items-center justify-center">
+        <div className="w-10 h-10 bg-[#12121A]/60 border-2 border-transparent flex items-center justify-center">
           <Trophy className="w-5 h-5 text-[#0D7377]" />
         </div>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <span className="text-xs px-2 py-0.5 rounded-full bg-[#12121A]/60 text-[#8B8BA7]">
+        <span className="text-xs px-2 py-0.5 -none bg-[#12121A]/60 text-[#8B8BA7]">
           {league.system_name}
         </span>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-[#12121A]/60 text-[#8B8BA7]">
+        <span className="text-xs px-2 py-0.5 -none bg-[#12121A]/60 text-[#8B8BA7]">
           {levelNames[league.level - 1]}
         </span>
       </div>
@@ -416,8 +409,8 @@ function Dashboard() {
               </Link>
             </div>
             
-            <div className="flex items-center gap-6 pb-6 border-b border-[#2D2D44]">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0D7377] to-[#0A5A5D] border border-[#0D7377]/50 flex items-center justify-center shadow-lg shadow-[#0D7377]/20">
+            <div className="flex items-center gap-6 pb-6 border-b-2 border-[#2D2D44]">
+              <div className="w-20 h-20 bg-[#0D7377] border-2 border-[#0D7377]/50 flex items-center justify-center shadow-pixel shadow-[#0D7377]/20">
                 <span className="text-3xl">🐉</span>
               </div>
               <div className="flex-1">
@@ -451,8 +444,8 @@ function Dashboard() {
                   <span className="text-sm text-[#8B8BA7]">进攻</span>
                   <span className="text-sm font-medium stat-number">{displayTeam.attack || '-'}</span>
                 </div>
-                <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${displayTeam.attack || 0}%` }} />
+                <div className="h-1.5 bg-[#1E1E2D] -none overflow-hidden">
+                  <div className="h-full bg-red-500 -none" style={{ width: `${displayTeam.attack || 0}%` }} />
                 </div>
               </div>
               <div>
@@ -460,8 +453,8 @@ function Dashboard() {
                   <span className="text-sm text-[#8B8BA7]">中场</span>
                   <span className="text-sm font-medium stat-number">{displayTeam.midfield || '-'}</span>
                 </div>
-                <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[#0D7377] to-[#14A085] rounded-full" style={{ width: `${displayTeam.midfield || 0}%` }} />
+                <div className="h-1.5 bg-[#1E1E2D] -none overflow-hidden">
+                  <div className="h-full bg-[#0D7377] -none" style={{ width: `${displayTeam.midfield || 0}%` }} />
                 </div>
               </div>
               <div>
@@ -469,8 +462,8 @@ function Dashboard() {
                   <span className="text-sm text-[#8B8BA7]">防守</span>
                   <span className="text-sm font-medium stat-number">{displayTeam.defense || '-'}</span>
                 </div>
-                <div className="h-1.5 bg-[#1E1E2D] rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{ width: `${displayTeam.defense || 0}%` }} />
+                <div className="h-1.5 bg-[#1E1E2D] -none overflow-hidden">
+                  <div className="h-full bg-emerald-500 -none" style={{ width: `${displayTeam.defense || 0}%` }} />
                 </div>
               </div>
             </div>
@@ -490,7 +483,7 @@ function Dashboard() {
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="h-24 rounded-xl bg-[#1E1E2D] animate-pulse" />
+                  <div key={i} className="h-24 bg-[#1E1E2D] animate-pulse" />
                 ))}
               </div>
             ) : (
@@ -537,7 +530,7 @@ function Dashboard() {
         {/* 右侧 - 快捷操作和下场比赛 */}
         <div className="space-y-6">
           {/* 下场比赛预告 */}
-          <div className="card bg-gradient-to-br from-[#0D4A4D]/30 to-[#12121A] border-[#0D7377]/30">
+          <div className="card bg-[#0D4A4D]/30 border-[#0D7377]/30">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-[#0D7377]" />
               <span className="text-sm text-[#8B8BA7]">下场比赛</span>
@@ -546,7 +539,7 @@ function Dashboard() {
               <>
                 <div className="flex items-center justify-between">
                   <div className="text-center flex-1">
-                    <div className="w-14 h-14 rounded-xl bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
+                    <div className="w-14 h-14 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
                       <span className="text-2xl">🐉</span>
                     </div>
                     <p className="text-sm font-medium truncate">{displayTeam.name}</p>
@@ -558,14 +551,14 @@ function Dashboard() {
                     <p className="text-xs text-[#0D7377]">{next_match.time}</p>
                   </div>
                   <div className="text-center flex-1">
-                    <div className="w-14 h-14 rounded-xl bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
+                    <div className="w-14 h-14 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
                       <span className="text-2xl">🌊</span>
                     </div>
                     <p className="text-sm font-medium truncate">{next_match.opponent}</p>
                     <p className="text-xs text-[#8B8BA7]">{next_match.is_home ? '客' : '主'}</p>
                   </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-[#2D2D44]">
+                <div className="mt-4 pt-4 border-t-2 border-[#2D2D44]">
                   <Link 
                     to="/match/pre"
                     className="btn-primary w-full flex items-center justify-center gap-2"
@@ -618,7 +611,7 @@ function Dashboard() {
             <h3 className="text-lg font-semibold mb-4">最新动态</h3>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 bg-emerald-500/20 border-2 border-transparent flex items-center justify-center flex-shrink-0">
                   <Trophy className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div>
@@ -627,7 +620,7 @@ function Dashboard() {
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 bg-blue-500/20 border-2 border-transparent flex items-center justify-center flex-shrink-0">
                   <Users className="w-4 h-4 text-blue-400" />
                 </div>
                 <div>
@@ -636,7 +629,7 @@ function Dashboard() {
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 bg-amber-500/20 border-2 border-transparent flex items-center justify-center flex-shrink-0">
                   <Calendar className="w-4 h-4 text-amber-400" />
                 </div>
                 <div>

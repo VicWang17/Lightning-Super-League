@@ -5,65 +5,141 @@
 @layer base {
   body {
     @apply bg-[#0A0A0F] text-[#E2E2F0] antialiased;
-    font-family: 'Inter', system-ui, -apple-system, 'Noto Sans SC', sans-serif;
+    font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
+    image-rendering: pixelated;
   }
 }
 
 @layer components {
-  /* 卡片样式 - 玻璃拟态 */
+  /* 像素卡片样式 */
   .card {
-    @apply bg-[#12121A] rounded-xl border border-[#2D2D44] p-6;
+    @apply bg-[#12121A] border-2 border-[#2D2D44] p-6;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
   }
-  
+
   .card-hover {
-    @apply hover:border-[#0D7377]/40 transition-all duration-normal hover:-translate-y-0.5;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+    @apply hover:border-[#0D7377]/60 transition-all duration-normal;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
   }
-  
-  /* 主按钮 - 深青色 */
+
+  .card-hover:hover {
+    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.6);
+    transform: translate(-2px, -2px);
+  }
+
+  /* 像素主按钮 */
   .btn-primary {
-    @apply bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-medium py-2.5 px-5 rounded-lg transition-all duration-200;
-    box-shadow: 0 4px 12px rgba(13, 115, 119, 0.3);
+    @apply bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-bold py-3 px-6 border-2 border-[#0A5A5D] transition-all duration-200;
+    box-shadow: 4px 4px 0px #072e30;
+    font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
   }
-  
+
   .btn-primary:hover {
-    box-shadow: 0 4px 16px rgba(13, 115, 119, 0.4);
+    box-shadow: 6px 6px 0px #072e30;
+    transform: translate(-2px, -2px);
   }
-  
-  /* 次级按钮 */
+
+  .btn-primary:active {
+    box-shadow: 2px 2px 0px #072e30;
+    transform: translate(2px, 2px);
+  }
+
+  /* 像素次级按钮 */
   .btn-secondary {
-    @apply bg-transparent border border-[#2D2D44] hover:border-[#0D7377]/50 text-[#E2E2F0] font-medium py-2.5 px-5 rounded-lg transition-all duration-200;
+    @apply bg-[#1E1E2D] hover:bg-[#2D2D44] text-[#E2E2F0] font-bold py-3 px-6 border-2 border-[#2D2D44] transition-all duration-200;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+    font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
   }
-  
-  /* 数据数字字体 */
+
+  .btn-secondary:hover {
+    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.6);
+    transform: translate(-2px, -2px);
+  }
+
+  /* 数据数字字体 - 用黑体，保持等宽数字 */
   .stat-number {
-    font-family: 'Roboto Mono', monospace;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+    font-weight: 600;
   }
-  
-  /* 选中状态 */
+
+  /* 像素大数字（如排名 #2） */
+  .pixel-number {
+    font-family: 'Press Start 2P', monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.04em;
+  }
+
+  /* 像素选中状态 */
   .nav-active {
-    @apply bg-[#0D7377] text-white;
-    box-shadow: 0 4px 12px rgba(13, 115, 119, 0.3);
+    @apply bg-[#0D7377] text-white border-2 border-[#0A5A5D];
+    box-shadow: 4px 4px 0px #072e30;
   }
-  
-  /* 滚动条样式 */
+
+  /* 像素标签/徽章 */
+  .pixel-badge {
+    @apply inline-flex items-center px-2 py-1 text-xs font-bold border-2;
+    font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
+  }
+
+  /* 像素输入框 */
+  .pixel-input {
+    @apply bg-[#0A0A0F] border-2 border-[#2D2D44] text-[#E2E2F0] px-4 py-3 outline-none focus:border-[#0D7377] transition-colors;
+    font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
+  }
+
+  /* 像素标题 - 只有大标题用 */
+  .pixel-title {
+    font-family: 'Press Start 2P', cursive;
+    text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.5);
+    line-height: 1.6;
+  }
+
+  /* 像素分隔线 */
+  .pixel-divider {
+    height: 2px;
+    background: repeating-linear-gradient(
+      90deg,
+      #2D2D44,
+      #2D2D44 8px,
+      transparent 8px,
+      transparent 16px
+    );
+  }
+
+  /* 像素边框装饰 */
+  .pixel-border {
+    border: 2px solid #2D2D44;
+    box-shadow:
+      4px 4px 0px rgba(0, 0, 0, 0.5),
+      inset -2px -2px 0px rgba(0, 0, 0, 0.2),
+      inset 2px 2px 0px rgba(255, 255, 255, 0.05);
+  }
+
+  /* 滚动条样式 - 像素风 */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     background: #0A0A0F;
+    border: 2px solid #1E1E2D;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: #2D2D44;
-    border-radius: 3px;
+    border: 2px solid #0A0A0F;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
-    background: #3D3D5C;
+    background: #0D7377;
+    border: 2px solid #0A0A0F;
+  }
+
+  /* 选择文字样式 */
+  ::selection {
+    background: #0D7377;
+    color: #ffffff;
   }
 }

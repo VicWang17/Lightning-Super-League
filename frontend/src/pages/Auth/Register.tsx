@@ -14,7 +14,7 @@ export default function Register() {
           className="text-center mb-8"
         >
           <Link to="/" className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-xl bg-[#0D7377] flex items-center justify-center shadow-[0_0_30px_rgba(13,115,119,0.4)] group-hover:shadow-[0_0_40px_rgba(13,115,119,0.6)] transition-shadow duration-300">
+            <div className="w-12 h-12 bg-[#0D7377] flex items-center justify-center border-2 border-transparent shadow-glow-green group-hover:shadow-glow-green transition-shadow duration-300">
               <Zap className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold text-white">闪电超级联赛</span>
@@ -26,10 +26,10 @@ export default function Register() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-[#12121A] rounded-2xl border border-[#2D2D44] p-8 shadow-2xl text-center"
+          className="bg-[#12121A] border-2 border-[#2D2D44] p-8 shadow-pixel-lg text-center hover:-translate-x-0.5 hover:-translate-y-0.5 transition-transform"
         >
           {/* Icon */}
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-[#0D4A4D]/40 border border-[#0D7377]/30 flex items-center justify-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-none bg-[#0D4A4D]/40 border-2 border-[#0D7377]/30 flex items-center justify-center">
             <Construction className="w-10 h-10 text-[#0D7377]" />
           </div>
 
@@ -46,16 +46,16 @@ export default function Register() {
           </p>
 
           {/* Divider */}
-          <div className="border-t border-[#2D2D44] pt-6 mb-6">
+          <div className="border-t-2 border-[#2D2D44] pt-6 mb-6">
             <p className="text-sm text-[#4B4B6A] mb-4">开发环境测试账号</p>
-            <div className="bg-[#0A0A0F] rounded-lg p-4 text-left space-y-2">
+            <div className="bg-[#0A0A0F] border-2 border-[#2D2D44] p-4 text-left space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-[#8B8BA7]">邮箱：</span>
-                <span className="text-[#E2E2F0] font-mono">ai_east_l1_001@lightning.dev</span>
+                <span className="text-[#E2E2F0]">ai_east_l1_001@lightning.dev</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#8B8BA7]">密码：</span>
-                <span className="text-[#E2E2F0] font-mono">ai_password</span>
+                <span className="text-[#E2E2F0]">ai_password</span>
               </div>
             </div>
           </div>
@@ -64,7 +64,7 @@ export default function Register() {
           <div className="space-y-3">
             <Link
               to="/login"
-              className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-medium rounded-lg transition-all duration-200 shadow-[0_4px_16px_rgba(13,115,119,0.4)]"
+              className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-bold border-2 border-transparent transition-all duration-200 shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
               前往登录
             </Link>

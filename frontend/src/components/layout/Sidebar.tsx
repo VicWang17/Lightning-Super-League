@@ -52,14 +52,14 @@ function Sidebar() {
   const userLevel = user?.level || 1
 
   return (
-    <aside className="w-60 bg-[#12121A] border-r border-[#2D2D44] flex flex-col h-screen sticky top-0">
+    <aside className="w-60 bg-[#12121A] border-r-2 border-[#2D2D44] flex flex-col h-screen sticky top-0">
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-[#2D2D44]">
+      <div className="h-16 flex items-center px-6 border-b-2 border-[#2D2D44]">
         <Link to="/" className="flex items-center gap-2.5 group">
           <img 
             src="/logo.png" 
             alt="闪电超级联赛" 
-            className="w-8 h-8 rounded-lg object-cover shadow-[0_0_12px_rgba(13,115,119,0.4)]"
+            className="w-8 h-8 object-cover border-2 border-transparent shadow-glow-green"
           />
           <span className="text-base font-semibold tracking-tight">闪电超级联赛</span>
         </Link>
@@ -73,10 +73,10 @@ function Sidebar() {
               <Link
                 to={item.path}
                 className={clsx(
-                  'flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200',
+                  'flex items-center gap-3 px-4 py-2.5 transition-all duration-200',
                   isActive(item)
-                    ? 'bg-[#0D7377] text-white shadow-[0_4px_12px_rgba(13,115,119,0.25)]'
-                    : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D]'
+                    ? 'bg-[#0D7377] text-white font-bold border-2 border-[#0A5A5D] shadow-pixel-green'
+                    : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D] border-2 border-transparent'
                 )}
               >
                 <item.icon className="w-4 h-4" />
@@ -88,31 +88,31 @@ function Sidebar() {
         </ul>
         
         {/* 次级导航 - 查看所有比赛 */}
-        <div className="mt-4 pt-4 border-t border-[#2D2D44]">
+        <div className="mt-4 pt-4 border-t-2 border-[#2D2D44]">
           <p className="px-4 text-xs text-[#4B4B6A] mb-2 font-medium uppercase tracking-wider">所有比赛</p>
           <div className="space-y-1">
             <Link
               to="/leagues/all"
               className={clsx(
-                'flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all duration-200',
+                'flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200',
                 location.pathname === '/leagues' || location.pathname === '/leagues/all'
-                  ? 'text-white bg-[#1E1E2D]'
-                  : 'text-[#4B4B6A] hover:text-[#8B8BA7] hover:bg-[#1E1E2D]/50'
+                  ? 'text-white bg-[#1E1E2D] border-2 border-transparent'
+                  : 'text-[#4B4B6A] hover:text-[#8B8BA7] hover:bg-[#1E1E2D]/50 border-2 border-transparent'
               )}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0D7377]" />
+              <span className="w-1.5 h-1.5 rounded-none bg-[#0D7377]" />
               联赛
             </Link>
             <Link
               to="/cups/all"
               className={clsx(
-                'flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all duration-200',
+                'flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200',
                 location.pathname === '/cups' || location.pathname === '/cups/all'
-                  ? 'text-white bg-[#1E1E2D]'
-                  : 'text-[#4B4B6A] hover:text-[#8B8BA7] hover:bg-[#1E1E2D]/50'
+                  ? 'text-white bg-[#1E1E2D] border-2 border-transparent'
+                  : 'text-[#4B4B6A] hover:text-[#8B8BA7] hover:bg-[#1E1E2D]/50 border-2 border-transparent'
               )}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              <span className="w-1.5 h-1.5 rounded-none bg-yellow-500" />
               杯赛
             </Link>
           </div>
@@ -120,9 +120,9 @@ function Sidebar() {
       </nav>
 
       {/* User Info */}
-      <div className="p-4 border-t border-[#2D2D44]">
+      <div className="p-4 border-t-2 border-[#2D2D44]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#0D4A4D] border border-[#0D7377]/30 flex items-center justify-center">
+          <div className="w-9 h-9 bg-[#0D4A4D] border-2 border-[#0D7377]/30 flex items-center justify-center">
             <span className="text-sm font-medium text-white">{firstLetter}</span>
           </div>
           <div className="flex-1 min-w-0">

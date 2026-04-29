@@ -25,7 +25,7 @@ function Header() {
   const hasMatchesToday = displayStatus && displayStatus.total_fixtures_today > 0
 
   return (
-    <header className="h-16 bg-[#0A0A0F]/80 backdrop-blur-xl border-b border-[#2D2D44] flex items-center justify-between px-6 sticky top-0 z-40">
+    <header className="h-16 bg-[#0A0A0F]/80 border-b-2 border-[#2D2D44] flex items-center justify-between px-6 sticky top-0 z-40">
       {/* Left - Search */}
       <div className="flex items-center gap-4">
         <div className="relative">
@@ -33,7 +33,7 @@ function Header() {
           <input 
             type="text" 
             placeholder="搜索球员、球队..."
-            className="w-64 bg-[#12121A] border border-[#2D2D44] rounded-lg pl-10 pr-4 py-2 text-sm text-[#E2E2F0] placeholder:text-[#4B4B6A] focus:outline-none focus:border-[#0D7377]/50 transition-colors"
+            className="w-64 bg-[#12121A] border-2 border-[#2D2D44] pl-10 pr-4 py-2 text-sm text-[#E2E2F0] placeholder:text-[#4B4B6A] focus:outline-none focus:border-[#0D7377]/50 transition-colors"
           />
         </div>
       </div>
@@ -42,10 +42,10 @@ function Header() {
       <div className="flex items-center gap-6">
         {/* Season Info */}
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+          <div className={`w-10 h-10 flex items-center justify-center ${
             hasMatchesToday 
-              ? 'bg-[#0D7377]/20 border border-[#0D7377]/50' 
-              : 'bg-[#12121A] border border-[#2D2D44]'
+              ? 'bg-[#0D7377]/20 border-2 border-[#0D7377]/50' 
+              : 'bg-[#12121A] border-2 border-[#2D2D44]'
           }`}>
             {hasMatchesToday ? (
               <Calendar className="w-5 h-5 text-[#0D7377]" />
@@ -67,9 +67,9 @@ function Header() {
         {/* Progress Bar (mini) */}
         {displayStatus && (
           <div className="w-24">
-            <div className="h-1.5 bg-[#12121A] rounded-full overflow-hidden">
+            <div className="h-1.5 bg-[#12121A] rounded-none overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-[#0D7377] to-[#14A085] rounded-full transition-all duration-500"
+                className="h-full bg-[#0D7377] rounded-none transition-all duration-500"
                 style={{ width: `${displayStatus.progress_percent}%` }}
               />
             </div>
@@ -90,10 +90,10 @@ function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <button className="w-9 h-9 rounded-lg bg-[#12121A] border border-[#2D2D44] hover:border-[#0D7377]/50 flex items-center justify-center text-[#8B8BA7] hover:text-white transition-colors">
+          <button className="w-9 h-9 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 flex items-center justify-center text-[#8B8BA7] hover:text-white transition-colors hover:-translate-x-0.5 hover:-translate-y-0.5">
             <Bell className="w-4 h-4" />
           </button>
-          <button className="w-9 h-9 rounded-lg bg-[#12121A] border border-[#2D2D44] hover:border-[#0D7377]/50 flex items-center justify-center text-[#8B8BA7] hover:text-white transition-colors">
+          <button className="w-9 h-9 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 flex items-center justify-center text-[#8B8BA7] hover:text-white transition-colors hover:-translate-x-0.5 hover:-translate-y-0.5">
             <Settings className="w-4 h-4" />
           </button>
         </div>

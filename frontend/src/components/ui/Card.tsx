@@ -19,13 +19,13 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     },
     ref
   ) => {
-    const baseStyles = 'rounded-xl transition-all duration-200'
+    const baseStyles = 'transition-all duration-200'
 
     const variants = {
-      default: 'bg-[#12121A] border border-[#2D2D44]',
+      default: 'bg-[#12121A] border-2 border-[#2D2D44]',
       glass:
-        'bg-[#12121A]/80 backdrop-blur-md border border-[#2D2D44]/50',
-      outlined: 'bg-transparent border border-[#2D2D44]',
+        'bg-[#12121A]/80 border-2 border-[#2D2D44]/50',
+      outlined: 'bg-transparent border-2 border-[#2D2D44]',
     }
 
     const paddings = {
@@ -36,7 +36,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     }
 
     const hoverStyles = hover
-      ? 'hover:border-[#0D7377]/40 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(0,0,0,0.4)]'
+      ? 'hover:border-[#0D7377]/40 hover:-translate-y-0.5 hover:shadow-pixel'
       : ''
 
     return (
@@ -129,7 +129,7 @@ const CardFooter = forwardRef<HTMLDivElement, CardFooterProps>(
       <div
         ref={ref}
         className={clsx(
-          'flex items-center mt-4 pt-4 border-t border-[#2D2D44]',
+          'flex items-center mt-4 pt-4 border-t-2 border-[#2D2D44]',
           alignStyles[align],
           className
         )}
