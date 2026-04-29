@@ -606,6 +606,35 @@ function Dashboard() {
             </div>
           </div>
 
+          {/* 财务快捷看板 */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">财务概览</h3>
+              <Link to="/finance" className="text-xs text-[#0D7377] hover:text-white transition-colors">
+                详情 →
+              </Link>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-[#8B8BA7]">工资帽使用率</span>
+                  <span className="text-xs text-yellow-400">74%</span>
+                </div>
+                <div className="pixel-progress-track h-2">
+                  <div className="pixel-progress-fill bg-yellow-500" style={{ width: '74%' }} />
+                </div>
+              </div>
+              <div className="flex items-center justify-between py-2 border-t-2 border-[#2D2D44]">
+                <span className="text-sm text-[#8B8BA7]">本赛季盈亏</span>
+                <span className="text-sm font-bold text-emerald-400">+23万</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-t-2 border-[#2D2D44]">
+                <span className="text-sm text-[#8B8BA7]">青训投入</span>
+                <span className="text-sm font-bold text-white">15%</span>
+              </div>
+            </div>
+          </div>
+
           {/* 最新动态 */}
           <div className="card">
             <h3 className="text-lg font-semibold mb-4">最新动态</h3>

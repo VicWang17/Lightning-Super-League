@@ -8,18 +8,20 @@ import {
   Transfer as ArrowLeftRight, 
   Tree as Sprout,
   Logout as LogOut,
-  Sword as Swords
+  Sword as Swords,
+  Wallet
 } from '../ui/pixel-icons'
 import { useAuthStore } from '../../stores/auth'
 
 const menuItems = [
   { path: '/dashboard', label: '总览', icon: LayoutDashboard },
-  { path: '/team/players', label: '球队', icon: Users },
+  { path: '/team', label: '球队', icon: Users },
   { path: '/match/schedule', label: '赛程', icon: CalendarDays },
   { path: '/leagues', label: '联赛', icon: Trophy },
   { path: '/cups', label: '杯赛', icon: Swords },
-  { path: '/transfer/market', label: '转会', icon: ArrowLeftRight },
+  { path: '/transfer', label: '转会', icon: ArrowLeftRight },
   { path: '/youth', label: '青训', icon: Sprout },
+  { path: '/finance', label: '财务', icon: Wallet },
 ]
 
 function Sidebar() {
@@ -28,16 +30,13 @@ function Sidebar() {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   
-  // Check if a menu item is active
   const isActive = (item: typeof menuItems[0]) => {
     const currentPath = location.pathname
     
-    // Exact match for dashboard
     if (item.path === '/dashboard') {
       return currentPath === '/dashboard'
     }
     
-    // Default: check if current path starts with item path
     return currentPath.startsWith(item.path)
   }
 
@@ -46,7 +45,6 @@ function Sidebar() {
     navigate('/login')
   }
 
-  // 获取用户显示名和首字母
   const displayName = user?.nickname || user?.username || 'Manager'
   const firstLetter = displayName.charAt(0).toUpperCase()
   const userLevel = user?.level || 1
@@ -66,7 +64,7 @@ function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3">
+      <nav className="flex-1 py-4 px-3 overflow-y-auto">
         <ul className="space-y-1">
           {menuItems.map((item) => (
             <li key={item.path}>
@@ -87,7 +85,6 @@ function Sidebar() {
               </Link>
             </li>
           ))}
-          
         </ul>
         
         {/* 次级导航 - 查看所有比赛 */}
