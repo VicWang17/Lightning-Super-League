@@ -7,6 +7,7 @@ export interface Season {
   season_number: number;
   status: 'pending' | 'ongoing' | 'finished';
   start_date: string;
+  end_date?: string;
   current_day: number;
   current_league_round: number;
   current_cup_round: number;

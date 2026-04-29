@@ -102,7 +102,7 @@ export function useLeagueDetail(leagueId: string | undefined) {
 }
 
 // 获取积分榜
-export function useLeagueTable(leagueId: string | undefined) {
+export function useLeagueTable(leagueId: string | undefined, seasonId?: string) {
   const [standings, setStandings] = useState<LeagueDetail['standings']>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -112,7 +112,9 @@ export function useLeagueTable(leagueId: string | undefined) {
 
     try {
       setLoading(true)
-      const response = await api.get<LeagueDetail['standings']>(`/leagues/${leagueId}/table`)
+      let url = `/leagues/${leagueId}/table`
+      if (seasonId) url += `?season_id=${seasonId}`
+      const response = await api.get<LeagueDetail['standings']>(url)
       if (response.success) {
         setStandings(response.data)
       }
@@ -121,7 +123,7 @@ export function useLeagueTable(leagueId: string | undefined) {
     } finally {
       setLoading(false)
     }
-  }, [leagueId])
+  }, [leagueId, seasonId])
 
   useEffect(() => {
     fetchStandings()
@@ -131,7 +133,7 @@ export function useLeagueTable(leagueId: string | undefined) {
 }
 
 // 获取赛程
-export function useLeagueSchedule(leagueId: string | undefined, matchday?: number) {
+export function useLeagueSchedule(leagueId: string | undefined, seasonId?: string, matchday?: number) {
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -145,9 +147,11 @@ export function useLeagueSchedule(leagueId: string | undefined, matchday?: numbe
     const fetchSchedule = async () => {
       try {
         setLoading(true)
-        let url = `/leagues/${leagueId}/schedule`
-        if (matchday) url += `?matchday=${matchday}`
-        const response = await api.get<Match[]>(url)
+        const params = new URLSearchParams()
+        if (seasonId) params.append('season_id', seasonId)
+        if (matchday) params.append('matchday', String(matchday))
+        const query = params.toString() ? `?${params.toString()}` : ''
+        const response = await api.get<Match[]>(`/leagues/${leagueId}/schedule${query}`)
         if (response.success) {
           setMatches(response.data)
         }
@@ -159,13 +163,13 @@ export function useLeagueSchedule(leagueId: string | undefined, matchday?: numbe
     }
 
     fetchSchedule()
-  }, [leagueId, matchday])
+  }, [leagueId, seasonId, matchday])
 
   return { matches, loading, error }
 }
 
 // 获取射手榜
-export function useTopScorers(leagueId: string | undefined, limit = 20) {
+export function useTopScorers(leagueId: string | undefined, seasonId?: string, limit = 20) {
   const [scorers, setScorers] = useState<TopScorer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -179,7 +183,9 @@ export function useTopScorers(leagueId: string | undefined, limit = 20) {
     const fetchScorers = async () => {
       try {
         setLoading(true)
-        const response = await api.get<TopScorer[]>(`/leagues/${leagueId}/top-scorers?limit=${limit}`)
+        let url = `/leagues/${leagueId}/top-scorers?limit=${limit}`
+        if (seasonId) url += `&season_id=${seasonId}`
+        const response = await api.get<TopScorer[]>(url)
         if (response.success) {
           setScorers(response.data)
         }
@@ -191,13 +197,13 @@ export function useTopScorers(leagueId: string | undefined, limit = 20) {
     }
 
     fetchScorers()
-  }, [leagueId, limit])
+  }, [leagueId, seasonId, limit])
 
   return { scorers, loading, error }
 }
 
 // 获取助攻榜
-export function useTopAssists(leagueId: string | undefined, limit = 20) {
+export function useTopAssists(leagueId: string | undefined, seasonId?: string, limit = 20) {
   const [assists, setAssists] = useState<TopAssist[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -211,7 +217,9 @@ export function useTopAssists(leagueId: string | undefined, limit = 20) {
     const fetchAssists = async () => {
       try {
         setLoading(true)
-        const response = await api.get<TopAssist[]>(`/leagues/${leagueId}/top-assists?limit=${limit}`)
+        let url = `/leagues/${leagueId}/top-assists?limit=${limit}`
+        if (seasonId) url += `&season_id=${seasonId}`
+        const response = await api.get<TopAssist[]>(url)
         if (response.success) {
           setAssists(response.data)
         }
@@ -223,13 +231,13 @@ export function useTopAssists(leagueId: string | undefined, limit = 20) {
     }
 
     fetchAssists()
-  }, [leagueId, limit])
+  }, [leagueId, seasonId, limit])
 
   return { assists, loading, error }
 }
 
 // 获取零封榜
-export function useCleanSheets(leagueId: string | undefined, limit = 20) {
+export function useCleanSheets(leagueId: string | undefined, seasonId?: string, limit = 20) {
   const [cleanSheets, setCleanSheets] = useState<CleanSheet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -243,7 +251,9 @@ export function useCleanSheets(leagueId: string | undefined, limit = 20) {
     const fetchCleanSheets = async () => {
       try {
         setLoading(true)
-        const response = await api.get<CleanSheet[]>(`/leagues/${leagueId}/clean-sheets?limit=${limit}`)
+        let url = `/leagues/${leagueId}/clean-sheets?limit=${limit}`
+        if (seasonId) url += `&season_id=${seasonId}`
+        const response = await api.get<CleanSheet[]>(url)
         if (response.success) {
           setCleanSheets(response.data)
         }
@@ -255,7 +265,7 @@ export function useCleanSheets(leagueId: string | undefined, limit = 20) {
     }
 
     fetchCleanSheets()
-  }, [leagueId, limit])
+  }, [leagueId, seasonId, limit])
 
   return { cleanSheets, loading, error }
 }

@@ -81,7 +81,7 @@ function getFixtureTypeLabel(type: string, cupStage?: string) {
     return '闪电杯'
   }
   if (type === 'cup_jenny') {
-    return '珍妮杯'
+    return '杰尼杯'
   }
   return '其他'
 }

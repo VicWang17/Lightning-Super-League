@@ -1,12 +1,22 @@
 """
 Application configuration using Pydantic Settings
 """
-from pydantic_settings import BaseSettings
+import os
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
+# 确保 .env 路径相对于本文件位置，不受运行目录影响
+_ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
+    
+    model_config = SettingsConfigDict(
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
     
     # App
     APP_NAME: str = "Lightning Super League API"
@@ -27,10 +37,6 @@ class Settings(BaseSettings):
     
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 @lru_cache()

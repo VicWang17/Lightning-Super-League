@@ -25,6 +25,9 @@ from app.models.player import (
     PlayerStatus,
     SquadRole,
 )
+from app.models.player_season_stats import (
+    PlayerSeasonStats,
+)
 
 __all__ = [
     # Base
@@ -54,4 +57,6 @@ __all__ = [
     "PlayerFoot",
     "PlayerStatus",
     "SquadRole",
+    # Player Season Stats
+    "PlayerSeasonStats",
 ]

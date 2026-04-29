@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { 
   Trophy, 
@@ -12,7 +12,9 @@ import {
   Medal
 } from 'lucide-react'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useTopScorers, useTopAssists } from '../../hooks/useLeagues'
+import { useSeasons } from '../../hooks/useSeasons'
 import type { LeagueStanding, Match, PlayoffMatch } from '../../types/league'
+import type { Season } from '../../types/season'
 
 // Tab 按钮组件
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -27,6 +29,34 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     >
       {children}
     </button>
+  )
+}
+
+// 赛季选择器组件
+function SeasonSelector({ 
+  seasons, 
+  selectedSeasonId, 
+  onChange 
+}: { 
+  seasons: Season[]; 
+  selectedSeasonId: string | undefined; 
+  onChange: (seasonId: string) => void 
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={selectedSeasonId || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none bg-[#1E1E2D] border border-[#2D2D44] text-white text-sm rounded-lg px-4 py-2 pr-8 focus:outline-none focus:border-[#0D7377] focus:ring-1 focus:ring-[#0D7377] cursor-pointer"
+      >
+        {seasons.map((season) => (
+          <option key={season.id} value={season.id}>
+            第 {season.season_number} 赛季
+          </option>
+        ))}
+      </select>
+      <ChevronLeft className="w-4 h-4 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-[-90deg] pointer-events-none" />
+    </div>
   )
 }
 
@@ -235,12 +265,25 @@ function StatsRow({ rank, name, team, value, label }: { rank: number; name: stri
 function LeagueDetail() {
   const { id } = useParams<{ id: string }>()
   const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'scorers' | 'assists'>('standings')
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined)
   
   const { league, loading: leagueLoading, error: leagueError } = useLeagueDetail(id)
-  const { standings, loading: standingsLoading } = useLeagueTable(id)
-  const { matches, loading: matchesLoading } = useLeagueSchedule(id)
-  const { scorers, loading: scorersLoading } = useTopScorers(id, 10)
-  const { assists, loading: assistsLoading } = useTopAssists(id, 10)
+  const { seasons, loading: seasonsLoading } = useSeasons()
+  const { standings, loading: standingsLoading } = useLeagueTable(id, selectedSeasonId)
+  const { matches, loading: matchesLoading } = useLeagueSchedule(id, selectedSeasonId)
+  const { scorers, loading: scorersLoading } = useTopScorers(id, selectedSeasonId, 10)
+  const { assists, loading: assistsLoading } = useTopAssists(id, selectedSeasonId, 10)
+  
+  // 默认选中当前赛季
+  useEffect(() => {
+    if (league?.current_season && !selectedSeasonId) {
+      setSelectedSeasonId(league.current_season.id)
+    }
+  }, [league?.current_season, selectedSeasonId])
+  
+  const selectedSeason = useMemo(() => {
+    return seasons.find(s => s.id === selectedSeasonId) || league?.current_season
+  }, [seasons, selectedSeasonId, league?.current_season])
   
   if (leagueLoading) {
     return (
@@ -310,10 +353,10 @@ function LeagueDetail() {
                 <span className="text-sm text-[#8B8BA7]">{league.system_name}</span>
                 <span className="text-[#4B4B6A]">·</span>
                 <span className="text-sm text-[#8B8BA7]">{levelNames[league.level - 1]}</span>
-                {league.current_season && (
+                {selectedSeason && (
                   <>
                     <span className="text-[#4B4B6A]">·</span>
-                    <span className="text-sm text-[#0D7377]">{league.current_season.name}</span>
+                    <span className="text-sm text-[#0D7377]">第 {selectedSeason.season_number} 赛季</span>
                   </>
                 )}
               </div>
@@ -330,10 +373,10 @@ function LeagueDetail() {
                 <span className="text-[#8B8BA7]">30 轮</span>
               </div>
             </div>
-            {league.current_season && (
+            {selectedSeason && (
               <p className="text-xs text-[#4B4B6A] mt-2">
-                赛季时间: {new Date(league.current_season.start_date).toLocaleDateString('zh-CN')}
-                {league.current_season.end_date && ` - ${new Date(league.current_season.end_date).toLocaleDateString('zh-CN')}`}
+                赛季时间: {new Date(selectedSeason.start_date).toLocaleDateString('zh-CN')}
+                {selectedSeason.end_date && ` - ${new Date(selectedSeason.end_date).toLocaleDateString('zh-CN')}`}
               </p>
             )}
           </div>
@@ -355,32 +398,42 @@ function LeagueDetail() {
         )}
       </div>
 
-      {/* Tab 导航 */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <TabButton active={activeTab === 'standings'} onClick={() => setActiveTab('standings')}>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
-            积分榜
-          </div>
-        </TabButton>
-        <TabButton active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')}>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            赛程
-          </div>
-        </TabButton>
-        <TabButton active={activeTab === 'scorers'} onClick={() => setActiveTab('scorers')}>
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            射手榜
-          </div>
-        </TabButton>
-        <TabButton active={activeTab === 'assists'} onClick={() => setActiveTab('assists')}>
-          <div className="flex items-center gap-2">
-            <ArrowUpRight className="w-4 h-4" />
-            助攻榜
-          </div>
-        </TabButton>
+      {/* 赛季选择器 + Tab 导航 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-wrap gap-2">
+          <TabButton active={activeTab === 'standings'} onClick={() => setActiveTab('standings')}>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              积分榜
+            </div>
+          </TabButton>
+          <TabButton active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')}>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              赛程
+            </div>
+          </TabButton>
+          <TabButton active={activeTab === 'scorers'} onClick={() => setActiveTab('scorers')}>
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              射手榜
+            </div>
+          </TabButton>
+          <TabButton active={activeTab === 'assists'} onClick={() => setActiveTab('assists')}>
+            <div className="flex items-center gap-2">
+              <ArrowUpRight className="w-4 h-4" />
+              助攻榜
+            </div>
+          </TabButton>
+        </div>
+        
+        {!seasonsLoading && seasons.length > 0 && (
+          <SeasonSelector 
+            seasons={seasons} 
+            selectedSeasonId={selectedSeasonId} 
+            onChange={setSelectedSeasonId} 
+          />
+        )}
       </div>
 
       {/* Tab 内容 */}

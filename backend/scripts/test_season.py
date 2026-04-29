@@ -1093,7 +1093,7 @@ async def main():
         if not has_args or args.interactive:
             # 检查是否需要初始化
             result = await db.execute(select(Season))
-            has_season = result.scalar_one_or_none() is not None
+            has_season = result.scalars().first() is not None
             
             if not has_season:
                 print("检测到数据库为空，先进行初始化...")

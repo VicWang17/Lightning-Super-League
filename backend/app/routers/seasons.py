@@ -7,8 +7,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from app.dependencies import get_db
 from app.services.season_service import SeasonService
+from app.models.season import Season
 from app.schemas import ResponseSchema
 from app.schemas.season import (
     SeasonCreateRequest,
@@ -26,6 +29,21 @@ router = APIRouter(prefix="/seasons", tags=["赛季"])
 async def get_season_service(db: AsyncSession = Depends(get_db)) -> SeasonService:
     """依赖注入：获取赛季服务"""
     return SeasonService(db)
+
+
+@router.get("", response_model=ResponseSchema[list[SeasonResponse]])
+async def list_seasons(
+    db: AsyncSession = Depends(get_db)
+):
+    """获取所有赛季列表（按赛季编号降序）"""
+    result = await db.execute(
+        select(Season).order_by(Season.season_number.desc())
+    )
+    seasons = result.scalars().all()
+    return ResponseSchema(
+        success=True,
+        data=[SeasonResponse.from_orm(s) for s in seasons]
+    )
 
 
 @router.post("", response_model=ResponseSchema[SeasonResponse], status_code=status.HTTP_201_CREATED)

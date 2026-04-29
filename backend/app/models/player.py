@@ -181,6 +181,7 @@ class Player(Base):
     
     # 关联关系
     team: Mapped["Team"] = relationship("Team", back_populates="players")
+    season_stats: Mapped[list["PlayerSeasonStats"]] = relationship("PlayerSeasonStats", back_populates="player")
     
     @property
     def age(self) -> int:

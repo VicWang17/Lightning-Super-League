@@ -13,7 +13,7 @@ from app.schemas.league import (
     LeagueStandingItem, StandingTeamInfo, MatchResponse, MatchTeamInfo,
     SeasonResponse, TopScorerItem, TopAssistItem, CleanSheetItem, PlayoffMatchItem
 )
-from app.models import LeagueSystem, League, Season, LeagueStanding, Fixture, FixtureStatus, Team, Player
+from app.models import LeagueSystem, League, Season, SeasonStatus, LeagueStanding, Fixture, FixtureStatus, Team, Player, PlayerSeasonStats
 from app.models.season import FixtureType
 from app.dependencies import get_db
 
@@ -280,7 +280,7 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
         is_playoff_time = (
             current_season.current_league_round >= 14 or  # 联赛14轮全部结束
             current_season.current_day >= 20 or  # 或者已经到了Day 20
-            current_season.status == "completed"  # 或者赛季已结束
+            current_season.status == SeasonStatus.FINISHED  # 或者赛季已结束
         )
         
         if is_playoff_time:
@@ -405,7 +405,7 @@ async def get_league_table(
     # 如果没有指定赛季，获取当前赛季
     if not season_id:
         season_result = await db.execute(
-            select(Season).where(Season.status.in_(["ongoing", "upcoming"])).order_by(Season.start_date)
+            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
         )
         season = season_result.scalar_one_or_none()
         if season:
@@ -476,7 +476,7 @@ async def get_league_schedule(
     # 如果没有指定赛季，获取当前赛季
     if not season_id:
         season_result = await db.execute(
-            select(Season).where(Season.status.in_(["ongoing", "upcoming"])).order_by(Season.start_date)
+            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
         )
         season = season_result.scalar_one_or_none()
         if season:
@@ -548,28 +548,44 @@ async def get_top_scorers(
     - **season_id**: 赛季ID（可选）
     - **limit**: 返回数量
     """
-    # 获取联赛中进球最多的球员
+    if not season_id:
+        season_result = await db.execute(
+            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
+        )
+        season = season_result.scalar_one_or_none()
+        if season:
+            season_id = str(season.id)
+    
+    if not season_id:
+        return ResponseSchema(success=True, data=[])
+    
     result = await db.execute(
-        select(Player, Team)
-        .join(Team, Player.team_id == Team.id)
-        .where(Team.current_league_id == league_id)
-        .order_by(Player.goals.desc())
+        select(PlayerSeasonStats, Player, Team)
+        .join(Player, PlayerSeasonStats.player_id == Player.id)
+        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
+        .where(
+            and_(
+                PlayerSeasonStats.league_id == league_id,
+                PlayerSeasonStats.season_id == season_id
+            )
+        )
+        .order_by(PlayerSeasonStats.goals.desc())
         .limit(limit)
     )
-    players = result.all()
+    rows = result.all()
     
     return ResponseSchema(
         success=True,
         data=[
             TopScorerItem(
                 rank=idx + 1,
-                player_id=str(player.Player.id),
-                player_name=player.Player.display_name or f"{player.Player.first_name} {player.Player.last_name}",
-                team_name=player.Team.name,
-                goals=player.Player.goals,
-                matches=player.Player.matches_played
+                player_id=str(row.Player.id),
+                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
+                team_name=row.Team.name if row.Team else "未知球队",
+                goals=row.PlayerSeasonStats.goals,
+                matches=row.PlayerSeasonStats.matches_played
             )
-            for idx, player in enumerate(players)
+            for idx, row in enumerate(rows)
         ]
     )
 
@@ -593,28 +609,44 @@ async def get_top_assists(
     - **season_id**: 赛季ID（可选）
     - **limit**: 返回数量
     """
-    # 获取联赛中助攻最多的球员
+    if not season_id:
+        season_result = await db.execute(
+            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
+        )
+        season = season_result.scalar_one_or_none()
+        if season:
+            season_id = str(season.id)
+    
+    if not season_id:
+        return ResponseSchema(success=True, data=[])
+    
     result = await db.execute(
-        select(Player, Team)
-        .join(Team, Player.team_id == Team.id)
-        .where(Team.current_league_id == league_id)
-        .order_by(Player.assists.desc())
+        select(PlayerSeasonStats, Player, Team)
+        .join(Player, PlayerSeasonStats.player_id == Player.id)
+        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
+        .where(
+            and_(
+                PlayerSeasonStats.league_id == league_id,
+                PlayerSeasonStats.season_id == season_id
+            )
+        )
+        .order_by(PlayerSeasonStats.assists.desc())
         .limit(limit)
     )
-    players = result.all()
+    rows = result.all()
     
     return ResponseSchema(
         success=True,
         data=[
             TopAssistItem(
                 rank=idx + 1,
-                player_id=str(player.Player.id),
-                player_name=player.Player.display_name or f"{player.Player.first_name} {player.Player.last_name}",
-                team_name=player.Team.name,
-                assists=player.Player.assists,
-                matches=player.Player.matches_played
+                player_id=str(row.Player.id),
+                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
+                team_name=row.Team.name if row.Team else "未知球队",
+                assists=row.PlayerSeasonStats.assists,
+                matches=row.PlayerSeasonStats.matches_played
             )
-            for idx, player in enumerate(players)
+            for idx, row in enumerate(rows)
         ]
     )
 
@@ -638,34 +670,46 @@ async def get_clean_sheets(
     - **season_id**: 赛季ID（可选）
     - **limit**: 返回数量
     """
-    # 获取联赛中零封最多的门将（简化实现，实际应该有专门的统计表）
     from app.models.player import PlayerPosition
     
+    if not season_id:
+        season_result = await db.execute(
+            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
+        )
+        season = season_result.scalar_one_or_none()
+        if season:
+            season_id = str(season.id)
+    
+    if not season_id:
+        return ResponseSchema(success=True, data=[])
+    
     result = await db.execute(
-        select(Player, Team)
-        .join(Team, Player.team_id == Team.id)
+        select(PlayerSeasonStats, Player, Team)
+        .join(Player, PlayerSeasonStats.player_id == Player.id)
+        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
         .where(
             and_(
-                Team.current_league_id == league_id,
+                PlayerSeasonStats.league_id == league_id,
+                PlayerSeasonStats.season_id == season_id,
                 Player.primary_position == PlayerPosition.GK
             )
         )
-        .order_by(Player.matches_played.desc())  # 简化：按出场次数排序
+        .order_by(PlayerSeasonStats.clean_sheets.desc())
         .limit(limit)
     )
-    players = result.all()
+    rows = result.all()
     
     return ResponseSchema(
         success=True,
         data=[
             CleanSheetItem(
                 rank=idx + 1,
-                player_id=str(player.Player.id),
-                player_name=player.Player.display_name or f"{player.Player.first_name} {player.Player.last_name}",
-                team_name=player.Team.name,
-                clean_sheets=player.Player.matches_played // 3,  # 模拟数据
-                matches=player.Player.matches_played
+                player_id=str(row.Player.id),
+                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
+                team_name=row.Team.name if row.Team else "未知球队",
+                clean_sheets=row.PlayerSeasonStats.clean_sheets,
+                matches=row.PlayerSeasonStats.matches_played
             )
-            for idx, player in enumerate(players)
+            for idx, row in enumerate(rows)
         ]
     )

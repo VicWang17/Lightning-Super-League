@@ -29,7 +29,7 @@ export interface Season {
   name: string
   start_date: string
   end_date?: string
-  status: 'upcoming' | 'ongoing' | 'completed'
+  status: 'pending' | 'ongoing' | 'finished'
 }
 
 export interface StandingTeam {

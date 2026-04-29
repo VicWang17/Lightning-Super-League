@@ -252,6 +252,10 @@ class ApiClient {
 
   // ==================== 赛季 API ====================
   
+  async getSeasons() {
+    return this.requestWithAuth<Season[]>('/seasons', { method: 'GET' })
+  }
+
   async getCurrentSeason() {
     return this.requestWithAuth<SeasonDetail>('/seasons/current', { method: 'GET' })
   }
