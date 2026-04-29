@@ -1,11 +1,5 @@
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { 
- Trophy, 
- ChevronRight, 
- Users,
- Zap,
- Swords
-} from 'lucide-react'
+import { Trophy, ChevronRight, Users, Zap, Sword as Swords } from '../../components/ui/pixel-icons'
 import { useCups, useMyTeamCup } from '../../hooks/useCups'
 import type { CupCompetition } from '../../types/cup'
 import { CUP_CONFIG } from '../../types/cup'

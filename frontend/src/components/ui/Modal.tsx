@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { clsx } from 'clsx'
-import { X } from 'lucide-react'
+import { Cancel as X } from './pixel-icons'
 import Button from './Button'
 
 export interface ModalProps {

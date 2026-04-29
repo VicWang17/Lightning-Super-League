@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { Trophy, Users, Shield, Swords, Zap } from 'lucide-react'
+import { Trophy, Users, Shield, Sword as Swords, Zap } from '../../components/ui/pixel-icons'
 import { useAuthStore } from '../../stores/auth'
 
 // 动画配置

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ArrowUpRight } from 'lucide-react'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -10,10 +11,9 @@ import {
   Zap,
   Trophy,
   Users,
-  Swords,
-  ArrowUpRight,
+  Sword as Swords,
   Clock
-} from 'lucide-react'
+} from '../../components/ui/pixel-icons'
 import { Link } from 'react-router-dom'
 import api from '../../api/client'
 import { useAuthStore } from '../../stores/auth'
@@ -200,10 +200,10 @@ function LeagueCard({ league }: { league: League }) {
         </div>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <span className="text-xs px-2 py-0.5 -none bg-[#12121A]/60 text-[#8B8BA7]">
+        <span className="text-xs px-2 py-0.5 bg-[#12121A]/60 text-[#8B8BA7]">
           {league.system_name}
         </span>
-        <span className="text-xs px-2 py-0.5 -none bg-[#12121A]/60 text-[#8B8BA7]">
+        <span className="text-xs px-2 py-0.5 bg-[#12121A]/60 text-[#8B8BA7]">
           {levelNames[league.level - 1]}
         </span>
       </div>
@@ -444,8 +444,8 @@ function Dashboard() {
                   <span className="text-sm text-[#8B8BA7]">进攻</span>
                   <span className="text-sm font-medium stat-number">{displayTeam.attack || '-'}</span>
                 </div>
-                <div className="h-1.5 bg-[#1E1E2D] -none overflow-hidden">
-                  <div className="h-full bg-red-500 -none" style={{ width: `${displayTeam.attack || 0}%` }} />
+                <div className="pixel-progress-track">
+                  <div className="pixel-progress-fill bg-red-500" style={{ width: `${displayTeam.attack || 0}%` }} />
                 </div>
               </div>
               <div>
@@ -453,8 +453,8 @@ function Dashboard() {
                   <span className="text-sm text-[#8B8BA7]">中场</span>
                   <span className="text-sm font-medium stat-number">{displayTeam.midfield || '-'}</span>
                 </div>
-                <div className="h-1.5 bg-[#1E1E2D] -none overflow-hidden">
-                  <div className="h-full bg-[#0D7377] -none" style={{ width: `${displayTeam.midfield || 0}%` }} />
+                <div className="pixel-progress-track">
+                  <div className="pixel-progress-fill bg-[#0D7377]" style={{ width: `${displayTeam.midfield || 0}%` }} />
                 </div>
               </div>
               <div>
@@ -462,8 +462,8 @@ function Dashboard() {
                   <span className="text-sm text-[#8B8BA7]">防守</span>
                   <span className="text-sm font-medium stat-number">{displayTeam.defense || '-'}</span>
                 </div>
-                <div className="h-1.5 bg-[#1E1E2D] -none overflow-hidden">
-                  <div className="h-full bg-emerald-500 -none" style={{ width: `${displayTeam.defense || 0}%` }} />
+                <div className="pixel-progress-track">
+                  <div className="pixel-progress-fill bg-emerald-500" style={{ width: `${displayTeam.defense || 0}%` }} />
                 </div>
               </div>
             </div>
@@ -546,7 +546,7 @@ function Dashboard() {
                     <p className="text-xs text-[#8B8BA7]">{next_match.is_home ? '主' : '客'}</p>
                   </div>
                   <div className="text-center px-4">
-                    <p className="text-2xl font-bold stat-number text-[#0D7377]">VS</p>
+                    <p className="text-2xl font-bold stat-number pixel-number text-[#0D7377]">VS</p>
                     <p className="text-xs text-[#4B4B6A] mt-1">{next_match.date}</p>
                     <p className="text-xs text-[#0D7377]">{next_match.time}</p>
                   </div>

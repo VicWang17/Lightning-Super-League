@@ -1,20 +1,9 @@
 import { useParams, Link } from 'react-router-dom'
+import { Weight, Footprints } from 'lucide-react'
 import { 
- ChevronLeft, 
- User,
- Calendar,
- Ruler,
- Weight,
- Footprints,
- MapPin,
- TrendingUp,
- Award,
- Shield,
- Target,
- Zap,
- Clock,
- ChevronRight
-} from 'lucide-react'
+  Clock, ChevronRight, ChevronLeft, MapPin, Calendar, 
+  TrendingUp, Award, Ruler, User, Shield, Target, Zap 
+} from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 import { getPositionColor } from '../../types/player'
 
@@ -212,12 +201,12 @@ function PlayerDetail() {
  <span className="text-sm">{stat.label}</span>
  <span className="font-bold stat-number pixel-number">{stat.value}</span>
  </div>
- <div className="h-1.5 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-red-500 rounded-none" 
- style={{ width: `${stat.value}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-red-500"
+    style={{ width: `${stat.value}%` }}
+    />
+    </div>
  </div>
  ))}
  </div>
@@ -240,12 +229,12 @@ function PlayerDetail() {
  <span className="text-sm">{stat.label}</span>
  <span className="font-bold stat-number pixel-number">{stat.value}</span>
  </div>
- <div className="h-1.5 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-[#0D7377] rounded-none" 
- style={{ width: `${stat.value}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-[#0D7377]"
+    style={{ width: `${stat.value}%` }}
+    />
+    </div>
  </div>
  ))}
  </div>
@@ -267,12 +256,12 @@ function PlayerDetail() {
  <span className="text-sm">{stat.label}</span>
  <span className="font-bold stat-number pixel-number">{stat.value}</span>
  </div>
- <div className="h-1.5 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-emerald-500 rounded-none" 
- style={{ width: `${stat.value}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-emerald-500"
+    style={{ width: `${stat.value}%` }}
+    />
+    </div>
  </div>
  ))}
  </div>
@@ -294,12 +283,12 @@ function PlayerDetail() {
  <span className="text-sm">{stat.label}</span>
  <span className="font-bold stat-number pixel-number">{stat.value}</span>
  </div>
- <div className="h-1.5 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-amber-500 rounded-none" 
- style={{ width: `${stat.value}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-amber-500"
+    style={{ width: `${stat.value}%` }}
+    />
+    </div>
  </div>
  ))}
  </div>
@@ -381,36 +370,36 @@ function PlayerDetail() {
  <span className="text-sm text-[#8B8BA7]">体能</span>
  <span className="font-bold stat-number pixel-number">{player.fitness}%</span>
  </div>
- <div className="h-2 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className={`h-full rounded-none ${player.fitness > 80 ? 'bg-emerald-500' : player.fitness > 50 ? 'bg-amber-500' : 'bg-red-500'}`}
- style={{ width: `${player.fitness}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className={`pixel-progress-fill ${player.fitness > 80 ? 'bg-emerald-500' : player.fitness > 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+    style={{ width: `${player.fitness}%` }}
+    />
+    </div>
  </div>
  <div>
  <div className="flex items-center justify-between mb-2">
  <span className="text-sm text-[#8B8BA7]">士气</span>
  <span className="font-bold stat-number pixel-number">{player.morale}%</span>
  </div>
- <div className="h-2 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-blue-500 rounded-none"
- style={{ width: `${player.morale}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-blue-500"
+    style={{ width: `${player.morale}%` }}
+    />
+    </div>
  </div>
  <div>
  <div className="flex items-center justify-between mb-2">
  <span className="text-sm text-[#8B8BA7]">状态</span>
  <span className="font-bold stat-number pixel-number">{player.form}%</span>
  </div>
- <div className="h-2 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-purple-500 rounded-none"
- style={{ width: `${player.form}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-purple-500"
+    style={{ width: `${player.form}%` }}
+    />
+    </div>
  </div>
  </div>
  </Card>

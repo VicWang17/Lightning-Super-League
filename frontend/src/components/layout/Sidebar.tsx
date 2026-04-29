@@ -1,15 +1,15 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { 
-  LayoutDashboard, 
+  Home as LayoutDashboard,
   Users, 
   Trophy, 
-  CalendarDays, 
-  ArrowLeftRight, 
-  Sprout,
-  LogOut,
-  Swords
-} from 'lucide-react'
+  Calendar as CalendarDays, 
+  Transfer as ArrowLeftRight, 
+  Tree as Sprout,
+  Logout as LogOut,
+  Sword as Swords
+} from '../ui/pixel-icons'
 import { useAuthStore } from '../../stores/auth'
 
 const menuItems = [
@@ -79,6 +79,9 @@ function Sidebar() {
                     : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D] border-2 border-transparent'
                 )}
               >
+                {isActive(item) && (
+                  <span className="text-[#FCD34D] text-xs leading-none">▶</span>
+                )}
                 <item.icon className="w-4 h-4" />
                 <span className="text-sm font-medium">{item.label}</span>
               </Link>

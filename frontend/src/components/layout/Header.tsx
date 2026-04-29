@@ -1,4 +1,4 @@
-import { Bell, Settings, Search, Trophy, Calendar } from 'lucide-react'
+import { Bell, SettingsCog as Settings, Search, Trophy, Calendar } from '../ui/pixel-icons'
 import { useSeason } from '../../hooks/useSeason'
 
 function Header() {
@@ -67,9 +67,9 @@ function Header() {
         {/* Progress Bar (mini) */}
         {displayStatus && (
           <div className="w-24">
-            <div className="h-1.5 bg-[#12121A] rounded-none overflow-hidden">
+            <div className="pixel-progress-track h-2">
               <div 
-                className="h-full bg-[#0D7377] rounded-none transition-all duration-500"
+                className="pixel-progress-fill transition-all duration-500"
                 style={{ width: `${displayStatus.progress_percent}%` }}
               />
             </div>

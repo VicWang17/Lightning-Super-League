@@ -11,10 +11,50 @@
 }
 
 @layer components {
+  /* 全局像素网格背景 */
+  .pixel-grid-bg {
+    background-color: #0A0A0F;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    background-size: 4px 4px;
+  }
+
+  /* 像素草地纹理背景（足球主题） */
+  .pixel-grass-bg {
+    background-color: #0A0A0F;
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(13, 115, 119, 0.03) 2px,
+      rgba(13, 115, 119, 0.03) 4px
+    );
+  }
+
   /* 像素卡片样式 */
   .card {
-    @apply bg-[#12121A] border-2 border-[#2D2D44] p-6;
+    @apply bg-[#12121A] border-2 border-[#2D2D44] p-6 relative;
     box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+  }
+
+  /* 像素卡片四角装饰 */
+  .card::before,
+  .card::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #0D7377;
+    pointer-events: none;
+  }
+  .card::before {
+    top: -2px;
+    left: -2px;
+  }
+  .card::after {
+    bottom: -2px;
+    right: -2px;
   }
 
   .card-hover {
@@ -29,7 +69,7 @@
 
   /* 像素主按钮 */
   .btn-primary {
-    @apply bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-bold py-3 px-6 border-2 border-[#0A5A5D] transition-all duration-200;
+    @apply bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-bold py-3 px-6 border-2 border-[#0A5A5D] transition-all duration-200 relative;
     box-shadow: 4px 4px 0px #072e30;
     font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
   }
@@ -42,6 +82,25 @@
   .btn-primary:active {
     box-shadow: 2px 2px 0px #072e30;
     transform: translate(2px, 2px);
+  }
+
+  /* 按钮四角装饰 */
+  .btn-primary::before,
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #14A085;
+    pointer-events: none;
+  }
+  .btn-primary::before {
+    top: -2px;
+    left: -2px;
+  }
+  .btn-primary::after {
+    bottom: -2px;
+    right: -2px;
   }
 
   /* 像素次级按钮 */
@@ -116,6 +175,87 @@
       inset 2px 2px 0px rgba(255, 255, 255, 0.05);
   }
 
+  /* 像素进度条 - 分块式 */
+  .pixel-progress-track {
+    @apply w-full bg-[#0A0A0F] border-2 border-[#2D2D44];
+    height: 12px;
+  }
+
+  .pixel-progress-fill {
+    @apply h-full bg-[#0D7377] relative;
+    box-shadow: inset -2px -2px 0px rgba(0, 0, 0, 0.2), inset 2px 2px 0px rgba(255, 255, 255, 0.1);
+  }
+
+  /* 像素比分牌 */
+  .pixel-scoreboard {
+    @apply inline-flex items-center border-2 border-[#2D2D44] bg-[#12121A];
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+  }
+
+  .pixel-scoreboard .score-home,
+  .pixel-scoreboard .score-away {
+    @apply px-4 py-2 font-bold pixel-number text-xl;
+  }
+
+  .pixel-scoreboard .score-home {
+    @apply border-r-2 border-[#2D2D44] text-white;
+  }
+
+  .pixel-scoreboard .score-away {
+    @apply border-l-2 border-[#2D2D44] text-white;
+  }
+
+  .pixel-scoreboard .score-divider {
+    @apply px-2 py-2 text-[#4B4B6A] font-bold text-lg;
+  }
+
+  /* 像素状态指示灯 */
+  .pixel-dot {
+    @apply w-2 h-2;
+    box-shadow: inset -1px -1px 0px rgba(0, 0, 0, 0.3);
+  }
+
+  /* 像素闪烁动画（两帧） */
+  @keyframes pixel-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  .animate-pixel-blink {
+    animation: pixel-blink 1s steps(1) infinite;
+  }
+
+  /* 像素抖动动画 */
+  @keyframes pixel-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+
+  .animate-pixel-shake {
+    animation: pixel-shake 0.2s steps(2) 2;
+  }
+
+  /* 像素扫描线效果（可选开关） */
+  .scanlines {
+    position: relative;
+  }
+
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
   /* 滚动条样式 - 像素风 */
   ::-webkit-scrollbar {
     width: 8px;
@@ -141,5 +281,11 @@
   ::selection {
     background: #0D7377;
     color: #ffffff;
+  }
+
+  /* lucide 图标像素化 - 让平滑 SVG 图标有像素感 */
+  svg.lucide {
+    shape-rendering: crispEdges;
+    stroke-width: 2.5px;
   }
 }

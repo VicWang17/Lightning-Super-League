@@ -1,14 +1,9 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import {
- Calendar,
- ChevronLeft,
- Trophy,
- MapPin,
- Swords,
- CheckCircle,
- PlayCircle
-} from 'lucide-react'
+import { 
+  Calendar, ChevronLeft, Trophy, MapPin, 
+  Sword as Swords, CircleCheck as CheckCircle, Play as PlayCircle 
+} from '../../components/ui/pixel-icons'
 import api from '../../api/client'
 import { useSeason } from '../../hooks/useSeason'
 import type { SeasonCalendarDay } from '../../types/season'

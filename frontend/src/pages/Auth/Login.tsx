@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { Zap, Mail, Lock, Eye, EyeOff, WarningDiamond as AlertCircle } from '../../components/ui/pixel-icons'
 import { useAuthStore } from '../../stores/auth'
 import { api } from '../../api/client'
 import Input from '../../components/ui/Input'

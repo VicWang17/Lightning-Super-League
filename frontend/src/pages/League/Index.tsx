@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
-import { 
- Trophy, 
- ChevronRight, 
- Users,
- Swords
-} from 'lucide-react'
+import { Trophy, ChevronRight, Users, Sword as Swords } from '../../components/ui/pixel-icons'
 import { useLeagueSystems, useLeagues } from '../../hooks/useLeagues'
 import api from '../../api/client'
 import type { League } from '../../types/league'

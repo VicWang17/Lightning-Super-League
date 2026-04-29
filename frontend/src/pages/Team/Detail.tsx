@@ -1,16 +1,8 @@
 import { useParams, Link } from 'react-router-dom'
 import { 
- Users, 
- ChevronLeft, 
- Shield,
- Target,
- Zap,
- Trophy,
- MapPin,
- Calendar,
- TrendingUp,
- ChevronRight
-} from 'lucide-react'
+  Users, ChevronLeft, Shield, Target, Zap, Trophy, 
+  MapPin, Calendar, TrendingUp, ChevronRight 
+} from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 
 // Mock team data
@@ -160,12 +152,12 @@ function TeamDetail() {
  </div>
  <span className="font-bold stat-number pixel-number">{team.attack}</span>
  </div>
- <div className="h-2 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-red-500 rounded-none" 
- style={{ width: `${team.attack}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-red-500"
+    style={{ width: `${team.attack}%` }}
+    />
+    </div>
  </div>
  <div>
  <div className="flex items-center justify-between mb-2">
@@ -175,12 +167,12 @@ function TeamDetail() {
  </div>
  <span className="font-bold stat-number pixel-number">{team.midfield}</span>
  </div>
- <div className="h-2 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-[#0D7377] rounded-none" 
- style={{ width: `${team.midfield}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-[#0D7377]"
+    style={{ width: `${team.midfield}%` }}
+    />
+    </div>
  </div>
  <div>
  <div className="flex items-center justify-between mb-2">
@@ -190,12 +182,12 @@ function TeamDetail() {
  </div>
  <span className="font-bold stat-number pixel-number">{team.defense}</span>
  </div>
- <div className="h-2 bg-[#1E1E2D] rounded-none overflow-hidden">
- <div 
- className="h-full bg-emerald-500 rounded-none" 
- style={{ width: `${team.defense}%` }} 
- />
- </div>
+ <div className="pixel-progress-track">
+    <div
+    className="pixel-progress-fill bg-emerald-500"
+    style={{ width: `${team.defense}%` }}
+    />
+    </div>
  </div>
  </div>
  </Card>

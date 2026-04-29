@@ -1,18 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { ArrowUpRight } from 'lucide-react'
 import { 
- Trophy, 
- ChevronLeft, 
- Users,
- Calendar,
- Grid3X3,
- GitBranch,
- List,
- Target,
- ArrowUpRight,
- Shield
-} from 'lucide-react'
+  Trophy, ChevronLeft, Users, Calendar, Grid3x3 as Grid3X3, 
+  GitBranch, ListBox as List, Target, Shield 
+} from '../../components/ui/pixel-icons'
 import { 
  useCupDetail, 
  useCupGroups, 
@@ -43,7 +36,7 @@ function SeasonSelector({
  <select
  value={selectedSeasonId || ''}
  onChange={(e) => onChange(e.target.value)}
- className="appearance-none bg-[#1E1E2D] border border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#0D7377] focus:ring-1 focus:ring-[#0D7377] cursor-pointer"
+ className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#0D7377] focus:ring-1 focus:ring-[#0D7377] cursor-pointer"
  >
  {seasons.map((season) => (
  <option key={season.id} value={season.id}>
@@ -123,7 +116,7 @@ function MatchCard({ match }: { match: CupFixture }) {
  </span>
  </div>
  ) : (
- <div className="text-lg font-bold text-[#4B4B6A]">VS</div>
+ <div className="text-lg font-bold pixel-number text-[#4B4B6A]">VS</div>
  )}
  <p className="text-xs text-[#8B8BA7] mt-1">
  第{match.season_day}天
@@ -287,7 +280,7 @@ function StatsRow({ rank, name, team, value, label }: { rank: number; name: stri
 function TreeMatchCard({ match, showTBD }: { match?: CupFixture; showTBD?: boolean }) {
  if (showTBD || !match) {
  return (
- <div className="w-28 p-2 bg-[#1A1A25]/50 border border-dashed border-[#3D3D55] shadow-pixel-sm">
+ <div className="w-28 p-2 bg-[#1A1A25]/50 border-2 border-dashed border-[#3D3D55] shadow-pixel-sm">
  <div className="space-y-1">
  <div className="flex items-center justify-between text-xs text-[#4B4B6A]">
  <span className="truncate flex-1">待定</span>
@@ -483,7 +476,7 @@ function KnockoutTreeBracket({ fixtures }: { fixtures: CupFixture[] }) {
  <span>晋级球队</span>
  </div>
  <div className="flex items-center gap-2">
- <div className="w-3 h-3 bg-[#1A1A25] border border-dashed border-[#3D3D55]" />
+ <div className="w-3 h-3 bg-[#1A1A25] border-2 border-dashed border-[#3D3D55]" />
  <span>待定</span>
  </div>
  </div>

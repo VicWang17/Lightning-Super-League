@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { ArrowUpRight } from 'lucide-react'
 import { 
- Trophy, 
- ChevronLeft, 
- Users,
- Target,
- ArrowUpRight,
- Calendar,
- TrendingUp,
- Swords,
- Medal
-} from 'lucide-react'
+  Trophy, 
+  ChevronLeft, 
+  Users,
+  Target,
+  Calendar,
+  TrendingUp,
+  Sword as Swords,
+  Medal
+} from '../../components/ui/pixel-icons'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useTopScorers, useTopAssists } from '../../hooks/useLeagues'
 import { useSeasons } from '../../hooks/useSeasons'
 import type { LeagueStanding, Match, PlayoffMatch } from '../../types/league'
@@ -47,7 +47,7 @@ function SeasonSelector({
  <select
  value={selectedSeasonId || ''}
  onChange={(e) => onChange(e.target.value)}
- className="appearance-none bg-[#1E1E2D] border border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#0D7377] focus:ring-1 focus:ring-[#0D7377] cursor-pointer"
+ className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#0D7377] focus:ring-1 focus:ring-[#0D7377] cursor-pointer"
  >
  {seasons.map((season) => (
  <option key={season.id} value={season.id}>
@@ -166,7 +166,7 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  </span>
  </div>
  ) : (
- <div className="text-sm font-bold text-[#4B4B6A]">VS</div>
+ <div className="text-sm font-bold pixel-number text-[#4B4B6A]">VS</div>
  )}
  <p className="text-xs text-[#8B8BA7] mt-1">
  {new Date(playoff.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
@@ -220,7 +220,7 @@ function MatchCard({ match }: { match: Match }) {
  </span>
  </div>
  ) : (
- <div className="text-lg font-bold text-[#4B4B6A]">VS</div>
+ <div className="text-lg font-bold pixel-number text-[#4B4B6A]">VS</div>
  )}
  <p className="text-xs text-[#8B8BA7] mt-1">
  {new Date(match.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}

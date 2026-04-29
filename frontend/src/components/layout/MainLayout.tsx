@@ -4,7 +4,7 @@ import Header from './Header'
 
 function MainLayout() {
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex pixel-grid-bg">
       {/* Sidebar */}
       <Sidebar />
       

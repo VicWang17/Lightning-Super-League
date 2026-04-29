@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Construction, ArrowLeft } from 'lucide-react'
+import { Zap, Tools as Construction, ArrowLeft } from '../../components/ui/pixel-icons'
 
 export default function Register() {
   return (
