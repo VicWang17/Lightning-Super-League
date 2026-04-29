@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../api/client'
-import type { CupCompetition, CupDetail, CupGroup, CupFixture } from '../types/cup'
+import type { CupCompetition, CupDetail, CupGroup, CupFixture, CupTopScorer, CupTopAssist, CupCleanSheet } from '../types/cup'
 
 // 获取当前赛季的所有杯赛
 export function useCups() {
@@ -176,6 +176,139 @@ export function useCupKnockoutBracket(cupId: string | undefined) {
   }, [cupId])
 
   return { bracket, loading, error }
+}
+
+// 获取杯赛射手榜
+export function useCupTopScorers(cupId: string | undefined, limit = 20) {
+  const [scorers, setScorers] = useState<CupTopScorer[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!cupId) {
+      setLoading(false)
+      return
+    }
+
+    const fetchScorers = async () => {
+      try {
+        setLoading(true)
+        const response = await api.get<CupTopScorer[]>(`/cups/${cupId}/top-scorers?limit=${limit}`)
+        if (response.success) {
+          setScorers(response.data)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取射手榜失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchScorers()
+  }, [cupId, limit])
+
+  return { scorers, loading, error }
+}
+
+// 获取杯赛助攻榜
+export function useCupTopAssists(cupId: string | undefined, limit = 20) {
+  const [assists, setAssists] = useState<CupTopAssist[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!cupId) {
+      setLoading(false)
+      return
+    }
+
+    const fetchAssists = async () => {
+      try {
+        setLoading(true)
+        const response = await api.get<CupTopAssist[]>(`/cups/${cupId}/top-assists?limit=${limit}`)
+        if (response.success) {
+          setAssists(response.data)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取助攻榜失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAssists()
+  }, [cupId, limit])
+
+  return { assists, loading, error }
+}
+
+// 获取杯赛零封榜
+export function useCupCleanSheets(cupId: string | undefined, limit = 20) {
+  const [cleanSheets, setCleanSheets] = useState<CupCleanSheet[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!cupId) {
+      setLoading(false)
+      return
+    }
+
+    const fetchCleanSheets = async () => {
+      try {
+        setLoading(true)
+        const response = await api.get<CupCleanSheet[]>(`/cups/${cupId}/clean-sheets?limit=${limit}`)
+        if (response.success) {
+          setCleanSheets(response.data)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取零封榜失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCleanSheets()
+  }, [cupId, limit])
+
+  return { cleanSheets, loading, error }
+}
+
+// 根据杯赛代码和赛季ID获取杯赛
+export function useCupByCode(code: string | undefined, seasonId?: string) {
+  const [cup, setCup] = useState<CupCompetition | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!code) {
+      setLoading(false)
+      return
+    }
+
+    const fetchCup = async () => {
+      try {
+        setLoading(true)
+        let url = `/cups/by-code/${code}`
+        if (seasonId) url += `?season_id=${seasonId}`
+        const response = await api.get<CupCompetition>(url)
+        if (response.success && response.data) {
+          setCup(response.data)
+        } else {
+          setCup(null)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取杯赛失败')
+        setCup(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCup()
+  }, [code, seasonId])
+
+  return { cup, loading, error }
 }
 
 // 获取用户球队参加的杯赛

@@ -114,6 +114,7 @@ class MatchSimulator:
             fixture.away_team_id: fixture.away_team_id,
         }
         league_id = fixture.league_id
+        cup_competition_id = fixture.cup_competition_id
         
         # 按球员聚合事件
         player_events: Dict[str, list[MatchEvent]] = {}
@@ -125,14 +126,16 @@ class MatchSimulator:
         # 更新每个球员的赛季统计
         for player_id, player_event_list in player_events.items():
             stats = await MatchSimulator._get_or_create_player_season_stats(
-                db, player_id, fixture.season_id
+                db, player_id, fixture.season_id, league_id=league_id, cup_competition_id=cup_competition_id
             )
             
-            # 更新球队和联赛信息（取最新）
+            # 更新球队和联赛/杯赛信息（取最新）
             for event in player_event_list:
                 stats.team_id = event.team_id
             if league_id:
                 stats.league_id = league_id
+            if cup_competition_id:
+                stats.cup_competition_id = cup_competition_id
             
             goals = sum(1 for e in player_event_list if e.event_type == "goal")
             assists = sum(1 for e in player_event_list if e.event_type == "assist")
@@ -201,22 +204,41 @@ class MatchSimulator:
     
     @staticmethod
     async def _get_or_create_player_season_stats(
-        db: AsyncSession, player_id: str, season_id: str
+        db: AsyncSession, player_id: str, season_id: str,
+        league_id: Optional[str] = None, cup_competition_id: Optional[str] = None
     ) -> PlayerSeasonStats:
-        """获取或创建球员赛季统计记录"""
+        """获取或创建球员赛季统计记录
+        
+        支持联赛和杯赛独立统计：
+        - 联赛比赛：league_id 有值，cup_competition_id 为 None
+        - 杯赛比赛：cup_competition_id 有值，league_id 为 None
+        """
+        conditions = [
+            PlayerSeasonStats.player_id == player_id,
+            PlayerSeasonStats.season_id == season_id,
+        ]
+        
+        if league_id:
+            conditions.append(PlayerSeasonStats.league_id == league_id)
+            conditions.append(PlayerSeasonStats.cup_competition_id.is_(None))
+        elif cup_competition_id:
+            conditions.append(PlayerSeasonStats.cup_competition_id == cup_competition_id)
+            conditions.append(PlayerSeasonStats.league_id.is_(None))
+        else:
+            # 兼容旧数据，如果没有指定 league_id 或 cup_competition_id
+            conditions.append(PlayerSeasonStats.league_id.is_(None))
+            conditions.append(PlayerSeasonStats.cup_competition_id.is_(None))
+        
         result = await db.execute(
-            select(PlayerSeasonStats).where(
-                and_(
-                    PlayerSeasonStats.player_id == player_id,
-                    PlayerSeasonStats.season_id == season_id
-                )
-            )
+            select(PlayerSeasonStats).where(and_(*conditions))
         )
         stats = result.scalar_one_or_none()
         if not stats:
             stats = PlayerSeasonStats(
                 player_id=player_id,
                 season_id=season_id,
+                league_id=league_id,
+                cup_competition_id=cup_competition_id,
                 goals=0,
                 assists=0,
                 yellow_cards=0,

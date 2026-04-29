@@ -2,39 +2,49 @@
 Cup routers - 杯赛管理API
 """
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 
 from app.dependencies import get_db, get_current_user
 from app.schemas import ResponseSchema
+from app.schemas.league import TopScorerItem, TopAssistItem, CleanSheetItem
 from app.models.season import CupCompetition, CupGroup, Fixture, FixtureStatus, Season
 from app.models.team import Team
 from app.models.user import User
+from app.models.player import Player, PlayerPosition
+from app.models.player_season_stats import PlayerSeasonStats
 
 router = APIRouter(prefix="/cups", tags=["杯赛"])
 
 
 @router.get("", response_model=ResponseSchema[List[Dict[str, Any]]])
 async def get_cups(
+    season_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user)
 ):
     """
-    获取当前赛季的所有杯赛
+    获取所有杯赛，默认当前赛季
     """
-    # 获取当前赛季
-    result = await db.execute(
-        select(Season).where(Season.status == "ongoing").order_by(Season.season_number.desc())
-    )
-    season = result.scalar_one_or_none()
-    
-    if not season:
-        # 如果没有进行中的赛季，获取最新的赛季
+    # 获取指定赛季或当前赛季
+    if season_id:
         result = await db.execute(
-            select(Season).order_by(Season.season_number.desc())
+            select(Season).where(Season.id == season_id)
         )
         season = result.scalar_one_or_none()
+    else:
+        result = await db.execute(
+            select(Season).where(Season.status == "ongoing").order_by(Season.season_number.desc())
+        )
+        season = result.scalar_one_or_none()
+        
+        if not season:
+            # 如果没有进行中的赛季，获取最新的赛季
+            result = await db.execute(
+                select(Season).order_by(Season.season_number.desc())
+            )
+            season = result.scalar_one_or_none()
     
     if not season:
         return ResponseSchema(success=True, data=[], message="暂无赛季数据")
@@ -76,6 +86,83 @@ async def get_cups(
         })
     
     return ResponseSchema(success=True, data=cup_list)
+
+
+@router.get("/by-code/{code}", response_model=ResponseSchema[Optional[Dict[str, Any]]])
+async def get_cup_by_code(
+    code: str,
+    season_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user)
+):
+    """
+    根据杯赛代码和赛季获取杯赛详情
+    
+    - **code**: 杯赛代码 (LIGHTNING_CUP / JENNY_CUP)
+    - **season_id**: 赛季ID（可选，默认当前赛季）
+    """
+    # 获取指定赛季或当前赛季
+    if season_id:
+        result = await db.execute(
+            select(Season).where(Season.id == season_id)
+        )
+        season = result.scalar_one_or_none()
+    else:
+        result = await db.execute(
+            select(Season).where(Season.status == "ongoing").order_by(Season.season_number.desc())
+        )
+        season = result.scalar_one_or_none()
+        
+        if not season:
+            result = await db.execute(
+                select(Season).order_by(Season.season_number.desc())
+            )
+            season = result.scalar_one_or_none()
+    
+    if not season:
+        return ResponseSchema(success=True, data=None, message="暂无赛季数据")
+    
+    # 获取该赛季指定代码的杯赛
+    result = await db.execute(
+        select(CupCompetition).where(
+            and_(
+                CupCompetition.season_id == season.id,
+                CupCompetition.code == code.upper()
+            )
+        )
+    )
+    cup = result.scalar_one_or_none()
+    
+    if not cup:
+        return ResponseSchema(success=True, data=None, message="该赛季暂无此杯赛")
+    
+    # 获取冠军球队名称
+    winner_name = None
+    if cup.winner_team_id:
+        team_result = await db.execute(
+            select(Team).where(Team.id == cup.winner_team_id)
+        )
+        winner_team = team_result.scalar_one_or_none()
+        if winner_team:
+            winner_name = winner_team.name
+    
+    return ResponseSchema(success=True, data={
+        "id": cup.id,
+        "name": cup.name,
+        "code": cup.code,
+        "season_id": cup.season_id,
+        "season_number": season.season_number,
+        "status": cup.status.value if hasattr(cup.status, 'value') else cup.status,
+        "current_round": cup.current_round,
+        "total_teams": cup.total_teams,
+        "has_group_stage": cup.has_group_stage,
+        "group_count": cup.group_count,
+        "teams_per_group": cup.teams_per_group,
+        "group_rounds": cup.group_rounds,
+        "eligible_league_levels": cup.eligible_league_levels,
+        "winner_team_id": cup.winner_team_id,
+        "winner_team_name": winner_name,
+    })
 
 
 @router.get("/my-team", response_model=ResponseSchema[Optional[Dict[str, Any]]])
@@ -404,3 +491,184 @@ async def get_cup_bracket(
             })
     
     return ResponseSchema(success=True, data=bracket)
+
+
+@router.get(
+    "/{cup_id}/top-scorers",
+    response_model=ResponseSchema[List[TopScorerItem]],
+    summary="获取杯赛射手榜",
+    description="获取指定杯赛的射手榜",
+)
+async def get_cup_top_scorers(
+    cup_id: str,
+    limit: int = Query(20, ge=1, le=50, description="返回数量"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user)
+):
+    """
+    获取杯赛射手榜
+    
+    - **cup_id**: 杯赛ID
+    - **limit**: 返回数量
+    """
+    result = await db.execute(
+        select(CupCompetition).where(CupCompetition.id == cup_id)
+    )
+    cup = result.scalar_one_or_none()
+    
+    if not cup:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="杯赛不存在"
+        )
+    
+    result = await db.execute(
+        select(PlayerSeasonStats, Player, Team)
+        .join(Player, PlayerSeasonStats.player_id == Player.id)
+        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
+        .where(
+            and_(
+                PlayerSeasonStats.cup_competition_id == cup_id,
+                PlayerSeasonStats.season_id == cup.season_id
+            )
+        )
+        .order_by(PlayerSeasonStats.goals.desc())
+        .limit(limit)
+    )
+    rows = result.all()
+    
+    return ResponseSchema(
+        success=True,
+        data=[
+            TopScorerItem(
+                rank=idx + 1,
+                player_id=str(row.Player.id),
+                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
+                team_name=row.Team.name if row.Team else "未知球队",
+                goals=row.PlayerSeasonStats.goals,
+                matches=row.PlayerSeasonStats.matches_played
+            )
+            for idx, row in enumerate(rows)
+        ]
+    )
+
+
+@router.get(
+    "/{cup_id}/top-assists",
+    response_model=ResponseSchema[List[TopAssistItem]],
+    summary="获取杯赛助攻榜",
+    description="获取指定杯赛的助攻榜",
+)
+async def get_cup_top_assists(
+    cup_id: str,
+    limit: int = Query(20, ge=1, le=50, description="返回数量"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user)
+):
+    """
+    获取杯赛助攻榜
+    
+    - **cup_id**: 杯赛ID
+    - **limit**: 返回数量
+    """
+    result = await db.execute(
+        select(CupCompetition).where(CupCompetition.id == cup_id)
+    )
+    cup = result.scalar_one_or_none()
+    
+    if not cup:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="杯赛不存在"
+        )
+    
+    result = await db.execute(
+        select(PlayerSeasonStats, Player, Team)
+        .join(Player, PlayerSeasonStats.player_id == Player.id)
+        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
+        .where(
+            and_(
+                PlayerSeasonStats.cup_competition_id == cup_id,
+                PlayerSeasonStats.season_id == cup.season_id
+            )
+        )
+        .order_by(PlayerSeasonStats.assists.desc())
+        .limit(limit)
+    )
+    rows = result.all()
+    
+    return ResponseSchema(
+        success=True,
+        data=[
+            TopAssistItem(
+                rank=idx + 1,
+                player_id=str(row.Player.id),
+                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
+                team_name=row.Team.name if row.Team else "未知球队",
+                assists=row.PlayerSeasonStats.assists,
+                matches=row.PlayerSeasonStats.matches_played
+            )
+            for idx, row in enumerate(rows)
+        ]
+    )
+
+
+@router.get(
+    "/{cup_id}/clean-sheets",
+    response_model=ResponseSchema[List[CleanSheetItem]],
+    summary="获取杯赛零封榜",
+    description="获取指定杯赛的零封榜（门将）",
+)
+async def get_cup_clean_sheets(
+    cup_id: str,
+    limit: int = Query(20, ge=1, le=50, description="返回数量"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user)
+):
+    """
+    获取杯赛零封榜
+    
+    - **cup_id**: 杯赛ID
+    - **limit**: 返回数量
+    """
+    result = await db.execute(
+        select(CupCompetition).where(CupCompetition.id == cup_id)
+    )
+    cup = result.scalar_one_or_none()
+    
+    if not cup:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="杯赛不存在"
+        )
+    
+    result = await db.execute(
+        select(PlayerSeasonStats, Player, Team)
+        .join(Player, PlayerSeasonStats.player_id == Player.id)
+        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
+        .where(
+            and_(
+                PlayerSeasonStats.cup_competition_id == cup_id,
+                PlayerSeasonStats.season_id == cup.season_id,
+                Player.primary_position == PlayerPosition.GK
+            )
+        )
+        .order_by(PlayerSeasonStats.clean_sheets.desc())
+        .limit(limit)
+    )
+    rows = result.all()
+    
+    return ResponseSchema(
+        success=True,
+        data=[
+            CleanSheetItem(
+                rank=idx + 1,
+                player_id=str(row.Player.id),
+                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
+                team_name=row.Team.name if row.Team else "未知球队",
+                clean_sheets=row.PlayerSeasonStats.clean_sheets,
+                matches=row.PlayerSeasonStats.matches_played
+            )
+            for idx, row in enumerate(rows)
+        ]
+    )

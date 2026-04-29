@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import api from '../../api/client'
 import { 
   Trophy, 
   ChevronLeft, 
@@ -7,13 +8,53 @@ import {
   Calendar,
   Grid3X3,
   GitBranch,
-  List
+  List,
+  Target,
+  ArrowUpRight,
+  Shield
 } from 'lucide-react'
-import { useCupDetail, useCupGroups, useCupFixtures } from '../../hooks/useCups'
+import { 
+  useCupDetail, 
+  useCupGroups, 
+  useCupFixtures, 
+  useCupTopScorers, 
+  useCupTopAssists, 
+  useCupCleanSheets
+} from '../../hooks/useCups'
+import { useSeasons } from '../../hooks/useSeasons'
 import type { CupFixture, CupGroup } from '../../types/cup'
+import type { Season } from '../../types/season'
 import { CUP_CONFIG, CUP_STAGE_CONFIG } from '../../types/cup'
 
-type TabType = 'groups' | 'knockout' | 'fixtures'
+type TabType = 'groups' | 'knockout' | 'fixtures' | 'scorers' | 'assists' | 'clean-sheets'
+
+// 赛季选择器组件
+function SeasonSelector({ 
+  seasons, 
+  selectedSeasonId, 
+  onChange 
+}: { 
+  seasons: Season[]; 
+  selectedSeasonId: string | undefined; 
+  onChange: (seasonId: string) => void 
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={selectedSeasonId || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none bg-[#1E1E2D] border border-[#2D2D44] text-white text-sm rounded-lg px-4 py-2 pr-8 focus:outline-none focus:border-[#0D7377] focus:ring-1 focus:ring-[#0D7377] cursor-pointer"
+      >
+        {seasons.map((season) => (
+          <option key={season.id} value={season.id}>
+            第 {season.season_number} 赛季
+          </option>
+        ))}
+      </select>
+      <ChevronLeft className="w-4 h-4 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-[-90deg] pointer-events-none" />
+    </div>
+  )
+}
 
 // Tab 按钮组件
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -211,6 +252,32 @@ function GroupSection({ group }: { group: CupGroup }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+// 统计行组件（射手榜/助攻榜/零封榜）
+function StatsRow({ rank, name, team, value, label }: { rank: number; name: string; team: string; value: number; label: string }) {
+  const rankColors = [
+    'bg-amber-500 text-black',
+    'bg-slate-300 text-black',
+    'bg-orange-400 text-black',
+    'bg-[#1E1E2D] text-[#8B8BA7]'
+  ]
+  
+  return (
+    <div className="flex items-center gap-4 py-3 border-b border-[#2D2D44] last:border-0">
+      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${rankColors[Math.min(rank - 1, 3)]}`}>
+        {rank}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-white truncate">{name}</p>
+        <p className="text-xs text-[#8B8BA7]">{team}</p>
+      </div>
+      <div className="text-right">
+        <p className="font-bold stat-number text-lg">{value}</p>
+        <p className="text-xs text-[#8B8BA7]">{label}</p>
       </div>
     </div>
   )
@@ -428,22 +495,48 @@ function KnockoutTreeBracket({ fixtures }: { fixtures: CupFixture[] }) {
 
 function CupDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { cup, loading: cupLoading, error: cupError } = useCupDetail(id)
   
   // 根据杯赛类型设置默认 Tab：有小组赛的默认显示小组赛，否则显示淘汰赛
   const defaultTab: TabType = cup?.has_group_stage ? 'groups' : 'knockout'
   const [activeTab, setActiveTab] = useState<TabType>(defaultTab)
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined)
   
-  
-  // 当杯赛数据加载后，如果没有小组赛，切换到淘汰赛
-  useEffect(() => {
-    if (cup && !cup.has_group_stage && activeTab === 'groups') {
-      setActiveTab('knockout')
-    }
-  }, [cup, activeTab])
-  
+  const { seasons, loading: seasonsLoading } = useSeasons()
   const { groups, loading: groupsLoading } = useCupGroups(id)
   const { fixtures, loading: fixturesLoading } = useCupFixtures(id)
+  const { scorers, loading: scorersLoading } = useCupTopScorers(id, 10)
+  const { assists, loading: assistsLoading } = useCupTopAssists(id, 10)
+  const { cleanSheets, loading: cleanSheetsLoading } = useCupCleanSheets(id, 10)
+  
+  // 当杯赛数据加载后，如果没有小组赛，切换到淘汰赛；同时设置选中赛季
+  useEffect(() => {
+    if (cup) {
+      if (!cup.has_group_stage && activeTab === 'groups') {
+        setActiveTab('knockout')
+      }
+      if (!selectedSeasonId) {
+        setSelectedSeasonId(cup.season_id)
+      }
+    }
+  }, [cup, activeTab, selectedSeasonId])
+  
+  // 赛季切换：查找对应赛季同类型杯赛并跳转
+  const handleSeasonChange = async (seasonId: string) => {
+    if (!cup || seasonId === cup.season_id) return
+    setSelectedSeasonId(seasonId)
+    
+    // 查找该赛季对应类型的杯赛
+    try {
+      const response = await api.get<{ id: string }>(`/cups/by-code/${cup.code}?season_id=${seasonId}`)
+      if (response.success && response.data && response.data.id) {
+        navigate(`/cups/${response.data.id}`)
+      }
+    } catch (err) {
+      console.error('切换赛季失败:', err)
+    }
+  }
   
   if (cupLoading) {
     return (
@@ -548,28 +641,56 @@ function CupDetail() {
         </div>
       </div>
 
-      {/* Tab 导航 */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {cup.has_group_stage && (
-          <TabButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')}>
+      {/* Tab 导航 + 赛季选择器 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-wrap gap-2">
+          {cup.has_group_stage && (
+            <TabButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')}>
+              <div className="flex items-center gap-2">
+                <Grid3X3 className="w-4 h-4" />
+                小组赛
+              </div>
+            </TabButton>
+          )}
+          <TabButton active={activeTab === 'knockout'} onClick={() => setActiveTab('knockout')}>
             <div className="flex items-center gap-2">
-              <Grid3X3 className="w-4 h-4" />
-              小组赛
+              <GitBranch className="w-4 h-4" />
+              淘汰赛
             </div>
           </TabButton>
+          <TabButton active={activeTab === 'fixtures'} onClick={() => setActiveTab('fixtures')}>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              赛程
+            </div>
+          </TabButton>
+          <TabButton active={activeTab === 'scorers'} onClick={() => setActiveTab('scorers')}>
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              射手榜
+            </div>
+          </TabButton>
+          <TabButton active={activeTab === 'assists'} onClick={() => setActiveTab('assists')}>
+            <div className="flex items-center gap-2">
+              <ArrowUpRight className="w-4 h-4" />
+              助攻榜
+            </div>
+          </TabButton>
+          <TabButton active={activeTab === 'clean-sheets'} onClick={() => setActiveTab('clean-sheets')}>
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              零封榜
+            </div>
+          </TabButton>
+        </div>
+        
+        {!seasonsLoading && seasons.length > 0 && (
+          <SeasonSelector 
+            seasons={seasons} 
+            selectedSeasonId={selectedSeasonId} 
+            onChange={handleSeasonChange} 
+          />
         )}
-        <TabButton active={activeTab === 'knockout'} onClick={() => setActiveTab('knockout')}>
-          <div className="flex items-center gap-2">
-            <GitBranch className="w-4 h-4" />
-            淘汰赛
-          </div>
-        </TabButton>
-        <TabButton active={activeTab === 'fixtures'} onClick={() => setActiveTab('fixtures')}>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            赛程
-          </div>
-        </TabButton>
       </div>
 
       {/* Tab 内容 */}
@@ -675,6 +796,102 @@ function CupDetail() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {fixtures.slice(0, 20).map(match => (
                   <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 射手榜 */}
+        {activeTab === 'scorers' && (
+          <div>
+            <h3 className="text-lg font-semibold mb-4">射手榜</h3>
+            {scorersLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="h-14 rounded bg-[#1E1E2D] animate-pulse" />
+                ))}
+              </div>
+            ) : scorers.length === 0 ? (
+              <div className="text-center py-12">
+                <Target className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+                <p className="text-[#8B8BA7]">暂无射手数据</p>
+              </div>
+            ) : (
+              <div>
+                {scorers.map(scorer => (
+                  <StatsRow 
+                    key={scorer.player_id}
+                    rank={scorer.rank}
+                    name={scorer.player_name}
+                    team={scorer.team_name}
+                    value={scorer.goals}
+                    label="进球"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 助攻榜 */}
+        {activeTab === 'assists' && (
+          <div>
+            <h3 className="text-lg font-semibold mb-4">助攻榜</h3>
+            {assistsLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="h-14 rounded bg-[#1E1E2D] animate-pulse" />
+                ))}
+              </div>
+            ) : assists.length === 0 ? (
+              <div className="text-center py-12">
+                <ArrowUpRight className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+                <p className="text-[#8B8BA7]">暂无助攻数据</p>
+              </div>
+            ) : (
+              <div>
+                {assists.map(assist => (
+                  <StatsRow 
+                    key={assist.player_id}
+                    rank={assist.rank}
+                    name={assist.player_name}
+                    team={assist.team_name}
+                    value={assist.assists}
+                    label="助攻"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 零封榜 */}
+        {activeTab === 'clean-sheets' && (
+          <div>
+            <h3 className="text-lg font-semibold mb-4">零封榜</h3>
+            {cleanSheetsLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="h-14 rounded bg-[#1E1E2D] animate-pulse" />
+                ))}
+              </div>
+            ) : cleanSheets.length === 0 ? (
+              <div className="text-center py-12">
+                <Shield className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+                <p className="text-[#8B8BA7]">暂无零封数据</p>
+              </div>
+            ) : (
+              <div>
+                {cleanSheets.map(cs => (
+                  <StatsRow 
+                    key={cs.player_id}
+                    rank={cs.rank}
+                    name={cs.player_name}
+                    team={cs.team_name}
+                    value={cs.clean_sheets}
+                    label="零封"
+                  />
                 ))}
               </div>
             )}

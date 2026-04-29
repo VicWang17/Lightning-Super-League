@@ -64,6 +64,33 @@ export interface CupFixture {
   scheduled_at: string
 }
 
+export interface CupTopScorer {
+  rank: number
+  player_id: string
+  player_name: string
+  team_name: string
+  goals: number
+  matches: number
+}
+
+export interface CupTopAssist {
+  rank: number
+  player_id: string
+  player_name: string
+  team_name: string
+  assists: number
+  matches: number
+}
+
+export interface CupCleanSheet {
+  rank: number
+  player_id: string
+  player_name: string
+  team_name: string
+  clean_sheets: number
+  matches: number
+}
+
 export interface CupDetail extends CupCompetition {
   groups?: CupGroup[]
   fixtures?: CupFixture[]

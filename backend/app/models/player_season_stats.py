@@ -19,7 +19,7 @@ class PlayerSeasonStats(Base):
     __tablename__ = "player_season_stats"
     
     __table_args__ = (
-        UniqueConstraint('player_id', 'season_id', name='uix_player_season'),
+        UniqueConstraint('player_id', 'season_id', 'league_id', 'cup_competition_id', name='uix_player_season_competition'),
     )
     
     # 外键
@@ -40,6 +40,11 @@ class PlayerSeasonStats(Base):
     )
     league_id: Mapped[str | None] = mapped_column(
         ForeignKey("leagues.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+    cup_competition_id: Mapped[str | None] = mapped_column(
+        ForeignKey("cup_competitions.id", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
@@ -71,6 +76,7 @@ class PlayerSeasonStats(Base):
     season: Mapped["Season"] = relationship("Season")
     team: Mapped["Team | None"] = relationship("Team")
     league: Mapped["League | None"] = relationship("League")
+    cup_competition: Mapped["CupCompetition | None"] = relationship("CupCompetition")
     
     def __repr__(self) -> str:
         return f"<PlayerSeasonStats(player_id={self.player_id}, season_id={self.season_id}, goals={self.goals})>"
