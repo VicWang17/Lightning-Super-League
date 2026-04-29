@@ -18,7 +18,12 @@ import CupDetail from './pages/Cup/Detail'
 import TeamDetail from './pages/Team/Detail'
 import PlayerDetail from './pages/Team/PlayerDetail'
 import Tactics from './pages/Team/Tactics'
-import Training from './pages/Team/Training'
+
+// Training Pages
+import TrainingWeekly from './pages/Training/Weekly'
+import TrainingCalendar from './pages/Training/Calendar'
+import PlayerFatigue from './pages/Training/Fatigue'
+import TrainingHistory from './pages/Training/History'
 
 // Match Pages
 import Schedule from './pages/Match/Schedule'
@@ -130,7 +135,30 @@ export const router = createBrowserRouter([
               },
               {
                 path: 'training',
-                element: <Training />,
+                element: <Navigate to="/training/weekly" replace />,
+              },
+            ],
+          },
+          
+          // 训练系统
+          {
+            path: 'training',
+            children: [
+              {
+                path: 'weekly',
+                element: <TrainingWeekly />,
+              },
+              {
+                path: 'calendar',
+                element: <TrainingCalendar />,
+              },
+              {
+                path: 'fatigue',
+                element: <PlayerFatigue />,
+              },
+              {
+                path: 'history',
+                element: <TrainingHistory />,
               },
             ],
           },
