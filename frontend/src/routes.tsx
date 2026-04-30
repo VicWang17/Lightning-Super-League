@@ -145,6 +145,10 @@ export const router = createBrowserRouter([
             path: 'training',
             children: [
               {
+                path: '',
+                element: <Navigate to="/training/weekly" replace />,
+              },
+              {
                 path: 'weekly',
                 element: <TrainingWeekly />,
               },

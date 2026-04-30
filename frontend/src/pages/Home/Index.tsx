@@ -51,10 +51,13 @@ const features = [
   },
 ]
 
+const heroBgs = ['/bg1.png', '/bg2.png', '/bg3.png']
+
 export default function Home() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
   const [isScrolled, setIsScrolled] = useState(false)
+  const [heroBg] = useState(() => heroBgs[Math.floor(Math.random() * heroBgs.length)])
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -87,28 +90,25 @@ export default function Home() {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled 
-            ? 'bg-[#0A0A0F]/95 border-b-2 border-[#0D4A4D]' 
+            ? 'bg-[#0A0A0F]/95 border-b-2 border-[#14532D]' 
             : 'bg-transparent'
         }`}
       >
         <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 group">
+            <Link to="/" className="block group">
               <img 
                 src="/logo.png" 
                 alt="闪电超级联赛"
-                className="w-9 h-9 object-cover shadow-glow-green group-hover:shadow-glow-green transition-shadow duration-300"
+                className="h-10 w-auto object-contain"
               />
-              <span className="text-lg font-semibold tracking-tight">
-                闪电超级联赛
-              </span>
             </Link>
 
             {/* 右侧 */}
             <button
               onClick={handleStartGame}
-              className="px-5 py-2 bg-[#0D7377] hover:bg-[#0A5A5D] text-white text-sm font-bold border-2 border-transparent transition-colors shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
+              className="px-5 py-2 bg-[#C6F135] hover:bg-[#a8d92a] text-[#0A0A0F] text-sm font-bold border-2 border-[#14532D] transition-colors shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
               进入游戏
             </button>
@@ -126,14 +126,16 @@ export default function Home() {
           <div 
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{
-              backgroundImage: `url('https://images.unsplash.com/photo-1577223625816-7546f13df25d?w=1920&q=80')`,
+              backgroundImage: `url('${heroBg}')`,
+              filter: 'brightness(0.55) saturate(0.85)',
             }}
           />
-          {/* 深色渐变遮罩 */}
-          <div className="absolute inset-0" />
-          <div className="absolute inset-0 bg-[#0A0A0F]/40" />
-          {/* 青色光晕 */}
-          <div className="absolute bottom-0 left-0 right-0 h-2/3" />
+          {/* 深色遮罩 */}
+          <div className="absolute inset-0 bg-[#0A0A0F]/50" />
+          {/* 底部渐变 — 让下方衔接更自然 */}
+          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0A0A0F] to-transparent" />
+          {/* 顶部微渐变 — 避免和 header 冲突 */}
+          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#0A0A0F]/60 to-transparent" />
         </motion.div>
 
         {/* Hero 内容 */}
@@ -145,24 +147,16 @@ export default function Home() {
             className="space-y-8"
           >
             {/* 主标题 */}
-            <motion.h1
+            <motion.div
               variants={fadeInUp}
               transition={fadeInUpTransition}
-              className="text-5xl sm:text-6xl lg:text-8xl font-bold font-pixel tracking-tight leading-[1.1]"
             >
-              <span className="text-white">闪电</span>
-              <span className="text-[#0D7377]">超级</span>
-              <span className="text-white">联赛</span>
-            </motion.h1>
-
-            {/* 副标题 */}
-            <motion.p
-              variants={fadeInUp}
-              transition={fadeInUpTransition}
-              className="text-lg sm:text-xl text-[#8B8BA7] max-w-lg mx-auto"
-            >
-              打造你的足球帝国，征服绿茵场
-            </motion.p>
+              <img
+                src="/title.png"
+                alt="闪电超级联赛"
+                className="h-48 sm:h-72 lg:h-96 w-auto object-contain mx-auto"
+              />
+            </motion.div>
 
             {/* CTA 按钮 */}
             <motion.div
@@ -172,31 +166,24 @@ export default function Home() {
             >
               <button
                 onClick={handleStartGame}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-bold border-2 border-transparent transition-all duration-200 shadow-pixel-green hover:shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#C6F135] hover:bg-[#a8d92a] text-[#0A0A0F] font-bold border-2 border-[#14532D] transition-all duration-200 shadow-pixel-green hover:shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
               >
                 立即开始
                 <Zap className="w-4 h-4" />
               </button>
             </motion.div>
 
-            {/* 数据概览 */}
+            {/* 向下滚动提示 */}
             <motion.div
               variants={fadeIn}
               transition={fadeInTransition}
-              className="flex items-center justify-center gap-8 sm:gap-12 pt-12 text-sm"
+              className="pt-16"
             >
-              {[
-                { value: '2M+', label: '经理在线' },
-                { value: '150+', label: '国家地区' },
-                { value: '24/7', label: '实时对战' },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                    {stat.value}
-                  </div>
-                  <div className="text-[#4B4B6A] mt-1">{stat.label}</div>
-                </div>
-              ))}
+              <div className="animate-bounce text-[#4B4B6A]">
+                <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </div>
             </motion.div>
           </motion.div>
         </div>
@@ -231,8 +218,8 @@ export default function Home() {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="group"
               >
-                <div className="h-full p-6 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all duration-250 hover:-translate-y-1 hover:shadow-pixel">
-                  <div className="w-11 h-11 bg-[#0D4A4D]/40 border-2 border-[#0D7377]/30 flex items-center justify-center mb-4">
+                <div className="h-full p-6 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#C6F135]/50 transition-all duration-250 hover:-translate-y-1 hover:shadow-pixel">
+                  <div className="w-11 h-11 bg-[#14532D]/40 border-2 border-[#C6F135]/30 flex items-center justify-center mb-4">
                     <feature.icon className="w-5 h-5 text-white" />
                   </div>
                   <h3 className="text-base font-semibold text-white mb-2">
@@ -283,7 +270,7 @@ export default function Home() {
                 </p>
                 <button
                   onClick={handleStartGame}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-bold border-2 border-transparent transition-all duration-200 shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#C6F135] hover:bg-[#a8d92a] text-[#0A0A0F] font-bold border-2 border-[#14532D] transition-all duration-200 shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
                 >
                   免费开始游戏
                   <Zap className="w-4 h-4" />
@@ -295,17 +282,16 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t-2 border-[#0D4A4D] py-8">
+      <footer className="border-t-2 border-[#14532D] py-8">
         <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Logo */}
-            <div className="flex items-center gap-2">
+            <div>
               <img 
                 src="/logo.png" 
                 alt="闪电超级联赛"
-                className="w-7 h-7 object-cover"
+                className="h-8 w-auto object-contain"
               />
-              <span className="text-sm font-medium">闪电超级联赛</span>
             </div>
             
             {/* Copyright */}

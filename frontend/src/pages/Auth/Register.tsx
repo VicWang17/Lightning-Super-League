@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Tools as Construction, ArrowLeft } from '../../components/ui/pixel-icons'
+import { Tools as Construction, ArrowLeft } from '../../components/ui/pixel-icons'
 
 export default function Register() {
   return (
@@ -13,11 +13,12 @@ export default function Register() {
           transition={{ duration: 0.5 }}
           className="text-center mb-8"
         >
-          <Link to="/" className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 bg-[#0D7377] flex items-center justify-center border-2 border-transparent shadow-glow-green group-hover:shadow-glow-green transition-shadow duration-300">
-              <Zap className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white">闪电超级联赛</span>
+          <Link to="/" className="inline-block group">
+            <img 
+              src="/logo.png" 
+              alt="闪电超级联赛"
+              className="h-14 w-auto object-contain"
+            />
           </Link>
         </motion.div>
 

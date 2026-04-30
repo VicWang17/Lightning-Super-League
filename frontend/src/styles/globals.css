@@ -45,7 +45,7 @@
     position: absolute;
     width: 6px;
     height: 6px;
-    background: #0D7377;
+    background: #C6F135;
     pointer-events: none;
   }
   .card::before {
@@ -58,7 +58,7 @@
   }
 
   .card-hover {
-    @apply hover:border-[#0D7377]/60 transition-all duration-normal;
+    @apply hover:border-[#C6F135]/60 transition-all duration-normal;
     box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
   }
 
@@ -69,50 +69,76 @@
 
   /* 像素主按钮 */
   .btn-primary {
-    @apply bg-[#0D7377] hover:bg-[#0A5A5D] text-white font-bold py-3 px-6 border-2 border-[#0A5A5D] transition-all duration-200 relative;
-    box-shadow: 4px 4px 0px #072e30;
-    font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
+    @apply relative inline-flex items-center justify-center font-bold text-[#0A0A0F] py-3 px-6 border-2 border-[#14532D];
+    background-color: #C6F135;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.25),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+      4px 4px 0 #0f3d0f;
+    transition: transform 0.05s steps(1), box-shadow 0.05s steps(1), background-color 0.05s steps(1);
   }
 
-  .btn-primary:hover {
-    box-shadow: 6px 6px 0px #072e30;
+  .btn-primary:hover:not(:disabled) {
+    background-color: #a8d92a;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+      6px 6px 0 #0f3d0f;
     transform: translate(-2px, -2px);
   }
 
-  .btn-primary:active {
-    box-shadow: 2px 2px 0px #072e30;
+  .btn-primary:active:not(:disabled) {
+    background-color: #8cb820;
+    box-shadow:
+      inset 0 3px 6px rgba(0, 0, 0, 0.4);
     transform: translate(2px, 2px);
   }
 
-  /* 按钮四角装饰 */
+  /* 按钮四角像素装饰 */
   .btn-primary::before,
   .btn-primary::after {
     content: '';
     position: absolute;
     width: 4px;
     height: 4px;
-    background: #14A085;
     pointer-events: none;
   }
   .btn-primary::before {
     top: -2px;
     left: -2px;
+    background: #d9f56e;
   }
   .btn-primary::after {
     bottom: -2px;
     right: -2px;
+    background: #0f3d0f;
   }
 
   /* 像素次级按钮 */
   .btn-secondary {
-    @apply bg-[#1E1E2D] hover:bg-[#2D2D44] text-[#E2E2F0] font-bold py-3 px-6 border-2 border-[#2D2D44] transition-all duration-200;
-    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
-    font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
+    @apply relative inline-flex items-center justify-center font-bold text-[#E2E2F0] py-3 px-6 border-2 border-[#2D2D44];
+    background-color: #1E1E2D;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.05),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+      4px 4px 0 rgba(0, 0, 0, 0.5);
+    transition: transform 0.05s steps(1), box-shadow 0.05s steps(1), background-color 0.05s steps(1);
   }
 
-  .btn-secondary:hover {
-    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.6);
+  .btn-secondary:hover:not(:disabled) {
+    background-color: #2D2D44;
+    box-shadow:
+      inset 0 2px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+      6px 6px 0 rgba(0, 0, 0, 0.5);
     transform: translate(-2px, -2px);
+  }
+
+  .btn-secondary:active:not(:disabled) {
+    background-color: #1a1a28;
+    box-shadow:
+      inset 0 3px 6px rgba(0, 0, 0, 0.4);
+    transform: translate(2px, 2px);
   }
 
   /* 数据数字字体 - 用黑体，保持等宽数字 */
@@ -131,7 +157,7 @@
 
   /* 像素选中状态 */
   .nav-active {
-    @apply bg-[#0D7377] text-white border-2 border-[#0A5A5D];
+    @apply bg-[#C6F135] text-[#0A0A0F] border-2 border-[#14532D];
     box-shadow: 4px 4px 0px #072e30;
   }
 
@@ -143,7 +169,7 @@
 
   /* 像素输入框 */
   .pixel-input {
-    @apply bg-[#0A0A0F] border-2 border-[#2D2D44] text-[#E2E2F0] px-4 py-3 outline-none focus:border-[#0D7377] transition-colors;
+    @apply bg-[#0A0A0F] border-2 border-[#2D2D44] text-[#E2E2F0] px-4 py-3 outline-none focus:border-[#C6F135] transition-colors;
     font-family: Inter, 'Noto Sans SC', system-ui, sans-serif;
   }
 
@@ -182,7 +208,7 @@
   }
 
   .pixel-progress-fill {
-    @apply h-full bg-[#0D7377] relative;
+    @apply h-full bg-[#C6F135] relative;
     box-shadow: inset -2px -2px 0px rgba(0, 0, 0, 0.2), inset 2px 2px 0px rgba(255, 255, 255, 0.1);
   }
 
@@ -273,13 +299,13 @@
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #0D7377;
+    background: #C6F135;
     border: 2px solid #0A0A0F;
   }
 
   /* 选择文字样式 */
   ::selection {
-    background: #0D7377;
+    background: #C6F135;
     color: #ffffff;
   }
 

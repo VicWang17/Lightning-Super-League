@@ -13,8 +13,47 @@ import {
 } from '../../components/ui/pixel-icons'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useTopScorers, useTopAssists } from '../../hooks/useLeagues'
 import { useSeasons } from '../../hooks/useSeasons'
-import type { LeagueStanding, Match, PlayoffMatch } from '../../types/league'
+import type { League, LeagueStanding, Match, PlayoffMatch } from '../../types/league'
 import type { Season } from '../../types/season'
+
+// 图例组件 — 根据联赛赛制动态显示
+function Legend({ league }: { league: League }) {
+  const items: { color: string; label: string }[] = []
+
+  // 冠军（所有联赛都有）
+  items.push({ color: 'bg-amber-500', label: '冠军' })
+
+  // 直升升级
+  if (league.promotion_spots > 0) {
+    items.push({ color: 'bg-emerald-500', label: '升级区' })
+  }
+
+  // 附加赛升级
+  if (league.has_promotion_playoff) {
+    items.push({ color: 'bg-sky-500', label: '附加赛' })
+  }
+
+  // 附加赛降级
+  if (league.has_relegation_playoff) {
+    items.push({ color: 'bg-orange-500', label: '附加赛' })
+  }
+
+  // 降级
+  if (league.relegation_spots > 0) {
+    items.push({ color: 'bg-red-500', label: '降级区' })
+  }
+
+  return (
+    <div className="flex items-center gap-4 text-xs flex-wrap">
+      {items.map((item) => (
+        <div key={item.label + item.color} className="flex items-center gap-1.5">
+          <div className={`w-3 h-3 ${item.color}`} />
+          <span className="text-[#8B8BA7]">{item.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 // Tab 按钮组件
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -23,7 +62,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
  onClick={onClick}
  className={`px-4 py-2 font-medium text-sm transition-all duration-200 ${
  active
- ? 'bg-[#0D7377] text-white border-2 font-bold shadow-pixel shadow-[#0D7377]/25'
+ ? 'bg-[#C6F135] text-[#0A0A0F] border-2 font-bold shadow-pixel shadow-[#C6F135]/25'
  : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D] border-2 border-transparent'
  }`}
  >
@@ -47,7 +86,7 @@ function SeasonSelector({
  <select
  value={selectedSeasonId || ''}
  onChange={(e) => onChange(e.target.value)}
- className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#0D7377] focus:ring-1 focus:ring-[#0D7377] cursor-pointer"
+ className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#C6F135] focus:ring-1 focus:ring-[#C6F135] cursor-pointer"
  >
  {seasons.map((season) => (
  <option key={season.id} value={season.id}>
@@ -60,37 +99,52 @@ function SeasonSelector({
  )
 }
 
+// 根据赛制计算排名区域类型
+// 规则来源: backend/scripts/init_system.py
+type ZoneType = 'champion' | 'promotion' | 'promotion_playoff' | 'safe' | 'relegation_playoff' | 'relegation'
+
+function getZoneType(position: number, league: League): ZoneType {
+  const { promotion_spots, relegation_spots, has_promotion_playoff, has_relegation_playoff, max_teams } = league
+  if (position === 1) return 'champion'
+  if (promotion_spots > 0 && position <= promotion_spots) return 'promotion'
+  if (has_promotion_playoff && position === promotion_spots + 1) return 'promotion_playoff'
+  if (has_relegation_playoff && position === max_teams - relegation_spots) return 'relegation_playoff'
+  if (relegation_spots > 0 && position > max_teams - relegation_spots) return 'relegation'
+  return 'safe'
+}
+
+const zoneColors: Record<ZoneType, { bg: string; text: string; row: string; label: string }> = {
+  champion: { bg: 'bg-amber-500', text: 'text-black', row: 'bg-amber-500/5', label: '冠军' },
+  promotion: { bg: 'bg-emerald-500', text: 'text-white', row: 'bg-emerald-500/5', label: '升级区' },
+  promotion_playoff: { bg: 'bg-sky-500', text: 'text-white', row: 'bg-sky-500/5', label: '附加赛' },
+  safe: { bg: 'bg-[#1E1E2D]', text: 'text-[#8B8BA7]', row: '', label: '' },
+  relegation_playoff: { bg: 'bg-orange-500', text: 'text-white', row: 'bg-orange-500/5', label: '附加赛' },
+  relegation: { bg: 'bg-red-500', text: 'text-white', row: 'bg-red-500/5', label: '降级区' },
+}
+
 // 积分榜行组件
-function StandingRow({ standing }: { standing: LeagueStanding }) {
- const isChampion = standing.position === 1
- const isPromotion = standing.is_promotion_zone
- const isRelegation = standing.is_relegation_zone
- 
- let rowClass = 'hover:bg-[#1E1E2D]/50 transition-colors'
- if (isChampion) rowClass += ' bg-amber-500/5'
- else if (isPromotion) rowClass += ' bg-emerald-500/5'
- else if (isRelegation) rowClass += ' bg-red-500/5'
- 
- return (
- <tr className={`border-b border-[#2D2D44] ${rowClass}`}>
- <td className="py-3 px-4">
- <div className={`w-7 h-7 flex items-center justify-center text-sm font-bold pixel-number ${
- isChampion ? 'bg-amber-500 text-black' :
- isPromotion ? 'bg-emerald-500 text-white' :
- isRelegation ? 'bg-red-500 text-white' :
- 'bg-[#1E1E2D] text-[#8B8BA7]'
- }`}>
- {standing.position}
- </div>
- </td>
- <td className="py-3 px-4">
- <Link 
- to={`/teams/${standing.team.id}`}
- className="font-medium text-white hover:text-[#0D7377] transition-colors"
- >
- {standing.team.name}
- </Link>
- </td>
+function StandingRow({ standing, league }: { standing: LeagueStanding; league: League }) {
+  const zone = getZoneType(standing.position, league)
+  const colors = zoneColors[zone]
+
+  let rowClass = 'hover:bg-[#1E1E2D]/50 transition-colors'
+  if (colors.row) rowClass += ' ' + colors.row
+
+  return (
+    <tr className={`border-b border-[#2D2D44] ${rowClass}`}>
+      <td className="py-3 px-4">
+        <div className={`w-7 h-7 flex items-center justify-center text-sm font-bold pixel-number ${colors.bg} ${colors.text}`}>
+          {standing.position}
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <Link
+          to={`/teams/${standing.team.id}`}
+          className="font-medium text-white hover:text-[#C6F135] transition-colors"
+        >
+          {standing.team.name}
+        </Link>
+      </td>
  <td className="py-3 px-4 text-center stat-number">{standing.played}</td>
  <td className="py-3 px-4 text-center stat-number text-emerald-400">{standing.won}</td>
  <td className="py-3 px-4 text-center stat-number text-[#8B8BA7]">{standing.drawn}</td>
@@ -436,20 +490,7 @@ function LeagueDetail() {
  <div>
  <div className="flex items-center justify-between mb-4">
  <h3 className="text-lg font-semibold">积分榜</h3>
- <div className="flex items-center gap-4 text-xs">
- <div className="flex items-center gap-1.5">
- <div className="w-3 h-3 bg-amber-500" />
- <span className="text-[#8B8BA7]">冠军</span>
- </div>
- <div className="flex items-center gap-1.5">
- <div className="w-3 h-3 bg-emerald-500" />
- <span className="text-[#8B8BA7]">升级区</span>
- </div>
- <div className="flex items-center gap-1.5">
- <div className="w-3 h-3 bg-red-500" />
- <span className="text-[#8B8BA7]">降级区</span>
- </div>
- </div>
+ <Legend league={league} />
  </div>
  
  {standingsLoading ? (
@@ -482,7 +523,7 @@ function LeagueDetail() {
  </thead>
  <tbody>
  {standings.map((standing) => (
- <StandingRow key={standing.team.id} standing={standing} />
+ <StandingRow key={standing.team.id} standing={standing} league={league} />
  ))}
  </tbody>
  </table>

@@ -23,19 +23,19 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-bold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0A0A0F] disabled:opacity-50 disabled:cursor-not-allowed'
+      'inline-flex items-center justify-center font-bold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0A0A0F] disabled:opacity-50 disabled:cursor-not-allowed'
 
     const variants = {
       primary:
-        'bg-[#0D7377] hover:bg-[#0A5A5D] text-[#0A0A0F] focus:ring-[#0D7377] shadow-pixel-green hover:shadow-pixel-green border-2 border-[#0A5A5D] hover:-translate-y-0.5',
+        'btn-primary text-[#0A0A0F] focus:ring-[#C6F135]',
       secondary:
-        'bg-[#1E1E2D] hover:bg-[#2D2D44] text-[#E2E2F0] focus:ring-[#2D2D44] border-2 border-[#2D2D44] shadow-pixel hover:-translate-y-0.5',
+        'btn-secondary focus:ring-[#2D2D44]',
       outline:
-        'bg-transparent hover:bg-[#1E1E2D] text-[#E2E2F0] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 focus:ring-[#0D7377] hover:-translate-y-0.5',
+        'bg-transparent hover:bg-[#1E1E2D] text-[#E2E2F0] border-2 border-[#2D2D44] hover:border-[#C6F135]/50 focus:ring-[#C6F135] hover:-translate-y-0.5 transition-all duration-200',
       ghost:
-        'bg-transparent hover:bg-[#1E1E2D] text-[#8B8BA7] hover:text-[#E2E2F0] focus:ring-[#2D2D44] border-2 border-transparent hover:-translate-y-0.5',
+        'bg-transparent hover:bg-[#1E1E2D] text-[#8B8BA7] hover:text-[#E2E2F0] focus:ring-[#2D2D44] border-2 border-transparent hover:-translate-y-0.5 transition-all duration-200',
       danger:
-        'bg-[#DC2626] hover:bg-[#B91C1C] text-white focus:ring-[#DC2626] border-2 border-[#B91C1C] shadow-pixel hover:-translate-y-0.5',
+        'bg-[#DC2626] hover:bg-[#B91C1C] text-white focus:ring-[#DC2626] border-2 border-[#B91C1C] shadow-pixel hover:-translate-y-0.5 transition-all duration-200',
     }
 
     const sizes = {
