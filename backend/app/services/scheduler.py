@@ -628,6 +628,32 @@ class SeasonScheduler:
         )
         fixtures = result.scalars().all()
         
+        # TODO: 触发 Go 实时比赛引擎进行推演
+        # =====================================================================
+        # 当前：仅返回比赛列表，由外部调用者手动触发模拟（或批量离线模拟）
+        # 目标：在此自动调用 match_engine_client.start_match() 启动每场比赛
+        #
+        # 伪代码：
+        #   from app.services.match_engine_client import get_match_engine_client
+        #   client = get_match_engine_client()
+        #   if await client.health_check():
+        #       for fixture in fixtures:
+        #           await client.start_match(
+        #               match_id=str(fixture.id),
+        #               home_team_id=fixture.home_team_id,
+        #               away_team_id=fixture.away_team_id,
+        #               home_tactic=await self._get_team_tactic(fixture.home_team_id),
+        #               away_tactic=await self._get_team_tactic(fixture.away_team_id),
+        #               match_type=fixture.fixture_type.value,
+        #           )
+        #           fixture.status = FixtureStatus.ONGOING
+        #   else:
+        #       # Go 引擎不可用，降级为批量离线随机模拟
+        #       for fixture in fixtures:
+        #           result = await MatchSimulator.simulate(fixture)
+        #           await MatchSimulator.apply_result(fixture, result, self.db)
+        # =====================================================================
+        
         # 更新赛季天数
         season.current_day = next_day
         

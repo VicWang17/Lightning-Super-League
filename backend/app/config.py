@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    
+    # TODO: Go 实时比赛引擎服务配置（详见 services/match_engine_client.py）
+    # Python FastAPI 保留管理功能，比赛推演由独立 Go/Gin 微服务处理
+    MATCH_ENGINE_URL: str = "http://localhost:8080"  # Go 引擎地址
+    MATCH_ENGINE_API_KEY: str = ""  # 服务间通信密钥（预留）
 
 
 @lru_cache()

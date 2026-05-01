@@ -1,5 +1,10 @@
 """
 Match API routes
+
+TODO: 比赛实时推演系统架构规划（详见 services/match_engine_client.py）
+当前状态：所有比赛接口均为占位符，模拟引擎为纯随机生成。
+目标：Python FastAPI 保留管理 + Go/Gin 独立实时比赛引擎。
+分工：Python 负责 CRUD/权限/数据持久化，Go 负责实时推演/WebSocket 推送。
 """
 from fastapi import APIRouter, Depends, Query
 from typing import List, Optional

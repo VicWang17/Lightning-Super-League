@@ -1,5 +1,10 @@
 """
 Match simulator interface - 比赛模拟接口
+
+TODO: 当前为「临时占位实现」，未来由 Go 实时比赛引擎替代。
+当前局限性：纯随机比分，无实时推演，不支持用户战术干预。
+Phase 2 后本文件职责：接收 Go 引擎结果，写入数据库（apply_result 等）。
+详见 services/match_engine_client.py 中的完整架构说明。
 """
 import random
 from dataclasses import dataclass
