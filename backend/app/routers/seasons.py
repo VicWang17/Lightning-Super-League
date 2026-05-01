@@ -4,7 +4,7 @@ Season routers - 赛季管理API
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import select
@@ -33,12 +33,14 @@ async def get_season_service(db: AsyncSession = Depends(get_db)) -> SeasonServic
 
 @router.get("", response_model=ResponseSchema[list[SeasonResponse]])
 async def list_seasons(
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     db: AsyncSession = Depends(get_db)
 ):
     """获取所有赛季列表（按赛季编号降序）"""
-    result = await db.execute(
-        select(Season).order_by(Season.season_number.desc())
-    )
+    query = select(Season).order_by(Season.season_number.desc())
+    if zone_id:
+        query = query.where(Season.zone_id == zone_id)
+    result = await db.execute(query)
     seasons = result.scalars().all()
     return ResponseSchema(
         success=True,
@@ -61,7 +63,8 @@ async def create_season(
     - 总时长：42天
     """
     start_date = request.start_date if request else None
-    season = await service.create_new_season(start_date)
+    zone_id = request.zone_id if request else 1
+    season = await service.create_new_season(start_date, zone_id=zone_id)
     return ResponseSchema(
         success=True,
         message="赛季创建成功",
@@ -71,10 +74,11 @@ async def create_season(
 
 @router.get("/current", response_model=ResponseSchema[SeasonDetailResponse])
 async def get_current_season(
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     service: SeasonService = Depends(get_season_service)
 ):
     """获取当前进行中的赛季详情"""
-    season = await service.get_current_season()
+    season = await service.get_current_season(zone_id=zone_id)
     if not season:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -89,10 +93,11 @@ async def get_current_season(
 @router.get("/{season_number}", response_model=ResponseSchema[SeasonDetailResponse])
 async def get_season_by_number(
     season_number: int,
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     service: SeasonService = Depends(get_season_service)
 ):
     """根据赛季编号获取赛季详情"""
-    season = await service.get_season_by_number(season_number)
+    season = await service.get_season_by_number(season_number, zone_id=zone_id)
     if not season:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -107,10 +112,11 @@ async def get_season_by_number(
 @router.post("/{season_number}/start", response_model=ResponseSchema[SeasonResponse])
 async def start_season(
     season_number: int,
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     service: SeasonService = Depends(get_season_service)
 ):
     """启动赛季（将状态从PENDING改为ONGOING）"""
-    season = await service.get_season_by_number(season_number)
+    season = await service.get_season_by_number(season_number, zone_id=zone_id)
     if not season:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -128,6 +134,7 @@ async def start_season(
 @router.post("/{season_number}/next-day", response_model=ResponseSchema[SeasonDayResponse])
 async def process_next_day(
     season_number: int,
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     service: SeasonService = Depends(get_season_service)
 ):
     """
@@ -138,7 +145,7 @@ async def process_next_day(
     - 模拟比赛并更新结果
     - 返回比赛结果汇总
     """
-    season = await service.get_season_by_number(season_number)
+    season = await service.get_season_by_number(season_number, zone_id=zone_id)
     if not season:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -163,10 +170,11 @@ async def process_next_day(
 async def get_season_calendar(
     season_number: int,
     team_id: Optional[str] = None,
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     service: SeasonService = Depends(get_season_service)
 ):
     """获取赛季日历"""
-    season = await service.get_season_by_number(season_number)
+    season = await service.get_season_by_number(season_number, zone_id=zone_id)
     if not season:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -189,12 +197,13 @@ async def get_team_fixtures(
     season_number: int,
     team_id: str,
     fixture_type: Optional[str] = None,
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     service: SeasonService = Depends(get_season_service)
 ):
     """获取某支球队在赛季中的所有比赛"""
     from app.models.season import FixtureType
     
-    season = await service.get_season_by_number(season_number)
+    season = await service.get_season_by_number(season_number, zone_id=zone_id)
     if not season:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -240,10 +249,11 @@ async def get_team_fixtures(
 @router.get("/{season_number}/today", response_model=ResponseSchema[TodayFixtureResponse])
 async def get_today_fixtures(
     season_number: int,
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     service: SeasonService = Depends(get_season_service)
 ):
     """获取今天的所有比赛"""
-    season = await service.get_season_by_number(season_number)
+    season = await service.get_season_by_number(season_number, zone_id=zone_id)
     if not season:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

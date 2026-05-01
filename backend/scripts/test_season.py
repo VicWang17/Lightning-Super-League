@@ -48,6 +48,7 @@ from app.models.player import Player
 from app.models.user import User, UserStatus
 from app.services.season_service import SeasonService
 from app.services.standing_service import StandingService
+from app.core.formats import get_default_format
 
 
 # 初始化系统数据
@@ -175,51 +176,39 @@ class SeasonTester:
         print("  创建联赛体系...")
         systems = []
         for code, name in [("EAST", "东区"), ("WEST", "西区"), ("SOUTH", "南区"), ("NORTH", "北区")]:
-            system = LeagueSystem(code=code, name=name)
+            system = LeagueSystem(code=code, name=name, zone_id=1)
             self.db.add(system)
             systems.append(system)
         await self.db.flush()
         
         print("  创建联赛...")
+        fmt = get_default_format()
         leagues = []
         for system in systems:
-            league = League(
-                name=f"{system.name}超级联赛",
-                level=1,
-                system_id=system.id,
-                max_teams=8
-            )
-            self.db.add(league)
-            leagues.append(league)
-            
-            league = League(
-                name=f"{system.name}甲级联赛",
-                level=2,
-                system_id=system.id,
-                max_teams=8
-            )
-            self.db.add(league)
-            leagues.append(league)
-            
-            for i in range(2):
-                league = League(
-                    name=f"{system.name}乙级联赛{'AB'[i]}",
-                    level=3,
-                    system_id=system.id,
-                    max_teams=8
-                )
-                self.db.add(league)
-                leagues.append(league)
-            
-            for i in range(4):
-                league = League(
-                    name=f"{system.name}丙级联赛{'ABCD'[i]}",
-                    level=4,
-                    system_id=system.id,
-                    max_teams=8
-                )
-                self.db.add(league)
-                leagues.append(league)
+            for level in range(1, 5):
+                level_config = fmt.promotion.level_rules.get(level, fmt.promotion.level_rules.get(4))
+                if level == 1:
+                    names = [f"{system.name}超级联赛"]
+                elif level == 2:
+                    names = [f"{system.name}甲级联赛"]
+                elif level == 3:
+                    names = [f"{system.name}乙级联赛{'AB'[i]}" for i in range(fmt.structure.levels[2])]
+                else:
+                    names = [f"{system.name}丙级联赛{'ABCD'[i]}" for i in range(fmt.structure.levels[3])]
+                
+                for name in names:
+                    league = League(
+                        name=name,
+                        level=level,
+                        system_id=system.id,
+                        max_teams=fmt.league.teams_per_league,
+                        promotion_spots=level_config.promotion_spots,
+                        relegation_spots=level_config.relegation_spots,
+                        has_promotion_playoff=level_config.has_promotion_playoff,
+                        has_relegation_playoff=level_config.has_relegation_playoff,
+                    )
+                    self.db.add(league)
+                    leagues.append(league)
         await self.db.flush()
         
         print("  创建球队和球员...")
@@ -231,7 +220,7 @@ class SeasonTester:
             
             for level in range(1, 5):
                 for league_idx, league in enumerate(leagues_by_level[level]):
-                    for team_idx in range(8):
+                    for team_idx in range(fmt.league.teams_per_league):
                         team_name, user_email = get_tier_team_names(system.code, level, league_idx, team_idx)
                         
                         user = User(
@@ -874,11 +863,13 @@ class SeasonTester:
             "cup_events": []
         }
         
-        lightning_cup_days = [4, 6, 8, 10, 12, 14, 21]
-        jenny_cup_days = [4, 6, 8, 10, 12, 14, 15]
-        playoff_days = [22, 23]
-        promotion_day = 24
-        offseason_days = [25]
+        fmt = get_default_format()
+        template = fmt.season
+        lightning_cup_days = list(template.lightning_cup_days)
+        jenny_cup_days = list(template.jenny_cup_days)
+        playoff_days = list(template.playoff_days)
+        promotion_day = template.promotion_day
+        offseason_days = list(template.offseason_days)
         
         is_cup_day = day in lightning_cup_days or day in jenny_cup_days
         is_playoff_day = day in playoff_days

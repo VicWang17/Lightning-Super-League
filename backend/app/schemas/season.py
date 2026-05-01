@@ -37,6 +37,7 @@ class FixtureBase(BaseModel):
 class SeasonCreateRequest(BaseModel):
     """创建赛季请求"""
     start_date: Optional[datetime] = None
+    zone_id: int = 1
 
 
 # ============== 响应模型 ==============
@@ -47,6 +48,7 @@ class SeasonResponse(BaseModel):
     
     id: str
     season_number: int
+    zone_id: int
     status: str
     start_date: datetime
     current_day: int
@@ -59,6 +61,7 @@ class SeasonResponse(BaseModel):
         return cls(
             id=obj.id,
             season_number=obj.season_number,
+            zone_id=obj.zone_id,
             status=obj.status.value,
             start_date=obj.start_date,
             current_day=obj.current_day,

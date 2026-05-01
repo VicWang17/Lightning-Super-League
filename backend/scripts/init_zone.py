@@ -1,44 +1,43 @@
 """
-系统初始化脚本 - Initialize System
+新区初始化脚本 - Initialize New Zone
 
 功能：
-1. 删除所有现有数据库表和数据
-2. 重新创建所有表
-3. 初始化联赛体系、球队、AI用户、球员
-4. 【注意】不创建赛季，赛季创建请使用 init_season.py
+1. 在现有数据库基础上新增一个完整大区（Zone）
+2. 创建4个联赛体系、32个联赛、256支球队、AI用户、球员
+3. 不删除现有数据，只做增量创建
 
 用法:
     cd backend
-    python -m scripts.init_system
+    python -m scripts.init_zone --zone 2
 
-环境变量:
-    ENV=dev - 开发模式，AI用户密码为 ai_password
+注意:
+    - 运行前需确保数据库已存在且包含1区数据（或至少表结构已创建）
+    - 如需删除某区数据，请参考 ZONE-EXPANSION-OPS.md 中的回滚SQL
 """
 import asyncio
-import os
 import sys
-from datetime import datetime, date
+import os
+import argparse
+from datetime import date
 from decimal import Decimal
 
-# 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
+from sqlalchemy import select, text
 from passlib.context import CryptContext
 
 from app.config import get_settings
 from app.models import (
     Base, User, UserStatus,
     Team, TeamStatus, TeamFinance,
-    LeagueSystem, League, 
+    LeagueSystem, League,
     Player, PlayerPosition, PlayerFoot, PlayerStatus, SquadRole
 )
-from data.teams_and_users import LEAGUE_SYSTEMS
 from app.core.formats import get_default_format
+from data.teams_and_users import LEAGUE_SYSTEMS
 
-# 密码加密
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 AI_USER_PASSWORD = "ai_password"
 IS_DEV_MODE = os.getenv("ENV", "").lower() == "dev"
@@ -49,94 +48,70 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 
 
 def hash_password(password: str) -> str:
-    """加密密码"""
     return pwd_context.hash(password)
 
 
-def generate_user_email(system_code: str, league_level: int, league_index: int, index: int) -> str:
-    """生成AI用户邮箱
-    
-    Args:
-        system_code: 体系代码 (EAST/WEST/SOUTH/NORTH)
-        league_level: 联赛级别 (1/2/3/4)
-        league_index: 同级别联赛的索引 (1/2/...)
-        index: 球队在联赛中的索引 (1-8)
-    """
-    return f"ai_{system_code.lower()}_l{league_level}_{league_index}_{index:03d}@lightning.dev"
+def generate_user_email(system_code: str, zone_id: int, league_level: int, league_index: int, index: int) -> str:
+    return f"ai_z{zone_id}_{system_code.lower()}_l{league_level}_{league_index}_{index:03d}@lightning.dev"
 
 
-def generate_user_username(team_name: str) -> str:
-    """生成AI用户名"""
-    return f"manager_{team_name[:4]}"
+def generate_user_username(team_name: str, zone_id: int) -> str:
+    return f"manager_{team_name[:4]}_z{zone_id}"
 
 
-async def drop_all_tables():
-    """删除所有表"""
-    async with engine.begin() as conn:
-        result = await conn.execute(text("""
-            SELECT table_name FROM information_schema.tables 
-            WHERE table_schema = DATABASE()
-        """))
-        tables = [row[0] for row in result.fetchall()]
-        
-        await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-        for table in tables:
-            await conn.execute(text(f"DROP TABLE IF EXISTS `{table}`"))
-        await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
-    
-    print(f"✅ 已删除 {len(tables)} 个表")
-
-
-async def create_tables():
-    """创建所有表"""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    print("✅ 所有表创建完成")
-
-
-async def init_league_systems(db: AsyncSession) -> dict:
-    """初始化联赛体系"""
-    print("\n🏟️ 初始化联赛体系...")
+async def init_zone_league_systems(db: AsyncSession, zone_id: int) -> dict:
+    """初始化指定大区的联赛体系"""
+    print(f"\n🏟️ 初始化第{zone_id}区联赛体系...")
     
     fmt = get_default_format()
     systems = {}
+    
     for code, data in LEAGUE_SYSTEMS.items():
+        zone_code = f"{code}_Z{zone_id}"
+        zone_name = f"{data['name']}{zone_id}区"
+        
+        # 检查是否已存在
+        result = await db.execute(
+            select(LeagueSystem).where(LeagueSystem.code == zone_code)
+        )
+        if result.scalar_one_or_none():
+            print(f"   ⚠️ {zone_name} ({zone_code}) 已存在，跳过")
+            continue
+        
         system = LeagueSystem(
-            name=data["name"],
-            code=code,
-            description=data["description"],
-            zone_id=1,  # 当前初始化默认为1区
+            name=zone_name,
+            code=zone_code,
+            description=data.get("description"),
+            zone_id=zone_id,
             max_teams_per_league=fmt.league.teams_per_league
         )
         db.add(system)
         await db.flush()
         systems[code] = system
-        print(f"   ✅ {data['name']} ({code})")
+        print(f"   ✅ {zone_name} ({zone_code})")
     
     await db.commit()
     return systems
 
 
-async def init_leagues(db: AsyncSession, systems: dict) -> dict:
-    """初始化联赛"""
-    print("\n📋 初始化联赛...")
+async def init_zone_leagues(db: AsyncSession, zone_id: int, systems: dict) -> dict:
+    """初始化指定大区的联赛"""
+    print(f"\n📋 初始化第{zone_id}区联赛...")
     
+    fmt = get_default_format()
     leagues = {}
     
     for system_code, system_data in LEAGUE_SYSTEMS.items():
-        system = systems[system_code]
+        system = systems.get(system_code)
+        if not system:
+            continue
         
-        # 按级别分组计数器
         level_counters = {1: 0, 2: 0, 3: 0, 4: 0}
         
         for league_data in system_data["leagues"]:
             level = league_data["level"]
             level_counters[level] += 1
             
-            # 根据级别设置升降级规则（新赛制：8队联赛）
-            # 规则：冠军直升，最后1名直降，附加赛决定第2个名额
-            # 从配置读取升降级规则
-            fmt = get_default_format()
             level_config = fmt.promotion.level_rules.get(level, fmt.promotion.level_rules.get(4))
             
             league = League(
@@ -152,7 +127,6 @@ async def init_leagues(db: AsyncSession, systems: dict) -> dict:
             db.add(league)
             await db.flush()
             
-            # 使用带索引的key，如 EAST_L1_1, EAST_L3_1, EAST_L3_2
             league_key = f"{system_code}_L{level}_{level_counters[level]}"
             leagues[league_key] = league
             print(f"   ✅ {league_data['name']} (Level {level})")
@@ -161,35 +135,38 @@ async def init_leagues(db: AsyncSession, systems: dict) -> dict:
     return leagues
 
 
-async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
-    """初始化球队和AI用户"""
-    print("\n👤 初始化AI用户和球队...")
+async def init_zone_teams_and_users(db: AsyncSession, zone_id: int, systems: dict, leagues: dict) -> tuple:
+    """初始化指定大区的球队和AI用户"""
+    print(f"\n👤 初始化第{zone_id}区AI用户和球队...")
     
     hashed_password = hash_password(AI_USER_PASSWORD)
     users = []
     teams = []
-    
     team_index = 0
     
-    # 按体系分组计数器
     system_level_counters = {}
     for system_code in LEAGUE_SYSTEMS.keys():
         system_level_counters[system_code] = {1: 0, 2: 0, 3: 0, 4: 0}
     
     for system_code, system_data in LEAGUE_SYSTEMS.items():
+        if system_code not in systems:
+            continue
+        
         for league_data in system_data["leagues"]:
             level = league_data["level"]
             system_level_counters[system_code][level] += 1
             league_key = f"{system_code}_L{level}_{system_level_counters[system_code][level]}"
-            league = leagues[league_key]
+            league = leagues.get(league_key)
+            
+            if not league:
+                continue
             
             for idx, (team_name, user_display_name) in enumerate(league_data["teams"], 1):
                 team_index += 1
                 
-                # 创建AI用户
                 user = User(
-                    username=generate_user_username(team_name),
-                    email=generate_user_email(system_code, level, system_level_counters[system_code][level], idx),
+                    username=generate_user_username(team_name, zone_id),
+                    email=generate_user_email(system_code, zone_id, level, system_level_counters[system_code][level], idx),
                     hashed_password=hashed_password,
                     nickname=user_display_name,
                     is_ai=True,
@@ -203,7 +180,6 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
                 await db.flush()
                 users.append(user)
                 
-                # 创建球队
                 team = Team(
                     name=team_name,
                     short_name=team_name[:4],
@@ -216,7 +192,6 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
                 await db.flush()
                 teams.append(team)
                 
-                # 创建球队财务
                 initial_balance = Decimal("10000000.00") + Decimal((4 - level) * 5000000)
                 finance = TeamFinance(
                     team_id=team.id,
@@ -235,16 +210,15 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
                     print(f"   🔄 已创建 {team_index}/256 ...")
     
     await db.commit()
-    print(f"✅ 已创建 {len(users)} 个AI用户和 {len(teams)} 支球队")
+    print(f"✅ 第{zone_id}区已创建 {len(users)} 个AI用户和 {len(teams)} 支球队")
     return users, teams
 
 
-async def init_players(db: AsyncSession, teams: list) -> list:
-    """为每支球队创建球员（18人 squad）"""
-    print("\n⚽ 初始化球员...")
+async def init_zone_players(db: AsyncSession, zone_id: int, teams: list) -> list:
+    """为指定大区的球队创建球员"""
+    print(f"\n⚽ 初始化第{zone_id}区球员...")
     
     players = []
-    
     position_configs = [
         (PlayerPosition.GK, 1),
         (PlayerPosition.CB, 2), (PlayerPosition.LB, 1), (PlayerPosition.RB, 1),
@@ -326,79 +300,72 @@ async def init_players(db: AsyncSession, teams: list) -> list:
             print(f"   🔄 已创建 {len(players)//18}/256 支球队球员...")
     
     await db.commit()
-    print(f"✅ 已创建 {len(players)} 名球员")
+    print(f"✅ 第{zone_id}区已创建 {len(players)} 名球员")
     return players
 
 
-async def show_summary(db: AsyncSession):
-    """显示初始化摘要"""
+async def show_zone_summary(db: AsyncSession, zone_id: int):
+    """显示指定大区初始化摘要"""
     print("\n" + "=" * 60)
-    print("📊 系统基础数据初始化完成")
+    print(f"📊 第{zone_id}区基础数据初始化完成")
     print("=" * 60)
     
     from sqlalchemy import select
     
-    result = await db.execute(select(LeagueSystem))
+    result = await db.execute(
+        select(LeagueSystem).where(LeagueSystem.zone_id == zone_id)
+    )
     systems_count = len(result.scalars().all())
     
-    result = await db.execute(select(League))
+    result = await db.execute(
+        select(League).join(LeagueSystem).where(LeagueSystem.zone_id == zone_id)
+    )
     leagues_count = len(result.scalars().all())
     
-    result = await db.execute(select(User))
-    users_count = len(result.scalars().all())
-    
-    result = await db.execute(select(Team))
+    result = await db.execute(
+        select(Team).join(League).join(LeagueSystem).where(LeagueSystem.zone_id == zone_id)
+    )
     teams_count = len(result.scalars().all())
     
-    result = await db.execute(select(Player))
+    result = await db.execute(
+        select(Player).join(Team).join(League).join(LeagueSystem).where(LeagueSystem.zone_id == zone_id)
+    )
     players_count = len(result.scalars().all())
     
-    print(f"\n🏟️ 联赛体系: {systems_count} 个（东区/西区/南区/北区）")
-    print(f"📋 联赛: {leagues_count} 个（每体系8个联赛）")
-    print(f"👤 AI用户: {users_count} 个")
-    print(f"⚽ 球队: {teams_count} 支（每联赛8队）")
-    print(f"🏃 球员: {players_count} 人（每队18人）")
-    
-    print(f"\n📌 联赛结构:")
-    print(f"   - 顶级联赛（超级联赛）: 4个联赛 × 8队")
-    print(f"   - 次级联赛（甲级联赛）: 4个联赛 × 8队")
-    print(f"   - 三级联赛（乙级联赛A/B）: 8个联赛 × 8队")
-    print(f"   - 四级联赛（丙级联赛A/B/C/D）: 16个联赛 × 8队")
-    
-    print(f"\n⚠️  注意: 尚未创建赛季")
-    print(f"   请运行: python -m scripts.init_season")
-    
-    if IS_DEV_MODE:
-        print(f"\n🔑 开发模式登录信息:")
-        print(f"   邮箱: ai_east_l1_001@lightning.dev")
-        print(f"   密码: {AI_USER_PASSWORD}")
-    
+    print(f"\n🏟️ 联赛体系: {systems_count} 个")
+    print(f"📋 联赛: {leagues_count} 个")
+    print(f"⚽ 球队: {teams_count} 支")
+    print(f"🏃 球员: {players_count} 人")
     print("\n" + "=" * 60)
 
 
 async def main():
-    """主函数"""
+    parser = argparse.ArgumentParser(description="闪电超级联赛 - 新区初始化")
+    parser.add_argument("--zone", type=int, required=True, help="要初始化的大区ID（如 2, 3, 4...）")
+    args = parser.parse_args()
+    
+    zone_id = args.zone
+    
     print("=" * 60)
-    print("⚡ 闪电超级联赛 - 系统基础数据初始化")
+    print(f"⚡ 闪电超级联赛 - 第{zone_id}区基础数据初始化")
     print("=" * 60)
     
-    if IS_DEV_MODE:
-        print(f"\n⚠️  开发模式: ENV=dev")
-        print(f"   AI用户默认密码: {AI_USER_PASSWORD}")
-    
-    print("\n⚠️  警告: 这将删除所有现有数据！")
-    print("   3秒后开始初始化...")
-    await asyncio.sleep(3)
+    if zone_id == 1:
+        print("\n⚠️  第1区请使用 scripts.init_system 初始化")
+        print("   python -m scripts.init_system")
+        return
     
     async with AsyncSessionLocal() as db:
         try:
-            await drop_all_tables()
-            await create_tables()
-            systems = await init_league_systems(db)
-            leagues = await init_leagues(db, systems)
-            users, teams = await init_teams_and_users(db, leagues)
-            players = await init_players(db, teams)
-            await show_summary(db)
+            systems = await init_zone_league_systems(db, zone_id)
+            if not systems:
+                print("\n❌ 没有新增任何体系，可能该大区已存在")
+                return
+            
+            leagues = await init_zone_leagues(db, zone_id, systems)
+            users, teams = await init_zone_teams_and_users(db, zone_id, systems, leagues)
+            players = await init_zone_players(db, zone_id, teams)
+            await show_zone_summary(db, zone_id)
             
         except Exception as e:
             print(f"\n❌ 错误: {e}")
@@ -408,7 +375,7 @@ async def main():
             raise
     
     await engine.dispose()
-    print("\n✅ 基础数据初始化完成！")
+    print(f"\n✅ 第{zone_id}区基础数据初始化完成！")
 
 
 if __name__ == "__main__":

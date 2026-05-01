@@ -1,10 +1,14 @@
 """
-Cup progression logic - 杯赛晋级逻辑
+Cup progression logic - 杯赛晋级逻辑（配置驱动版）
 
 处理：
 1. 小组赛排名计算
 2. 淘汰赛对阵生成（交叉对阵规则）
 3. 后续轮次自动填充
+
+解耦说明：
+- 杯赛轮次、日期从 SeasonTimelineConfig / CupConfig 读取
+- 小组对阵基于 group_count 动态生成
 """
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
@@ -15,6 +19,7 @@ from sqlalchemy import select, and_
 from app.models.season import (
     CupCompetition, CupGroup, Fixture, FixtureType, FixtureStatus, Season
 )
+from app.core.formats import get_default_format, CupConfig, SeasonTimelineConfig
 
 
 @dataclass
@@ -35,7 +40,7 @@ class GroupStanding:
 
 
 class CupProgressionService:
-    """杯赛晋级服务"""
+    """杯赛晋级服务（配置驱动）"""
     
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -55,7 +60,6 @@ class CupProgressionService:
         team_ids = cup_group.team_ids
         standings = {team_id: GroupStanding(team_id=team_id) for team_id in team_ids}
         
-        # 获取该小组的所有比赛（限定当前赛季）
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
@@ -68,7 +72,6 @@ class CupProgressionService:
         )
         fixtures = result.scalars().all()
         
-        # 统计比赛数据
         for fixture in fixtures:
             home = standings[fixture.home_team_id]
             away = standings[fixture.away_team_id]
@@ -95,7 +98,6 @@ class CupProgressionService:
                 home.points += 1
                 away.points += 1
         
-        # 排序
         sorted_standings = sorted(
             standings.values(),
             key=lambda s: (s.points, s.goal_difference, s.goals_for),
@@ -120,7 +122,6 @@ class CupProgressionService:
         for group in groups:
             standings = await self.calculate_group_standings(group, season_id)
             
-            # 前2名晋级
             qualified = [s.team_id for s in standings[:2]]
             group.qualified_team_ids = qualified
             group.standings = {
@@ -145,29 +146,25 @@ class CupProgressionService:
     
     def generate_round_of_16_fixtures(self, group_results: Dict[str, List[str]]) -> List[Tuple[str, str, str]]:
         """
-        生成16强对阵
+        生成16强对阵（基于小组数动态生成交叉对阵）
         
-        对阵规则（交叉对阵，8个小组A-H）：
+        默认8组A-H：
         - A1 vs B2, B1 vs A2
         - C1 vs D2, D1 vs C2
         - E1 vs F2, F1 vs E2
         - G1 vs H2, H1 vs G2
-        
-        返回: [(小组A, 小组B, 对阵描述), ...]
         """
-        group_pairs = [
-            ("A", "B"), ("C", "D"), ("E", "F"), ("G", "H")
-        ]
+        group_names = sorted(group_results.keys())
         
         fixtures = []
         
-        for g1, g2 in group_pairs:
-            # 小组第一 vs 相邻小组第二
-            if g1 in group_results and g2 in group_results:
-                # 第一 vs 第二
-                fixtures.append((g1, g2, f"{g1}1 vs {g2}2"))
-                # 第二 vs 第一
-                fixtures.append((g2, g1, f"{g2}1 vs {g1}2"))
+        for i in range(0, len(group_names), 2):
+            if i + 1 < len(group_names):
+                g1 = group_names[i]
+                g2 = group_names[i + 1]
+                if g1 in group_results and g2 in group_results:
+                    fixtures.append((g1, g2, f"{g1}1 vs {g2}2"))
+                    fixtures.append((g2, g1, f"{g2}1 vs {g1}2"))
         
         return fixtures
     
@@ -178,23 +175,17 @@ class CupProgressionService:
         """
         生成完整淘汰赛对阵表
         
-        假设16强胜者按顺序进入：
-        - Match 1 winner vs Match 2 winner -> 8强
-        - Match 3 winner vs Match 4 winner -> 8强
-        ...
+        假设16强胜者按顺序进入相邻配对
         """
-        if len(round_of_16_winners) != 8:
-            raise ValueError("16强必须有8支胜者球队")
+        expected = 8
+        if len(round_of_16_winners) != expected:
+            raise ValueError(f"16强必须有{expected}支胜者球队，实际{len(round_of_16_winners)}支")
         
-        # 8强对阵（相邻配对）
         quarter_finals = []
-        for i in range(0, 8, 2):
-            quarter_finals.append((round_of_16_winners[i], round_of_16_winners[i+1]))
+        for i in range(0, len(round_of_16_winners), 2):
+            quarter_finals.append((round_of_16_winners[i], round_of_16_winners[i + 1]))
         
-        # 半决赛占位
         semi_finals = [(f"QF-{i*2+1}W", f"QF-{i*2+2}W") for i in range(2)]
-        
-        # 决赛占位
         final = [(f"SF-1W", f"SF-2W")]
         
         return {
@@ -214,23 +205,24 @@ class CupProgressionService:
         填充闪电杯淘汰赛对阵
         
         在小组赛结束后调用，生成16强对阵
-        返回生成的比赛数量
         """
-        # 1. 计算小组排名
+        fmt = get_default_format()
+        cup_config = fmt.cup
+        season_template = fmt.season
+        
         group_results = await self.process_group_stage_completion(competition.id, season.id)
         
-        # 2. 生成16强对阵
         fixture_pairs = self.generate_round_of_16_fixtures(group_results)
         
-        # 3. 获取16强比赛日（第4轮杯赛 = Day 10）
-        cup_days = [4, 6, 8, 10, 12, 14, 21]  # 闪电杯7轮
-        round_of_16_day = cup_days[3]  # 第4个杯赛日
+        # 获取16强比赛日
+        cup_days = list(season_template.lightning_cup_days)
+        group_rounds = cup_config.lightning_group_rounds
+        round_of_16_day = cup_days[group_rounds] if group_rounds < len(cup_days) else cup_days[-1]
         
         from datetime import timedelta
         match_date = season.start_date + timedelta(days=round_of_16_day - 1)
-        kickoff = match_date.replace(hour=20, minute=0, second=0)
+        kickoff = match_date.replace(hour=season_template.kickoff_hour, minute=0, second=0)
         
-        # 4. 创建Fixture记录
         created_count = 0
         for group1, group2, _ in fixture_pairs:
             team1_id = group_results[group1][0]  # 小组第一
@@ -241,7 +233,7 @@ class CupProgressionService:
                 fixture_type=FixtureType.CUP_LIGHTNING_KNOCKOUT,
                 season_day=round_of_16_day,
                 scheduled_at=kickoff,
-                round_number=4,
+                round_number=group_rounds + 1,
                 league_id=None,
                 cup_competition_id=competition.id,
                 cup_group_name=None,
@@ -253,8 +245,7 @@ class CupProgressionService:
             self.db.add(fixture)
             created_count += 1
         
-        # 5. 更新杯赛状态
-        competition.current_round = 4
+        competition.current_round = group_rounds + 1
         
         await self.db.commit()
         return created_count
@@ -270,6 +261,10 @@ class CupProgressionService:
         
         stages: ROUND_16 -> QUARTER -> SEMI -> FINAL
         """
+        fmt = get_default_format()
+        cup_config = fmt.cup
+        season_template = fmt.season
+        
         stage_sequence = ["ROUND_16", "QUARTER", "SEMI", "FINAL"]
         
         if current_stage not in stage_sequence:
@@ -277,11 +272,10 @@ class CupProgressionService:
         
         current_idx = stage_sequence.index(current_stage)
         if current_idx >= len(stage_sequence) - 1:
-            return 0  # 已经是决赛
+            return 0
         
         next_stage = stage_sequence[current_idx + 1]
         
-        # 获取上一轮的已完成比赛
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
@@ -296,7 +290,6 @@ class CupProgressionService:
         if len(fixtures) == 0:
             return 0
         
-        # 获取胜者
         winners = []
         for f in fixtures:
             if f.home_score > f.away_score:
@@ -304,26 +297,24 @@ class CupProgressionService:
             elif f.away_score > f.home_score:
                 winners.append(f.away_team_id)
             else:
-                # 平局情况 - 这里需要处理点球或其他规则
-                # 暂时按主队晋级
                 winners.append(f.home_team_id)
         
         # 获取下一轮比赛日
-        cup_days = [4, 6, 8, 10, 12, 14, 21]  # 闪电杯7轮
+        cup_days = list(season_template.lightning_cup_days)
+        group_rounds = cup_config.lightning_group_rounds
         stage_to_cup_round = {
-            "ROUND_16": 4,  # Day 10
-            "QUARTER": 5,   # Day 12
-            "SEMI": 6,      # Day 14
-            "FINAL": 7      # Day 21
+            "ROUND_16": group_rounds + 1,
+            "QUARTER": group_rounds + 2,
+            "SEMI": group_rounds + 3,
+            "FINAL": group_rounds + 4,
         }
         next_cup_round = stage_to_cup_round[next_stage]
-        next_day = cup_days[next_cup_round - 1]
+        next_day = cup_days[next_cup_round - 1] if next_cup_round - 1 < len(cup_days) else cup_days[-1]
         
         from datetime import timedelta
         match_date = season.start_date + timedelta(days=next_day - 1)
-        kickoff = match_date.replace(hour=20, minute=0, second=0)
+        kickoff = match_date.replace(hour=season_template.kickoff_hour, minute=0, second=0)
         
-        # 创建下一轮比赛（相邻配对）
         created_count = 0
         for i in range(0, len(winners), 2):
             if i + 1 < len(winners):
@@ -338,13 +329,12 @@ class CupProgressionService:
                     cup_group_name=None,
                     cup_stage=next_stage,
                     home_team_id=winners[i],
-                    away_team_id=winners[i+1],
+                    away_team_id=winners[i + 1],
                     status=FixtureStatus.SCHEDULED
                 )
                 self.db.add(fixture)
                 created_count += 1
         
-        # 更新杯赛状态
         competition.current_round = next_cup_round
         
         await self.db.commit()
@@ -356,14 +346,17 @@ class CupProgressionService:
         self,
         competition: CupCompetition,
         season: Season,
-        tier2_teams: List[str]  # 次级联赛8支球队作为种子
+        tier2_teams: List[str]
     ) -> int:
         """
         填充杰尼杯第2轮（32强）
         
         预选赛24场（48进24）+ 8支次级联赛种子 = 32队
         """
-        # 获取预选赛胜者
+        fmt = get_default_format()
+        cup_config = fmt.cup
+        season_template = fmt.season
+        
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
@@ -382,28 +375,24 @@ class CupProgressionService:
             else:
                 round1_winners.append(f.away_team_id)
         
-        # 检查球队数量
-        if len(round1_winners) != 24:
-            print(f"  ⚠️  杰尼杯预选赛胜者数量不对: {len(round1_winners)}/24")
+        if len(round1_winners) != cup_config.jenny_preliminary_teams // 2:
+            print(f"  ⚠️  杰尼杯预选赛胜者数量不对: {len(round1_winners)}/{cup_config.jenny_preliminary_teams // 2}")
             return 0
-        if len(tier2_teams) != 8:
-            print(f"  ⚠️  杰尼杯种子球队数量不对: {len(tier2_teams)}/8")
+        if len(tier2_teams) != cup_config.jenny_seed_teams:
+            print(f"  ⚠️  杰尼杯种子球队数量不对: {len(tier2_teams)}/{cup_config.jenny_seed_teams}")
             return 0
         
-        # 合并：24支预选赛胜者 + 8支次级联赛种子 = 32队
         all_teams = round1_winners + tier2_teams
         
-        # 随机打乱
         import random
         random.shuffle(all_teams)
         
-        # 生成16场比赛（32进16）
-        cup_days = [4, 8, 10, 12, 14, 15]  # 杰尼杯6轮（预选赛day4, 32强day8, 16强day10, 8强day12, 半决赛day14, 决赛day15）
-        round2_day = cup_days[1]  # Day 8
+        cup_days = list(season_template.jenny_cup_days)
+        round2_day = cup_days[1] if len(cup_days) > 1 else cup_days[0]
         
         from datetime import timedelta
         match_date = season.start_date + timedelta(days=round2_day - 1)
-        kickoff = match_date.replace(hour=20, minute=0, second=0)
+        kickoff = match_date.replace(hour=season_template.kickoff_hour, minute=0, second=0)
         
         created_count = 0
         for i in range(0, len(all_teams), 2):
@@ -418,7 +407,7 @@ class CupProgressionService:
                     cup_competition_id=competition.id,
                     cup_stage="ROUND_32",
                     home_team_id=all_teams[i],
-                    away_team_id=all_teams[i+1],
+                    away_team_id=all_teams[i + 1],
                     status=FixtureStatus.SCHEDULED
                 )
                 self.db.add(fixture)
@@ -439,10 +428,13 @@ class CupProgressionService:
         
         杰尼杯共6轮：预选赛 + 32强 + 16强 + 8强 + 半决赛 + 决赛
         """
-        if current_round < 2 or current_round >= 6:
+        fmt = get_default_format()
+        cup_config = fmt.cup
+        season_template = fmt.season
+        
+        if current_round < 2 or current_round >= cup_config.jenny_total_rounds:
             return 0
         
-        # 获取当前轮次胜者
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
@@ -461,16 +453,14 @@ class CupProgressionService:
             else:
                 winners.append(f.away_team_id)
         
-        # 下一轮
         next_round = current_round + 1
-        cup_days = [4, 8, 10, 12, 14, 15]  # 杰尼杯6轮（预选赛day4, 32强day8, 16强day10, 8强day12, 半决赛day14, 决赛day15）
-        next_day = cup_days[next_round - 1]
+        cup_days = list(season_template.jenny_cup_days)
+        next_day = cup_days[next_round - 1] if next_round - 1 < len(cup_days) else cup_days[-1]
         
         from datetime import timedelta
         match_date = season.start_date + timedelta(days=next_day - 1)
-        kickoff = match_date.replace(hour=20, minute=0, second=0)
+        kickoff = match_date.replace(hour=season_template.kickoff_hour, minute=0, second=0)
         
-        # 阶段名称映射
         stage_map = {
             2: "ROUND_32",
             3: "ROUND_16",
@@ -492,7 +482,7 @@ class CupProgressionService:
                     cup_competition_id=competition.id,
                     cup_stage=stage_map.get(next_round),
                     home_team_id=winners[i],
-                    away_team_id=winners[i+1],
+                    away_team_id=winners[i + 1],
                     status=FixtureStatus.SCHEDULED
                 )
                 self.db.add(fixture)

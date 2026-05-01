@@ -5,7 +5,8 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from typing import Optional
 
-from sqlalchemy import String, Integer, ForeignKey, DateTime, Enum, Date, Text, Boolean, JSON
+import sqlalchemy as sa
+from sqlalchemy import String, Integer, ForeignKey, DateTime, Enum, Date, Text, Boolean, JSON, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -40,11 +41,17 @@ class Season(Base):
     说明：
     - 命名：第1赛季, 第2赛季...
     - 单赛季时长：42天 (30天联赛+8天杯赛+4天休赛期)
-    - 所有联赛共用同一个赛季时间线
+    - 每个大区有独立的赛季时间线
     """
     __tablename__ = "seasons"
     
-    season_number: Mapped[int] = mapped_column(Integer, nullable=False, unique=True, index=True)  # 第几赛季
+    season_number: Mapped[int] = mapped_column(Integer, nullable=False, index=True)  # 第几赛季
+    zone_id: Mapped[int] = mapped_column(Integer, default=1, nullable=False, index=True)  # 所属大区ID
+    
+    # 联合唯一约束：每个大区的赛季编号唯一
+    __table_args__ = (
+        sa.UniqueConstraint('season_number', 'zone_id', name='uix_season_number_zone'),
+    )
     
     # 时间
     start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)  # 赛季开始时间

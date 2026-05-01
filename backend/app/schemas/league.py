@@ -20,6 +20,7 @@ class LeagueSystemResponse(BaseSchema):
     id: str
     name: str
     code: str
+    zone_id: int = 1
     description: Optional[str] = None
     max_teams_per_league: int = 16
 

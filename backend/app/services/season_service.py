@@ -8,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from app.models.season import Season, SeasonStatus, Fixture, FixtureType, FixtureStatus, CupCompetition
-from app.models.league import League
+from app.models.league import League, LeagueSystem
 from app.models.team import Team
 from app.services.scheduler import SeasonScheduler, ScheduleMerger
+from app.core.formats import get_default_format
 from app.services.match_simulator import MatchSimulator
 from app.services.cup_progression import CupProgressionService
 from app.services.promotion_service import PromotionService
@@ -26,24 +27,34 @@ class SeasonService:
         self.cup_progression = CupProgressionService(db)
         self.promotion_service = PromotionService(db)
     
-    async def get_current_season(self) -> Optional[Season]:
+    async def get_current_season(self, zone_id: int = 1) -> Optional[Season]:
         """获取当前进行中的赛季"""
         result = await self.db.execute(
             select(Season)
             .where(Season.status == SeasonStatus.ONGOING)
+            .where(Season.zone_id == zone_id)
             .order_by(Season.season_number.desc())
         )
         return result.scalar_one_or_none()
     
-    async def get_season_by_number(self, season_number: int) -> Optional[Season]:
+    async def get_season_by_number(self, season_number: int, zone_id: int = 1) -> Optional[Season]:
         """根据赛季编号获取赛季"""
         result = await self.db.execute(
-            select(Season).where(Season.season_number == season_number)
+            select(Season)
+            .where(Season.season_number == season_number)
+            .where(Season.zone_id == zone_id)
         )
         return result.scalar_one_or_none()
     
-    async def create_new_season(self, start_date: Optional[datetime] = None) -> Season:
-        """创建新赛季"""
+    async def create_new_season(self, start_date: Optional[datetime] = None, zone_id: int = 1) -> Season:
+        """创建新赛季
+        
+        Args:
+            start_date: 赛季开始日期，默认明天
+            zone_id: 所属大区ID，默认1区
+        """
+        from sqlalchemy.orm import selectinload
+        
         # 获取上一个赛季编号
         result = await self.db.execute(
             select(Season).order_by(Season.season_number.desc()).limit(1)
@@ -56,8 +67,13 @@ class SeasonService:
             start_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         
-        # 获取所有联赛
-        result = await self.db.execute(select(League))
+        # 获取指定大区的联赛
+        result = await self.db.execute(
+            select(League)
+            .join(League.system)
+            .where(LeagueSystem.zone_id == zone_id)
+            .options(selectinload(League.system))
+        )
         leagues = result.scalars().all()
         
         # 获取每个联赛的球队
@@ -100,8 +116,8 @@ class SeasonService:
             season.status = SeasonStatus.FINISHED
             await self.db.commit()
             
-            # 创建新赛季
-            new_season = await self.create_new_season()
+            # 创建新赛季（同一大区）
+            new_season = await self.create_new_season(zone_id=season.zone_id)
             await self.start_season(new_season)
             
             print(f"  ✅ 第{new_season.season_number}赛季已启动！\n")
@@ -158,7 +174,8 @@ class SeasonService:
         """
         from app.models.season import CupCompetition
         
-        cup_days = [6, 8, 10, 12, 14, 15, 21]  # 杯赛晋级处理日（闪电杯+杰尼杯）
+        fmt = get_default_format()
+        cup_days = list(fmt.season.cup_progression_days)
         
         if day not in cup_days:
             return {}
@@ -194,29 +211,29 @@ class SeasonService:
                     
             elif comp.code.startswith("JENNY_CUP_"):
                 # 杰尼杯晋级处理（JENNY_CUP_EAST, JENNY_CUP_NORTH, JENNY_CUP_SOUTH, JENNY_CUP_WEST）
-                if day == 6:  # 第1轮（预选赛）结束，生成第2轮（32强）
-                    # 获取该体系次级联赛（Level 2）的8支球队作为种子
-                    system_code = comp.code.replace('JENNY_CUP_', '')
+                jenny_cup_days = list(fmt.season.jenny_cup_days)
+                system_code = comp.code.replace('JENNY_CUP_', '')
+                if day == jenny_cup_days[0]:  # 预选赛结束，生成32强
                     tier2_teams = await self._get_jenny_cup_tier2_teams(system_code, season)
                     count = await self.cup_progression.fill_jenny_cup_round_2(comp, season, tier2_teams)
                     results[f"jenny_cup_{system_code.lower()}"] = f"Generated {count} ROUND_32 fixtures"
-                elif day == 8:  # 32强结束，生成16强（day 10比赛）
+                elif day == jenny_cup_days[1]:  # 32强结束，生成16强
                     count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, 2)
-                    results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_16"] = f"Generated {count} ROUND_16 fixtures"
-                elif day == 10:  # 16强结束，生成8强（day 12比赛）
+                    results[f"jenny_cup_{system_code.lower()}_16"] = f"Generated {count} ROUND_16 fixtures"
+                elif day == jenny_cup_days[2]:  # 16强结束，生成8强
                     count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, 3)
-                    results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_quarter"] = f"Generated {count} QUARTER fixtures"
-                elif day == 12:  # 8强结束，生成半决赛（day 14比赛）
+                    results[f"jenny_cup_{system_code.lower()}_quarter"] = f"Generated {count} QUARTER fixtures"
+                elif day == jenny_cup_days[3]:  # 8强结束，生成半决赛
                     count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, 4)
-                    results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_semi"] = f"Generated {count} SEMI fixtures"
-                elif day == 14:  # 半决赛结束，生成决赛（day 15比赛）
+                    results[f"jenny_cup_{system_code.lower()}_semi"] = f"Generated {count} SEMI fixtures"
+                elif day == jenny_cup_days[4]:  # 半决赛结束，生成决赛
                     count = await self.cup_progression.fill_jenny_cup_next_round(comp, season, 5)
-                    results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_final"] = f"Generated {count} FINAL fixtures"
-                elif day == 15:  # 决赛结束，设置冠军
+                    results[f"jenny_cup_{system_code.lower()}_final"] = f"Generated {count} FINAL fixtures"
+                elif day == jenny_cup_days[5]:  # 决赛结束，设置冠军
                     winner = await self._get_cup_winner(comp)
                     if winner:
                         comp.winner_team_id = winner
-                        results[f"jenny_cup_{comp.code.replace('JENNY_CUP_', '').lower()}_winner"] = f"Winner set: {winner}"
+                        results[f"jenny_cup_{system_code.lower()}_winner"] = f"Winner set: {winner}"
         
         return results
     
@@ -553,10 +570,11 @@ class SeasonService:
             
             sys_name = system.name  # 使用中文名（东区、西区等）
             
-            # 创建L2-L3决赛：L2第6名 vs L3预赛胜者
+            # 创建L2-L3决赛：L2倒数第(relegation_spots+1)名 vs L3预赛胜者
+            l2_playoff_idx = -(l2.relegation_spots + 1) if l2.relegation_spots > 0 else None
             l3_key = f"{sys_name}_L3"
             l3_winner = winners.get(l3_key)
-            if len(l2_standings) >= 6 and l3_winner:
+            if l2_playoff_idx is not None and len(l2_standings) >= abs(l2_playoff_idx) and l3_winner:
                     fixture = Fixture(
                         season_id=season.id,
                         fixture_type=FixtureType.PLAYOFF,
@@ -567,17 +585,18 @@ class SeasonService:
                         cup_competition_id=None,
                         cup_group_name=None,
                         cup_stage=f"F_L2L3_{system.code[:8]}",
-                        home_team_id=l2_standings[5].team_id,  # L2第6名
+                        home_team_id=l2_standings[l2_playoff_idx].team_id,
                         away_team_id=l3_winner,
                         status=FixtureStatus.SCHEDULED
                     )
                     self.db.add(fixture)
                     fixtures.append(fixture)
             
-            # 创建L3-L4决赛1：L3A第6名 vs L4A-B预赛胜者
+            # 创建L3-L4决赛1：L3A倒数第(relegation_spots+1)名 vs L4A-B预赛胜者
+            l3a_playoff_idx = -(l3a.relegation_spots + 1) if l3a.relegation_spots > 0 else None
             l4ab_key = f"{sys_name}_L4AB"
             l4ab_winner = winners.get(l4ab_key)
-            if len(l3a_standings) >= 6 and l4ab_winner:
+            if l3a_playoff_idx is not None and len(l3a_standings) >= abs(l3a_playoff_idx) and l4ab_winner:
                 if l4ab_winner:
                     fixture = Fixture(
                         season_id=season.id,
@@ -589,17 +608,18 @@ class SeasonService:
                         cup_competition_id=None,
                         cup_group_name=None,
                         cup_stage=f"F_L3AL4_{system.code[:8]}",
-                        home_team_id=l3a_standings[5].team_id,  # L3A第6名
+                        home_team_id=l3a_standings[l3a_playoff_idx].team_id,
                         away_team_id=l4ab_winner,
                         status=FixtureStatus.SCHEDULED
                     )
                     self.db.add(fixture)
                     fixtures.append(fixture)
             
-            # 创建L3-L4决赛2：L3B第6名 vs L4C-D预赛胜者
+            # 创建L3-L4决赛2：L3B倒数第(relegation_spots+1)名 vs L4C-D预赛胜者
+            l3b_playoff_idx = -(l3b.relegation_spots + 1) if l3b.relegation_spots > 0 else None
             l4cd_key = f"{sys_name}_L4CD"
             l4cd_winner = winners.get(l4cd_key)
-            if len(l3b_standings) >= 6 and l4cd_winner:
+            if l3b_playoff_idx is not None and len(l3b_standings) >= abs(l3b_playoff_idx) and l4cd_winner:
                 if l4cd_winner:
                     fixture = Fixture(
                         season_id=season.id,
@@ -611,7 +631,7 @@ class SeasonService:
                         cup_competition_id=None,
                         cup_group_name=None,
                         cup_stage=f"F_L3BL4_{system.code[:8]}",
-                        home_team_id=l3b_standings[5].team_id,  # L3B第6名
+                        home_team_id=l3b_standings[l3b_playoff_idx].team_id,
                         away_team_id=l4cd_winner,
                         status=FixtureStatus.SCHEDULED
                     )

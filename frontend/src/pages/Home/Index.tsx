@@ -127,7 +127,7 @@ export default function Home() {
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage: `url('${heroBg}')`,
-              filter: 'brightness(0.55) saturate(0.85)',
+              filter: 'brightness(0.75) saturate(0.85)',
             }}
           />
           {/* 深色遮罩 */}

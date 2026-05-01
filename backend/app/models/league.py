@@ -16,15 +16,19 @@ class LeagueSystem(Base):
     """LeagueSystem model - 联赛体系表
     
     说明：
-    - 共4个联赛体系：东区、西区、南区、北区
+    - 每个大区（Zone）包含4个联赛体系：东区、西区、南区、北区
     - 每个体系独立，有自己的升降级链条
     - 每个体系包含64支球队（8队 × 8个联赛）
+    - zone_id 用于隔离不同大区，1区=当前线上区，2区/3区...为未来扩展预留
     """
     __tablename__ = "league_systems"
     
     name: Mapped[str] = mapped_column(String(50), nullable=False)  # 东区/西区/南区/北区
     code: Mapped[str] = mapped_column(String(10), unique=True, nullable=False)  # EAST/WEST/SOUTH/NORTH
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    
+    # 大区隔离
+    zone_id: Mapped[int] = mapped_column(Integer, default=1, nullable=False, index=True)  # 所属大区ID
     
     # 配置
     max_teams_per_league: Mapped[int] = mapped_column(Integer, default=8, nullable=False)

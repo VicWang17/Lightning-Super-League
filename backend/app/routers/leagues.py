@@ -20,17 +20,34 @@ from app.dependencies import get_db
 router = APIRouter(prefix="/leagues", tags=["联赛"])
 
 
+async def _get_zone_id_by_league(db: AsyncSession, league_id: str) -> int:
+    """根据联赛ID获取所属大区ID"""
+    result = await db.execute(
+        select(LeagueSystem.zone_id)
+        .join(League, League.system_id == LeagueSystem.id)
+        .where(League.id == league_id)
+    )
+    row = result.first()
+    return row[0] if row else 1
+
+
 @router.get(
     "/systems",
     response_model=ResponseSchema[List[LeagueSystemResponse]],
     summary="获取联赛体系列表",
     description="获取所有联赛体系（东区、西区、南区、北区）",
 )
-async def list_league_systems(db: AsyncSession = Depends(get_db)):
+async def list_league_systems(
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
+    db: AsyncSession = Depends(get_db)
+):
     """
     获取所有联赛体系列表
     """
-    result = await db.execute(select(LeagueSystem))
+    query = select(LeagueSystem)
+    if zone_id:
+        query = query.where(LeagueSystem.zone_id == zone_id)
+    result = await db.execute(query)
     systems = result.scalars().all()
     
     return ResponseSchema(
@@ -40,6 +57,7 @@ async def list_league_systems(db: AsyncSession = Depends(get_db)):
                 id=str(system.id),
                 name=system.name,
                 code=system.code,
+                zone_id=system.zone_id,
                 description=system.description,
                 max_teams_per_league=system.max_teams_per_league
             )
@@ -57,6 +75,7 @@ async def list_league_systems(db: AsyncSession = Depends(get_db)):
 async def list_leagues(
     system_id: Optional[str] = Query(None, description="联赛体系ID筛选"),
     system_code: Optional[str] = Query(None, description="联赛体系代码筛选（EAST/WEST/SOUTH/NORTH）"),
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -64,6 +83,7 @@ async def list_leagues(
     
     - **system_id**: 按联赛体系ID筛选（可选）
     - **system_code**: 按联赛体系代码筛选（可选，EAST/WEST/SOUTH/NORTH）
+    - **zone_id**: 按大区ID筛选（可选，默认1区）
     """
     query = select(League).options(selectinload(League.system))
     
@@ -77,6 +97,14 @@ async def list_leagues(
             query = query.where(League.system_id == system.id)
     elif system_id:
         query = query.where(League.system_id == system_id)
+    elif zone_id:
+        # 通过 zone_id 筛选：先查该 zone 的 system_ids
+        system_result = await db.execute(
+            select(LeagueSystem.id).where(LeagueSystem.zone_id == zone_id)
+        )
+        system_ids = [sid for sid, in system_result.all()]
+        if system_ids:
+            query = query.where(League.system_id.in_(system_ids))
     
     result = await db.execute(query.order_by(League.system_id, League.level))
     leagues = result.scalars().all()
@@ -146,9 +174,13 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
     )
     teams_count = teams_count_result.scalar() or 0
     
-    # 获取当前赛季
+    # 获取当前赛季（同大区）
+    zone_id = league.system.zone_id if league.system else 1
     season_result = await db.execute(
-        select(Season).where(Season.status.in_(["ongoing", "upcoming"])).order_by(Season.start_date)
+        select(Season)
+        .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
+        .where(Season.zone_id == zone_id)
+        .order_by(Season.start_date)
     )
     current_season = season_result.scalar_one_or_none()
     
@@ -402,10 +434,14 @@ async def get_league_table(
     - **league_id**: 联赛ID
     - **season_id**: 赛季ID（可选）
     """
-    # 如果没有指定赛季，获取当前赛季
+    # 如果没有指定赛季，获取当前赛季（同大区）
     if not season_id:
+        zone_id = await _get_zone_id_by_league(db, league_id)
         season_result = await db.execute(
-            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
+            select(Season)
+            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
+            .where(Season.zone_id == zone_id)
+            .order_by(Season.start_date)
         )
         season = season_result.scalar_one_or_none()
         if season:
@@ -473,10 +509,14 @@ async def get_league_schedule(
     - **season_id**: 赛季ID（可选）
     - **round_number**: 轮次（可选）
     """
-    # 如果没有指定赛季，获取当前赛季
+    # 如果没有指定赛季，获取当前赛季（同大区）
     if not season_id:
+        zone_id = await _get_zone_id_by_league(db, league_id)
         season_result = await db.execute(
-            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
+            select(Season)
+            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
+            .where(Season.zone_id == zone_id)
+            .order_by(Season.start_date)
         )
         season = season_result.scalar_one_or_none()
         if season:
@@ -549,8 +589,12 @@ async def get_top_scorers(
     - **limit**: 返回数量
     """
     if not season_id:
+        zone_id = await _get_zone_id_by_league(db, league_id)
         season_result = await db.execute(
-            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
+            select(Season)
+            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
+            .where(Season.zone_id == zone_id)
+            .order_by(Season.start_date)
         )
         season = season_result.scalar_one_or_none()
         if season:
@@ -610,8 +654,12 @@ async def get_top_assists(
     - **limit**: 返回数量
     """
     if not season_id:
+        zone_id = await _get_zone_id_by_league(db, league_id)
         season_result = await db.execute(
-            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
+            select(Season)
+            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
+            .where(Season.zone_id == zone_id)
+            .order_by(Season.start_date)
         )
         season = season_result.scalar_one_or_none()
         if season:
@@ -673,8 +721,12 @@ async def get_clean_sheets(
     from app.models.player import PlayerPosition
     
     if not season_id:
+        zone_id = await _get_zone_id_by_league(db, league_id)
         season_result = await db.execute(
-            select(Season).where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING])).order_by(Season.start_date)
+            select(Season)
+            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
+            .where(Season.zone_id == zone_id)
+            .order_by(Season.start_date)
         )
         season = season_result.scalar_one_or_none()
         if season:

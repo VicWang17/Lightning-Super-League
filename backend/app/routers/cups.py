@@ -21,6 +21,7 @@ router = APIRouter(prefix="/cups", tags=["杯赛"])
 @router.get("", response_model=ResponseSchema[List[Dict[str, Any]]])
 async def get_cups(
     season_id: Optional[str] = None,
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user)
 ):
@@ -35,14 +36,19 @@ async def get_cups(
         season = result.scalar_one_or_none()
     else:
         result = await db.execute(
-            select(Season).where(Season.status == "ongoing").order_by(Season.season_number.desc())
+            select(Season)
+            .where(Season.status == "ongoing")
+            .where(Season.zone_id == zone_id)
+            .order_by(Season.season_number.desc())
         )
         season = result.scalar_one_or_none()
         
         if not season:
             # 如果没有进行中的赛季，获取最新的赛季
             result = await db.execute(
-                select(Season).order_by(Season.season_number.desc())
+                select(Season)
+                .where(Season.zone_id == zone_id)
+                .order_by(Season.season_number.desc())
             )
             season = result.scalar_one_or_none()
     
@@ -92,6 +98,7 @@ async def get_cups(
 async def get_cup_by_code(
     code: str,
     season_id: Optional[str] = None,
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user)
 ):
@@ -109,13 +116,18 @@ async def get_cup_by_code(
         season = result.scalar_one_or_none()
     else:
         result = await db.execute(
-            select(Season).where(Season.status == "ongoing").order_by(Season.season_number.desc())
+            select(Season)
+            .where(Season.status == "ongoing")
+            .where(Season.zone_id == zone_id)
+            .order_by(Season.season_number.desc())
         )
         season = result.scalar_one_or_none()
         
         if not season:
             result = await db.execute(
-                select(Season).order_by(Season.season_number.desc())
+                select(Season)
+                .where(Season.zone_id == zone_id)
+                .order_by(Season.season_number.desc())
             )
             season = result.scalar_one_or_none()
     
@@ -167,6 +179,7 @@ async def get_cup_by_code(
 
 @router.get("/my-team", response_model=ResponseSchema[Optional[Dict[str, Any]]])
 async def get_my_team_cup(
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -178,7 +191,10 @@ async def get_my_team_cup(
     
     # 获取当前赛季
     result = await db.execute(
-        select(Season).where(Season.status == "ongoing").order_by(Season.season_number.desc())
+        select(Season)
+        .where(Season.status == "ongoing")
+        .where(Season.zone_id == zone_id)
+        .order_by(Season.season_number.desc())
     )
     season = result.scalar_one_or_none()
     

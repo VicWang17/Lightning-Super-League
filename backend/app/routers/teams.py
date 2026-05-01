@@ -80,6 +80,7 @@ async def list_teams(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     league_id: Optional[int] = Query(None, description="联赛ID筛选"),
+    zone_id: Optional[int] = Query(1, description="大区ID（默认1区）"),
     search: Optional[str] = Query(None, description="搜索关键词"),
 ):
     """
@@ -88,6 +89,7 @@ async def list_teams(
     - **page**: 页码
     - **page_size**: 每页数量
     - **league_id**: 按联赛筛选
+    - **zone_id**: 按大区筛选
     - **search**: 搜索球队名称
     """
     # TODO: 实现球队列表查询
@@ -302,9 +304,23 @@ async def get_my_team_dashboard(
             detail="您还没有球队"
         )
     
-    # 获取当前赛季
+    # 获取当前赛季（同大区）
+    # 通过球队的联赛找到所属大区
+    zone_id = 1
+    if team.current_league_id:
+        zone_result = await db.execute(
+            select(LeagueSystem.zone_id)
+            .join(League, League.system_id == LeagueSystem.id)
+            .where(League.id == team.current_league_id)
+        )
+        zone_row = zone_result.first()
+        if zone_row:
+            zone_id = zone_row[0]
+    
     result = await db.execute(
-        select(Season).where(Season.status == "ongoing")
+        select(Season)
+        .where(Season.status == "ongoing")
+        .where(Season.zone_id == zone_id)
     )
     current_season = result.scalar_one_or_none()
     

@@ -37,6 +37,7 @@ from app.services.scheduler import (
     LeagueScheduleGenerator, LightningCupGenerator,
     JennyCupGenerator, ScheduleMerger
 )
+from app.core.formats import get_default_format
 
 settings = get_settings()
 engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
@@ -54,6 +55,9 @@ async def get_next_season_number(db: AsyncSession) -> int:
 
 async def create_season(db: AsyncSession, season_number: int, start_date: datetime) -> Season:
     """创建赛季记录"""
+    fmt = get_default_format()
+    template = fmt.season
+    
     season = Season(
         season_number=season_number,
         start_date=start_date,
@@ -61,11 +65,11 @@ async def create_season(db: AsyncSession, season_number: int, start_date: dateti
         current_day=0,
         current_league_round=0,
         current_cup_round=0,
-        total_days=26,      # 26天赛季
-        league_days=20,     # 联赛在20天内完成（与杯赛交错）
-        cup_start_day=4,    # 第4天开始杯赛
-        cup_interval=2,     # 每2天一轮杯赛
-        offseason_start=22  # 第22天开始休赛期/附加赛
+        total_days=template.total_days,
+        league_days=len(template.league_days),
+        cup_start_day=template.lightning_cup_days[0] if template.lightning_cup_days else 4,
+        cup_interval=2,
+        offseason_start=template.playoff_days[0] if template.playoff_days else 22
     )
     db.add(season)
     await db.flush()
@@ -74,17 +78,20 @@ async def create_season(db: AsyncSession, season_number: int, start_date: dateti
 
 async def create_cup_competitions(db: AsyncSession, season: Season) -> tuple:
     """创建杯赛定义"""
-    # 闪电杯（全服32队）
+    fmt = get_default_format()
+    cup_config = fmt.cup
+    
+    # 闪电杯
     lightning_cup = CupCompetition(
         season_id=season.id,
         name="闪电杯",
         code="LIGHTNING_CUP",
-        eligible_league_levels=[1],
-        total_teams=32,
-        has_group_stage=True,
-        group_count=8,
-        teams_per_group=4,
-        group_rounds=3,
+        eligible_league_levels=list(cup_config.lightning_eligible_levels),
+        total_teams=cup_config.lightning_total_teams,
+        has_group_stage=cup_config.lightning_has_group_stage,
+        group_count=cup_config.lightning_group_count,
+        teams_per_group=cup_config.lightning_teams_per_group,
+        group_rounds=cup_config.lightning_group_rounds,
         current_round=0,
         status=SeasonStatus.PENDING,
         winner_team_id=None
@@ -92,16 +99,16 @@ async def create_cup_competitions(db: AsyncSession, season: Season) -> tuple:
     db.add(lightning_cup)
     await db.flush()
     
-    # 杰尼杯（4个体系各自独立，每体系56队）
+    # 杰尼杯（各体系独立）
     jenny_cups = []
-    systems = ["EAST", "WEST", "SOUTH", "NORTH"]
+    systems = fmt.structure.system_codes
     for system_code in systems:
         jenny_cup = CupCompetition(
             season_id=season.id,
             name=f"杰尼杯-{system_code}",
             code=f"JENNY_CUP_{system_code}",
-            eligible_league_levels=[2, 3, 4],
-            total_teams=56,
+            eligible_league_levels=list(cup_config.jenny_eligible_levels),
+            total_teams=cup_config.jenny_preliminary_teams + cup_config.jenny_seed_teams,
             has_group_stage=False,
             group_count=0,
             teams_per_group=0,
@@ -119,7 +126,10 @@ async def create_cup_competitions(db: AsyncSession, season: Season) -> tuple:
 
 async def generate_league_schedules(db: AsyncSession, leagues: list) -> list:
     """生成联赛赛程"""
-    print("\n🏆 生成联赛赛程（14轮双循环，已随机打乱）...")
+    fmt = get_default_format()
+    league_config = fmt.league
+    
+    print(f"\n🏆 生成联赛赛程（{league_config.total_rounds}轮{league_config.round_robin_type}循环，已随机打乱）...")
     
     league_schedules = []
     teams_by_league = {}
@@ -131,14 +141,14 @@ async def generate_league_schedules(db: AsyncSession, leagues: list) -> list:
         teams = list(result.scalars().all())
         teams_by_league[league.id] = teams
         
-        if len(teams) != 8:
+        if len(teams) != league_config.teams_per_league:
             print(f"   ⚠️ 跳过 {league.name}: 只有{len(teams)}支球队")
             continue
         
         team_ids = [t.id for t in teams]
-        schedule = LeagueScheduleGenerator.generate(team_ids, league.id)
+        schedule = LeagueScheduleGenerator.generate(team_ids, league.id, league_config)
         league_schedules.append(schedule)
-        print(f"   ✅ {league.name}: 14轮")
+        print(f"   ✅ {league.name}: {league_config.total_rounds}轮")
     
     return league_schedules, teams_by_league
 
@@ -151,48 +161,51 @@ async def generate_cup_schedules(
     teams_by_league: dict
 ) -> tuple:
     """生成杯赛赛程"""
-    # 闪电杯（全服32队）
+    fmt = get_default_format()
+    cup_config = fmt.cup
+    league_config = fmt.league
+    structure = fmt.structure
+    
+    # 闪电杯
     print("\n⚡ 生成闪电杯赛程...")
-    top_leagues = [l for l in leagues if l.level == 1]
+    top_leagues = [l for l in leagues if l.level in cup_config.lightning_eligible_levels]
     top_league_teams = [
         [t.id for t in teams_by_league.get(l.id, [])]
         for l in top_leagues
     ]
-    top_league_teams = [teams for teams in top_league_teams if len(teams) == 8]
+    top_league_teams = [teams for teams in top_league_teams if len(teams) == league_config.teams_per_league]
     
     lightning_schedule = None
     cup_groups = []
-    if len(top_league_teams) >= 4:
+    num_systems = len(structure.system_codes)
+    if len(top_league_teams) >= num_systems:
         lightning_schedule, cup_groups = LightningCupGenerator.generate(
             lightning_cup.id,
-            top_league_teams[:4]
+            top_league_teams[:num_systems],
+            cup_config
         )
         for group in cup_groups:
             db.add(group)
-        print(f"   ✅ 8组小组赛 + 淘汰赛，共7轮")
+        total_rounds = cup_config.lightning_group_rounds + cup_config.lightning_knockout_rounds
+        print(f"   ✅ {cup_config.lightning_group_count}组小组赛 + 淘汰赛，共{total_rounds}轮")
     else:
         print(f"   ⚠️ 只有{len(top_league_teams)}个完整顶级联赛，无法生成完整闪电杯")
     
-    # 杰尼杯（4个体系各自独立，每体系56队）
-    print("\n🏅 生成杰尼杯赛程（4个体系）...")
+    # 杰尼杯（各体系独立）
+    print(f"\n🏅 生成杰尼杯赛程（{num_systems}个体系）...")
     jenny_cup_schedules = []
     
+    expected_tier3 = league_config.teams_per_league * structure.levels[2]
+    expected_tier4 = league_config.teams_per_league * structure.levels[3]
+    
     for system_code, jenny_cup in jenny_cups:
-        # 通过联赛名称前缀匹配体系（避免异步懒加载问题）
-        system_name_map = {
-            "EAST": "东区",
-            "WEST": "西区", 
-            "SOUTH": "南区",
-            "NORTH": "北区"
-        }
-        system_name = system_name_map.get(system_code, system_code)
+        system_name = structure.system_names.get(system_code, system_code)
         system_leagues = [l for l in leagues if system_name in l.name]
         
-        tier2 = [l for l in system_leagues if l.level == 2]
-        tier3 = [l for l in system_leagues if l.level == 3]
-        tier4 = [l for l in system_leagues if l.level == 4]
+        tier2 = [l for l in system_leagues if l.level == cup_config.jenny_seed_level]
+        tier3 = [l for l in system_leagues if l.level in cup_config.jenny_eligible_levels and l.level == 3]
+        tier4 = [l for l in system_leagues if l.level in cup_config.jenny_eligible_levels and l.level == 4]
         
-        # 收集球队
         tier2_teams = []
         for l in tier2:
             tier2_teams.extend([t.id for t in teams_by_league.get(l.id, [])])
@@ -205,16 +218,30 @@ async def generate_cup_schedules(
         for l in tier4:
             tier4_teams.extend([t.id for t in teams_by_league.get(l.id, [])])
         
-        if len(tier2_teams) == 8 and len(tier3_teams) == 16 and len(tier4_teams) == 32:
+        if (len(tier2_teams) == cup_config.jenny_seed_teams and
+            len(tier3_teams) == expected_tier3 and
+            len(tier4_teams) == expected_tier4):
+            
+            tier3_sublists = [
+                tier3_teams[i * league_config.teams_per_league:(i + 1) * league_config.teams_per_league]
+                for i in range(structure.levels[2])
+            ]
+            tier4_sublists = [
+                tier4_teams[i * league_config.teams_per_league:(i + 1) * league_config.teams_per_league]
+                for i in range(structure.levels[3])
+            ]
+            
             jenny_schedule = JennyCupGenerator.generate(
                 jenny_cup.id,
                 system_code,
                 tier2_teams,
-                [tier3_teams[:8], tier3_teams[8:16]],
-                [tier4_teams[:8], tier4_teams[8:16], tier4_teams[16:24], tier4_teams[24:32]]
+                tier3_sublists,
+                tier4_sublists,
+                cup_config
             )
             jenny_cup_schedules.append(jenny_schedule)
-            print(f"   ✅ {system_code}: 预选赛48队 + 8种子，共6轮")
+            total_jenny = cup_config.jenny_preliminary_teams + cup_config.jenny_seed_teams
+            print(f"   ✅ {system_code}: 预选赛{cup_config.jenny_preliminary_teams}队 + {cup_config.jenny_seed_teams}种子，共{cup_config.jenny_total_rounds}轮")
         else:
             print(f"   ⚠️ {system_code}: 球队数量不足，跳过")
     
