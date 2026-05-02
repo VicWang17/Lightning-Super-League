@@ -624,7 +624,7 @@ async def get_top_scorers(
             TopScorerItem(
                 rank=idx + 1,
                 player_id=str(row.Player.id),
-                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
+                player_name=row.Player.name,
                 team_name=row.Team.name if row.Team else "未知球队",
                 goals=row.PlayerSeasonStats.goals,
                 matches=row.PlayerSeasonStats.matches_played
@@ -689,7 +689,7 @@ async def get_top_assists(
             TopAssistItem(
                 rank=idx + 1,
                 player_id=str(row.Player.id),
-                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
+                player_name=row.Player.name,
                 team_name=row.Team.name if row.Team else "未知球队",
                 assists=row.PlayerSeasonStats.assists,
                 matches=row.PlayerSeasonStats.matches_played
@@ -743,7 +743,7 @@ async def get_clean_sheets(
             and_(
                 PlayerSeasonStats.league_id == league_id,
                 PlayerSeasonStats.season_id == season_id,
-                Player.primary_position == PlayerPosition.GK
+                Player.position == PlayerPosition.GK
             )
         )
         .order_by(PlayerSeasonStats.clean_sheets.desc())

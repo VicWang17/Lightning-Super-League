@@ -122,6 +122,10 @@ export const router = createBrowserRouter([
             path: 'team',
             children: [
               {
+                path: '',
+                element: <Navigate to="/team/players" replace />,
+              },
+              {
                 path: 'players',
                 element: <TeamDetail />,
               },

@@ -10,8 +10,10 @@ from app.schemas.user import (
 )
 from app.schemas.team import TeamBase, TeamCreate, TeamUpdate, TeamResponse, TeamSummary, DashboardStats
 from app.schemas.player import (
-    PlayerBase, PlayerCreate, PlayerUpdate, PlayerResponse, 
-    PlayerStats, PlayerPosition, PlayerAbility
+    PlayerBase, PlayerCreate, PlayerUpdate, PlayerResponse,
+    PlayerStats, PlayerPosition, PlayerAbility, PlayerRace,
+    PotentialLetter, ContractType, MatchForm, PlayerSkill,
+    PlayerListItem,
 )
 from app.schemas.league import (
     LeagueResponse, LeagueDetailResponse, LeagueSystemResponse,
@@ -27,7 +29,7 @@ from app.schemas.season import (
 __all__ = [
     # Base
     "BaseSchema",
-    "ResponseSchema", 
+    "ResponseSchema",
     "PaginatedResponse",
     "PaginationParams",
     "ErrorResponse",
@@ -54,6 +56,12 @@ __all__ = [
     "PlayerStats",
     "PlayerPosition",
     "PlayerAbility",
+    "PlayerRace",
+    "PotentialLetter",
+    "ContractType",
+    "MatchForm",
+    "PlayerSkill",
+    "PlayerListItem",
     # League
     "LeagueResponse",
     "LeagueDetailResponse",

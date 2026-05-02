@@ -14,6 +14,7 @@ class BaseSchema(BaseModel):
         from_attributes=True,
         populate_by_name=True,
         str_strip_whitespace=True,
+        serialize_by_alias=True,
     )
 
 

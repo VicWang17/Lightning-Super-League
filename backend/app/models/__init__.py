@@ -23,6 +23,11 @@ from app.models.player import (
     PlayerPosition,
     PlayerFoot,
     PlayerStatus,
+    PlayerRace,
+    PotentialLetter,
+    PlayerPersonality,
+    ContractType,
+    MatchForm,
     SquadRole,
 )
 from app.models.player_season_stats import (
@@ -56,6 +61,11 @@ __all__ = [
     "PlayerPosition",
     "PlayerFoot",
     "PlayerStatus",
+    "PlayerRace",
+    "PotentialLetter",
+    "PlayerPersonality",
+    "ContractType",
+    "MatchForm",
     "SquadRole",
     # Player Season Stats
     "PlayerSeasonStats",

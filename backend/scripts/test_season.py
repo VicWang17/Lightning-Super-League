@@ -240,26 +240,11 @@ class SeasonTester:
                         )
                         self.db.add(team)
                         
-                        for j in range(18):
-                            from datetime import date
-                            player = Player(
-                                first_name=f"球员{j+1}",
-                                last_name=team.name,
-                                nationality="中国",
-                                birth_date=date(2000 + (j % 10), 1, 1),
-                                team_id=team.id,
-                                primary_position=["GK", "CB", "CM", "ST"][j % 4],
-                                shooting=50 + (j % 30),
-                                finishing=50 + (j % 30),
-                                passing=50 + (j % 30),
-                                dribbling=50 + (j % 30),
-                                tackling=50 + (j % 30),
-                                marking=50 + (j % 30),
-                                positioning=50 + (j % 30),
-                                reflexes=50 + (j % 30) if j % 4 == 0 else None,
-                                handling=50 + (j % 30) if j % 4 == 0 else None
-                            )
-                            self.db.add(player)
+                        from app.services.player_generator import PlayerGenerator
+                        generator = PlayerGenerator()
+                        players = generator.generate_squad(team, size=15)
+                        for p in players:
+                            self.db.add(p)
                     
                     await self.db.flush()
         

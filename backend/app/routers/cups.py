@@ -666,7 +666,7 @@ async def get_cup_clean_sheets(
             and_(
                 PlayerSeasonStats.cup_competition_id == cup_id,
                 PlayerSeasonStats.season_id == cup.season_id,
-                Player.primary_position == PlayerPosition.GK
+                Player.position == PlayerPosition.GK
             )
         )
         .order_by(PlayerSeasonStats.clean_sheets.desc())

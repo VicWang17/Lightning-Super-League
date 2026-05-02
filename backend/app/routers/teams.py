@@ -15,9 +15,10 @@ from app.schemas import (
     TeamSummary,
     DashboardStats,
     ErrorResponse,
+    PlayerListItem,
 )
 from app.dependencies import get_db, get_current_user
-from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season
+from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season, LeagueSystem
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/teams", tags=["球队"])
@@ -133,147 +134,6 @@ async def create_team(team_data: TeamCreate):
             created_at="2024-01-01T00:00:00",
             updated_at="2024-01-01T00:00:00",
         ),
-    )
-
-
-@router.get(
-    "/{team_id}",
-    response_model=ResponseSchema[TeamResponse],
-    summary="获取球队详情",
-    description="获取指定球队的详细信息",
-    responses={
-        200: {"description": "获取成功"},
-        404: {"model": ErrorResponse, "description": "球队不存在"},
-    },
-)
-async def get_team(team_id: int):
-    """
-    获取球队详情
-    
-    - **team_id**: 球队ID
-    """
-    # TODO: 实现球队详情查询
-    return ResponseSchema(
-        success=True,
-        data=TeamResponse(
-            id=team_id,
-            name="示例球队",
-            user_id=1,
-            created_at="2024-01-01T00:00:00",
-            updated_at="2024-01-01T00:00:00",
-        ),
-    )
-
-
-@router.put(
-    "/{team_id}",
-    response_model=ResponseSchema[TeamResponse],
-    summary="更新球队信息",
-    description="更新指定球队的信息",
-)
-async def update_team(team_id: int, team_data: TeamUpdate):
-    """
-    更新球队信息
-    
-    - **team_id**: 球队ID
-    - **name**: 球队名称
-    - **short_name**: 简称
-    - **logo_url**: 队徽
-    - **stadium**: 球场
-    - **city**: 城市
-    """
-    # TODO: 实现球队更新逻辑
-    return ResponseSchema(
-        success=True,
-        message="更新成功",
-        data=TeamResponse(
-            id=team_id,
-            name=team_data.name or "示例球队",
-            user_id=1,
-            created_at="2024-01-01T00:00:00",
-            updated_at="2024-01-01T00:00:00",
-        ),
-    )
-
-
-@router.get(
-    "/{team_id}/players",
-    response_model=ResponseSchema[PaginatedResponse[dict]],  # 使用PlayerListItem
-    summary="获取球队球员",
-    description="获取指定球队的球员列表",
-)
-async def get_team_players(
-    team_id: int,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-):
-    """
-    获取球队球员列表
-    
-    - **team_id**: 球队ID
-    - **page**: 页码
-    - **page_size**: 每页数量
-    """
-    # TODO: 实现球队球员查询
-    return ResponseSchema(
-        success=True,
-        data=PaginatedResponse.create(
-            items=[],
-            total=0,
-            page=page,
-            page_size=page_size,
-        ),
-    )
-
-
-@router.get(
-    "/{team_id}/stats",
-    response_model=ResponseSchema[dict],
-    summary="获取球队统计",
-    description="获取指定球队的赛季统计数据",
-)
-async def get_team_stats(team_id: int):
-    """
-    获取球队统计数据
-    
-    - **team_id**: 球队ID
-    """
-    # TODO: 实现球队统计查询
-    return ResponseSchema(
-        success=True,
-        data={
-            "matches_played": 0,
-            "wins": 0,
-            "draws": 0,
-            "losses": 0,
-            "goals_for": 0,
-            "goals_against": 0,
-            "points": 0,
-        },
-    )
-
-
-@router.get(
-    "/{team_id}/finances",
-    response_model=ResponseSchema[dict],
-    summary="获取球队财务",
-    description="获取指定球队的财务信息",
-)
-async def get_team_finances(team_id: int):
-    """
-    获取球队财务信息
-    
-    - **team_id**: 球队ID
-    """
-    # TODO: 实现球队财务查询
-    return ResponseSchema(
-        success=True,
-        data={
-            "balance": 10000000.00,
-            "weekly_wages": 50000.00,
-            "stadium_capacity": 30000,
-            "ticket_price": 25.00,
-        },
     )
 
 
@@ -419,4 +279,177 @@ async def get_my_team_dashboard(
             recent_form=recent_form,
             next_match=next_match
         )
+    )
+
+
+@router.get(
+    "/{team_id}/players",
+    response_model=ResponseSchema[PaginatedResponse[PlayerListItem]],
+    summary="获取球队球员",
+    description="获取指定球队的球员列表",
+)
+async def get_team_players(
+    team_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取球队球员列表
+    
+    - **team_id**: 球队ID
+    - **page**: 页码
+    - **page_size**: 每页数量
+    """
+    from app.models import Player
+    from app.schemas import PlayerListItem
+    
+    query = select(Player).where(Player.team_id == team_id)
+    
+    total_result = await db.execute(select(Player.id).where(Player.team_id == team_id))
+    total = len(total_result.scalars().all())
+    
+    result = await db.execute(
+        query.offset((page - 1) * page_size).limit(page_size)
+    )
+    players = result.scalars().all()
+    players.sort(key=lambda p: p.ovr, reverse=True)
+    
+    items = [
+        PlayerListItem(
+            id=p.id,
+            name=p.name,
+            race=p.race,
+            avatar_url=p.avatar_url,
+            age=abs(p.birth_offset),
+            position=p.position,
+            ovr=p.ovr,
+            potential_letter=p.potential_letter,
+            market_value=p.market_value,
+            team_id=p.team_id,
+        )
+        for p in players
+    ]
+    
+    return ResponseSchema(
+        success=True,
+        data=PaginatedResponse.create(
+            items=items,
+            total=total,
+            page=page,
+            page_size=page_size,
+        ),
+    )
+
+
+@router.get(
+    "/{team_id}/stats",
+    response_model=ResponseSchema[dict],
+    summary="获取球队统计",
+    description="获取指定球队的赛季统计数据",
+)
+async def get_team_stats(team_id: int):
+    """
+    获取球队统计数据
+    
+    - **team_id**: 球队ID
+    """
+    # TODO: 实现球队统计查询
+    return ResponseSchema(
+        success=True,
+        data={
+            "matches_played": 0,
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "goals_for": 0,
+            "goals_against": 0,
+            "points": 0,
+        },
+    )
+
+
+@router.get(
+    "/{team_id}/finances",
+    response_model=ResponseSchema[dict],
+    summary="获取球队财务",
+    description="获取指定球队的财务信息",
+)
+async def get_team_finances(team_id: int):
+    """
+    获取球队财务信息
+    
+    - **team_id**: 球队ID
+    """
+    # TODO: 实现球队财务查询
+    return ResponseSchema(
+        success=True,
+        data={
+            "balance": 10000000.00,
+            "weekly_wages": 50000.00,
+            "stadium_capacity": 30000,
+            "ticket_price": 25.00,
+        },
+    )
+
+
+
+
+@router.get(
+    "/{team_id}",
+    response_model=ResponseSchema[TeamResponse],
+    summary="获取球队详情",
+    description="获取指定球队的详细信息",
+    responses={
+        200: {"description": "获取成功"},
+        404: {"model": ErrorResponse, "description": "球队不存在"},
+    },
+)
+async def get_team(team_id: str):
+    """
+    获取球队详情
+    
+    - **team_id**: 球队ID
+    """
+    # TODO: 实现球队详情查询
+    return ResponseSchema(
+        success=True,
+        data=TeamResponse(
+            id=team_id,
+            name="示例球队",
+            user_id=1,
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        ),
+    )
+
+
+@router.put(
+    "/{team_id}",
+    response_model=ResponseSchema[TeamResponse],
+    summary="更新球队信息",
+    description="更新指定球队的信息",
+)
+async def update_team(team_id: str, team_data: TeamUpdate):
+    """
+    更新球队信息
+    
+    - **team_id**: 球队ID
+    - **name**: 球队名称
+    - **short_name**: 简称
+    - **logo_url**: 队徽
+    - **stadium**: 球场
+    - **city**: 城市
+    """
+    # TODO: 实现球队更新逻辑
+    return ResponseSchema(
+        success=True,
+        message="更新成功",
+        data=TeamResponse(
+            id=team_id,
+            name=team_data.name or "示例球队",
+            user_id=1,
+            created_at="2024-01-01T00:00:00",
+            updated_at="2024-01-01T00:00:00",
+        ),
     )

@@ -280,11 +280,11 @@ class MatchSimulator:
             # 前锋/边锋/中场进球概率高，后卫/门将低
             weights = []
             for p in players:
-                if p.primary_position in (PlayerPosition.ST, PlayerPosition.CF, PlayerPosition.LF, PlayerPosition.RF):
+                if p.position == PlayerPosition.FW:
                     weights.append(10)
-                elif p.primary_position in (PlayerPosition.LW, PlayerPosition.RW, PlayerPosition.CAM, PlayerPosition.CM):
+                elif p.position == PlayerPosition.MF:
                     weights.append(6)
-                elif p.primary_position == PlayerPosition.GK:
+                elif p.position == PlayerPosition.GK:
                     weights.append(0.5)
                 else:
                     weights.append(2)
@@ -302,7 +302,7 @@ class MatchSimulator:
                     if assist_candidates:
                         assist_weights = []
                         for p in assist_candidates:
-                            if p.primary_position in (PlayerPosition.CM, PlayerPosition.CAM, PlayerPosition.LM, PlayerPosition.RM, PlayerPosition.LW, PlayerPosition.RW):
+                            if p.position == PlayerPosition.MF:
                                 assist_weights.append(8)
                             else:
                                 assist_weights.append(3)
@@ -320,7 +320,7 @@ class MatchSimulator:
                     if assist_candidates:
                         assist_weights = []
                         for p in assist_candidates:
-                            if p.primary_position in (PlayerPosition.CM, PlayerPosition.CAM, PlayerPosition.LM, PlayerPosition.RM, PlayerPosition.LW, PlayerPosition.RW):
+                            if p.position == PlayerPosition.MF:
                                 assist_weights.append(8)
                             else:
                                 assist_weights.append(3)
@@ -336,13 +336,13 @@ class MatchSimulator:
         
         # 4. 零封
         if fixture.away_score == 0:
-            gks = [p for p in home_players if p.primary_position == PlayerPosition.GK]
+            gks = [p for p in home_players if p.position == PlayerPosition.GK]
             if gks:
                 keeper = random.choice(gks)
                 events.append(MatchEvent(player_id=keeper.id, event_type="clean_sheet", team_id=fixture.home_team_id))
         
         if fixture.home_score == 0:
-            gks = [p for p in away_players if p.primary_position == PlayerPosition.GK]
+            gks = [p for p in away_players if p.position == PlayerPosition.GK]
             if gks:
                 keeper = random.choice(gks)
                 events.append(MatchEvent(player_id=keeper.id, event_type="clean_sheet", team_id=fixture.away_team_id))

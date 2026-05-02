@@ -1,83 +1,104 @@
 """
-Player-related schemas
+Player-related schemas (PRD v5 简化版)
 """
 from typing import Optional, List
 from pydantic import Field
-from datetime import datetime, date
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from app.schemas.base import BaseSchema
 
 
 class PlayerPosition(str, Enum):
-    """Player positions"""
-    GK = "GK"  # 门将
-    CB = "CB"  # 中后卫
-    LB = "LB"  # 左后卫
-    RB = "RB"  # 右后卫
-    LWB = "LWB"  # 左翼卫
-    RWB = "RWB"  # 右翼卫
-    CDM = "CDM"  # 防守型中场
-    CM = "CM"  # 中场
-    CAM = "CAM"  # 进攻型中场
-    LM = "LM"  # 左中场
-    RM = "RM"  # 右中场
-    LW = "LW"  # 左边锋
-    RW = "RW"  # 右边锋
-    LF = "LF"  # 左前锋
-    RF = "RF"  # 右前锋
-    ST = "ST"  # 前锋
-    CF = "CF"  # 中锋
+    """Player positions - 4种大位置"""
+    FW = "FW"
+    MF = "MF"
+    DF = "DF"
+    GK = "GK"
 
 
 class PlayerFoot(str, Enum):
     """Preferred foot"""
-    LEFT = "left"
-    RIGHT = "right"
-    BOTH = "both"
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    BOTH = "BOTH"
 
 
 class PlayerStatus(str, Enum):
     """Player status"""
-    ACTIVE = "active"  # 正常
-    INJURED = "injured"  # 受伤
-    SUSPENDED = "suspended"  # 停赛
-    RETIRED = "retired"  # 退役
+    ACTIVE = "ACTIVE"
+    INJURED = "INJURED"
+    SUSPENDED = "SUSPENDED"
+    RETIRED = "RETIRED"
+
+
+class PlayerRace(str, Enum):
+    """Player race"""
+    ASIAN = "asian"
+    WESTERN = "western"
+
+
+class PotentialLetter(str, Enum):
+    """Potential letter"""
+    S = "S"
+    A = "A"
+    B = "B"
+    C = "C"
+    D = "D"
+
+
+class ContractType(str, Enum):
+    """Contract type"""
+    NORMAL = "NORMAL"
+    ROOKIE = "ROOKIE"
+    FREE = "FREE"
+
+
+class MatchForm(str, Enum):
+    """Match form"""
+    HOT = "HOT"
+    GOOD = "GOOD"
+    NEUTRAL = "NEUTRAL"
+    LOW = "LOW"
+
+
+class PlayerSkill(BaseSchema):
+    """招牌技能"""
+    skill_id: str = Field(..., description="技能ID/名称")
+    rarity: str = Field(..., description="稀有度: 普通/稀有/传奇/负面")
+    trigger: str = Field(..., description="触发条件")
+    effect: str = Field(..., description="效果描述")
 
 
 class PlayerAbility(BaseSchema):
-    """Player ability attributes"""
-    # 进攻能力
-    shooting: int = Field(default=50, ge=1, le=99, description="射门")
-    finishing: int = Field(default=50, ge=1, le=99, description="终结")
-    long_shots: int = Field(default=50, ge=1, le=99, description="远射")
-    
-    # 传球能力
-    passing: int = Field(default=50, ge=1, le=99, description="传球")
-    vision: int = Field(default=50, ge=1, le=99, description="视野")
-    crossing: int = Field(default=50, ge=1, le=99, description="传中")
-    
-    # 盘带能力
-    dribbling: int = Field(default=50, ge=1, le=99, description="盘带")
-    ball_control: int = Field(default=50, ge=1, le=99, description="控球")
-    
-    # 防守能力
-    defending: int = Field(default=50, ge=1, le=99, description="防守")
-    tackling: int = Field(default=50, ge=1, le=99, description="抢断")
-    marking: int = Field(default=50, ge=1, le=99, description="盯人")
-    
-    # 身体素质
-    pace: int = Field(default=50, ge=1, le=99, description="速度")
-    acceleration: int = Field(default=50, ge=1, le=99, description="加速")
-    strength: int = Field(default=50, ge=1, le=99, description="力量")
-    stamina: int = Field(default=50, ge=1, le=99, description="体能")
-    
-    # 门将能力
-    diving: int = Field(default=50, ge=1, le=99, description="扑救")
-    handling: int = Field(default=50, ge=1, le=99, description="手型")
-    kicking: int = Field(default=50, ge=1, le=99, description="开球")
-    reflexes: int = Field(default=50, ge=1, le=99, description="反应")
-    positioning: int = Field(default=50, ge=1, le=99, description="站位")
+    """19项能力属性 (1-20)"""
+    # 进攻
+    sho: int = Field(default=10, ge=1, le=20, description="射门 SHO")
+    pas: int = Field(default=10, ge=1, le=20, description="传球 PAS")
+    dri: int = Field(default=10, ge=1, le=20, description="盘带 DRI")
+    # 身体
+    spd: int = Field(default=10, ge=1, le=20, description="速度 SPD")
+    str_: int = Field(default=10, ge=1, le=20, description="力量 STR", alias="str", serialization_alias="str")
+    sta: int = Field(default=10, ge=1, le=20, description="体能 STA")
+    acc: int = Field(default=10, ge=1, le=20, description="爆发力 ACC")
+    hea: int = Field(default=10, ge=1, le=20, description="头球 HEA")
+    bal: int = Field(default=10, ge=1, le=20, description="平衡 BAL")
+    # 防守
+    defe: int = Field(default=10, ge=1, le=20, description="防守 DEF")
+    tkl: int = Field(default=10, ge=1, le=20, description="抢断 TKL")
+    # 技术/组织
+    vis: int = Field(default=10, ge=1, le=20, description="视野 VIS")
+    cro: int = Field(default=10, ge=1, le=20, description="传中 CRO")
+    con: int = Field(default=10, ge=1, le=20, description="控球 CON")
+    fin: int = Field(default=10, ge=1, le=20, description="远射 FIN")
+    # 门将专属
+    com: int = Field(default=10, ge=1, le=20, description="出击 COM")
+    sav: int = Field(default=10, ge=1, le=20, description="扑救 SAV")
+    ref: int = Field(default=10, ge=1, le=20, description="反应 REF")
+    pos: int = Field(default=10, ge=1, le=20, description="站位 POS")
+
+    class Config:
+        populate_by_name = True
 
 
 class PlayerStats(BaseSchema):
@@ -93,60 +114,67 @@ class PlayerStats(BaseSchema):
 
 class PlayerBase(BaseSchema):
     """Base player schema"""
-    first_name: str = Field(..., max_length=50, description="名")
-    last_name: str = Field(..., max_length=50, description="姓")
-    nationality: str = Field(..., max_length=50, description="国籍")
-    birth_date: date = Field(..., description="出生日期")
-    height: Optional[int] = Field(None, ge=150, le=220, description="身高(cm)")
-    weight: Optional[int] = Field(None, ge=50, le=120, description="体重(kg)")
+    name: str = Field(..., max_length=50, description="姓名")
+    race: PlayerRace = Field(..., description="种族")
+    avatar_url: Optional[str] = Field(None, description="头像路径")
+    position: PlayerPosition = Field(..., description="位置")
     preferred_foot: PlayerFoot = PlayerFoot.RIGHT
-    primary_position: PlayerPosition = Field(..., description="主要位置")
-    secondary_positions: Optional[List[PlayerPosition]] = Field(None, description="次要位置")
+    height: int = Field(..., ge=165, le=200, description="身高(cm)")
+    weight: int = Field(..., ge=60, le=95, description="体重(kg)")
+    birth_offset: int = Field(..., description="出生偏移量(负数)")
 
 
 class PlayerCreate(PlayerBase):
     """Player creation schema"""
     abilities: PlayerAbility = Field(default_factory=PlayerAbility)
-    potential: int = Field(default=50, ge=1, le=99, description="潜力")
-    market_value: Decimal = Field(default=Decimal("100000.00"), description="市场价值")
+    ovr: int = Field(default=50, ge=1, le=100, description="总评")
+    potential_letter: PotentialLetter = PotentialLetter.C
+    skills: List[PlayerSkill] = Field(default_factory=list)
+    personality: str = Field(default="professional")
+    contract_type: ContractType = ContractType.NORMAL
+    contract_end_season: Optional[int] = None
+    wage: Decimal = Field(default=Decimal("1000.00"))
+    market_value: Decimal = Field(default=Decimal("100000.00"))
 
 
 class PlayerUpdate(BaseSchema):
     """Player update schema"""
-    first_name: Optional[str] = Field(None, max_length=50)
-    last_name: Optional[str] = Field(None, max_length=50)
-    primary_position: Optional[PlayerPosition] = None
-    secondary_positions: Optional[List[PlayerPosition]] = None
-
-
-class PlayerContract(BaseSchema):
-    """Player contract information"""
-    wage: Decimal = Field(default=Decimal("1000.00"), description="周薪")
-    contract_end: Optional[date] = None
-    release_clause: Optional[Decimal] = None
-    squad_role: str = Field(default="squad", description=" squad/reserve/youth")
+    name: Optional[str] = Field(None, max_length=50)
+    position: Optional[PlayerPosition] = None
+    status: Optional[PlayerStatus] = None
+    squad_role: Optional[str] = None
 
 
 class PlayerResponse(PlayerBase):
     """Full player response schema"""
-    id: int
-    team_id: Optional[int] = None
-    age: int = Field(..., description="年龄")
+    id: str
+    team_id: Optional[str] = None
+    age: int = Field(..., description="当前年龄(由 birth_offset 计算)")
     
     # 能力值
     abilities: PlayerAbility
-    overall_rating: int = Field(..., description="总评")
-    potential: int = Field(..., description="潜力")
+    ovr: int = Field(..., description="总评 OVR")
+    potential_letter: PotentialLetter = Field(..., description="潜力字母")
+    
+    # 招牌技能
+    skills: List[PlayerSkill] = Field(default_factory=list)
     
     # 状态
     status: PlayerStatus = PlayerStatus.ACTIVE
+    match_form: MatchForm = MatchForm.NEUTRAL
     fitness: int = Field(default=100, ge=0, le=100, description="体能")
-    morale: int = Field(default=50, ge=1, le=99, description="士气")
-    form: int = Field(default=50, ge=1, le=99, description="状态")
     
-    # 经济和数据
+    # 合同
+    contract_type: ContractType = ContractType.NORMAL
+    contract_end_season: Optional[int] = None
+    wage: Decimal
+    release_clause: Optional[Decimal] = None
+    squad_role: str = Field(default="first_team")
+    
+    # 经济
     market_value: Decimal
-    contract: Optional[PlayerContract] = None
+    
+    # 统计
     stats: Optional[PlayerStats] = None
     
     created_at: datetime
@@ -155,11 +183,13 @@ class PlayerResponse(PlayerBase):
 
 class PlayerListItem(BaseSchema):
     """Simplified player info for listings"""
-    id: int
-    name: str = Field(..., description="全名")
+    id: str
+    name: str
+    race: PlayerRace
+    avatar_url: Optional[str]
     age: int
-    nationality: str
     position: PlayerPosition
-    overall_rating: int
+    ovr: int
+    potential_letter: PotentialLetter
     market_value: Decimal
-    team_id: Optional[int] = None
+    team_id: Optional[str] = None
