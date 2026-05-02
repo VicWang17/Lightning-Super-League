@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Match Engine Preview</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 顶部控制栏 -->
+<header class="top-bar">
+  <div class="brand">⚡ Match Engine Preview</div>
+  <div class="top-controls">
+    <label>Seed <input type="number" id="seedInput" value="0" placeholder="random"></label>
+    <label class="check"><input type="checkbox" id="homeAdvCheck" checked> 主场优势</label>
+    <button id="btnInit">🚀 初始化</button>
+    <button id="btnStep" disabled>⏭️ 下一步</button>
+    <button id="btnAuto" disabled>▶️ 自动播放</button>
+    <button id="btnReset">🔄 重置</button>
+  </div>
+</header>
+
+<!-- 主三栏 -->
+<div class="main-grid">
+
+  <!-- 左侧：主队 -->
+  <aside class="side-panel" id="homePanel">
+    <div class="panel-header home-color">🏠 主队配置</div>
+    <div class="panel-body">
+      <div class="form-row">
+        <label>名称 <input type="text" id="homeNameInput" value="雷霆 FC"></label>
+        <label>阵型
+          <select id="homeFormation">
+            <option value="F01">F01 标准平衡</option>
+            <option value="F02">F02 前场压迫</option>
+            <option value="F03">F03 攻击风暴</option>
+            <option value="F04">F04 铁壁防守</option>
+            <option value="F05">F05 全力进攻</option>
+            <option value="F06">F06 深度防守</option>
+            <option value="F07">F07 菱形控制</option>
+            <option value="F08">F08 双边锋</option>
+          </select>
+        </label>
+      </div>
+      <div class="tactics-grid" id="homeTactics"></div>
+      <h4>球员 <button class="small-btn" onclick="toggleSection('homePlayers')">展开</button></h4>
+      <div id="homePlayers" class="players-section"></div>
+    </div>
+  </aside>
+
+  <!-- 中间：状态 -->
+  <section class="center-panel">
+    <!-- 记分牌 -->
+    <div class="scoreboard">
+      <div class="sb-team" id="scoreHome">雷霆 FC</div>
+      <div class="sb-num" id="scoreDisplay">0 - 0</div>
+      <div class="sb-team" id="scoreAway">闪电联</div>
+    </div>
+    <div class="match-meta">
+      <span id="matchTime">0'00"</span> · <span id="matchHalf">上半场</span> ·
+      <span id="matchPossession">控球: 主队</span> · <span id="matchZone">区域 [1,1]</span>
+    </div>
+
+    <!-- 关键指标 -->
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-val" id="currControl">0.00</div>
+        <div class="metric-label">Control<br><small>有效控制度</small></div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="currShift">0.00</div>
+        <div class="metric-label">控制偏移<br><small>事件影响</small></div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="globalMomentum">0.00</div>
+        <div class="metric-label">势头<br><small>全局</small></div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="possessionPct">50%</div>
+        <div class="metric-label">控球率<br><small>主队占比</small></div>
+      </div>
+    </div>
+
+    <!-- 热图 + 分解 -->
+    <div class="heatmap-area">
+      <div class="hm-block">
+        <div class="hm-title">Control Matrix <small id="controlBreakdown" style="color:var(--muted);font-weight:400;"></small></div>
+        <div class="matrix" id="controlMatrix"></div>
+      </div>
+      <div class="hm-block">
+        <div class="hm-title">Control Shift (事件驱动)</div>
+        <div class="matrix" id="shiftMatrix"></div>
+      </div>
+    </div>
+
+    <!-- 候选事件 -->
+    <div class="candidates-wrap" id="candidatesWrap" style="display:none;">
+      <div class="candidates-header">下一步候选事件概率分布</div>
+      <div class="candidates-chart" id="candidatesChart"></div>
+      <div class="candidates-detail" id="candidatesDetail"></div>
+    </div>
+  </section>
+
+  <!-- 右侧：客队 -->
+  <aside class="side-panel" id="awayPanel">
+    <div class="panel-header away-color">✈️ 客队配置</div>
+    <div class="panel-body">
+      <div class="form-row">
+        <label>名称 <input type="text" id="awayNameInput" value="闪电联"></label>
+        <label>阵型
+          <select id="awayFormation">
+            <option value="F01">F01 标准平衡</option>
+            <option value="F02" selected>F02 前场压迫</option>
+            <option value="F03">F03 攻击风暴</option>
+            <option value="F04">F04 铁壁防守</option>
+            <option value="F05">F05 全力进攻</option>
+            <option value="F06">F06 深度防守</option>
+            <option value="F07">F07 菱形控制</option>
+            <option value="F08">F08 双边锋</option>
+          </select>
+        </label>
+      </div>
+      <div class="tactics-grid" id="awayTactics"></div>
+      <h4>球员 <button class="small-btn" onclick="toggleSection('awayPlayers')">展开</button></h4>
+      <div id="awayPlayers" class="players-section"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- 底部事件历史 -->
+<section class="events-panel">
+  <div class="events-header">📜 事件历史</div>
+  <div class="events-table-header">
+    <span class="col-time">时间</span>
+    <span class="col-type">类型</span>
+    <span class="col-team">球队</span>
+    <span class="col-player">球员</span>
+    <span class="col-player2">辅助</span>
+    <span class="col-opp">对手</span>
+    <span class="col-zone">区域</span>
+    <span class="col-result">结果</span>
+    <span class="col-desc">描述</span>
+  </div>
+  <div class="events-list" id="eventsList"></div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

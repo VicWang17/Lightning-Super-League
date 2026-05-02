@@ -75,26 +75,49 @@ func buildDemoTeam(name, formation string, isHome bool) domain.TeamSetup {
 		bench[i].Name = name + " " + bench[i].Name
 	}
 
+	// Different tactics to showcase the tactical system
+	var tactics domain.TacticalSetup
+	if isHome {
+		// 雷霆 FC: High press, man marking, counter-attack focus, direct play
+		tactics = domain.TacticalSetup{
+			PassingStyle:         1, // Direct
+			AttackWidth:          2,
+			AttackTempo:          4, // Counter focus active
+			DefensiveLineHeight:  3, // High press active
+			CrossingStrategy:     2,
+			ShootingMentality:    3,
+			PlaymakerFocus:       0,
+			PressingIntensity:    3, // High press + pressing zone bonus
+			DefensiveCompactness: 2,
+			MarkingStrategy:      1, // Man marking active
+			OffsideTrap:          1, // Offside trap active
+			TacklingAggression:   2,
+		}
+	} else {
+		// 闪电联: Possession, short passing, deep defense, play from back
+		tactics = domain.TacticalSetup{
+			PassingStyle:         4, // Tiki-taka
+			AttackWidth:          2,
+			AttackTempo:          2,
+			DefensiveLineHeight:  1, // Deep defense active
+			CrossingStrategy:     3, // High cross
+			ShootingMentality:    2,
+			PlaymakerFocus:       1,
+			PressingIntensity:    1,
+			DefensiveCompactness: 2, // Deep defense active
+			MarkingStrategy:      0, // Zonal marking
+			OffsideTrap:          0,
+			TacklingAggression:   1,
+		}
+	}
+
 	return domain.TeamSetup{
 		TeamID:      strings.ReplaceAll(name, " ", "_"),
 		Name:        name,
 		FormationID: formation,
 		Players:     players,
 		Bench:       bench,
-		Tactics: domain.TacticalSetup{
-			PassingStyle:         2,
-			AttackWidth:          2,
-			AttackTempo:          2,
-			DefensiveLineHeight:  2,
-			CrossingStrategy:     2,
-			ShootingMentality:    2,
-			PlaymakerFocus:       0,
-			PressingIntensity:    2,
-			DefensiveCompactness: 1,
-			MarkingStrategy:      1,
-			OffsideTrap:          1,
-			TacklingAggression:   1,
-		},
+		Tactics:     tactics,
 	}
 }
 
@@ -103,7 +126,7 @@ func makePlayer(pos, suffix string) domain.PlayerSetup {
 		"SHO": 10, "PAS": 10, "DRI": 10, "SPD": 10, "STR": 10,
 		"STA": 10, "DEF": 10, "HEA": 10, "VIS": 10, "TKL": 10,
 		"ACC": 10, "CRO": 10, "CON": 10, "FIN": 10, "BAL": 10,
-		"COM": 10, "SAV": 10, "REF": 10, "POS": 10,
+		"COM": 10, "SAV": 10, "REF": 10, "POS": 10, "FK": 10, "PK": 10,
 	}
 
 	// Position-specific bias
@@ -112,12 +135,13 @@ func makePlayer(pos, suffix string) domain.PlayerSetup {
 		attrs["SAV"] = 16
 		attrs["REF"] = 15
 		attrs["POS"] = 14
-		attrs["COM"] = 12
+		attrs["COM"] = 13
 	case "CB":
 		attrs["DEF"] = 16
 		attrs["HEA"] = 15
 		attrs["STR"] = 14
 		attrs["TKL"] = 13
+		attrs["COM"] = 12
 	case "SB":
 		attrs["SPD"] = 15
 		attrs["CRO"] = 14
@@ -133,11 +157,13 @@ func makePlayer(pos, suffix string) domain.PlayerSetup {
 		attrs["VIS"] = 14
 		attrs["STA"] = 14
 		attrs["CON"] = 13
+		attrs["FK"] = 13
 	case "AMF":
 		attrs["PAS"] = 15
 		attrs["VIS"] = 15
 		attrs["DRI"] = 14
 		attrs["SHO"] = 12
+		attrs["FK"] = 13
 	case "WF":
 		attrs["SPD"] = 16
 		attrs["DRI"] = 14
@@ -148,6 +174,7 @@ func makePlayer(pos, suffix string) domain.PlayerSetup {
 		attrs["HEA"] = 14
 		attrs["STR"] = 14
 		attrs["SPD"] = 13
+		attrs["PK"] = 13
 	}
 
 	name := pos + " " + suffix
@@ -173,13 +200,13 @@ func printMatch(result domain.SimulateResult) {
 	fmt.Fprintf(w, "\n%s  %d - %d  %s\n", result.HomeTeam, result.Score.Home, result.Score.Away, result.AwayTeam)
 	fmt.Fprintln(w, strings.Repeat("-", 60))
 
-	fmt.Fprintln(w, "\n📺 比赛直播:\n")
+	fmt.Fprintf(w, "\n📺 比赛直播:\n")
 	for _, narr := range result.Narratives {
 		fmt.Fprintf(w, "  %s\n", narr)
 	}
 
 	fmt.Fprintln(w, strings.Repeat("-", 60))
-	fmt.Fprintln(w, "\n📊 赛后统计:\n")
+	fmt.Fprintf(w, "\n📊 赛后统计:\n")
 	fmt.Fprintf(w, "  控球率:   %s %.0f%%  -  %s %.0f%%\n",
 		result.HomeTeam, result.Stats.PossessionHome,
 		result.AwayTeam, result.Stats.PossessionAway)
@@ -192,18 +219,45 @@ func printMatch(result domain.SimulateResult) {
 	fmt.Fprintf(w, "  角球:     %s %d  -  %s %d\n",
 		result.HomeTeam, result.Stats.CornersHome,
 		result.AwayTeam, result.Stats.CornersAway)
+	fmt.Fprintf(w, "  任意球:   %s %d(%d)  -  %s %d(%d)\n",
+		result.HomeTeam, result.Stats.FreeKicksHome, result.Stats.FreeKickGoalsHome,
+		result.AwayTeam, result.Stats.FreeKicksAway, result.Stats.FreeKickGoalsAway)
+	fmt.Fprintf(w, "  点球:     %s %d(%d)  -  %s %d(%d)\n",
+		result.HomeTeam, result.Stats.PenaltiesHome, result.Stats.PenaltyGoalsHome,
+		result.AwayTeam, result.Stats.PenaltiesAway, result.Stats.PenaltyGoalsAway)
 
-	fmt.Fprintln(w, "\n⭐ 球员评分:\n")
-	fmt.Fprintf(w, "  %-20s %-6s %-4s %s\n", "球员", "位置", "进球", "评分")
+	fmt.Fprintf(w, "\n⭐ 球员详细数据:\n")
+	fmt.Fprintf(w, "  %-24s %-5s %-5s %-10s %-8s %-10s %-8s %s\n",
+		"球员", "位置", "进球", "传球", "成功率", "抢断", "成功率", "评分")
+	fmt.Fprintln(w, strings.Repeat("-", 80))
 	for _, ps := range result.PlayerStats {
-		if ps.Shots > 0 || ps.Tackles > 0 || ps.Passes > 5 || ps.Saves > 0 {
-			teamPrefix := "[主]"
-			if ps.Team == "away" {
-				teamPrefix = "[客]"
-			}
-			name := teamPrefix + " " + ps.Name
-			fmt.Fprintf(w, "  %-24s %-6s %-4d %.1f\n", name, ps.Position, ps.Goals, ps.Rating)
+		teamPrefix := "[主]"
+		if ps.Team == "away" {
+			teamPrefix = "[客]"
 		}
+		name := teamPrefix + " " + ps.Name
+
+		passStr := "-"
+		passAccStr := "-"
+		if ps.Passes > 0 {
+			passSucc := int(float64(ps.Passes) * ps.PassAccuracy / 100.0)
+			passStr = fmt.Sprintf("%d/%d", passSucc, ps.Passes)
+			passAccStr = fmt.Sprintf("%.0f%%", ps.PassAccuracy)
+		}
+
+		tackleStr := "-"
+		tackleAccStr := "-"
+		if ps.Tackles > 0 {
+			tackleSucc := int(float64(ps.Tackles) * ps.TackleAccuracy / 100.0)
+			tackleStr = fmt.Sprintf("%d/%d", tackleSucc, ps.Tackles)
+			tackleAccStr = fmt.Sprintf("%.0f%%", ps.TackleAccuracy)
+		}
+
+		fmt.Fprintf(w, "  %-24s %-5s %-5d %-10s %-8s %-10s %-8s %.1f\n",
+			name, ps.Position, ps.Goals,
+			passStr, passAccStr,
+			tackleStr, tackleAccStr,
+			ps.Rating)
 	}
 
 	fmt.Fprintf(w, "\n⏱️  模拟耗时: %d ms\n", result.DurationMs)

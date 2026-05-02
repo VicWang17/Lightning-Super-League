@@ -62,6 +62,8 @@ func StaminaCost(eventType string) float64 {
 		return 2.5
 	case config.EventTackle, config.EventIntercept, config.EventClearance:
 		return 2.0
+	case config.EventFreeKick:
+		return 1.5
 	default:
 		return 0.8
 	}

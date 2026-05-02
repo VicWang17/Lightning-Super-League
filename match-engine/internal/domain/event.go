@@ -14,6 +14,7 @@ type MatchEvent struct {
 	OpponentName string `json:"opponent_name,omitempty"`
 	Zone        string  `json:"zone,omitempty"`
 	Result      string  `json:"result,omitempty"`      // success / fail / goal / saved / blocked / offside / corner / etc
+	Detail      string  `json:"detail,omitempty"`      // aggressive / safe / etc
 	Score       *Score  `json:"score,omitempty"`
 	Narrative   string  `json:"narrative,omitempty"`
 }
@@ -46,6 +47,14 @@ type MatchStats struct {
 	YellowCardsAway int    `json:"yellow_cards_away"`
 	RedCardsHome   int     `json:"red_cards_home"`
 	RedCardsAway   int     `json:"red_cards_away"`
+	FreeKicksHome      int     `json:"free_kicks_home"`
+	FreeKicksAway      int     `json:"free_kicks_away"`
+	FreeKickGoalsHome  int     `json:"free_kick_goals_home"`
+	FreeKickGoalsAway  int     `json:"free_kick_goals_away"`
+	PenaltiesHome      int     `json:"penalties_home"`
+	PenaltiesAway      int     `json:"penalties_away"`
+	PenaltyGoalsHome   int     `json:"penalty_goals_home"`
+	PenaltyGoalsAway   int     `json:"penalty_goals_away"`
 }
 
 // PlayerResultStat per-player output
@@ -60,12 +69,17 @@ type PlayerResultStat struct {
 	ShotsOnTarget int     `json:"shots_on_target"`
 	Passes        int     `json:"passes"`
 	PassAccuracy  float64 `json:"pass_accuracy"`
-	Tackles       int     `json:"tackles"`
-	Interceptions int     `json:"interceptions"`
+	Tackles        int     `json:"tackles"`
+	TackleAccuracy float64 `json:"tackle_accuracy"`
+	Interceptions  int     `json:"interceptions"`
 	Saves         int     `json:"saves"`
 	Fouls         int     `json:"fouls"`
 	YellowCards   int     `json:"yellow_cards"`
 	RedCards      int     `json:"red_cards"`
+	FreeKicks     int     `json:"free_kicks"`
+	FreeKickGoals int     `json:"free_kick_goals"`
+	Penalties     int     `json:"penalties"`
+	PenaltyGoals  int     `json:"penalty_goals"`
 	Rating        float64 `json:"rating"`
 }
 

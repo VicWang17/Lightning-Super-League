@@ -95,32 +95,32 @@ AGE_DISTRIBUTION = [
 # Archetype -> 核心属性加成权重 (相对于位置基准的偏移)
 ARCHETYPE_BIAS = {
     # FW
-    "射手型": {"sho": 1.15, "hea": 1.10, "str_": 1.08, "fin": 1.10, "bal": 1.05},
-    "速度型": {"spd": 1.18, "acc": 1.15, "dri": 1.12, "sho": 1.05},
-    "支点型": {"str_": 1.15, "hea": 1.12, "pas": 1.08, "bal": 1.10},
-    "边锋型": {"spd": 1.15, "dri": 1.12, "cro": 1.12, "sta": 1.08},
+    "射手型": {"sho": 1.15, "hea": 1.10, "str_": 1.08, "fin": 1.10, "bal": 1.05, "pk": 1.10},
+    "速度型": {"spd": 1.18, "acc": 1.15, "dri": 1.12, "sho": 1.05, "pk": 1.05},
+    "支点型": {"str_": 1.15, "hea": 1.12, "pas": 1.08, "bal": 1.10, "pk": 1.05},
+    "边锋型": {"spd": 1.15, "dri": 1.12, "cro": 1.12, "sta": 1.08, "fk": 1.08},
     # MF
     "工兵型": {"sta": 1.18, "defe": 1.15, "tkl": 1.12, "str_": 1.10},
-    "组织型": {"pas": 1.18, "vis": 1.15, "con": 1.12, "sta": 1.10},
-    "攻击型": {"sho": 1.12, "pas": 1.12, "vis": 1.10, "fin": 1.10},
+    "组织型": {"pas": 1.18, "vis": 1.15, "con": 1.12, "sta": 1.10, "fk": 1.10},
+    "攻击型": {"sho": 1.12, "pas": 1.12, "vis": 1.10, "fin": 1.10, "fk": 1.08},
     "全能型": {},  # 无加成，均衡
-    "边翼型": {"spd": 1.12, "cro": 1.12, "dri": 1.10, "sta": 1.10},
+    "边翼型": {"spd": 1.12, "cro": 1.12, "dri": 1.10, "sta": 1.10, "fk": 1.10},
     # DF
-    "中卫型": {"defe": 1.18, "hea": 1.15, "str_": 1.15, "bal": 1.10},
-    "边卫型": {"spd": 1.15, "sta": 1.12, "cro": 1.10, "defe": 1.12},
-    "清道夫型": {"defe": 1.15, "vis": 1.12, "pas": 1.10, "tkl": 1.10},
+    "中卫型": {"defe": 1.18, "hea": 1.15, "str_": 1.15, "bal": 1.10, "com": 1.08},
+    "边卫型": {"spd": 1.15, "sta": 1.12, "cro": 1.10, "defe": 1.12, "fk": 1.05},
+    "清道夫型": {"defe": 1.15, "vis": 1.12, "pas": 1.10, "tkl": 1.10, "com": 1.10},
     # GK
-    "传统型": {"sav": 1.15, "ref": 1.12, "pos": 1.10},
-    "出击型": {"sav": 1.12, "ref": 1.10, "com": 1.15, "spd": 1.05},
-    "出球型": {"sav": 1.10, "ref": 1.10, "pos": 1.10, "pas": 1.12},
+    "传统型": {"sav": 1.15, "ref": 1.12, "pos": 1.10, "com": 1.10},
+    "出击型": {"sav": 1.12, "ref": 1.10, "rus": 1.15, "spd": 1.05, "fk": 1.05},
+    "出球型": {"sav": 1.10, "ref": 1.10, "pos": 1.10, "pas": 1.12, "com": 1.05},
 }
 
 # 位置 -> 非核心属性惩罚系数 (非核心属性 × 0.6~0.8)
 POSITION_NON_CORE_ATTRS = {
-    PlayerPosition.FW: {"sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal", "fin"},
-    PlayerPosition.MF: {"pas", "dri", "spd", "str_", "sta", "defe", "vis", "tkl", "acc", "cro", "con", "fin"},
-    PlayerPosition.DF: {"spd", "str_", "sta", "defe", "hea", "tkl", "vis", "cro", "bal"},
-    PlayerPosition.GK: {"com", "sav", "ref", "pos", "pas"},
+    PlayerPosition.FW: {"sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal", "fin", "pk"},
+    PlayerPosition.MF: {"pas", "dri", "spd", "str_", "sta", "defe", "vis", "tkl", "acc", "cro", "con", "fin", "fk"},
+    PlayerPosition.DF: {"spd", "str_", "sta", "defe", "hea", "tkl", "vis", "cro", "bal", "com"},
+    PlayerPosition.GK: {"com", "sav", "ref", "pos", "rus", "pas", "fk", "pk"},
 }
 
 # OVR 权重 (4位置简化版, 总和100)
@@ -129,21 +129,25 @@ OVR_WEIGHTS = {
         "sho": 20, "pas": 3, "dri": 15, "spd": 18, "str_": 10, "sta": 3,
         "hea": 10, "acc": 10, "fin": 5, "bal": 3, "cro": 3,
         "defe": 0, "vis": 0, "tkl": 0, "con": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
+        "fk": 0, "pk": 0,
     },
     PlayerPosition.MF: {
         "pas": 18, "dri": 12, "spd": 7, "str_": 2, "sta": 15, "defe": 10,
         "vis": 14, "tkl": 7, "acc": 2, "cro": 8, "con": 8, "fin": 5,
         "sho": 2, "hea": 0, "bal": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
+        "fk": 0, "pk": 0,
     },
     PlayerPosition.DF: {
         "pas": 5, "spd": 12, "str_": 18, "sta": 12, "defe": 24, "hea": 12,
         "tkl": 8, "cro": 5, "bal": 4,
         "dri": 0, "vis": 0, "acc": 0, "con": 0, "fin": 0, "sho": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
+        "fk": 0, "pk": 0,
     },
     PlayerPosition.GK: {
-        "pas": 5, "com": 15, "sav": 40, "ref": 30, "pos": 10,
+        "pas": 5, "com": 10, "sav": 35, "ref": 25, "pos": 15, "rus": 10,
         "sho": 0, "dri": 0, "spd": 0, "str_": 0, "sta": 0, "defe": 0, "hea": 0,
         "vis": 0, "tkl": 0, "acc": 0, "cro": 0, "con": 0, "fin": 0, "bal": 0,
+        "fk": 0, "pk": 0,
     },
 }
 
@@ -348,7 +352,7 @@ class AttributeGenerator:
         
         # 5. 逐项生成
         all_attrs = ["sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal",
-                     "defe", "tkl", "vis", "cro", "con", "fin", "com", "sav", "ref", "pos"]
+                     "defe", "tkl", "vis", "cro", "con", "fin", "com", "sav", "ref", "pos", "rus", "fk", "pk"]
         
         attrs = {}
         for attr in all_attrs:
@@ -379,6 +383,18 @@ class AttributeGenerator:
             
             attrs[attr] = _clamp(val)
         
+        # 5b. 生成 FK 和 PK (基于相关属性)
+        attrs["fk"] = _clamp(
+            attrs.get("cro", 10) * 0.4 + attrs.get("pas", 10) * 0.3 +
+            attrs.get("vis", 10) * 0.2 + attrs.get("fin", 10) * 0.1 +
+            random.gauss(0, variance)
+        )
+        attrs["pk"] = _clamp(
+            attrs.get("sho", 10) * 0.4 + attrs.get("fin", 10) * 0.3 +
+            attrs.get("con", 10) * 0.2 + attrs.get("str_", 10) * 0.1 +
+            random.gauss(0, variance)
+        )
+
         # 6. 计算实际OVR (可能因分布与base_ovr不同)
         actual_ovr = AttributeGenerator.calculate_ovr(position, attrs)
         attrs["ovr"] = actual_ovr
@@ -545,14 +561,14 @@ class PlayerGenerator:
             height=height,
             weight=weight,
             birth_offset=birth_offset,
-            # 19 attrs
+            # 21 attrs
             sho=attr_result["sho"], pas=attr_result["pas"], dri=attr_result["dri"],
             spd=attr_result["spd"], str_=attr_result["str_"], sta=attr_result["sta"],
             acc=attr_result["acc"], hea=attr_result["hea"], bal=attr_result["bal"],
             defe=attr_result["defe"], tkl=attr_result["tkl"], vis=attr_result["vis"],
             cro=attr_result["cro"], con=attr_result["con"], fin=attr_result["fin"],
             com=attr_result["com"], sav=attr_result["sav"], ref=attr_result["ref"],
-            pos=attr_result["pos"],
+            pos=attr_result["pos"], fk=attr_result["fk"], pk=attr_result["pk"],
             potential_max=potential_max,
             potential_letter=potential_letter,
             # skills & personality

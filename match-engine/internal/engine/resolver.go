@@ -8,10 +8,19 @@ import (
 )
 
 // DuelResult is the outcome of a duel
-func ResolveDuel(attackValue, defenseValue float64, r *rand.Rand) bool {
+// com values reduce randomness: higher COM = more stable outcomes
+func ResolveDuel(attackValue, defenseValue float64, r *rand.Rand, com ...float64) bool {
 	delta := attackValue - defenseValue
-	// Add randomness ±1.0
-	delta += (r.Float64()*2.0 - 1.0)
+	noiseScale := 1.0
+	if len(com) > 0 {
+		avgCom := 0.0
+		for _, c := range com {
+			avgCom += c
+		}
+		avgCom /= float64(len(com))
+		noiseScale = math.Max(0.3, 2.0-avgCom/10.0)
+	}
+	delta += (r.Float64()*2.0 - 1.0) * noiseScale
 	pSuccess := sigmoid(delta / 5.0)
 	return r.Float64() < pSuccess
 }

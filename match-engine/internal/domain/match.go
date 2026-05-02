@@ -34,10 +34,15 @@ type MatchState struct {
 	HomeTeam *TeamRuntime
 	AwayTeam *TeamRuntime
 
-	ControlMatrix [3][3]float64 // from possession team's perspective
-	ZoneMomentum  [3][3]float64 // dynamic control shift from recent events
+	ControlMatrix [3][3]float64 // absolute reference: positive = home advantage
+	ControlShift  [3][3]float64 // event-driven offset from natural control, decays in inactive zones
+	GlobalMomentum float64       // global scalar momentum, range [-0.3, 0.3]
+
+	BallHolder *PlayerRuntime // current player with the ball
 
 	PossessionTicks [2]int // home, away
+
+	CounterBoostRemaining [2]int // remaining events with counter-attack boost (home, away)
 
 	LastEventType string
 	ChainState    string // none, ongoing, goal, turnover, set_piece
@@ -48,10 +53,12 @@ type MatchState struct {
 	HomeStats struct {
 		Shots, ShotsOnTarget, Passes, PassesSucc, Tackles, TacklesSucc int
 		Corners, Fouls, YellowCards, RedCards int
+		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals int
 	}
 	AwayStats struct {
 		Shots, ShotsOnTarget, Passes, PassesSucc, Tackles, TacklesSucc int
 		Corners, Fouls, YellowCards, RedCards int
+		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals int
 	}
 }
 
@@ -73,6 +80,16 @@ func (m *MatchState) AddEvent(ev MatchEvent) {
 	ev.ID = m.EventCounter
 	m.EventCounter++
 	m.Events = append(m.Events, ev)
+}
+
+// EffectiveControl returns control from the possession team's perspective.
+// It combines the natural ControlMatrix with the event-driven ControlShift.
+func (m *MatchState) EffectiveControl(zone [2]int) float64 {
+	v := m.ControlMatrix[zone[0]][zone[1]] + m.ControlShift[zone[0]][zone[1]]
+	if m.Possession == SideAway {
+		return -v
+	}
+	return v
 }
 
 func (m *MatchState) AdvanceClock(baseSeconds float64) {

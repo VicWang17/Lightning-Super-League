@@ -138,10 +138,13 @@ class Player(Base):
     con: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 控球
     fin: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 远射
     # 门将专属
-    com: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 出击
+    com: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 镇定
     sav: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 扑救
     ref: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 反应
     pos: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 站位
+    rus: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 出击
+    fk: Mapped[int] = mapped_column(Integer, default=10, nullable=False)    # 任意球
+    pk: Mapped[int] = mapped_column(Integer, default=10, nullable=False)    # 点球
     
     # ===== 综合能力 (计算属性, 不持久化) =====
     # ovr 由 19 项属性按位置权重实时计算
@@ -231,20 +234,24 @@ _OVR_WEIGHTS = {
         "sho": 20, "pas": 3, "dri": 15, "spd": 18, "str_": 10, "sta": 3,
         "hea": 10, "acc": 10, "fin": 5, "bal": 3, "cro": 3,
         "defe": 0, "vis": 0, "tkl": 0, "con": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
+        "fk": 0, "pk": 0,
     },
     PlayerPosition.MF: {
         "pas": 18, "dri": 12, "spd": 7, "str_": 2, "sta": 15, "defe": 10,
         "vis": 14, "tkl": 7, "acc": 2, "cro": 8, "con": 8, "fin": 5,
         "sho": 2, "hea": 0, "bal": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
+        "fk": 0, "pk": 0,
     },
     PlayerPosition.DF: {
         "pas": 5, "spd": 12, "str_": 18, "sta": 12, "defe": 24, "hea": 12,
         "tkl": 8, "cro": 5, "bal": 4,
         "dri": 0, "vis": 0, "acc": 0, "con": 0, "fin": 0, "sho": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
+        "fk": 0, "pk": 0,
     },
     PlayerPosition.GK: {
         "pas": 5, "com": 15, "sav": 40, "ref": 30, "pos": 10,
         "sho": 0, "dri": 0, "spd": 0, "str_": 0, "sta": 0, "defe": 0, "hea": 0,
         "vis": 0, "tkl": 0, "acc": 0, "cro": 0, "con": 0, "fin": 0, "bal": 0,
+        "fk": 0, "pk": 0,
     },
 }

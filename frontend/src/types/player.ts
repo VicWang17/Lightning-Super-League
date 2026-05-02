@@ -33,7 +33,7 @@ export interface Player {
     sho: number; pas: number; dri: number; spd: number; str: number; sta: number
     acc: number; hea: number; bal: number; defe: number; tkl: number; vis: number
     cro: number; con: number; fin: number; com: number; sav: number; ref: number
-    pos: number
+    pos: number; rus: number; fk: number; pk: number
   }
   sho: number   // 射门
   pas: number   // 传球
@@ -50,10 +50,13 @@ export interface Player {
   cro: number   // 传中
   con: number   // 控球
   fin: number   // 远射
-  com: number   // 出击
+  com: number   // 镇定
   sav: number   // 扑救
   ref: number   // 反应
   pos: number   // 站位
+  rus: number   // 出击
+  fk: number    // 任意球
+  pk: number    // 点球
 
   ovr: number
   potential_letter: PotentialLetter

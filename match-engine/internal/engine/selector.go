@@ -85,12 +85,20 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 		return team.PlayerRuntimes[0]
 	}
 
+	manMarking := team.Tactics.MarkingStrategy == 1
+
 	weights := make([]float64, len(players))
 	for i, p := range players {
 		zw := zoneWeight(p.Position, zone[0], zone[1])
 		defBonus := 1.0
 		if p.Position == config.PosCB || p.Position == config.PosDMF {
 			defBonus = 1.5
+			if manMarking {
+				defBonus = 2.2 // Man marking boosts CB/DMF selection significantly
+			}
+		}
+		if manMarking && (p.Position == config.PosSB || p.Position == config.PosCMF) {
+			defBonus = 1.3 // Wide and central midfielders also involved in marking
 		}
 		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
 		weights[i] = zw * defBonus * staminaFactor

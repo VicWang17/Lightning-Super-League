@@ -123,6 +123,15 @@ function PlayerDetail() {
         { label: '抢断', key: 'tkl' },
       ],
     },
+    {
+      title: '定位球',
+      icon: <Target className="w-4 h-4 text-amber-400" />,
+      color: 'bg-amber-500',
+      attrs: [
+        { label: '任意球', key: 'fk' },
+        { label: '点球', key: 'pk' },
+      ],
+    },
   ]
 
   const gkAbilityGroups = [
@@ -134,7 +143,10 @@ function PlayerDetail() {
         { label: '扑救', key: 'sav' },
         { label: '反应', key: 'ref' },
         { label: '站位', key: 'pos' },
-        { label: '出击', key: 'com' },
+        { label: '镇定', key: 'com' },
+        { label: '出击', key: 'rus' },
+        { label: '任意球', key: 'fk' },
+        { label: '点球', key: 'pk' },
       ],
     },
   ]

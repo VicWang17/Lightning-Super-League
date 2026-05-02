@@ -7,28 +7,74 @@ import (
 	"match-engine/internal/domain"
 )
 
-// ComputeControlMatrix calculates zone control for the possession team
+// ComputeControlMatrix calculates zone control in ABSOLUTE reference frame.
+// Positive = home team advantage, Negative = away team advantage.
 func ComputeControlMatrix(m *domain.MatchState) [3][3]float64 {
-	attack := m.Team(m.Possession)
-	defense := m.OppTeam(m.Possession)
+	home := m.HomeTeam
+	away := m.AwayTeam
 
 	var result [3][3]float64
 
 	for r := 0; r < 3; r++ {
 		for c := 0; c < 3; c++ {
-			deltaForm := formationDelta(attack.FormationID, defense.FormationID, r, c)
-			deltaPlayer := playerDelta(attack, defense, r, c)
-			deltaTactic := tacticDelta(attack.Tactics, defense.Tactics, r, c)
+			deltaForm := formationDelta(home.FormationID, away.FormationID, r, c)
+			deltaPlayer := playerDelta(home, away, r, c)
+			deltaTactic := tacticDelta(home.Tactics, away.Tactics, r, c)
 			deltaDynamic := dynamicDelta(m, r, c)
 
-			// Zone momentum: recent successful passes/dribbles boost control
-			momentum := m.ZoneMomentum[r][c]
+			// Global momentum: tiny influence, capped
+			momentum := m.GlobalMomentum
 
-			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.09*deltaDynamic + 0.05*momentum
+			// Natural control raw value
+			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.02*momentum
+
 			result[r][c] = math.Tanh(raw * 2.0)
 		}
 	}
 	return result
+}
+
+// decayControlShift drifts inactive zones back toward 0
+func decayControlShift(m *domain.MatchState) {
+	for r := 0; r < 3; r++ {
+		for c := 0; c < 3; c++ {
+			if r == m.ActiveZone[0] && c == m.ActiveZone[1] {
+				// Active zone: very mild decay
+				m.ControlShift[r][c] *= 0.98
+			} else {
+				// Inactive zones: drift back to 0 faster
+				m.ControlShift[r][c] *= 0.85
+			}
+			// Clamp
+			if m.ControlShift[r][c] > 0.5 {
+				m.ControlShift[r][c] = 0.5
+			} else if m.ControlShift[r][c] < -0.5 {
+				m.ControlShift[r][c] = -0.5
+			}
+			// Snap to 0 when very small
+			if m.ControlShift[r][c] < 0.005 && m.ControlShift[r][c] > -0.005 {
+				m.ControlShift[r][c] = 0
+			}
+		}
+	}
+}
+
+// ComputeRiskIndex returns team's risk-taking appetite [0,1] based on tactics
+func ComputeRiskIndex(tactics domain.TacticalSetup) float64 {
+	idx := (4.0-float64(tactics.PassingStyle))*0.20 +
+		float64(tactics.AttackTempo)*0.20 +
+		float64(tactics.ShootingMentality)*0.20 +
+		float64(tactics.TacklingAggression)*0.15 +
+		(2.0-float64(tactics.MarkingStrategy))*0.10 +
+		(4.0-float64(tactics.DefensiveLineHeight))*0.15
+	idx /= 4.0 // normalize to roughly [0,1]
+	if idx > 1.0 {
+		idx = 1.0
+	}
+	if idx < 0.0 {
+		idx = 0.0
+	}
+	return idx
 }
 
 func formationDelta(atkForm, defForm string, r, c int) float64 {
@@ -161,32 +207,57 @@ func tacticDelta(atkT, defT domain.TacticalSetup, r, c int) float64 {
 	return delta
 }
 
+// ControlBreakdown explains why control changed for a specific zone
+type ControlBreakdown struct {
+	Formation     float64 `json:"formation"`
+	Player        float64 `json:"player"`
+	Tactic        float64 `json:"tactic"`
+	Dynamic       float64 `json:"dynamic"`
+	Momentum      float64 `json:"momentum"`
+	CounterBoost  float64 `json:"counter_boost"`
+	Raw           float64 `json:"raw"`
+	Final         float64 `json:"final"`
+}
+
+func ComputeControlBreakdown(m *domain.MatchState, zone [2]int) ControlBreakdown {
+	home := m.HomeTeam
+	away := m.AwayTeam
+	r, c := zone[0], zone[1]
+
+	deltaForm := formationDelta(home.FormationID, away.FormationID, r, c)
+	deltaPlayer := playerDelta(home, away, r, c)
+	deltaTactic := tacticDelta(home.Tactics, away.Tactics, r, c)
+	deltaDynamic := dynamicDelta(m, r, c)
+	momentum := m.GlobalMomentum
+	shift := m.ControlShift[r][c]
+
+	raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.02*momentum
+
+	cb := ControlBreakdown{
+		Formation: 0.28 * deltaForm,
+		Player:    0.40 * deltaPlayer,
+		Tactic:    0.18 * deltaTactic,
+		Dynamic:   0.03 * deltaDynamic,
+		Momentum:  0.02 * momentum,
+		Raw:       raw,
+		Final:     math.Tanh(raw*2.0) + shift,
+	}
+
+	return cb
+}
+
 func dynamicDelta(m *domain.MatchState, r, c int) float64 {
 	var delta float64
 
-	// Time factor: slight increase for attacking side late in match
-	timeFactor := (m.Minute - 25.0) / 50.0 * 0.1
-	delta += timeFactor
-
-	// Score factor: trailing team gets boost
-	if m.Possession == domain.SideHome {
-		if m.Score.Home < m.Score.Away {
-			delta += 0.08
-		} else if m.Score.Home > m.Score.Away {
-			delta -= 0.03
-		}
-	} else {
-		if m.Score.Away < m.Score.Home {
-			delta += 0.08
-		} else if m.Score.Away > m.Score.Home {
-			delta -= 0.03
-		}
+	// Score factor: trailing team gets boost (absolute reference: home perspective)
+	if m.Score.Home < m.Score.Away {
+		delta += 0.06
+	} else if m.Score.Home > m.Score.Away {
+		delta -= 0.02
 	}
 
 	// Home advantage
-	if m.Possession == domain.SideHome {
-		delta += 0.05
-	}
+	delta += 0.04
 
 	return delta
 }

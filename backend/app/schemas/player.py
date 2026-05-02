@@ -71,7 +71,7 @@ class PlayerSkill(BaseSchema):
 
 
 class PlayerAbility(BaseSchema):
-    """19项能力属性 (1-20)"""
+    """21项能力属性 (1-20)"""
     # 进攻
     sho: int = Field(default=10, ge=1, le=20, description="射门 SHO")
     pas: int = Field(default=10, ge=1, le=20, description="传球 PAS")
@@ -92,10 +92,14 @@ class PlayerAbility(BaseSchema):
     con: int = Field(default=10, ge=1, le=20, description="控球 CON")
     fin: int = Field(default=10, ge=1, le=20, description="远射 FIN")
     # 门将专属
-    com: int = Field(default=10, ge=1, le=20, description="出击 COM")
+    com: int = Field(default=10, ge=1, le=20, description="镇定 COM")
     sav: int = Field(default=10, ge=1, le=20, description="扑救 SAV")
     ref: int = Field(default=10, ge=1, le=20, description="反应 REF")
     pos: int = Field(default=10, ge=1, le=20, description="站位 POS")
+    rus: int = Field(default=10, ge=1, le=20, description="出击 RUS")
+    # 定位球
+    fk: int = Field(default=10, ge=1, le=20, description="任意球 FK")
+    pk: int = Field(default=10, ge=1, le=20, description="点球 PK")
 
     class Config:
         populate_by_name = True
