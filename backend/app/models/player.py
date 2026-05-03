@@ -143,6 +143,7 @@ class Player(Base):
     ref: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 反应
     pos: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 站位
     rus: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 出击
+    dec: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 球商
     fk: Mapped[int] = mapped_column(Integer, default=10, nullable=False)    # 任意球
     pk: Mapped[int] = mapped_column(Integer, default=10, nullable=False)    # 点球
     

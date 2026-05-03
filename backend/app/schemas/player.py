@@ -97,6 +97,7 @@ class PlayerAbility(BaseSchema):
     ref: int = Field(default=10, ge=1, le=20, description="反应 REF")
     pos: int = Field(default=10, ge=1, le=20, description="站位 POS")
     rus: int = Field(default=10, ge=1, le=20, description="出击 RUS")
+    dec: int = Field(default=10, ge=1, le=20, description="球商 DEC")
     # 定位球
     fk: int = Field(default=10, ge=1, le=20, description="任意球 FK")
     pk: int = Field(default=10, ge=1, le=20, description="点球 PK")

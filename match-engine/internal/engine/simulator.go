@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"time"
 
@@ -239,6 +240,9 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 		}
 	}
 
+	// Apply DEC (decision making) adjustment to candidate weights
+	sim.adjustCandidatesByDEC(candidates, ms.BallHolder, ms, possTeam, oppTeam)
+
 	// Select event
 	selected := sim.pickEvent(candidates)
 	possBefore := ms.Possession
@@ -304,6 +308,125 @@ func (sim *Simulator) pickEvent(candidates []candidateEvent) string {
 		}
 	}
 	return candidates[0].typ
+}
+
+// computeExpectedGain calculates the expected value of choosing a particular event type,
+// considering the ball holder's abilities vs opponent defenders/keeper and current match situation.
+func (sim *Simulator) computeExpectedGain(evType string, holder *domain.PlayerRuntime, ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime) float64 {
+	ctrl := ms.EffectiveControl(ms.ActiveZone)
+	zone := ms.ActiveZone
+
+	switch evType {
+	case config.EventCloseShot:
+		keeper := oppTeam.GetGK()
+		keeperStr := keeper.GetAttrByName("SAV")*0.5 + keeper.GetAttrByName("REF")*0.3 + keeper.GetAttrByName("POS")*0.2
+		nearestDef := SelectDefender(oppTeam, zone, sim.r)
+		defStr := nearestDef.GetAttrByName("DEF")*0.4 + nearestDef.GetAttrByName("TKL")*0.3 + nearestDef.GetAttrByName("HEA")*0.3
+		shotStr := holder.GetAttrByName("SHO")*0.5 + holder.GetAttrByName("FIN")*0.3 + holder.GetAttrByName("COM")*0.2
+		return shotStr - keeperStr*0.8 - defStr*0.3 + ctrl*5.0
+
+	case config.EventLongShot:
+		keeper := oppTeam.GetGK()
+		keeperStr := keeper.GetAttrByName("SAV")*0.5 + keeper.GetAttrByName("POS")*0.3 + keeper.GetAttrByName("REF")*0.2
+		shotStr := holder.GetAttrByName("FIN")*0.5 + holder.GetAttrByName("SHO")*0.3 + holder.GetAttrByName("STR")*0.2
+		return shotStr - keeperStr*0.6 - 2.0 + ctrl*3.0
+
+	case config.EventShortPass, config.EventMidPass:
+		passStr := holder.GetAttrByName("PAS")*0.5 + holder.GetAttrByName("VIS")*0.3 + holder.GetAttrByName("CON")*0.2
+		zonePressure := 0.0
+		if zone[0] == 0 {
+			zonePressure = 2.0
+		}
+		return passStr + ctrl*3.0 - zonePressure
+
+	case config.EventBackPass:
+		passStr := holder.GetAttrByName("PAS")*0.4 + holder.GetAttrByName("CON")*0.4 + holder.GetAttrByName("VIS")*0.2
+		return passStr + 1.5 + ctrl*2.0
+
+	case config.EventCross:
+		crossStr := holder.GetAttrByName("CRO")*0.5 + holder.GetAttrByName("PAS")*0.3 + holder.GetAttrByName("DRI")*0.2
+		return crossStr + ctrl*2.0
+
+	case config.EventWingBreak, config.EventCutInside:
+		dribbleStr := holder.GetAttrByName("DRI")*0.4 + holder.GetAttrByName("SPD")*0.3 + holder.GetAttrByName("ACC")*0.3
+		nearestDef := SelectDefender(oppTeam, zone, sim.r)
+		defStr := nearestDef.GetAttrByName("DEF")*0.4 + nearestDef.GetAttrByName("TKL")*0.3 + nearestDef.GetAttrByName("SPD")*0.3
+		return dribbleStr - defStr + ctrl*3.0
+
+	case config.EventThroughBall:
+		passStr := holder.GetAttrByName("PAS")*0.5 + holder.GetAttrByName("VIS")*0.4 + holder.GetAttrByName("ACC")*0.1
+		offsidePenalty := float64(oppTeam.Tactics.OffsideTrap) * 0.5
+		return passStr + ctrl*4.0 - offsidePenalty
+
+	case config.EventHeader:
+		headerStr := holder.GetAttrByName("HEA")*0.5 + holder.GetAttrByName("STR")*0.3 + holder.GetAttrByName("SPD")*0.2
+		return headerStr + ctrl*2.0
+
+	case config.EventLongPass:
+		passStr := holder.GetAttrByName("PAS")*0.5 + holder.GetAttrByName("STR")*0.2 + holder.GetAttrByName("VIS")*0.3
+		return passStr + ctrl*2.0 - 1.0
+
+	case config.EventTackle, config.EventIntercept:
+		// Defensive events from attacker's perspective: negative value
+		return -3.0 + ctrl*2.0
+
+	case config.EventClearance:
+		// From attacker's perspective: very negative (loses possession)
+		return -5.0 + ctrl*2.0
+
+	case config.EventFoul:
+		// Foul against attacker: results in free kick for attacker (positive!)
+		return 2.0 + ctrl*2.0
+
+	default:
+		return 0.0
+	}
+}
+
+// adjustCandidatesByDEC modifies event candidate weights based on the ball holder's DEC (decision making).
+// High DEC biases weights toward higher expected-gain options; low DEC biases toward lower expected-gain options.
+func (sim *Simulator) adjustCandidatesByDEC(candidates []candidateEvent, holder *domain.PlayerRuntime, ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime) {
+	dec := holder.GetAttrByName("DEC")
+	if dec <= 0 {
+		return
+	}
+
+	// Linear factor: DEC=10 -> 0, DEC=20 -> +0.18, DEC=1 -> -0.18 (sensitivity=0.36)
+	decFactor := (dec - 10.0) / 20.0 * 0.36
+
+	// Compute expected gain for each candidate
+	gains := make([]float64, len(candidates))
+	var avgGain float64
+	for i, c := range candidates {
+		gains[i] = sim.computeExpectedGain(c.typ, holder, ms, possTeam, oppTeam)
+		avgGain += gains[i]
+	}
+	avgGain /= float64(len(gains))
+
+	// Find max deviation for normalization
+	maxDev := 0.1
+	for _, g := range gains {
+		dev := math.Abs(g - avgGain)
+		if dev > maxDev {
+			maxDev = dev
+		}
+	}
+
+	// Adjust weights
+	for i := range candidates {
+		normalizedGain := (gains[i] - avgGain) / maxDev // -1 ~ +1
+		adjustment := 1.0 + decFactor*normalizedGain
+		if adjustment < 0.75 {
+			adjustment = 0.75
+		}
+		if adjustment > 1.25 {
+			adjustment = 1.25
+		}
+		candidates[i].weight = int(float64(candidates[i].weight) * adjustment)
+		if candidates[i].weight < 1 {
+			candidates[i].weight = 1
+		}
+	}
 }
 
 func (sim *Simulator) executeEvent(ms *domain.MatchState, evType string) {
@@ -771,9 +894,12 @@ func (sim *Simulator) doCrossEvent(ms *domain.MatchState, possTeam, oppTeam *dom
 	})
 
 	if success {
-		// Chain to header duel
+		// Chain to header duel (with possible keeper rush)
 		ms.ActiveZone = [2]int{0, 1}
-		sim.doHeaderDuel(ms, possTeam, oppTeam)
+		crossQuality := crosser.GetAttrByName("CRO")*0.5 + crosser.GetAttrByName("PAS")*0.3 + crosser.GetAttrByName("DRI")*0.2
+		if !sim.maybeKeeperRush(ms, possTeam, oppTeam, crosser, crossQuality) {
+			sim.doHeaderDuel(ms, possTeam, oppTeam)
+		}
 	}
 }
 
@@ -853,6 +979,146 @@ func (sim *Simulator) doHeaderDuel(ms *domain.MatchState, possTeam, oppTeam *dom
 		if sim.r.Float64() < shotChance {
 			sim.doShotEvent(ms, possTeam, oppTeam, [2]int{0, 1}, "close")
 		}
+	}
+}
+
+// maybeKeeperRush decides whether the keeper should rush out to intercept a cross/corner.
+// Returns true if the keeper handled the situation (success or failure), false to proceed to header duel.
+func (sim *Simulator) maybeKeeperRush(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, crosser *domain.PlayerRuntime, crossQuality float64) bool {
+	keeper := oppTeam.GetGK()
+	attacker := SelectPlayerByZone(possTeam, [2]int{0, 1}, sim.r)
+	ctrl := ms.EffectiveControl([2]int{0, 1})
+
+	// Keeper decision value: judgment + execution + reflexes
+	rushDecision := keeper.GetAttrByName("DEC")*0.35 + keeper.GetAttrByName("RUS")*0.35 + keeper.GetAttrByName("REF")*0.30
+
+	// Threat level: cross quality + aerial threat + control
+	headerThreat := attacker.GetAttrByName("HEA")*0.5 + attacker.GetAttrByName("STR")*0.3 + attacker.GetAttrByName("SPD")*0.2
+	threatLevel := crossQuality*0.4 + headerThreat*0.4 + ctrl*3.0
+
+	rushValue := rushDecision - threatLevel*0.4
+	threshold := 12.0 + sim.r.Float64()*5.0
+
+	if rushValue > threshold {
+		return sim.doKeeperRushEvent(ms, possTeam, oppTeam, keeper, attacker)
+	}
+	return false
+}
+
+// doKeeperRushEvent resolves a keeper rushing out to intercept a cross/corner.
+// Returns true if the situation was resolved (no need for header duel).
+func (sim *Simulator) doKeeperRushEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, keeper, attacker *domain.PlayerRuntime) bool {
+	// Rush duel: keeper execution vs attacker aerial ability
+	rushAtk := keeper.GetAttrByName("RUS")*0.5 + keeper.GetAttrByName("REF")*0.3 + keeper.GetAttrByName("SAV")*0.2
+	aerialDef := attacker.GetAttrByName("HEA")*0.4 + attacker.GetAttrByName("STR")*0.3 + attacker.GetAttrByName("BAL")*0.3
+
+	com := keeper.GetAttrByName("COM")
+	success := ResolveDuel(rushAtk, aerialDef, sim.r, com)
+
+	ConsumeStamina(keeper, 2.0)
+
+	if success {
+		// Rush success: keeper claims the ball
+		keeper.Stats.Saves++
+		keeper.Stats.RatingBase += 0.3
+		ms.Possession = ms.Possession.Opponent()
+		ms.ActiveZone = [2]int{2, 1}
+		ms.BallHolder = keeper
+		sim.flipGlobalMomentum(ms)
+		return true
+	}
+
+	// Rush failure: keeper beaten, attacker gets an excellent close-range chance
+	keeper.Stats.RatingBase -= 0.5
+	ms.BallHolder = attacker
+	// Trigger a close shot with keeper out of position (keeper defense reduced)
+	sim.doShotEventWithKeeperOut(ms, possTeam, oppTeam, [2]int{0, 1}, keeper)
+	return true
+}
+
+// doShotEventWithKeeperOut is a variant of doShotEvent where the keeper is out of position.
+func (sim *Simulator) doShotEventWithKeeperOut(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int, keeper *domain.PlayerRuntime) {
+	shooter := ms.BallHolder
+
+	atkVal := CalcShotAttack(shooter, "close")
+	// Keeper is out of position: reduced save ability
+	defVal := keeper.GetAttrByName("SAV")*0.2 + keeper.GetAttrByName("REF")*0.3 + 0.5
+
+	com := shooter.GetAttrByName("COM")
+	success := ResolveDuel(atkVal, defVal+0.2, sim.r, com)
+
+	ConsumeStamina(shooter, StaminaCost(config.EventCloseShot))
+
+	if ms.Possession == domain.SideHome {
+		ms.HomeStats.Shots++
+	} else {
+		ms.AwayStats.Shots++
+	}
+
+	shotResult := "missed"
+	if success {
+		shotResult = "goal"
+		if ms.Possession == domain.SideHome {
+			ms.Score.Home++
+			ms.HomeStats.ShotsOnTarget++
+		} else {
+			ms.Score.Away++
+			ms.AwayStats.ShotsOnTarget++
+		}
+		shooter.Stats.Goals++
+		keeper.Stats.RatingBase -= 1.0
+		shooter.Stats.RatingBase += 1.0
+		sim.applyControlShift(ms, zone, 0.15)
+		sim.boostGlobalMomentum(ms, 0.04)
+	} else {
+		// Out of position keeper still might save it, but less likely
+		keeper.Stats.Saves++
+		keeper.Stats.RatingBase += 0.15
+		if ms.Possession == domain.SideHome {
+			ms.HomeStats.ShotsOnTarget++
+		} else {
+			ms.AwayStats.ShotsOnTarget++
+		}
+		ms.Possession = ms.Possession.Opponent()
+		ms.ActiveZone = [2]int{2, 1}
+		ms.BallHolder = keeper
+		sim.flipGlobalMomentum(ms)
+	}
+
+	shooter.Stats.Shots++
+	if shotResult == "saved" || shotResult == "goal" {
+		shooter.Stats.ShotsOnTarget++
+	}
+
+	sim.addEvent(ms, domain.MatchEvent{
+		Type:         config.EventCloseShot,
+		Team:         ms.Possession.String(),
+		PlayerID:     shooter.PlayerID,
+		PlayerName:   shooter.Name,
+		OpponentID:   keeper.PlayerID,
+		OpponentName: keeper.Name,
+		Zone:         zoneStr(zone),
+		Result:       shotResult,
+		Score:        &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
+	})
+
+	if shotResult == "goal" {
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:         config.EventGoal,
+			Team:         ms.Possession.String(),
+			PlayerID:     shooter.PlayerID,
+			PlayerName:   shooter.Name,
+			Score:        &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
+		})
+		ms.Possession = ms.Possession.Opponent()
+		ms.ActiveZone = [2]int{1, 1}
+		ms.BallHolder = sim.selectKickoffTaker(ms.Team(ms.Possession))
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:         config.EventKickoff,
+			Team:         ms.Team(ms.Possession).Name,
+			OpponentName: ms.OppTeam(ms.Possession).Name,
+			PlayerName:   ms.BallHolder.Name,
+		})
 	}
 }
 
@@ -1312,9 +1578,10 @@ func (sim *Simulator) doClearanceEvent(ms *domain.MatchState, possTeam, oppTeam 
 	defender.Stats.Clearances++
 	defender.Stats.RatingBase += 0.1
 
-	// Dynamic own goal chance based on defender composure, pressure, and stamina
-	clearanceQuality := defender.GetAttrByName("COM")*0.5 +
-		defender.GetAttrByName("PAS")*0.3 +
+	// Dynamic own goal chance based on defender composure, decision making, pressure, and stamina
+	clearanceQuality := defender.GetAttrByName("COM")*0.3 +
+		defender.GetAttrByName("DEC")*0.3 +
+		defender.GetAttrByName("PAS")*0.2 +
 		defender.GetAttrByName("DEF")*0.2
 
 	pressureFactor := 0.0
@@ -1411,7 +1678,7 @@ func (sim *Simulator) doFoulEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 	cardResult := ""
 
 	// Severity factors
-	foulSeverity := fouler.GetAttrByName("TKL")*0.3 + fouler.GetAttrByName("STR")*0.3
+	foulSeverity := fouler.GetAttrByName("TKL")*0.3 + fouler.GetAttrByName("STR")*0.3 - fouler.GetAttrByName("DEC")*0.15
 	// Higher aggression tactic = more dangerous tackles
 	aggressionBonus := float64(4-oppTeam.Tactics.TacklingAggression) * 1.5
 
@@ -1827,9 +2094,12 @@ func (sim *Simulator) doCornerEvent(ms *domain.MatchState, possTeam, oppTeam *do
 	})
 
 	if success {
-		// Chain to header
+		// Chain to header (with possible keeper rush)
 		ms.ActiveZone = [2]int{0, 1}
-		sim.doHeaderDuel(ms, possTeam, oppTeam)
+		crossQuality := taker.GetAttrByName("CRO")*0.5 + taker.GetAttrByName("PAS")*0.3 + taker.GetAttrByName("DRI")*0.2
+		if !sim.maybeKeeperRush(ms, possTeam, oppTeam, taker, crossQuality) {
+			sim.doHeaderDuel(ms, possTeam, oppTeam)
+		}
 	}
 }
 

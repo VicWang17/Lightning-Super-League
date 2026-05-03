@@ -36,12 +36,13 @@ const (
 	AttrFK         // Free kick
 	AttrPK         // Penalty kick
 	AttrRUS        // Rushing (keeper coming out)
+	AttrDEC        // Decision making (football IQ)
 	AttrCount
 )
 
 var AttrNames = []string{
 	"SHO", "PAS", "DRI", "SPD", "STR", "STA", "DEF", "HEA", "VIS", "TKL",
-	"ACC", "CRO", "CON", "FIN", "BAL", "COM", "SAV", "REF", "POS", "FK", "PK", "RUS",
+	"ACC", "CRO", "CON", "FIN", "BAL", "COM", "SAV", "REF", "POS", "FK", "PK", "RUS", "DEC",
 }
 
 // Event types (MVP subset)
@@ -63,6 +64,7 @@ const (
 	EventClearance      = "clearance"
 	EventKeeperSave     = "keeper_save"
 	EventKeeperClaim    = "keeper_claim"
+	EventKeeperRush     = "keeper_rush"
 	EventCorner         = "corner"
 	EventGoal           = "goal"
 	EventOwnGoal        = "own_goal"
@@ -184,27 +186,27 @@ var ZoneWeight = map[string][3][3]float64{
 // We'll use a simplified global weight per position for now
 var PositionAttrWeight = map[string][AttrCount]float64{
 	PosST:  {
-		20, 3, 15, 18, 10, 3, 0, 10, 0, 0, 10, 3, 0, 5, 3, 0, 0, 0, 0, 1, 3, 0,
+		20, 3, 15, 18, 10, 3, 0, 10, 0, 0, 10, 3, 0, 5, 3, 0, 0, 0, 0, 1, 3, 0, 4,
 	},
 	PosWF:  {
-		8, 8, 14, 17, 3, 7, 0, 0, 3, 0, 12, 15, 5, 5, 3, 0, 0, 0, 0, 2, 1, 0,
+		8, 8, 14, 17, 3, 7, 0, 0, 3, 0, 12, 15, 5, 5, 3, 0, 0, 0, 0, 2, 1, 0, 5,
 	},
 	PosAMF: {
-		9, 13, 9, 8, 5, 9, 0, 0, 16, 0, 8, 0, 10, 10, 3, 0, 0, 0, 0, 4, 1, 0,
+		9, 13, 9, 8, 5, 9, 0, 0, 16, 0, 8, 0, 10, 10, 3, 0, 0, 0, 0, 4, 1, 0, 8,
 	},
 	PosCMF: {
-		0, 20, 9, 7, 4, 12, 10, 0, 11, 5, 2, 0, 12, 5, 3, 0, 0, 0, 0, 2, 0, 0,
+		0, 20, 9, 7, 4, 12, 10, 0, 11, 5, 2, 0, 12, 5, 3, 0, 0, 0, 0, 2, 0, 0, 10,
 	},
 	PosDMF: {
-		0, 9, 5, 7, 9, 14, 18, 4, 4, 10, 2, 0, 10, 3, 5, 0, 0, 0, 0, 1, 0, 0,
+		0, 9, 5, 7, 9, 14, 18, 4, 4, 10, 2, 0, 10, 3, 5, 0, 0, 0, 0, 1, 0, 0, 8,
 	},
 	PosCB:  {
-		0, 8, 0, 6, 14, 10, 23, 16, 0, 9, 1, 0, 5, 0, 8, 0, 0, 0, 0, 0, 1, 0,
+		0, 8, 0, 6, 14, 10, 23, 16, 0, 9, 1, 0, 5, 0, 8, 0, 0, 0, 0, 0, 1, 0, 8,
 	},
 	PosSB:  {
-		0, 13, 9, 18, 4, 11, 14, 0, 5, 5, 0, 12, 3, 3, 3, 0, 0, 0, 0, 1, 0, 0,
+		0, 13, 9, 18, 4, 11, 14, 0, 5, 5, 0, 12, 3, 3, 3, 0, 0, 0, 0, 1, 0, 0, 5,
 	},
 	PosGK:  {
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 35, 25, 20, 0, 0, 10,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 35, 25, 20, 0, 0, 10, 15,
 	},
 }

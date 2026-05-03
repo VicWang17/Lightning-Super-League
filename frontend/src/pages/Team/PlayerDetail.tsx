@@ -99,6 +99,7 @@ function PlayerDetail() {
         { label: '盘带', key: 'dri' },
         { label: '控球', key: 'con' },
         { label: '传中', key: 'cro' },
+        { label: '球商', key: 'dec' },
       ],
     },
     {
@@ -145,6 +146,7 @@ function PlayerDetail() {
         { label: '站位', key: 'pos' },
         { label: '镇定', key: 'com' },
         { label: '出击', key: 'rus' },
+        { label: '球商', key: 'dec' },
         { label: '任意球', key: 'fk' },
         { label: '点球', key: 'pk' },
       ],

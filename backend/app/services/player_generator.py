@@ -110,41 +110,41 @@ ARCHETYPE_BIAS = {
     "边卫型": {"spd": 1.15, "sta": 1.12, "cro": 1.10, "defe": 1.12, "fk": 1.05},
     "清道夫型": {"defe": 1.15, "vis": 1.12, "pas": 1.10, "tkl": 1.10, "com": 1.10},
     # GK
-    "传统型": {"sav": 1.15, "ref": 1.12, "pos": 1.10, "com": 1.10},
-    "出击型": {"sav": 1.12, "ref": 1.10, "rus": 1.15, "spd": 1.05, "fk": 1.05},
-    "出球型": {"sav": 1.10, "ref": 1.10, "pos": 1.10, "pas": 1.12, "com": 1.05},
+    "传统型": {"sav": 1.15, "ref": 1.12, "pos": 1.10, "com": 1.10, "dec": 1.08},
+    "出击型": {"sav": 1.12, "ref": 1.10, "rus": 1.15, "spd": 1.05, "fk": 1.05, "dec": 1.05},
+    "出球型": {"sav": 1.10, "ref": 1.10, "pos": 1.10, "pas": 1.12, "com": 1.05, "dec": 1.10},
 }
 
 # 位置 -> 非核心属性惩罚系数 (非核心属性 × 0.6~0.8)
 POSITION_NON_CORE_ATTRS = {
-    PlayerPosition.FW: {"sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal", "fin", "pk"},
-    PlayerPosition.MF: {"pas", "dri", "spd", "str_", "sta", "defe", "vis", "tkl", "acc", "cro", "con", "fin", "fk"},
-    PlayerPosition.DF: {"spd", "str_", "sta", "defe", "hea", "tkl", "vis", "cro", "bal", "com"},
-    PlayerPosition.GK: {"com", "sav", "ref", "pos", "rus", "pas", "fk", "pk"},
+    PlayerPosition.FW: {"sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal", "fin", "pk", "dec"},
+    PlayerPosition.MF: {"pas", "dri", "spd", "str_", "sta", "defe", "vis", "tkl", "acc", "cro", "con", "fin", "fk", "dec"},
+    PlayerPosition.DF: {"spd", "str_", "sta", "defe", "hea", "tkl", "vis", "cro", "bal", "com", "dec"},
+    PlayerPosition.GK: {"com", "sav", "ref", "pos", "rus", "dec", "pas", "fk", "pk"},
 }
 
 # OVR 权重 (4位置简化版, 总和100)
 OVR_WEIGHTS = {
     PlayerPosition.FW: {
         "sho": 20, "pas": 3, "dri": 15, "spd": 18, "str_": 10, "sta": 3,
-        "hea": 10, "acc": 10, "fin": 5, "bal": 3, "cro": 3,
+        "hea": 10, "acc": 10, "fin": 5, "bal": 3, "cro": 3, "dec": 4,
         "defe": 0, "vis": 0, "tkl": 0, "con": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
-        "fk": 0, "pk": 0,
+        "fk": 0, "pk": 0, "rus": 0,
     },
     PlayerPosition.MF: {
-        "pas": 18, "dri": 12, "spd": 7, "str_": 2, "sta": 15, "defe": 10,
-        "vis": 14, "tkl": 7, "acc": 2, "cro": 8, "con": 8, "fin": 5,
+        "pas": 16, "dri": 11, "spd": 7, "str_": 2, "sta": 14, "defe": 9,
+        "vis": 13, "tkl": 6, "acc": 2, "cro": 7, "con": 7, "fin": 5, "dec": 10,
         "sho": 2, "hea": 0, "bal": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
-        "fk": 0, "pk": 0,
+        "fk": 0, "pk": 0, "rus": 0,
     },
     PlayerPosition.DF: {
-        "pas": 5, "spd": 12, "str_": 18, "sta": 12, "defe": 24, "hea": 12,
-        "tkl": 8, "cro": 5, "bal": 4,
+        "pas": 5, "spd": 11, "str_": 16, "sta": 11, "defe": 22, "hea": 11,
+        "tkl": 7, "cro": 5, "bal": 4, "dec": 8,
         "dri": 0, "vis": 0, "acc": 0, "con": 0, "fin": 0, "sho": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
-        "fk": 0, "pk": 0,
+        "fk": 0, "pk": 0, "rus": 0,
     },
     PlayerPosition.GK: {
-        "pas": 5, "com": 10, "sav": 35, "ref": 25, "pos": 15, "rus": 10,
+        "pas": 5, "com": 8, "sav": 30, "ref": 22, "pos": 12, "rus": 8, "dec": 12,
         "sho": 0, "dri": 0, "spd": 0, "str_": 0, "sta": 0, "defe": 0, "hea": 0,
         "vis": 0, "tkl": 0, "acc": 0, "cro": 0, "con": 0, "fin": 0, "bal": 0,
         "fk": 0, "pk": 0,
@@ -352,7 +352,7 @@ class AttributeGenerator:
         
         # 5. 逐项生成
         all_attrs = ["sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal",
-                     "defe", "tkl", "vis", "cro", "con", "fin", "com", "sav", "ref", "pos", "rus", "fk", "pk"]
+                     "defe", "tkl", "vis", "cro", "con", "fin", "com", "sav", "ref", "pos", "rus", "dec", "fk", "pk"]
         
         attrs = {}
         for attr in all_attrs:
