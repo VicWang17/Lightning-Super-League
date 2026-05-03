@@ -12,8 +12,9 @@ import (
 
 // Simulator is the match engine
 type Simulator struct {
-	r *rand.Rand
-	ng *NarrativeGenerator
+	r                *rand.Rand
+	ng               *NarrativeGenerator
+	lastCrossQuality float64
 }
 
 func NewSimulator(seed uint64) *Simulator {
@@ -79,17 +80,22 @@ func (sim *Simulator) Simulate(req domain.SimulateRequest) domain.SimulateResult
 			}
 		}
 
-		// Check substitutions at specific windows
-		sim.checkSubstitutions(ms)
-
 		// Track possession
 		ms.PossessionTicks[ms.Possession]++
 
 		// Pick and process next event
-		sim.processEvent(ms)
+		_, _ = sim.processEvent(ms)
 
-		// Advance clock (average ~5-8 seconds per event for denser action)
-		baseSec := 3.5 + sim.r.Float64()*5.0
+		// Substitutions only on dead ball
+		if len(ms.Events) > 0 {
+			last := ms.Events[len(ms.Events)-1]
+			if isDeadBallEvent(last.Type) {
+				sim.checkSubstitutions(ms)
+			}
+		}
+
+		// Advance clock (slower pace for more realistic build-up)
+		baseSec := 4.0 + sim.r.Float64()*3.5
 		ms.AdvanceClock(baseSec)
 	}
 
@@ -120,9 +126,9 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 	playFromBack := possTeam.Tactics.DefensiveLineHeight >= 2 && possTeam.Tactics.PassingStyle <= 1
 
 	// Always available: passing events (base weight modified by passing style)
-	shortPassWeight := 20
+	shortPassWeight := 25
 	backPassWeight := 25
-	midPassWeight := 28
+	midPassWeight := 32
 	longPassWeight := 8
 	throughWeight := 10
 
@@ -160,7 +166,7 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 		candidates = append(candidates, candidateEvent{typ: config.EventThroughBall, weight: throughWeight})
 	}
 	if zone[0] == 0 { // front zone
-		candidates = append(candidates, candidateEvent{typ: config.EventCloseShot, weight: 10})
+		candidates = append(candidates, candidateEvent{typ: config.EventCloseShot, weight: 8})
 		crossWeight := 12
 		switch crossingStrategy {
 		case 0: // Avoid crossing
@@ -174,39 +180,135 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 		}
 		candidates = append(candidates, candidateEvent{typ: config.EventCross, weight: crossWeight})
 		// More passing options in front zone to reduce shooting
-		candidates = append(candidates, candidateEvent{typ: config.EventShortPass, weight: 12})
+		candidates = append(candidates, candidateEvent{typ: config.EventShortPass, weight: 16})
+		// Hold ball in front zone: patient build-up instead of rushed shots
+		if ctrl > 0.1 {
+			candidates = append(candidates, candidateEvent{typ: config.EventHoldBall, weight: 5})
+		}
 	}
 
 	// Wing zones
 	if zone[1] == 0 || zone[1] == 2 {
-		candidates = append(candidates, candidateEvent{typ: config.EventWingBreak, weight: 12})
+		candidates = append(candidates, candidateEvent{typ: config.EventWingBreak, weight: 15})
 		if zone[0] <= 1 {
-			candidates = append(candidates, candidateEvent{typ: config.EventCutInside, weight: 8})
+			candidates = append(candidates, candidateEvent{typ: config.EventCutInside, weight: 10})
 		}
+		// Switch play (lateral transfer) available on wings
+		candidates = append(candidates, candidateEvent{typ: config.EventSwitchPlay, weight: 8})
+	}
+
+	// Dribble past: available in mid/front zones across all channels
+	if zone[0] <= 1 {
+		candidates = append(candidates, candidateEvent{typ: config.EventDribblePast, weight: 8})
+	}
+
+	// Lob pass and pass over top in mid/front zones
+	if zone[0] <= 1 {
+		candidates = append(candidates, candidateEvent{typ: config.EventLobPass, weight: 6})
+		candidates = append(candidates, candidateEvent{typ: config.EventPassOverTop, weight: 7})
+	}
+
+	// Block pass: defender anticipates pass route
+	if ctrl < 0.3 {
+		candidates = append(candidates, candidateEvent{typ: config.EventBlockPass, weight: 5})
+	}
+
+	// One on one: high-risk high-reward in front zone with high control
+	if zone[0] == 0 && ctrl > 0.5 {
+		candidates = append(candidates, candidateEvent{typ: config.EventOneOnOne, weight: 6})
+	}
+
+	// Counter attack: boosted when counter boost is active or low control in opponent half
+	// GK cannot carry out a dribbling counter-attack
+	if ms.BallHolder.Position != config.PosGK {
+		if ms.CounterBoostRemaining[int(ms.Possession)] > 0 {
+			candidates = append(candidates, candidateEvent{typ: config.EventCounterAttack, weight: 25})
+		} else if zone[0] <= 1 && ctrl < -0.1 {
+			// Defensive team wins ball back in opponent half → counter opportunity
+			candidates = append(candidates, candidateEvent{typ: config.EventCounterAttack, weight: 8})
+		}
+	}
+
+	// Goalkeeper ball handling in back zone
+	if zone[0] == 2 && ms.BallHolder.Position == config.PosGK {
+		candidates = append(candidates, candidateEvent{typ: config.EventGoalKick, weight: 12})
+		candidates = append(candidates, candidateEvent{typ: config.EventKeeperShortPass, weight: 10})
+		candidates = append(candidates, candidateEvent{typ: config.EventKeeperThrow, weight: 5})
+	}
+
+	// Throw-in on sidelines (low weight, simulates dead ball restarts)
+	if zone[1] == 0 || zone[1] == 2 {
+		candidates = append(candidates, candidateEvent{typ: config.EventThrowIn, weight: 3})
+	}
+
+	// Multi-player events (Phase 3)
+	if zone[1] == 0 || zone[1] == 2 {
+		// Overlap on wings
+		candidates = append(candidates, candidateEvent{typ: config.EventOverlap, weight: 5})
+	}
+	if zone[0] <= 1 {
+		// Triangle pass and one-two in mid/front zones
+		candidates = append(candidates, candidateEvent{typ: config.EventTrianglePass, weight: 4})
+		candidates = append(candidates, candidateEvent{typ: config.EventOneTwo, weight: 5})
+	}
+	if zone[0] == 0 {
+		// Cross run in front zone
+		candidates = append(candidates, candidateEvent{typ: config.EventCrossRun, weight: 4})
+	}
+	// Defensive multi-player events
+	if ctrl < 0.2 && zone[0] <= 1 {
+		candidates = append(candidates, candidateEvent{typ: config.EventDoubleTeam, weight: 4})
+		candidates = append(candidates, candidateEvent{typ: config.EventPressTogether, weight: 3})
+	}
+
+	// Drop ball — very rare dead ball restart
+	if sim.r.Float64() < 0.002 {
+		candidates = append(candidates, candidateEvent{typ: config.EventDropBall, weight: 1})
 	}
 
 	// Long shot from mid
 	if zone[0] == 1 && ctrl > 0.2 {
-		longShotWeight := 4
+		longShotWeight := 2
 		if possTeam.Tactics.ShootingMentality >= 3 {
-			longShotWeight += 4
+			longShotWeight += 3
 		} else if possTeam.Tactics.ShootingMentality <= 1 {
-			longShotWeight -= 2
+			longShotWeight -= 1
 		}
 		candidates = append(candidates, candidateEvent{typ: config.EventLongShot, weight: longShotWeight})
 	}
 
-	// Defensive events — expanded trigger range and higher weights
-	clearanceWeight := 10
-	if playFromBack && zone[0] == 2 {
-		clearanceWeight = 3 // Play from back reduces clearance tendency
+	// Build-up events: patient back-line passing
+	if zone[0] == 2 && ctrl > 0.05 {
+		candidates = append(candidates, candidateEvent{typ: config.EventBuildUp, weight: 8})
 	}
-	if ctrl < 0.2 {
-		candidates = append(candidates, candidateEvent{typ: config.EventTackle, weight: 18})
-		candidates = append(candidates, candidateEvent{typ: config.EventIntercept, weight: 14})
+
+	// Hold ball: player shields and waits for support
+	if zone[0] >= 1 && ctrl > 0.05 {
+		candidates = append(candidates, candidateEvent{typ: config.EventHoldBall, weight: 10})
+	}
+
+	// Pivot pass: midfield lateral distribution (high-success, low-progression)
+	if zone[0] == 1 {
+		candidates = append(candidates, candidateEvent{typ: config.EventPivotPass, weight: 8})
+	}
+
+	// Defensive events — reduced weights for calmer rhythm
+	clearanceWeight := 6
+	if playFromBack && zone[0] == 2 {
+		clearanceWeight = 2 // Play from back reduces clearance tendency
+	}
+	if ctrl < 0.1 {
+		candidates = append(candidates, candidateEvent{typ: config.EventTackle, weight: 8})
+		candidates = append(candidates, candidateEvent{typ: config.EventIntercept, weight: 6})
 		if zone[0] <= 1 {
 			candidates = append(candidates, candidateEvent{typ: config.EventClearance, weight: clearanceWeight})
 		}
+	}
+
+	// Penalty area defense: defenders are always alert in front of goal
+	if zone[0] == 0 {
+		candidates = append(candidates, candidateEvent{typ: config.EventTackle, weight: 3})
+		candidates = append(candidates, candidateEvent{typ: config.EventIntercept, weight: 2})
 	}
 
 	// Header duel available in front zone
@@ -221,10 +323,17 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 	// Foul: low probability anywhere, increased by aggression
 	foulWeight := 1
 	if possTeam.Tactics.TacklingAggression >= 2 {
-		foulWeight += int(possTeam.Tactics.TacklingAggression)
+		foulWeight += int(possTeam.Tactics.TacklingAggression) / 2
 	}
 	if oppTeam.Tactics.TacklingAggression >= 2 {
-		foulWeight += int(oppTeam.Tactics.TacklingAggression)
+		foulWeight += int(oppTeam.Tactics.TacklingAggression) / 2
+	}
+	// Players are much more careful in the penalty area
+	if zone[0] == 0 && zone[1] == 1 {
+		foulWeight = int(float64(foulWeight) * 0.20)
+	}
+	if foulWeight < 1 {
+		foulWeight = 1
 	}
 	candidates = append(candidates, candidateEvent{typ: config.EventFoul, weight: foulWeight})
 
@@ -235,29 +344,95 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 			continue // passing always available
 		}
 		candidates[i].weight = int(float64(candidates[i].weight) * (1.0 + ctrl*0.4))
-		if candidates[i].weight < 2 {
-			candidates[i].weight = 2
+		if candidates[i].weight < 1 {
+			candidates[i].weight = 1
 		}
 	}
 
 	// Apply DEC (decision making) adjustment to candidate weights
 	sim.adjustCandidatesByDEC(candidates, ms.BallHolder, ms, possTeam, oppTeam)
 
+	// Playmaker focus: team-wide passing boost
+	pf := possTeam.Tactics.PlaymakerFocus
+	if pf > 0 {
+		passBoost := 1.0 + float64(pf)*0.08
+		shotReduce := 1.0 - float64(pf)*0.075
+		throughBoost := 1.0 + float64(pf)*0.05
+		for i := range candidates {
+			switch candidates[i].typ {
+			case config.EventShortPass, config.EventMidPass, config.EventBackPass:
+				candidates[i].weight = int(float64(candidates[i].weight) * passBoost)
+			case config.EventThroughBall:
+				candidates[i].weight = int(float64(candidates[i].weight) * throughBoost)
+			case config.EventLongShot:
+				candidates[i].weight = int(float64(candidates[i].weight) * shotReduce)
+			}
+		}
+	}
+
 	// Select event
 	selected := sim.pickEvent(candidates)
 	possBefore := ms.Possession
+	holderBefore := ms.BallHolder
+
+	// === Cover Defense interrupt: high-control attacks may be broken up by defensive cover ===
+	highRiskEvents := map[string]bool{
+		config.EventOneOnOne:   true,
+		config.EventCross:      true,
+		config.EventWingBreak:  true,
+		config.EventCutInside:  true,
+		config.EventCloseShot:  true,
+	}
+	if highRiskEvents[selected] && sim.shouldTriggerCoverDefense(ms, oppTeam, zone) {
+		sim.doCoverDefenseEvent(ms, possTeam, oppTeam, zone)
+		// After cover defense, if possession changed, handle turnover
+		if ms.Possession != possBefore {
+			sim.addEvent(ms, domain.MatchEvent{
+				Type:         config.EventTurnover,
+				Team:         ms.Team(ms.Possession).Name,
+				PlayerID:     ms.BallHolder.PlayerID,
+				PlayerName:   ms.BallHolder.Name,
+				OpponentName: ms.Team(possBefore).Name,
+			})
+			sim.flipControlShiftOnTurnover(ms, zone)
+		}
+		return selected, candidates
+	}
+
+	ms.BallHolder.Stats.Touches++
 	sim.executeEvent(ms, selected)
 
 	// === Post-event tactical effects ===
-	if ms.Possession != possBefore {
-		// Turnover occurred: emit transition event
-		sim.addEvent(ms, domain.MatchEvent{
-			Type:         config.EventTurnover,
-			Team:         ms.Team(ms.Possession).Name,
-			PlayerID:     ms.BallHolder.PlayerID,
-			PlayerName:   ms.BallHolder.Name,
-			OpponentName: ms.Team(possBefore).Name,
-		})
+	isAttackingEvent := selected != config.EventTackle && selected != config.EventIntercept && selected != config.EventClearance
+	if ms.Possession != possBefore && isAttackingEvent {
+		holderBefore.Stats.Turnovers++
+		// Skip turnover if the last event already narrated the possession change
+		skipTurnover := false
+		if len(ms.Events) > 0 {
+			last := ms.Events[len(ms.Events)-1]
+			if last.Result == "fail" || last.Result == "blocked" || last.Result == "saved" || last.Result == "missed" || last.Result == "woodwork" {
+				skipTurnover = true
+			}
+			if last.Type == config.EventTackle || last.Type == config.EventIntercept || last.Type == config.EventClearance || last.Type == config.EventBlockPass {
+				skipTurnover = true
+			}
+			// Dead-ball restarts already transition possession naturally
+			if last.Type == config.EventKickoff || last.Type == config.EventGoalKick || last.Type == config.EventCorner ||
+			   last.Type == config.EventThrowIn || last.Type == config.EventDropBall || last.Type == config.EventKeeperShortPass ||
+			   last.Type == config.EventKeeperThrow {
+				skipTurnover = true
+			}
+		}
+		if !skipTurnover {
+			// Turnover occurred: emit transition event
+			sim.addEvent(ms, domain.MatchEvent{
+				Type:         config.EventTurnover,
+				Team:         ms.Team(ms.Possession).Name,
+				PlayerID:     ms.BallHolder.PlayerID,
+				PlayerName:   ms.BallHolder.Name,
+				OpponentName: ms.Team(possBefore).Name,
+			})
+		}
 
 		// Flip control shift in the zone where it happened
 		sim.flipControlShiftOnTurnover(ms, zone)
@@ -319,17 +494,17 @@ func (sim *Simulator) computeExpectedGain(evType string, holder *domain.PlayerRu
 	switch evType {
 	case config.EventCloseShot:
 		keeper := oppTeam.GetGK()
-		keeperStr := keeper.GetAttrByName("SAV")*0.5 + keeper.GetAttrByName("REF")*0.3 + keeper.GetAttrByName("POS")*0.2
+		keeperStr := keeper.GetAttrByName("SAV")*0.15 + keeper.GetAttrByName("REF")*0.10 + keeper.GetAttrByName("POS")*0.05 + 4.0
 		nearestDef := SelectDefender(oppTeam, zone, sim.r)
 		defStr := nearestDef.GetAttrByName("DEF")*0.4 + nearestDef.GetAttrByName("TKL")*0.3 + nearestDef.GetAttrByName("HEA")*0.3
-		shotStr := holder.GetAttrByName("SHO")*0.5 + holder.GetAttrByName("FIN")*0.3 + holder.GetAttrByName("COM")*0.2
-		return shotStr - keeperStr*0.8 - defStr*0.3 + ctrl*5.0
+		shotStr := holder.GetAttrByName("SHO")*0.45 + holder.GetAttrByName("FIN")*0.35 + holder.GetAttrByName("COM")*0.20
+		return shotStr - keeperStr*0.4 - defStr*0.3 + ctrl*5.0
 
 	case config.EventLongShot:
 		keeper := oppTeam.GetGK()
-		keeperStr := keeper.GetAttrByName("SAV")*0.5 + keeper.GetAttrByName("POS")*0.3 + keeper.GetAttrByName("REF")*0.2
-		shotStr := holder.GetAttrByName("FIN")*0.5 + holder.GetAttrByName("SHO")*0.3 + holder.GetAttrByName("STR")*0.2
-		return shotStr - keeperStr*0.6 - 2.0 + ctrl*3.0
+		keeperStr := keeper.GetAttrByName("SAV")*0.15 + keeper.GetAttrByName("POS")*0.05 + keeper.GetAttrByName("REF")*0.05 + 4.0
+		shotStr := holder.GetAttrByName("FIN")*0.45 + holder.GetAttrByName("SHO")*0.30 + holder.GetAttrByName("STR")*0.15 + holder.GetAttrByName("BAL")*0.10
+		return shotStr - keeperStr*0.3 - 2.0 + ctrl*3.0
 
 	case config.EventShortPass, config.EventMidPass:
 		passStr := holder.GetAttrByName("PAS")*0.5 + holder.GetAttrByName("VIS")*0.3 + holder.GetAttrByName("CON")*0.2
@@ -444,6 +619,8 @@ func (sim *Simulator) executeEvent(ms *domain.MatchState, evType string) {
 		sim.doWingBreakEvent(ms, possTeam, oppTeam, zone)
 	case config.EventCutInside:
 		sim.doCutInsideEvent(ms, possTeam, oppTeam, zone)
+	case config.EventDribblePast:
+		sim.doDribblePastEvent(ms, possTeam, oppTeam, zone)
 	case config.EventThroughBall:
 		sim.doThroughBallEvent(ms, possTeam, oppTeam, zone)
 	case config.EventCross:
@@ -464,52 +641,135 @@ func (sim *Simulator) executeEvent(ms *domain.MatchState, evType string) {
 		sim.doFoulEvent(ms, possTeam, oppTeam, zone)
 	case config.EventHeader:
 		sim.doHeaderDuel(ms, possTeam, oppTeam)
+	case config.EventSwitchPlay:
+		sim.doSwitchPlayEvent(ms, possTeam, oppTeam, zone)
+	case config.EventLobPass:
+		sim.doLobPassEvent(ms, possTeam, oppTeam, zone)
+	case config.EventPassOverTop:
+		sim.doPassOverTopEvent(ms, possTeam, oppTeam, zone)
+	case config.EventBlockPass:
+		sim.doBlockPassEvent(ms, possTeam, oppTeam, zone)
+	case config.EventOneOnOne:
+		sim.doOneOnOneEvent(ms, possTeam, oppTeam, zone)
+	case config.EventCoverDefense:
+		sim.doCoverDefenseEvent(ms, possTeam, oppTeam, zone)
+	case config.EventGoalKick:
+		sim.doGoalKickEvent(ms, possTeam, oppTeam, zone)
+	case config.EventThrowIn:
+		sim.doThrowInEvent(ms, possTeam, oppTeam, zone)
+	case config.EventKeeperShortPass:
+		sim.doKeeperShortPassEvent(ms, possTeam, oppTeam, zone)
+	case config.EventKeeperThrow:
+		sim.doKeeperThrowEvent(ms, possTeam, oppTeam, zone)
+	case config.EventCounterAttack:
+		sim.doCounterAttackEvent(ms, possTeam, oppTeam, zone)
+	case config.EventOverlap:
+		sim.doOverlapEvent(ms, possTeam, oppTeam, zone)
+	case config.EventTrianglePass:
+		sim.doTrianglePassEvent(ms, possTeam, oppTeam, zone)
+	case config.EventOneTwo:
+		sim.doOneTwoEvent(ms, possTeam, oppTeam, zone)
+	case config.EventCrossRun:
+		sim.doCrossRunEvent(ms, possTeam, oppTeam, zone)
+	case config.EventDoubleTeam:
+		sim.doDoubleTeamEvent(ms, possTeam, oppTeam, zone)
+	case config.EventPressTogether:
+		sim.doPressTogetherEvent(ms, possTeam, oppTeam, zone)
+	case config.EventDropBall:
+		sim.doDropBallEvent(ms, possTeam, oppTeam, zone)
+	case config.EventHoldBall:
+		sim.doHoldBallEvent(ms, possTeam, zone)
+	case config.EventPivotPass:
+		sim.doPivotPassEvent(ms, possTeam, oppTeam, zone)
+	case config.EventBuildUp:
+		sim.doBuildUpEvent(ms, possTeam, oppTeam, zone)
 	}
 }
 
 func (sim *Simulator) doPassEvent(ms *domain.MatchState, passType string, possTeam, oppTeam *domain.TeamRuntime, zone [2]int, ctrl float64) {
 	holder := ms.BallHolder
-	pressure := SelectDefender(oppTeam, zone, sim.r)
 	target := SelectPassTarget(possTeam, zone, sim.r)
-
-	// === Aggressiveness branching ===
-	riskIdx := ComputeRiskIndex(possTeam.Tactics)
-	aggroProb := sigmoid(riskIdx*3.0 + ctrl*1.5 - 2.0) * 0.6
-	if aggroProb < 0.05 {
-		aggroProb = 0.05
+	// Safety guard: GK should not receive passes in attacking or midfield zones
+	if target.Position == config.PosGK && zone[0] < 2 {
+		for _, p := range possTeam.GetActivePlayers() {
+			if p.Position != config.PosGK && p.PlayerID != holder.PlayerID {
+				target = p
+				break
+			}
+		}
 	}
-	if aggroProb > 0.80 {
-		aggroProb = 0.80
+
+	// === No-pressure pass system ===
+	// Not every pass faces direct defensive challenge.
+	// Back-zone passes are often unpressured; front-zone passes almost always are.
+	noPressureBase := 0.0
+	switch zone[0] {
+	case 2: // back zone
+		noPressureBase = 0.55
+	case 1: // mid zone
+		noPressureBase = 0.40
+	case 0: // front zone
+		noPressureBase = 0.15
 	}
-	isAggressive := sim.r.Float64() < aggroProb
+	noPressureProb := noPressureBase + ctrl*0.30 + holder.GetAttrByName("VIS")*0.005
+	if noPressureProb < 0.05 {
+		noPressureProb = 0.05
+	}
+	if noPressureProb > 0.80 {
+		noPressureProb = 0.80
+	}
+	hasPressure := sim.r.Float64() >= noPressureProb
 
-	atkVal := CalcPassAttack(holder, ctrl)
-	defVal := CalcPassDefense(pressure, ctrl)
-	// Slightly boost pass defense to reduce easy progression
-	defVal += 0.6
-
+	// === Aggressiveness branching (only when under pressure) ===
 	passDetail := "safe"
-	if isAggressive {
-		passDetail = "aggressive"
-		atkVal -= 0.10 // aggressive pass is riskier
+	var pressure *domain.PlayerRuntime
+	var atkVal, defVal float64
+	var success bool
+
+	if hasPressure {
+		pressure = SelectDefender(oppTeam, zone, sim.r)
+		riskIdx := ComputeRiskIndex(possTeam.Tactics)
+		aggroProb := sigmoid(riskIdx*3.0 + ctrl*1.5 - 2.0) * 0.6
+		if aggroProb < 0.05 {
+			aggroProb = 0.05
+		}
+		if aggroProb > 0.80 {
+			aggroProb = 0.80
+		}
+		isAggressive := sim.r.Float64() < aggroProb
+
+		atkVal = CalcPassAttack(holder, ctrl)
+		defVal = CalcPassDefense(pressure, ctrl)
+		defVal += 0.25 // reduced from 0.6
+		if oppTeam.Tactics.DefensiveCompactness >= 2 {
+			defVal += 0.3
+		}
+
+		if isAggressive {
+			passDetail = "aggressive"
+			atkVal -= 0.20 // increased penalty from 0.10
+		} else {
+			atkVal += 0.25 // increased bonus from 0.15
+		}
+
+		success = ResolveDuel(atkVal, defVal, sim.r)
+		ConsumeStamina(holder, StaminaCost(passType))
+		ConsumeStamina(pressure, StaminaCost(passType)*0.5)
 	} else {
-		atkVal += 0.15 // safe pass is more reliable
+		// Unpressured pass: automatic success
+		success = true
+		ConsumeStamina(holder, StaminaCost(passType)*0.5)
 	}
-
-	success := ResolveDuel(atkVal, defVal, sim.r)
-
-	ConsumeStamina(holder, StaminaCost(passType))
-	ConsumeStamina(pressure, StaminaCost(passType)*0.5)
 
 	result := "success"
 	if !success {
 		result = "fail"
 		ms.Possession = ms.Possession.Opponent()
-		ms.ActiveZone = zone // stays roughly same area
+		ms.ActiveZone = zone
 		ms.BallHolder = pressure // defender wins possession
 		sim.flipGlobalMomentum(ms)
 	} else {
-		if isAggressive {
+		if passDetail == "aggressive" {
 			sim.applyControlShift(ms, ms.ActiveZone, 0.08)
 		} else {
 			sim.applyControlShift(ms, ms.ActiveZone, 0.02)
@@ -533,21 +793,24 @@ func (sim *Simulator) doPassEvent(ms *domain.MatchState, passType string, possTe
 		}
 	}
 
-	sim.addEvent(ms, domain.MatchEvent{
-		Type:         passType,
-		Team:         ms.Possession.String(),
-		PlayerID:     holder.PlayerID,
-		PlayerName:   holder.Name,
-		Player2ID:    target.PlayerID,
-		Player2Name:  target.Name,
-		OpponentID:   pressure.PlayerID,
-		OpponentName: pressure.Name,
-		Zone:         zoneStr(zone),
-		Result:       result,
-		Detail:       passDetail,
-	})
+	ev := domain.MatchEvent{
+		Type:        passType,
+		Team:        ms.Possession.String(),
+		PlayerID:    holder.PlayerID,
+		PlayerName:  holder.Name,
+		Player2ID:   target.PlayerID,
+		Player2Name: target.Name,
+		Zone:        zoneStr(zone),
+		Result:      result,
+		Detail:      passDetail,
+	}
+	if pressure != nil {
+		ev.OpponentID = pressure.PlayerID
+		ev.OpponentName = pressure.Name
+	}
+	sim.addEvent(ms, ev)
 
-	// Advance zone on success — dynamic based on pass quality and receiver movement
+	// Advance zone on success
 	if success {
 		passQuality := holder.GetAttrByName("PAS")*0.5 +
 			holder.GetAttrByName("VIS")*0.3 +
@@ -556,7 +819,7 @@ func (sim *Simulator) doPassEvent(ms *domain.MatchState, passType string, possTe
 			target.GetAttrByName("ACC")*0.3 +
 			target.GetAttrByName("POS")*0.4
 
-		// Forward chance: better pass + better receiver + high control
+		// Forward chance
 		forwardProb := 0.15 + sigmoid((passQuality+receiveQuality-20.0+ctrl*5.0)/5.0)*0.50
 		if forwardProb < 0.10 {
 			forwardProb = 0.10
@@ -565,13 +828,19 @@ func (sim *Simulator) doPassEvent(ms *domain.MatchState, passType string, possTe
 			forwardProb = 0.70
 		}
 
-		// Backward chance: low quality or under pressure
+		// Backward chance
 		backwardProb := 0.10 + sigmoid((20.0-passQuality-receiveQuality-ctrl*5.0)/5.0)*0.30
 		if backwardProb < 0.05 {
 			backwardProb = 0.05
 		}
 		if backwardProb > 0.40 {
 			backwardProb = 0.40
+		}
+
+		// Unpressured passes move less (patient build-up)
+		if !hasPressure {
+			forwardProb *= 0.4
+			backwardProb *= 0.4
 		}
 
 		// ST target always gets a forward bonus
@@ -586,8 +855,129 @@ func (sim *Simulator) doPassEvent(ms *domain.MatchState, passType string, possTe
 			ms.ActiveZone = [2]int{zone[0] + 1, zone[1]}
 		}
 		// else: stay in same zone
-		ms.BallHolder = target // receiver becomes new ball holder
+		ms.BallHolder = target
 	}
+}
+
+// doHoldBallEvent — player shields the ball and waits for support (no duel, no zone change)
+func (sim *Simulator) doHoldBallEvent(ms *domain.MatchState, possTeam *domain.TeamRuntime, zone [2]int) {
+	holder := ms.BallHolder
+	ConsumeStamina(holder, 0.3)
+	sim.applyControlShift(ms, zone, 0.01)
+	sim.addEvent(ms, domain.MatchEvent{
+		Type:       config.EventHoldBall,
+		Team:       possTeam.Name,
+		PlayerID:   holder.PlayerID,
+		PlayerName: holder.Name,
+		Zone:       zoneStr(zone),
+		Result:     "success",
+	})
+}
+
+// doPivotPassEvent — midfield lateral distribution, high success, low progression
+func (sim *Simulator) doPivotPassEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
+	holder := ms.BallHolder
+	defender := SelectDefender(oppTeam, zone, sim.r)
+	target := SelectPassTarget(possTeam, zone, sim.r)
+
+	// Pivot pass gets a natural bonus for midfield orchestrators
+	atkVal := CalcPassAttack(holder, ms.EffectiveControl(zone)) + 0.4
+	defVal := CalcPassDefense(defender, ms.EffectiveControl(zone)) + 0.25
+
+	success := ResolveDuel(atkVal, defVal, sim.r)
+	ConsumeStamina(holder, StaminaCost(config.EventMidPass))
+	ConsumeStamina(defender, StaminaCost(config.EventMidPass)*0.5)
+
+	result := "success"
+	if !success {
+		result = "fail"
+		ms.Possession = ms.Possession.Opponent()
+		ms.BallHolder = defender
+		sim.flipGlobalMomentum(ms)
+	} else {
+		// Pivot pass rarely advances zone (90% chance to stay in midfield)
+		if sim.r.Float64() < 0.10 && zone[0] > 0 {
+			ms.ActiveZone = [2]int{zone[0] - 1, zone[1]}
+		} else if sim.r.Float64() < 0.20 && zone[0] < 2 {
+			ms.ActiveZone = [2]int{zone[0] + 1, zone[1]}
+		}
+		ms.BallHolder = target
+		sim.applyControlShift(ms, zone, 0.02)
+	}
+
+	sim.addEvent(ms, domain.MatchEvent{
+		Type:         config.EventPivotPass,
+		Team:         ms.Possession.String(),
+		PlayerID:     holder.PlayerID,
+		PlayerName:   holder.Name,
+		Player2ID:    target.PlayerID,
+		Player2Name:  target.Name,
+		OpponentID:   defender.PlayerID,
+		OpponentName: defender.Name,
+		Zone:         zoneStr(zone),
+		Result:       result,
+	})
+}
+
+// doBuildUpEvent — back-line passing sequence, 2-3 players, single duel check
+func (sim *Simulator) doBuildUpEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
+	p1 := ms.BallHolder
+	p2 := SelectPassTarget(possTeam, zone, sim.r)
+	if p2.PlayerID == p1.PlayerID {
+		for _, p := range possTeam.GetActivePlayers() {
+			if p.PlayerID != p1.PlayerID && p.Position != config.PosGK {
+				p2 = p
+				break
+			}
+		}
+	}
+	p3 := SelectPassTarget(possTeam, zone, sim.r)
+	if p3.PlayerID == p1.PlayerID || p3.PlayerID == p2.PlayerID {
+		for _, p := range possTeam.GetActivePlayers() {
+			if p.PlayerID != p1.PlayerID && p.PlayerID != p2.PlayerID && p.Position != config.PosGK {
+				p3 = p
+				break
+			}
+		}
+	}
+	defender := SelectDefender(oppTeam, zone, sim.r)
+
+	atkVal := CalcBuildUpAttack(p1, p2, p3) + ms.EffectiveControl(zone)*2.0
+	defVal := CalcBuildUpDefense(defender) + 0.25
+
+	success := ResolveDuel(atkVal, defVal, sim.r)
+	ConsumeStamina(p1, 0.4)
+	ConsumeStamina(p2, 0.3)
+	ConsumeStamina(p3, 0.3)
+
+	result := "success"
+	if !success {
+		result = "fail"
+		ms.Possession = ms.Possession.Opponent()
+		ms.BallHolder = defender
+		sim.flipGlobalMomentum(ms)
+	} else {
+		// Build-up rarely leaves back zone
+		if sim.r.Float64() < 0.15 && zone[0] > 0 {
+			ms.ActiveZone = [2]int{zone[0] - 1, zone[1]}
+		}
+		ms.BallHolder = p3
+		sim.applyControlShift(ms, zone, 0.03)
+	}
+
+	sim.addEvent(ms, domain.MatchEvent{
+		Type:         config.EventBuildUp,
+		Team:         ms.Possession.String(),
+		PlayerID:     p1.PlayerID,
+		PlayerName:   p1.Name,
+		Player2ID:    p3.PlayerID,
+		Player2Name:  p3.Name,
+		OpponentID:   defender.PlayerID,
+		OpponentName: defender.Name,
+		Zone:         zoneStr(zone),
+		Result:       result,
+		Detail:       p2.Name, // intermediate passer stored in Detail
+	})
 }
 
 func (sim *Simulator) doLongPassEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
@@ -621,7 +1011,6 @@ func (sim *Simulator) doLongPassEvent(ms *domain.MatchState, possTeam, oppTeam *
 			holder.Stats.PassesSucc++
 		}
 	}
-
 	ev := domain.MatchEvent{
 		Type:         config.EventLongPass,
 		Team:         ms.Possession.String(),
@@ -664,6 +1053,21 @@ func (sim *Simulator) doWingBreakEvent(ms *domain.MatchState, possTeam, oppTeam 
 	ConsumeStamina(dribbler, StaminaCost(config.EventWingBreak))
 	ConsumeStamina(defender, StaminaCost(config.EventWingBreak)*0.6)
 
+	dribbler.Stats.Dribbles++
+	if possTeam == ms.HomeTeam {
+		ms.HomeStats.Dribbles++
+		if success {
+			ms.HomeStats.DribblesSucc++
+			dribbler.Stats.DribblesSucc++
+		}
+	} else {
+		ms.AwayStats.Dribbles++
+		if success {
+			ms.AwayStats.DribblesSucc++
+			dribbler.Stats.DribblesSucc++
+		}
+	}
+
 	result := "success"
 	if !success {
 		result = "fail"
@@ -704,6 +1108,21 @@ func (sim *Simulator) doCutInsideEvent(ms *domain.MatchState, possTeam, oppTeam 
 	success := ResolveDuel(atkVal, defVal, sim.r)
 	ConsumeStamina(dribbler, StaminaCost(config.EventCutInside))
 
+	dribbler.Stats.Dribbles++
+	if possTeam == ms.HomeTeam {
+		ms.HomeStats.Dribbles++
+		if success {
+			ms.HomeStats.DribblesSucc++
+			dribbler.Stats.DribblesSucc++
+		}
+	} else {
+		ms.AwayStats.Dribbles++
+		if success {
+			ms.AwayStats.DribblesSucc++
+			dribbler.Stats.DribblesSucc++
+		}
+	}
+
 	result := "success"
 	if !success {
 		result = "fail"
@@ -733,6 +1152,62 @@ func (sim *Simulator) doCutInsideEvent(ms *domain.MatchState, possTeam, oppTeam 
 			ms.ActiveZone = [2]int{0, 1} // fully beat defender, into box
 		} else if zone[0] > 0 {
 			ms.ActiveZone = [2]int{zone[0] - 1, 1} // partial advance
+		}
+	}
+}
+
+func (sim *Simulator) doDribblePastEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
+	dribbler := ms.BallHolder
+	defender := SelectDefender(oppTeam, zone, sim.r)
+
+	atkVal := CalcDribbleAttack(dribbler)
+	defVal := CalcDribbleDefense(defender)
+	success := ResolveDuel(atkVal, defVal, sim.r)
+
+	ConsumeStamina(dribbler, StaminaCost(config.EventDribblePast))
+	ConsumeStamina(defender, StaminaCost(config.EventDribblePast)*0.6)
+
+	dribbler.Stats.Dribbles++
+	if possTeam == ms.HomeTeam {
+		ms.HomeStats.Dribbles++
+		if success {
+			ms.HomeStats.DribblesSucc++
+			dribbler.Stats.DribblesSucc++
+		}
+	} else {
+		ms.AwayStats.Dribbles++
+		if success {
+			ms.AwayStats.DribblesSucc++
+			dribbler.Stats.DribblesSucc++
+		}
+	}
+
+	result := "success"
+	if !success {
+		result = "fail"
+		ms.Possession = ms.Possession.Opponent()
+		ms.BallHolder = defender
+		sim.flipGlobalMomentum(ms)
+	} else {
+		sim.applyControlShift(ms, zone, 0.10)
+		sim.boostGlobalMomentum(ms, 0.03)
+	}
+
+	sim.addEvent(ms, domain.MatchEvent{
+		Type:         config.EventDribblePast,
+		Team:         ms.Possession.String(),
+		PlayerID:     dribbler.PlayerID,
+		PlayerName:   dribbler.Name,
+		OpponentID:   defender.PlayerID,
+		OpponentName: defender.Name,
+		Zone:         zoneStr(zone),
+		Result:       result,
+	})
+
+	if success {
+		// Dribble past primarily boosts control; only sometimes advances zone
+		if zone[0] > 0 && sim.r.Float64() < 0.60 {
+			ms.ActiveZone = [2]int{zone[0] - 1, zone[1]}
 		}
 	}
 }
@@ -769,6 +1244,14 @@ func (sim *Simulator) doThroughBallEvent(ms *domain.MatchState, possTeam, oppTea
 			passer.Stats.PassesSucc++
 		}
 	}
+	if success {
+		passer.Stats.KeyPasses++
+		if ms.Possession == domain.SideHome {
+			ms.HomeStats.KeyPasses++
+		} else {
+			ms.AwayStats.KeyPasses++
+		}
+	}
 
 	sim.addEvent(ms, domain.MatchEvent{
 		Type:         config.EventThroughBall,
@@ -792,6 +1275,12 @@ func (sim *Simulator) doThroughBallEvent(ms *domain.MatchState, possTeam, oppTea
 		}
 		if sim.r.Float64() < offsideChance {
 			// Offside!
+			target.Stats.Offsides++
+			if possTeam == ms.HomeTeam {
+				ms.HomeStats.Offsides++
+			} else {
+				ms.AwayStats.Offsides++
+			}
 			sim.addEvent(ms, domain.MatchEvent{
 				Type:       config.EventOffside,
 				Team:       possTeam.Name,
@@ -845,6 +1334,13 @@ func (sim *Simulator) doCrossEvent(ms *domain.MatchState, possTeam, oppTeam *dom
 		ms.AwayStats.Passes++
 	}
 
+	crosser.Stats.Crosses++
+	if possTeam == ms.HomeTeam {
+		ms.HomeStats.Crosses++
+	} else {
+		ms.AwayStats.Crosses++
+	}
+
 	result := "success"
 	if !success {
 		result = "fail"
@@ -880,6 +1376,15 @@ func (sim *Simulator) doCrossEvent(ms *domain.MatchState, possTeam, oppTeam *dom
 	} else {
 		sim.applyControlShift(ms, [2]int{0, 1}, 0.08)
 		sim.boostGlobalMomentum(ms, 0.02)
+		crosser.Stats.CrossesSucc++
+		crosser.Stats.KeyPasses++
+		if possTeam == ms.HomeTeam {
+			ms.HomeStats.CrossesSucc++
+			ms.HomeStats.KeyPasses++
+		} else {
+			ms.AwayStats.CrossesSucc++
+			ms.AwayStats.KeyPasses++
+		}
 	}
 
 	sim.addEvent(ms, domain.MatchEvent{
@@ -897,6 +1402,7 @@ func (sim *Simulator) doCrossEvent(ms *domain.MatchState, possTeam, oppTeam *dom
 		// Chain to header duel (with possible keeper rush)
 		ms.ActiveZone = [2]int{0, 1}
 		crossQuality := crosser.GetAttrByName("CRO")*0.5 + crosser.GetAttrByName("PAS")*0.3 + crosser.GetAttrByName("DRI")*0.2
+		sim.lastCrossQuality = crossQuality
 		if !sim.maybeKeeperRush(ms, possTeam, oppTeam, crosser, crossQuality) {
 			sim.doHeaderDuel(ms, possTeam, oppTeam)
 		}
@@ -910,6 +1416,12 @@ func (sim *Simulator) doHeaderDuel(ms *domain.MatchState, possTeam, oppTeam *dom
 	atkVal := CalcHeaderAttack(attacker)
 	defVal := CalcHeaderDefense(defender)
 
+	// Cross quality bonus from previous cross
+	if sim.lastCrossQuality > 0 {
+		atkVal += sim.lastCrossQuality * 0.15
+		sim.lastCrossQuality = 0
+	}
+
 	// High cross strategy boosts header duel attack value
 	if possTeam.Tactics.CrossingStrategy >= 3 {
 		atkVal += 0.4
@@ -920,6 +1432,30 @@ func (sim *Simulator) doHeaderDuel(ms *domain.MatchState, possTeam, oppTeam *dom
 	ConsumeStamina(attacker, 1.5)
 	ConsumeStamina(defender, 1.5)
 
+	attacker.Stats.Headers++
+	defender.Stats.Headers++
+	if possTeam == ms.HomeTeam {
+		ms.HomeStats.Headers++
+		ms.AwayStats.Headers++
+		if success {
+			ms.HomeStats.HeaderWins++
+			attacker.Stats.HeaderWins++
+		} else {
+			ms.AwayStats.HeaderWins++
+			defender.Stats.HeaderWins++
+		}
+	} else {
+		ms.AwayStats.Headers++
+		ms.HomeStats.Headers++
+		if success {
+			ms.AwayStats.HeaderWins++
+			attacker.Stats.HeaderWins++
+		} else {
+			ms.HomeStats.HeaderWins++
+			defender.Stats.HeaderWins++
+		}
+	}
+
 	result := "success"
 	if !success {
 		result = "fail"
@@ -927,7 +1463,6 @@ func (sim *Simulator) doHeaderDuel(ms *domain.MatchState, possTeam, oppTeam *dom
 		ms.BallHolder = defender
 		sim.flipGlobalMomentum(ms)
 	} else {
-		ms.BallHolder = attacker
 		sim.applyControlShift(ms, [2]int{0, 1}, 0.07)
 		sim.boostGlobalMomentum(ms, 0.02)
 	}
@@ -948,14 +1483,26 @@ func (sim *Simulator) doHeaderDuel(ms *domain.MatchState, possTeam, oppTeam *dom
 		if target.PlayerID == attacker.PlayerID {
 			players := possTeam.GetActivePlayers()
 			for _, p := range players {
-				if p.PlayerID != attacker.PlayerID {
+				// Skip attacker and GK — GK should not be a pass target in the attacking zone
+				if p.PlayerID != attacker.PlayerID && p.Position != config.PosGK {
 					target = p
 					break
+				}
+			}
+			// If every other player is GK (shouldn't happen), fall back to any non-attacker
+			if target.PlayerID == attacker.PlayerID {
+				for _, p := range players {
+					if p.PlayerID != attacker.PlayerID {
+						target = p
+						break
+					}
 				}
 			}
 		}
 		ev.Player2ID = target.PlayerID
 		ev.Player2Name = target.Name
+		// The target receives the header, becoming the new ball holder
+		ms.BallHolder = target
 	}
 
 	sim.addEvent(ms, ev)
@@ -967,14 +1514,14 @@ func (sim *Simulator) doHeaderDuel(ms *domain.MatchState, possTeam, oppTeam *dom
 			attacker.GetAttrByName("FIN")*0.3
 		ctrl := ms.EffectiveControl([2]int{0, 1})
 		if ctrl > 0.3 {
-			shotTendency += 2.0
+			shotTendency += 1.0
 		}
-		shotChance := sigmoid((shotTendency-12.0)/4.0) * 0.7
-		if shotChance < 0.15 {
-			shotChance = 0.15
+		shotChance := 0.05 + sigmoid((shotTendency-12.0)/4.0)*0.25
+		if shotChance < 0.05 {
+			shotChance = 0.05
 		}
-		if shotChance > 0.75 {
-			shotChance = 0.75
+		if shotChance > 0.45 {
+			shotChance = 0.45
 		}
 		if sim.r.Float64() < shotChance {
 			sim.doShotEvent(ms, possTeam, oppTeam, [2]int{0, 1}, "close")
@@ -1020,7 +1567,12 @@ func (sim *Simulator) doKeeperRushEvent(ms *domain.MatchState, possTeam, oppTeam
 	if success {
 		// Rush success: keeper claims the ball
 		keeper.Stats.Saves++
-		keeper.Stats.RatingBase += 0.3
+		if ms.Possession == domain.SideHome {
+			ms.AwayStats.Saves++
+		} else {
+			ms.HomeStats.Saves++
+		}
+		keeper.Stats.RatingBase += 0.4
 		ms.Possession = ms.Possession.Opponent()
 		ms.ActiveZone = [2]int{2, 1}
 		ms.BallHolder = keeper
@@ -1066,14 +1618,19 @@ func (sim *Simulator) doShotEventWithKeeperOut(ms *domain.MatchState, possTeam, 
 			ms.AwayStats.ShotsOnTarget++
 		}
 		shooter.Stats.Goals++
-		keeper.Stats.RatingBase -= 1.0
+		keeper.Stats.RatingBase -= 0.5
 		shooter.Stats.RatingBase += 1.0
 		sim.applyControlShift(ms, zone, 0.15)
 		sim.boostGlobalMomentum(ms, 0.04)
 	} else {
 		// Out of position keeper still might save it, but less likely
 		keeper.Stats.Saves++
-		keeper.Stats.RatingBase += 0.15
+		if ms.Possession == domain.SideHome {
+			ms.AwayStats.Saves++
+		} else {
+			ms.HomeStats.Saves++
+		}
+		keeper.Stats.RatingBase += 0.4
 		if ms.Possession == domain.SideHome {
 			ms.HomeStats.ShotsOnTarget++
 		} else {
@@ -1124,6 +1681,14 @@ func (sim *Simulator) doShotEventWithKeeperOut(ms *domain.MatchState, possTeam, 
 
 func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int, distance string) {
 	shooter := ms.BallHolder
+	// Emit shot windup narrative before resolution
+	sim.addEvent(ms, domain.MatchEvent{
+		Type:       config.EventShotWindup,
+		Team:       ms.Possession.String(),
+		PlayerID:   shooter.PlayerID,
+		PlayerName: shooter.Name,
+		Zone:       zoneStr(zone),
+	})
 	keeper := oppTeam.GetGK()
 
 	atkVal := CalcShotAttack(shooter, distance)
@@ -1157,7 +1722,10 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 	}
 
 	blockDelta := blockAtk - blockDef + ctrl*3.0
-	blockChance := sigmoid(blockDelta/5.0) * 0.6
+	blockChance := sigmoid(blockDelta/5.0) * 0.75
+
+	// Defensive compactness always boosts block chance
+	blockChance += float64(oppTeam.Tactics.DefensiveCompactness) * 0.12
 
 	// Deep defense active: +25% shot block chance in own penalty area
 	if oppTeam.Tactics.DefensiveLineHeight <= 1 && oppTeam.Tactics.DefensiveCompactness >= 2 {
@@ -1169,19 +1737,92 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 	if blockChance < 0.05 {
 		blockChance = 0.05
 	}
-	if blockChance > 0.75 {
-		blockChance = 0.75
+	if blockChance > 0.50 {
+		blockChance = 0.50
 	}
 
 	// === Step 2: Is the shot blocked? ===
 	blocked := sim.r.Float64() < blockChance
 
-	// === Step 3: If not blocked, keeper makes the save ===
-	com := shooter.GetAttrByName("COM")
-	success := false
-	if !blocked {
-		success = ResolveDuel(atkVal, defVal+0.2, sim.r, com)
+	// === Step 3: If blocked, emit independent shot_block event ===
+	if blocked {
+		// Emit shot first (with blocked result), then shot_block event, then handle aftermath
+		shooter.Stats.Shots++
+		if ms.Possession == domain.SideHome {
+			ms.HomeStats.Shots++
+		} else {
+			ms.AwayStats.Shots++
+		}
+
+		evType := config.EventCloseShot
+		if distance == "long" {
+			evType = config.EventLongShot
+		}
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:         evType,
+			Team:         ms.Possession.String(),
+			PlayerID:     shooter.PlayerID,
+			PlayerName:   shooter.Name,
+			OpponentID:   keeper.PlayerID,
+			OpponentName: keeper.Name,
+			Zone:         zoneStr(zone),
+			Result:       "blocked",
+			Score:        &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
+		})
+
+		// Emit independent shot_block event and handle aftermath
+		sim.doShotBlockEvent(ms, possTeam, oppTeam, zone, nearestDefender, shooter)
+		return
 	}
+
+	// === Step 4: On-target check ===
+	// Even if not blocked, the shot might miss the goal entirely
+	onTargetProb := 0.60 + sigmoid((shooter.GetAttrByName("SHO")+shooter.GetAttrByName("FIN")-20.0)/5.0)*0.20
+	if onTargetProb < 0.45 {
+		onTargetProb = 0.45
+	}
+	if onTargetProb > 0.80 {
+		onTargetProb = 0.80
+	}
+
+	if sim.r.Float64() >= onTargetProb {
+		// Shot misses the goal
+		ConsumeStamina(shooter, StaminaCost(config.EventCloseShot))
+
+		shooter.Stats.Shots++
+		if ms.Possession == domain.SideHome {
+			ms.HomeStats.Shots++
+		} else {
+			ms.AwayStats.Shots++
+		}
+
+		evType := config.EventCloseShot
+		if distance == "long" {
+			evType = config.EventLongShot
+		}
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:         evType,
+			Team:         ms.Possession.String(),
+			PlayerID:     shooter.PlayerID,
+			PlayerName:   shooter.Name,
+			OpponentID:   keeper.PlayerID,
+			OpponentName: keeper.Name,
+			Zone:         zoneStr(zone),
+			Result:       "missed",
+			Score:        &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
+		})
+
+		// Missed shot results in goal kick (keeper gets ball)
+		ms.Possession = ms.Possession.Opponent()
+		ms.ActiveZone = [2]int{2, 1}
+		ms.BallHolder = keeper
+		sim.flipGlobalMomentum(ms)
+		return
+	}
+
+	// === Step 5: If on target, keeper makes the save ===
+	com := shooter.GetAttrByName("COM")
+	success := ResolveDuel(atkVal, defVal+4.0, sim.r, com)
 
 	ConsumeStamina(shooter, StaminaCost(config.EventCloseShot))
 
@@ -1193,10 +1834,7 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 	}
 
 	shotResult := "missed"
-	if blocked {
-		shotResult = "blocked"
-		nearestDefender.Stats.RatingBase += 0.15
-	} else if success {
+	if success {
 		shotResult = "goal"
 		if ms.Possession == domain.SideHome {
 			ms.Score.Home++
@@ -1206,7 +1844,7 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 			ms.AwayStats.ShotsOnTarget++
 		}
 		shooter.Stats.Goals++
-		keeper.Stats.RatingBase -= 0.8
+		keeper.Stats.RatingBase -= 0.5
 		shooter.Stats.RatingBase += 1.0
 		sim.applyControlShift(ms, zone, 0.15)
 		sim.boostGlobalMomentum(ms, 0.04)
@@ -1231,7 +1869,12 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 		} else {
 			shotResult = "saved"
 			keeper.Stats.Saves++
-			keeper.Stats.RatingBase += 0.25
+			if ms.Possession == domain.SideHome {
+				ms.AwayStats.Saves++
+			} else {
+				ms.HomeStats.Saves++
+			}
+			keeper.Stats.RatingBase += 0.4
 			if ms.Possession == domain.SideHome {
 				ms.HomeStats.ShotsOnTarget++
 			} else {
@@ -1353,9 +1996,45 @@ func (sim *Simulator) doTackleEvent(ms *domain.MatchState, possTeam, oppTeam *do
 	} else {
 		result = "fail"
 		tackler.Stats.Tackles++
+		if ms.Possession == domain.SideHome {
+			ms.AwayStats.Tackles++
+		} else {
+			ms.HomeStats.Tackles++
+		}
 		holder.Stats.RatingBase += 0.05
 		sim.applyControlShift(ms, zone, 0.03)
 		sim.boostGlobalMomentum(ms, 0.01)
+	}
+
+	// === Injury check from hard tackle ===
+	if !holder.Injured && success {
+		injuryRoll := sim.r.Float64()
+		tackleIntensity := tackler.GetAttrByName("TKL")*0.5 + tackler.GetAttrByName("STR")*0.3
+		if tackleIntensity > 14 && injuryRoll < 0.005 {
+			// Major injury from brutal tackle
+			holder.Injured = true
+			holder.InjurySeverity = 2
+			sim.addEvent(ms, domain.MatchEvent{
+				Type:         config.EventMajorInjury,
+				Team:         possTeam.Name,
+				PlayerID:     holder.PlayerID,
+				PlayerName:   holder.Name,
+				OpponentID:   tackler.PlayerID,
+				OpponentName: tackler.Name,
+			})
+		} else if tackleIntensity > 12 && injuryRoll < 0.02 {
+			// Minor injury
+			holder.Injured = true
+			holder.InjurySeverity = 1
+			sim.addEvent(ms, domain.MatchEvent{
+				Type:         config.EventMinorInjury,
+				Team:         possTeam.Name,
+				PlayerID:     holder.PlayerID,
+				PlayerName:   holder.Name,
+				OpponentID:   tackler.PlayerID,
+				OpponentName: tackler.Name,
+			})
+		}
 	}
 
 	sim.addEvent(ms, domain.MatchEvent{
@@ -1381,6 +2060,11 @@ func (sim *Simulator) doInterceptEvent(ms *domain.MatchState, possTeam, oppTeam 
 	ms.ActiveZone = zone
 	ms.BallHolder = interceptor
 	interceptor.Stats.Intercepts++
+	if ms.Possession == domain.SideHome {
+		ms.HomeStats.Interceptions++
+	} else {
+		ms.AwayStats.Interceptions++
+	}
 	interceptor.Stats.RatingBase += 0.12
 	sim.flipGlobalMomentum(ms)
 	sim.applyControlShift(ms, zone, 0.06)
@@ -1474,6 +2158,20 @@ func (sim *Simulator) applyCounterBoost(ms *domain.MatchState, side domain.Side)
 	ms.CounterBoostRemaining[idx] = 3
 	// Counter boost gives a modest global momentum bump
 	sim.boostGlobalMomentum(ms, 0.12)
+}
+
+func isDeadBallEvent(evType string) bool {
+	switch evType {
+	case config.EventGoal, config.EventHalftime, config.EventFulltime,
+		config.EventFoul, config.EventGoalKick, config.EventCorner,
+		config.EventThrowIn, config.EventDropBall, config.EventKickoff,
+		config.EventKeeperClaim, config.EventKeeperSave,
+		config.EventFreeKickSetup, config.EventGoalKickSetup,
+		config.EventCornerSetup, config.EventPenaltySetup,
+		config.EventSubstitution:
+		return true
+	}
+	return false
 }
 
 func (sim *Simulator) checkSubstitutions(ms *domain.MatchState) {
@@ -1571,12 +2269,15 @@ func (sim *Simulator) doSubstitution(ms *domain.MatchState, team *domain.TeamRun
 }
 
 func (sim *Simulator) doClearanceEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
-	// Clearance: defending team clears the ball
-	defender := SelectDefender(oppTeam, zone, sim.r)
+	// Clearance: possession team clears the ball under pressure
+	defender := SelectDefender(possTeam, zone, sim.r)
 	ConsumeStamina(defender, StaminaCost(config.EventClearance))
 
 	defender.Stats.Clearances++
 	defender.Stats.RatingBase += 0.1
+	if defender.Position == "GK" {
+		defender.Stats.RatingBase += 0.1
+	}
 
 	// Dynamic own goal chance based on defender composure, decision making, pressure, and stamina
 	clearanceQuality := defender.GetAttrByName("COM")*0.3 +
@@ -1632,7 +2333,7 @@ func (sim *Simulator) doClearanceEvent(ms *domain.MatchState, possTeam, oppTeam 
 
 	sim.addEvent(ms, domain.MatchEvent{
 		Type:       config.EventClearance,
-		Team:       oppTeam.Name,
+		Team:       possTeam.Name,
 		PlayerID:   defender.PlayerID,
 		PlayerName: defender.Name,
 		Zone:       zoneStr(zone),
@@ -1643,6 +2344,11 @@ func (sim *Simulator) doClearanceEvent(ms *domain.MatchState, possTeam, oppTeam 
 	ms.Possession = ms.Possession.Opponent()
 	ms.ActiveZone = [2]int{2, 1}
 	ms.BallHolder = SelectPlayerByZone(ms.Team(ms.Possession), [2]int{2, 1}, sim.r)
+	if ms.Possession == domain.SideHome {
+		ms.HomeStats.Clearances++
+	} else {
+		ms.AwayStats.Clearances++
+	}
 	sim.flipGlobalMomentum(ms)
 	sim.applyControlShift(ms, [2]int{2, 1}, 0.05)
 	sim.boostGlobalMomentum(ms, 0.01)
@@ -1672,6 +2378,12 @@ func (sim *Simulator) doFoulEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 	} else {
 		ms.HomeStats.Fouls++
 	}
+	victim.Stats.FoulsDrawn++
+	if possTeam == ms.HomeTeam {
+		ms.HomeStats.FoulsDrawn++
+	} else {
+		ms.AwayStats.FoulsDrawn++
+	}
 	fouler.Stats.RatingBase -= 0.15
 
 	// === Dynamic card check based on foul severity ===
@@ -1699,6 +2411,8 @@ func (sim *Simulator) doFoulEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 	yellowThreshold := 10.0 + sim.r.Float64()*4.0
 	redThreshold := 16.0 + sim.r.Float64()*3.0
 
+	yellowJustIssued := false
+
 	if !fouler.RedCard && severityScore > redThreshold {
 		fouler.RedCard = true
 		fouler.Stats.RedCards++
@@ -1718,6 +2432,7 @@ func (sim *Simulator) doFoulEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 			ms.HomeStats.YellowCards++
 		}
 		cardResult = "yellow"
+		yellowJustIssued = true
 		fouler.Stats.RatingBase -= 0.5
 		if fouler.YellowCards >= 2 {
 			fouler.RedCard = true
@@ -1743,6 +2458,53 @@ func (sim *Simulator) doFoulEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 		Result:       cardResult,
 	})
 
+	if yellowJustIssued {
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:       config.EventYellowCard,
+			Team:       oppTeam.Name,
+			PlayerID:   fouler.PlayerID,
+			PlayerName: fouler.Name,
+		})
+	}
+	if cardResult == "red" {
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:       config.EventRedCard,
+			Team:       oppTeam.Name,
+			PlayerID:   fouler.PlayerID,
+			PlayerName: fouler.Name,
+		})
+	}
+
+	// === Injury check ===
+	if !victim.Injured {
+		injuryRoll := sim.r.Float64()
+		if cardResult == "red" && injuryRoll < 0.50 {
+			// Major injury from dangerous foul (red card level)
+			victim.Injured = true
+			victim.InjurySeverity = 2
+			sim.addEvent(ms, domain.MatchEvent{
+				Type:         config.EventMajorInjury,
+				Team:         possTeam.Name,
+				PlayerID:     victim.PlayerID,
+				PlayerName:   victim.Name,
+				OpponentID:   fouler.PlayerID,
+				OpponentName: fouler.Name,
+			})
+		} else if severityScore > yellowThreshold && injuryRoll < 0.06 {
+			// Minor injury
+			victim.Injured = true
+			victim.InjurySeverity = 1
+			sim.addEvent(ms, domain.MatchEvent{
+				Type:         config.EventMinorInjury,
+				Team:         possTeam.Name,
+				PlayerID:     victim.PlayerID,
+				PlayerName:   victim.Name,
+				OpponentID:   fouler.PlayerID,
+				OpponentName: fouler.Name,
+			})
+		}
+	}
+
 	// Foul disrupts attacking momentum
 	foulShift := 0.03
 	if cardResult == "yellow" || cardResult == "red" {
@@ -1750,6 +2512,30 @@ func (sim *Simulator) doFoulEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 	}
 	sim.applyControlShift(ms, zone, foulShift)
 	sim.boostGlobalMomentum(ms, 0.01)
+
+	// === Referee discretion ===
+	// Penalty area fouls are often not called (dive, minor contact, blocked view)
+	isPenaltyArea := zone[0] == 0 && zone[1] == 1
+	if isPenaltyArea {
+		callChance := 0.25
+		if cardResult == "yellow" || cardResult == "red" {
+			callChance = 0.50 // obvious/dangerous fouls more likely to be called
+		}
+		if sim.r.Float64() > callChance {
+			// No call — play continues, attacking team keeps possession
+			sim.addEvent(ms, domain.MatchEvent{
+				Type:         config.EventFoul,
+				Team:         oppTeam.Name,
+				PlayerID:     fouler.PlayerID,
+				PlayerName:   fouler.Name,
+				OpponentID:   victim.PlayerID,
+				OpponentName: victim.Name,
+				Zone:         zoneStr(zone),
+				Result:       "no_call",
+			})
+			return
+		}
+	}
 
 	// After foul, trigger free kick / penalty
 	sim.doFreeKickEvent(ms, possTeam, oppTeam, zone)
@@ -1760,12 +2546,24 @@ func (sim *Simulator) handleHalftime(ms *domain.MatchState) {
 		Type:  config.EventHalftime,
 		Score: &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
 	})
+	// Mid-break event
+	sim.addEvent(ms, domain.MatchEvent{
+		Type:  config.EventMidBreak,
+		Score: &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
+	})
 	ms.Half = 2
 	ms.Minute = 25.0
 	HalftimeRecovery(ms)
+	// Halftime is a dead ball — check substitutions
+	sim.checkSubstitutions(ms)
 	ms.Possession = domain.SideAway // away team kicks off 2nd half
 	ms.ActiveZone = [2]int{1, 1}
 	ms.BallHolder = sim.selectKickoffTaker(ms.AwayTeam)
+	// Second half start
+	sim.addEvent(ms, domain.MatchEvent{
+		Type:  config.EventSecondHalfStart,
+		Score: &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
+	})
 	// 2nd half kickoff
 	sim.addEvent(ms, domain.MatchEvent{
 		Type:         config.EventKickoff,
@@ -1776,7 +2574,23 @@ func (sim *Simulator) handleHalftime(ms *domain.MatchState) {
 }
 
 func (sim *Simulator) doFreeKickEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
+	resetControlShift(ms)
 	taker := SelectPlayerByZone(possTeam, zone, sim.r)
+
+	// Penalty: skip free kick setup, go straight to penalty drama
+	isPenalty := zone[0] == 0 && zone[1] == 1
+	if !isPenalty {
+		// Setup phase: placing ball, wall positioning
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:       config.EventFreeKickSetup,
+			Team:       ms.Possession.String(),
+			PlayerID:   taker.PlayerID,
+			PlayerName: taker.Name,
+			Zone:       zoneStr(zone),
+		})
+		ms.AdvanceClock(3.0 + sim.r.Float64()*2.0)
+	}
+
 	ConsumeStamina(taker, StaminaCost(config.EventFreeKick))
 
 	if ms.Possession == domain.SideHome {
@@ -1789,8 +2603,9 @@ func (sim *Simulator) doFreeKickEvent(ms *domain.MatchState, possTeam, oppTeam *
 	ctrl := ms.EffectiveControl(zone)
 
 	switch {
-	case zone[0] == 0 && zone[1] == 1:
-		// Penalty kick
+	case isPenalty:
+		// Penalty kick — reduced weight to decrease PK frequency
+		// (foul weight in penalty area already heavily reduced)
 		sim.doPenaltyKick(ms, possTeam, oppTeam, zone, taker, ctrl)
 	case zone[0] == 0 && (zone[1] == 0 || zone[1] == 2):
 		// Front wing free kick → cross
@@ -1815,50 +2630,67 @@ func (sim *Simulator) doPenaltyKick(ms *domain.MatchState, possTeam, oppTeam *do
 	keeper := oppTeam.GetGK()
 	com := taker.GetAttrByName("COM")
 
-	atkVal := taker.GetAttrByName("PK")*0.5 +
-		taker.GetAttrByName("SHO")*0.3 +
-		taker.GetAttrByName("FIN")*0.2 +
-		0.3
-	defVal := keeper.GetAttrByName("SAV")*0.5 +
-		keeper.GetAttrByName("REF")*0.3 +
-		keeper.GetAttrByName("POS")*0.2 +
-		1.0
+	atkVal := taker.GetAttrByName("PK")*0.85 +
+		taker.GetAttrByName("SHO")*0.25 +
+		taker.GetAttrByName("FIN")*0.15 +
+		2.5
+	defVal := keeper.GetAttrByName("SAV")*0.30 +
+		keeper.GetAttrByName("REF")*0.20 +
+		keeper.GetAttrByName("POS")*0.15 +
+		0.0
 
 	success := ResolveDuel(atkVal, defVal, sim.r, com)
 
 	result := "goal"
 	if !success {
 		result = "saved"
-		if sim.r.Float64() < 0.3 {
+		if sim.r.Float64() < 0.15 {
 			result = "fail"
 		}
 	}
 
 	if ms.Possession == domain.SideHome {
 		ms.HomeStats.Penalties++
+		ms.HomeStats.Shots++
 	} else {
 		ms.AwayStats.Penalties++
+		ms.AwayStats.Shots++
 	}
 	taker.Stats.Penalties++
+	taker.Stats.Shots++
 
 	if result == "goal" {
 		if ms.Possession == domain.SideHome {
 			ms.Score.Home++
 			ms.HomeStats.PenaltyGoals++
+			ms.HomeStats.ShotsOnTarget++
 		} else {
 			ms.Score.Away++
 			ms.AwayStats.PenaltyGoals++
+			ms.AwayStats.ShotsOnTarget++
 		}
 		taker.Stats.PenaltyGoals++
 		taker.Stats.Goals++
+		taker.Stats.ShotsOnTarget++
 		taker.Stats.RatingBase += 1.0
-		keeper.Stats.RatingBase -= 0.8
+		keeper.Stats.RatingBase -= 0.5
 		ms.BallHolder = taker
 		sim.applyControlShift(ms, zone, 0.15)
 		sim.boostGlobalMomentum(ms, 0.04)
 	} else if result == "saved" {
 		keeper.Stats.Saves++
-		keeper.Stats.RatingBase += 0.3
+		if ms.Possession == domain.SideHome {
+			ms.AwayStats.Saves++
+		} else {
+			ms.HomeStats.Saves++
+		}
+		keeper.Stats.RatingBase += 0.4
+		if ms.Possession == domain.SideHome {
+			ms.HomeStats.ShotsOnTarget++
+		} else {
+			ms.AwayStats.ShotsOnTarget++
+		}
+		taker.Stats.ShotsOnTarget++
 		ms.Possession = ms.Possession.Opponent()
 		ms.ActiveZone = [2]int{2, 1}
 		ms.BallHolder = keeper
@@ -1929,43 +2761,66 @@ func (sim *Simulator) doFreeKickShot(ms *domain.MatchState, possTeam, oppTeam *d
 	keeper := oppTeam.GetGK()
 	com := taker.GetAttrByName("COM")
 
-	atkVal := taker.GetAttrByName("FK")*0.4 +
-		taker.GetAttrByName("SHO")*0.4 +
-		taker.GetAttrByName("FIN")*0.2 +
-		0.5
-	defVal := keeper.GetAttrByName("SAV")*0.45 +
-		keeper.GetAttrByName("REF")*0.35 +
-		keeper.GetAttrByName("POS")*0.2 +
-		1.0
+	// Wall defense: fixed obstacle reduces shot quality
+	wallDef := 4.0
+	atkVal := taker.GetAttrByName("FK")*0.70 +
+		taker.GetAttrByName("SHO")*0.10 +
+		taker.GetAttrByName("FIN")*0.10 -
+		3.0
+	defVal := keeper.GetAttrByName("SAV")*0.40 +
+		keeper.GetAttrByName("REF")*0.25 +
+		keeper.GetAttrByName("POS")*0.15 +
+		1.5 + wallDef
 
 	success := ResolveDuel(atkVal, defVal, sim.r, com)
 
 	result := "goal"
 	if !success {
 		result = "saved"
-		if sim.r.Float64() < 0.25 {
+		if sim.r.Float64() < 0.15 {
 			result = "fail"
 		}
 	}
+
+	if ms.Possession == domain.SideHome {
+		ms.HomeStats.Shots++
+	} else {
+		ms.AwayStats.Shots++
+	}
+	taker.Stats.Shots++
 
 	if result == "goal" {
 		if ms.Possession == domain.SideHome {
 			ms.Score.Home++
 			ms.HomeStats.FreeKickGoals++
+			ms.HomeStats.ShotsOnTarget++
 		} else {
 			ms.Score.Away++
 			ms.AwayStats.FreeKickGoals++
+			ms.AwayStats.ShotsOnTarget++
 		}
 		taker.Stats.FreeKickGoals++
 		taker.Stats.Goals++
+		taker.Stats.ShotsOnTarget++
 		taker.Stats.RatingBase += 1.0
-		keeper.Stats.RatingBase -= 0.8
+		keeper.Stats.RatingBase -= 0.5
 		ms.BallHolder = taker
 		sim.applyControlShift(ms, zone, 0.15)
 		sim.boostGlobalMomentum(ms, 0.04)
 	} else if result == "saved" {
 		keeper.Stats.Saves++
-		keeper.Stats.RatingBase += 0.3
+		if ms.Possession == domain.SideHome {
+			ms.AwayStats.Saves++
+		} else {
+			ms.HomeStats.Saves++
+		}
+		keeper.Stats.RatingBase += 0.4
+		if ms.Possession == domain.SideHome {
+			ms.HomeStats.ShotsOnTarget++
+		} else {
+			ms.AwayStats.ShotsOnTarget++
+		}
+		taker.Stats.ShotsOnTarget++
 		ms.Possession = ms.Possession.Opponent()
 		ms.ActiveZone = [2]int{2, 1}
 		ms.BallHolder = keeper
@@ -2148,12 +3003,56 @@ func (sim *Simulator) buildResult(ms *domain.MatchState) domain.SimulateResult {
 	if ms.AwayStats.Passes > 0 {
 		result.Stats.PassAccuracyAway = float64(ms.AwayStats.PassesSucc) / float64(ms.AwayStats.Passes) * 100
 	}
+	result.Stats.KeyPassesHome = ms.HomeStats.KeyPasses
+	result.Stats.KeyPassesAway = ms.AwayStats.KeyPasses
+	result.Stats.CrossesHome = ms.HomeStats.Crosses
+	result.Stats.CrossesAway = ms.AwayStats.Crosses
+	if ms.HomeStats.Crosses > 0 {
+		result.Stats.CrossAccuracyHome = float64(ms.HomeStats.CrossesSucc) / float64(ms.HomeStats.Crosses) * 100
+	}
+	if ms.AwayStats.Crosses > 0 {
+		result.Stats.CrossAccuracyAway = float64(ms.AwayStats.CrossesSucc) / float64(ms.AwayStats.Crosses) * 100
+	}
+	result.Stats.DribblesHome = ms.HomeStats.Dribbles
+	result.Stats.DribblesAway = ms.AwayStats.Dribbles
+	if ms.HomeStats.Dribbles > 0 {
+		result.Stats.DribbleAccuracyHome = float64(ms.HomeStats.DribblesSucc) / float64(ms.HomeStats.Dribbles) * 100
+	}
+	if ms.AwayStats.Dribbles > 0 {
+		result.Stats.DribbleAccuracyAway = float64(ms.AwayStats.DribblesSucc) / float64(ms.AwayStats.Dribbles) * 100
+	}
 	result.Stats.TacklesHome = ms.HomeStats.Tackles
 	result.Stats.TacklesAway = ms.AwayStats.Tackles
+	if ms.HomeStats.Tackles > 0 {
+		result.Stats.TackleAccuracyHome = float64(ms.HomeStats.TacklesSucc) / float64(ms.HomeStats.Tackles) * 100
+	}
+	if ms.AwayStats.Tackles > 0 {
+		result.Stats.TackleAccuracyAway = float64(ms.AwayStats.TacklesSucc) / float64(ms.AwayStats.Tackles) * 100
+	}
+	result.Stats.InterceptionsHome = ms.HomeStats.Interceptions
+	result.Stats.InterceptionsAway = ms.AwayStats.Interceptions
+	result.Stats.ClearancesHome = ms.HomeStats.Clearances
+	result.Stats.ClearancesAway = ms.AwayStats.Clearances
+	result.Stats.BlocksHome = ms.HomeStats.Blocks
+	result.Stats.BlocksAway = ms.AwayStats.Blocks
+	result.Stats.HeadersHome = ms.HomeStats.Headers
+	result.Stats.HeadersAway = ms.AwayStats.Headers
+	if ms.HomeStats.Headers > 0 {
+		result.Stats.HeaderAccuracyHome = float64(ms.HomeStats.HeaderWins) / float64(ms.HomeStats.Headers) * 100
+	}
+	if ms.AwayStats.Headers > 0 {
+		result.Stats.HeaderAccuracyAway = float64(ms.AwayStats.HeaderWins) / float64(ms.AwayStats.Headers) * 100
+	}
+	result.Stats.SavesHome = ms.HomeStats.Saves
+	result.Stats.SavesAway = ms.AwayStats.Saves
 	result.Stats.CornersHome = ms.HomeStats.Corners
 	result.Stats.CornersAway = ms.AwayStats.Corners
 	result.Stats.FoulsHome = ms.HomeStats.Fouls
 	result.Stats.FoulsAway = ms.AwayStats.Fouls
+	result.Stats.FoulsDrawnHome = ms.HomeStats.FoulsDrawn
+	result.Stats.FoulsDrawnAway = ms.AwayStats.FoulsDrawn
+	result.Stats.OffsidesHome = ms.HomeStats.Offsides
+	result.Stats.OffsidesAway = ms.AwayStats.Offsides
 	result.Stats.YellowCardsHome = ms.HomeStats.YellowCards
 	result.Stats.YellowCardsAway = ms.AwayStats.YellowCards
 	result.Stats.RedCardsHome = ms.HomeStats.RedCards
@@ -2179,9 +3078,21 @@ func (sim *Simulator) buildResult(ms *domain.MatchState) domain.SimulateResult {
 			if ps.Passes > 0 {
 				passAcc = float64(ps.PassesSucc) / float64(ps.Passes) * 100
 			}
+			crossAcc := 0.0
+			if ps.Crosses > 0 {
+				crossAcc = float64(ps.CrossesSucc) / float64(ps.Crosses) * 100
+			}
+			dribbleAcc := 0.0
+			if ps.Dribbles > 0 {
+				dribbleAcc = float64(ps.DribblesSucc) / float64(ps.Dribbles) * 100
+			}
 			tackleAcc := 0.0
 			if ps.Tackles > 0 {
 				tackleAcc = float64(ps.TacklesSucc) / float64(ps.Tackles) * 100
+			}
+			headerAcc := 0.0
+			if ps.Headers > 0 {
+				headerAcc = float64(ps.HeaderWins) / float64(ps.Headers) * 100
 			}
 			// Clamp rating 3.0 - 10.0
 			rating := ps.RatingBase
@@ -2192,28 +3103,41 @@ func (sim *Simulator) buildResult(ms *domain.MatchState) domain.SimulateResult {
 				rating = 3.0
 			}
 			result.PlayerStats = append(result.PlayerStats, domain.PlayerResultStat{
-				PlayerID:      p.PlayerID,
-				Name:          p.Name,
-				Position:      p.Position,
-				Team:          side,
-				Goals:         ps.Goals,
-				Assists:       ps.Assists,
-				Shots:         ps.Shots,
-				ShotsOnTarget: ps.ShotsOnTarget,
-				Passes:        ps.Passes,
-				PassAccuracy:  passAcc,
-				Tackles:        ps.Tackles,
-				TackleAccuracy: tackleAcc,
-				Interceptions: ps.Intercepts,
-				Saves:         ps.Saves,
-				Fouls:         ps.Fouls,
-				YellowCards:   ps.YellowCards,
-				RedCards:      ps.RedCards,
-				FreeKicks:     ps.FreeKicks,
-				FreeKickGoals: ps.FreeKickGoals,
-				Penalties:     ps.Penalties,
-				PenaltyGoals:  ps.PenaltyGoals,
-				Rating:        round(rating, 1),
+				PlayerID:        p.PlayerID,
+				Name:            p.Name,
+				Position:        p.Position,
+				Team:            side,
+				Goals:           ps.Goals,
+				Assists:         ps.Assists,
+				Shots:           ps.Shots,
+				ShotsOnTarget:   ps.ShotsOnTarget,
+				Passes:          ps.Passes,
+				PassAccuracy:    passAcc,
+				KeyPasses:       ps.KeyPasses,
+				Crosses:         ps.Crosses,
+				CrossAccuracy:   crossAcc,
+				Dribbles:        ps.Dribbles,
+				DribbleAccuracy: dribbleAcc,
+				Tackles:         ps.Tackles,
+				TackleAccuracy:  tackleAcc,
+				Interceptions:   ps.Intercepts,
+				Clearances:      ps.Clearances,
+				Blocks:          ps.Blocks,
+				Headers:         ps.Headers,
+				HeaderAccuracy:  headerAcc,
+				Saves:           ps.Saves,
+				Fouls:           ps.Fouls,
+				FoulsDrawn:      ps.FoulsDrawn,
+				Offsides:        ps.Offsides,
+				YellowCards:     ps.YellowCards,
+				RedCards:        ps.RedCards,
+				FreeKicks:       ps.FreeKicks,
+				FreeKickGoals:   ps.FreeKickGoals,
+				Penalties:       ps.Penalties,
+				PenaltyGoals:    ps.PenaltyGoals,
+				Turnovers:       ps.Turnovers,
+				Touches:         ps.Touches,
+				Rating:          round(rating, 1),
 			})
 		}
 	}

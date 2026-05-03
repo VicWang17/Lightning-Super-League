@@ -51,13 +51,21 @@ type MatchState struct {
 	Events       []MatchEvent
 
 	HomeStats struct {
-		Shots, ShotsOnTarget, Passes, PassesSucc, Tackles, TacklesSucc int
-		Corners, Fouls, YellowCards, RedCards int
+		Shots, ShotsOnTarget, Passes, PassesSucc, KeyPasses int
+		Crosses, CrossesSucc, Dribbles, DribblesSucc int
+		Tackles, TacklesSucc, Interceptions, Clearances, Blocks int
+		Headers, HeaderWins, Saves int
+		Corners, Fouls, FoulsDrawn, Offsides int
+		YellowCards, RedCards int
 		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals int
 	}
 	AwayStats struct {
-		Shots, ShotsOnTarget, Passes, PassesSucc, Tackles, TacklesSucc int
-		Corners, Fouls, YellowCards, RedCards int
+		Shots, ShotsOnTarget, Passes, PassesSucc, KeyPasses int
+		Crosses, CrossesSucc, Dribbles, DribblesSucc int
+		Tackles, TacklesSucc, Interceptions, Clearances, Blocks int
+		Headers, HeaderWins, Saves int
+		Corners, Fouls, FoulsDrawn, Offsides int
+		YellowCards, RedCards int
 		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals int
 	}
 }

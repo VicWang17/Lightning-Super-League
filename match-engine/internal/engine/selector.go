@@ -72,6 +72,10 @@ func SelectPlayerByZone(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *do
 		weights[i] = zw * staminaFactor * realismFactor
 		if p.Position == config.PosGK {
 			weights[i] *= 0.05 // GK very rarely initiates plays
+			// Additionally, GK should almost never be selected in attacking zones
+			if zone[0] < 2 {
+				weights[i] *= 0.01
+			}
 		}
 	}
 
@@ -83,6 +87,17 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 	players := team.GetActivePlayers()
 	if len(players) == 0 {
 		return team.PlayerRuntimes[0]
+	}
+
+	// Exclude GK from most defensive actions unless they're the only option
+	var outfieldPlayers []*domain.PlayerRuntime
+	for _, p := range players {
+		if p.Position != config.PosGK {
+			outfieldPlayers = append(outfieldPlayers, p)
+		}
+	}
+	if len(outfieldPlayers) > 0 {
+		players = outfieldPlayers
 	}
 
 	manMarking := team.Tactics.MarkingStrategy == 1
@@ -116,6 +131,11 @@ func SelectPassTarget(team *domain.TeamRuntime, fromZone [2]int, r *rand.Rand) *
 
 	weights := make([]float64, len(players))
 	for i, p := range players {
+		// GK should never be a pass target in attacking or midfield zones
+		if p.Position == config.PosGK && fromZone[0] < 2 {
+			weights[i] = 0.0
+			continue
+		}
 		// Prefer forward zones slightly
 		zw := zoneWeight(p.Position, fromZone[0], fromZone[1])
 		if p.Position == config.PosST {
@@ -156,3 +176,64 @@ func weightedSelect[T any](items []T, weights []float64, r *rand.Rand) T {
 	return items[len(items)-1]
 }
 
+
+// SelectSecondAttacker picks a teammate different from primary for multi-player events
+func SelectSecondAttacker(team *domain.TeamRuntime, primary *domain.PlayerRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
+	players := team.GetActivePlayers()
+	if len(players) <= 1 {
+		return primary
+	}
+
+	weights := make([]float64, len(players))
+	for i, p := range players {
+		if p.PlayerID == primary.PlayerID {
+			weights[i] = 0 // exclude primary
+			continue
+		}
+		zw := zoneWeight(p.Position, zone[0], zone[1])
+		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
+		if p.CurrentStamina < 20 {
+			staminaFactor *= 0.5
+		}
+		// SB/WF preferred for overlap; CMF/AMF preferred for one-two; ST preferred for cross-run
+		positionBonus := 1.0
+		switch p.Position {
+		case config.PosSB, config.PosWF:
+			positionBonus = 1.3
+		case config.PosCMF, config.PosAMF:
+			positionBonus = 1.2
+		case config.PosST:
+			positionBonus = 1.1
+		}
+		weights[i] = zw * staminaFactor * positionBonus
+	}
+
+	return weightedSelect(players, weights, r)
+}
+
+// SelectSecondDefender picks a defender different from primary for multi-defender events
+func SelectSecondDefender(team *domain.TeamRuntime, primary *domain.PlayerRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
+	players := team.GetActivePlayers()
+	if len(players) <= 1 {
+		return primary
+	}
+
+	weights := make([]float64, len(players))
+	for i, p := range players {
+		if p.PlayerID == primary.PlayerID {
+			weights[i] = 0 // exclude primary
+			continue
+		}
+		zw := zoneWeight(p.Position, zone[0], zone[1])
+		defBonus := 1.0
+		if p.Position == config.PosCB || p.Position == config.PosDMF {
+			defBonus = 1.6
+		} else if p.Position == config.PosSB || p.Position == config.PosCMF {
+			defBonus = 1.2
+		}
+		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
+		weights[i] = zw * defBonus * staminaFactor
+	}
+
+	return weightedSelect(players, weights, r)
+}

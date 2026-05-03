@@ -21,11 +21,12 @@ type PlayerRuntime struct {
 	// Match stats
 	Stats PlayerMatchStats
 
-	// Cards / status
-	YellowCards int
-	RedCard     bool
-	Injured     bool
-	Substituted bool
+	// Cards / status / injury
+	YellowCards    int
+	RedCard        bool
+	Injured        bool
+	InjurySeverity int // 0=none, 1=minor, 2=major
+	Substituted    bool
 }
 
 // PlayerMatchStats accumulates during match
@@ -37,18 +38,30 @@ type PlayerMatchStats struct {
 	ShotsOnTarget int
 	Passes        int
 	PassesSucc   int
+	KeyPasses    int
+	Crosses      int
+	CrossesSucc  int
+	Dribbles     int
+	DribblesSucc int
 	Tackles      int
 	TacklesSucc  int
 	Intercepts   int
 	Clearances   int
+	Blocks       int
+	Headers      int
+	HeaderWins   int
 	Saves        int
 	Fouls        int
+	FoulsDrawn   int
+	Offsides     int
 	YellowCards  int
 	RedCards     int
 	FreeKicks    int
 	FreeKickGoals int
 	Penalties    int
 	PenaltyGoals int
+	Turnovers    int
+	Touches      int
 	RatingBase   float64 // starts at 6.0
 }
 

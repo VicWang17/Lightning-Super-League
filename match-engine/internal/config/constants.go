@@ -54,6 +54,7 @@ const (
 	EventLongPass       = "long_pass"
 	EventWingBreak      = "wing_break"
 	EventCutInside      = "cut_inside"
+	EventDribblePast    = "dribble_past"
 	EventThroughBall    = "through_ball"
 	EventCross          = "cross"
 	EventHeader         = "header"
@@ -77,6 +78,54 @@ const (
 	EventFulltime       = "fulltime"
 	EventSubstitution   = "substitution"
 	EventTurnover       = "turnover"
+
+	// Phase 1: Simple 1v1 events
+	EventSwitchPlay     = "switch_play"
+	EventLobPass        = "lob_pass"
+	EventPassOverTop    = "pass_over_top"
+	EventShotBlock      = "shot_block"
+	EventBlockPass      = "block_pass"
+	EventOneOnOne       = "one_on_one"
+	EventCoverDefense   = "cover_defense"
+
+	// Phase 2: Medium complexity events
+	EventGoalKick       = "goal_kick"
+	EventThrowIn        = "throw_in"
+	EventKeeperShortPass = "keeper_short_pass"
+	EventKeeperThrow    = "keeper_throw"
+	EventCounterAttack  = "counter_attack"
+	EventMidBreak       = "mid_break"
+	EventSecondHalfStart = "second_half_start"
+
+	// Phase 3: Multi-player events
+	EventOverlap        = "overlap"
+	EventTrianglePass   = "triangle_pass"
+	EventOneTwo         = "one_two"
+	EventCrossRun       = "cross_run"
+	EventDoubleTeam     = "double_team"
+	EventPressTogether  = "press_together"
+
+	// Phase 3.5: Build-up / possession events
+	EventHoldBall       = "hold_ball"
+	EventPivotPass      = "pivot_pass"
+	EventBuildUp        = "build_up"
+
+	// Phase 4: Injury events
+	EventMinorInjury    = "minor_injury"
+	EventMajorInjury    = "major_injury"
+
+	// Phase 5: Rare dead ball
+	EventDropBall       = "drop_ball"
+
+	// Narrative stage events (no gameplay effect, for commentary flow)
+	EventPenaltySetup    = "penalty_setup"
+	EventPenaltyFocus    = "penalty_focus"
+	EventFreeKickSetup   = "free_kick_setup"
+	EventCornerSetup     = "corner_setup"
+	EventThrowInSetup    = "throw_in_setup"
+	EventGoalKickSetup   = "goal_kick_setup"
+	EventShotWindup      = "shot_windup"
+	EventGoalCelebration = "goal_celebration"
 )
 
 // Zones [row][col]

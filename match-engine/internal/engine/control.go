@@ -26,7 +26,7 @@ func ComputeControlMatrix(m *domain.MatchState) [3][3]float64 {
 			momentum := m.GlobalMomentum
 
 			// Natural control raw value
-			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.02*momentum
+			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum
 
 			result[r][c] = math.Tanh(raw * 2.0)
 		}
@@ -39,11 +39,11 @@ func decayControlShift(m *domain.MatchState) {
 	for r := 0; r < 3; r++ {
 		for c := 0; c < 3; c++ {
 			if r == m.ActiveZone[0] && c == m.ActiveZone[1] {
-				// Active zone: very mild decay
-				m.ControlShift[r][c] *= 0.98
+				// Active zone: mild decay
+				m.ControlShift[r][c] *= 0.92
 			} else {
-				// Inactive zones: drift back to 0 faster
-				m.ControlShift[r][c] *= 0.85
+				// Inactive zones: drift back to 0 much faster
+				m.ControlShift[r][c] *= 0.60
 			}
 			// Clamp
 			if m.ControlShift[r][c] > 0.5 {
@@ -52,9 +52,18 @@ func decayControlShift(m *domain.MatchState) {
 				m.ControlShift[r][c] = -0.5
 			}
 			// Snap to 0 when very small
-			if m.ControlShift[r][c] < 0.005 && m.ControlShift[r][c] > -0.005 {
+			if m.ControlShift[r][c] < 0.01 && m.ControlShift[r][c] > -0.01 {
 				m.ControlShift[r][c] = 0
 			}
+		}
+	}
+}
+
+// resetControlShift zeros out all control shifts on dead ball / restart
+func resetControlShift(m *domain.MatchState) {
+	for r := 0; r < 3; r++ {
+		for c := 0; c < 3; c++ {
+			m.ControlShift[r][c] = 0
 		}
 	}
 }
@@ -231,7 +240,7 @@ func ComputeControlBreakdown(m *domain.MatchState, zone [2]int) ControlBreakdown
 	momentum := m.GlobalMomentum
 	shift := m.ControlShift[r][c]
 
-	raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.02*momentum
+	raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum
 
 	cb := ControlBreakdown{
 		Formation: 0.28 * deltaForm,

@@ -3,8 +3,10 @@ package engine
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"match-engine/internal/config"
@@ -307,11 +309,23 @@ func runBatch(home, away domain.TeamSetup, n int, collectNarratives bool) BatchR
 			br.RatingByPos[ps.Position] = append(br.RatingByPos[ps.Position], ps.Rating)
 		}
 		
-		// FK/PK
-		br.FKAttempts += result.Stats.FreeKicksHome + result.Stats.FreeKicksAway
-		br.FKGoals += result.Stats.FreeKickGoalsHome + result.Stats.FreeKickGoalsAway
-		br.PKAttempts += result.Stats.PenaltiesHome + result.Stats.PenaltiesAway
-		br.PKGoals += result.Stats.PenaltyGoalsHome + result.Stats.PenaltyGoalsAway
+		// FK/PK — only count shot attempts for FK conversion
+		for _, ev := range result.Events {
+			if ev.Type == config.EventFreeKick {
+				if ev.Detail == "shot" {
+					br.FKAttempts++
+					if ev.Result == "goal" {
+						br.FKGoals++
+					}
+				}
+				if ev.Detail == "penalty" {
+					br.PKAttempts++
+					if ev.Result == "goal" {
+						br.PKGoals++
+					}
+				}
+			}
+		}
 		
 		// Narrative samples
 		if collectNarratives && i < 20 {
@@ -353,6 +367,270 @@ func runBatch(home, away domain.TeamSetup, n int, collectNarratives bool) BatchR
 	br.AvgPKGoalHome = pkGoalHomeSum / fn
 	br.AvgPKGoalAway = pkGoalAwaySum / fn
 	
+	return br
+}
+
+// runBatchParallel runs n matches in parallel using goroutines
+func runBatchParallel(home, away domain.TeamSetup, n int, collectNarratives bool) BatchResult {
+	br := BatchResult{
+		Total:       n,
+		EventCounts: make(map[string]int),
+		RatingByPos: make(map[string][]float64),
+	}
+
+	numCPU := runtime.NumCPU()
+	if numCPU < 2 {
+		return runBatch(home, away, n, collectNarratives)
+	}
+
+	// Each goroutine gets its own partial result
+	type partial struct {
+		homeGoals      []int
+		awayGoals      []int
+		totalHomeGoals int
+		totalAwayGoals int
+		homeWins       int
+		draws          int
+		awayWins       int
+		possHomeSum    float64
+		possAwaySum    float64
+		shotsHomeSum   float64
+		shotsAwaySum   float64
+		shotsOnHomeSum float64
+		shotsOnAwaySum float64
+		passesHomeSum  float64
+		passesAwaySum  float64
+		passAccHomeSum float64
+		passAccAwaySum float64
+		tacklesHomeSum float64
+		tacklesAwaySum float64
+		cornersHomeSum float64
+		cornersAwaySum float64
+		foulsHomeSum   float64
+		foulsAwaySum   float64
+		yellowHomeSum  float64
+		yellowAwaySum  float64
+		redHomeSum     float64
+		redAwaySum     float64
+		fkHomeSum      float64
+		fkAwaySum      float64
+		fkGoalHomeSum  float64
+		fkGoalAwaySum  float64
+		pkHomeSum      float64
+		pkAwaySum      float64
+		pkGoalHomeSum  float64
+		pkGoalAwaySum  float64
+		homeCtrlWins   int
+		homeCtrlLoss   int
+		eventCounts    map[string]int
+		allRatings     []float64
+		ratingByPos    map[string][]float64
+		fkAttempts     int
+		fkGoals        int
+		pkAttempts     int
+		pkGoals        int
+		narratives     []string
+	}
+
+	var wg sync.WaitGroup
+	results := make([]partial, numCPU)
+	chunkSize := n / numCPU
+	remainder := n % numCPU
+
+	for i := 0; i < numCPU; i++ {
+		wg.Add(1)
+		start := i*chunkSize + min(i, remainder)
+		count := chunkSize
+		if i < remainder {
+			count++
+		}
+		go func(idx, s, c int) {
+			defer wg.Done()
+			p := partial{
+				eventCounts: make(map[string]int),
+				ratingByPos: make(map[string][]float64),
+			}
+			for j := 0; j < c; j++ {
+				matchIdx := s + j
+				req := domain.SimulateRequest{
+					MatchID:       fmt.Sprintf("batch_%d", matchIdx),
+					HomeTeam:      home,
+					AwayTeam:      away,
+					HomeAdvantage: false,
+				}
+				sim := NewSimulator(uint64(matchIdx + 1))
+				result := sim.Simulate(req)
+
+				p.homeGoals = append(p.homeGoals, result.Score.Home)
+				p.awayGoals = append(p.awayGoals, result.Score.Away)
+				p.totalHomeGoals += result.Score.Home
+				p.totalAwayGoals += result.Score.Away
+
+				if result.Score.Home > result.Score.Away {
+					p.homeWins++
+				} else if result.Score.Home == result.Score.Away {
+					p.draws++
+				} else {
+					p.awayWins++
+				}
+
+				p.possHomeSum += result.Stats.PossessionHome
+				p.possAwaySum += result.Stats.PossessionAway
+				p.shotsHomeSum += float64(result.Stats.ShotsHome)
+				p.shotsAwaySum += float64(result.Stats.ShotsAway)
+				p.shotsOnHomeSum += float64(result.Stats.ShotsOnTargetHome)
+				p.shotsOnAwaySum += float64(result.Stats.ShotsOnTargetAway)
+				p.passesHomeSum += float64(result.Stats.PassesHome)
+				p.passesAwaySum += float64(result.Stats.PassesAway)
+				p.passAccHomeSum += result.Stats.PassAccuracyHome
+				p.passAccAwaySum += result.Stats.PassAccuracyAway
+				p.tacklesHomeSum += float64(result.Stats.TacklesHome)
+				p.tacklesAwaySum += float64(result.Stats.TacklesAway)
+				p.cornersHomeSum += float64(result.Stats.CornersHome)
+				p.cornersAwaySum += float64(result.Stats.CornersAway)
+				p.foulsHomeSum += float64(result.Stats.FoulsHome)
+				p.foulsAwaySum += float64(result.Stats.FoulsAway)
+				p.yellowHomeSum += float64(result.Stats.YellowCardsHome)
+				p.yellowAwaySum += float64(result.Stats.YellowCardsAway)
+				p.redHomeSum += float64(result.Stats.RedCardsHome)
+				p.redAwaySum += float64(result.Stats.RedCardsAway)
+				p.fkHomeSum += float64(result.Stats.FreeKicksHome)
+				p.fkAwaySum += float64(result.Stats.FreeKicksAway)
+				p.fkGoalHomeSum += float64(result.Stats.FreeKickGoalsHome)
+				p.fkGoalAwaySum += float64(result.Stats.FreeKickGoalsAway)
+				p.pkHomeSum += float64(result.Stats.PenaltiesHome)
+				p.pkAwaySum += float64(result.Stats.PenaltiesAway)
+				p.pkGoalHomeSum += float64(result.Stats.PenaltyGoalsHome)
+				p.pkGoalAwaySum += float64(result.Stats.PenaltyGoalsAway)
+
+				if result.Stats.PossessionHome > 50.0 {
+					if result.Score.Home > result.Score.Away {
+						p.homeCtrlWins++
+					} else if result.Score.Home < result.Score.Away {
+						p.homeCtrlLoss++
+					}
+				}
+
+				for _, ev := range result.Events {
+					p.eventCounts[ev.Type]++
+				}
+				for _, ps := range result.PlayerStats {
+					p.allRatings = append(p.allRatings, ps.Rating)
+					p.ratingByPos[ps.Position] = append(p.ratingByPos[ps.Position], ps.Rating)
+				}
+				for _, ev := range result.Events {
+					if ev.Type == config.EventFreeKick {
+						if ev.Detail == "shot" {
+							p.fkAttempts++
+							if ev.Result == "goal" {
+								p.fkGoals++
+							}
+						}
+						if ev.Detail == "penalty" {
+							p.pkAttempts++
+							if ev.Result == "goal" {
+								p.pkGoals++
+							}
+						}
+					}
+				}
+				if collectNarratives && matchIdx < 20 {
+					p.narratives = append(p.narratives,
+						fmt.Sprintf("=== Match %d: %s %d-%d %s ===", matchIdx, result.HomeTeam, result.Score.Home, result.Score.Away, result.AwayTeam))
+					for _, n := range result.Narratives {
+						p.narratives = append(p.narratives, "  "+n)
+					}
+				}
+			}
+			results[idx] = p
+		}(i, start, count)
+	}
+	wg.Wait()
+
+	// Merge partial results
+	for _, p := range results {
+		br.HomeGoals = append(br.HomeGoals, p.homeGoals...)
+		br.AwayGoals = append(br.AwayGoals, p.awayGoals...)
+		br.TotalHomeGoals += p.totalHomeGoals
+		br.TotalAwayGoals += p.totalAwayGoals
+		br.HomeWins += p.homeWins
+		br.Draws += p.draws
+		br.AwayWins += p.awayWins
+		br.HomeCtrlWins += p.homeCtrlWins
+		br.HomeCtrlLoss += p.homeCtrlLoss
+		br.FKAttempts += p.fkAttempts
+		br.FKGoals += p.fkGoals
+		br.PKAttempts += p.pkAttempts
+		br.PKGoals += p.pkGoals
+		br.AllRatings = append(br.AllRatings, p.allRatings...)
+		br.NarrativeSamples = append(br.NarrativeSamples, p.narratives...)
+
+		for k, v := range p.eventCounts {
+			br.EventCounts[k] += v
+		}
+		for k, v := range p.ratingByPos {
+			br.RatingByPos[k] = append(br.RatingByPos[k], v...)
+		}
+		br.AvgPossHome += p.possHomeSum
+		br.AvgPossAway += p.possAwaySum
+		br.AvgShotsHome += p.shotsHomeSum
+		br.AvgShotsAway += p.shotsAwaySum
+		br.AvgShotsOnHome += p.shotsOnHomeSum
+		br.AvgShotsOnAway += p.shotsOnAwaySum
+		br.AvgPassesHome += p.passesHomeSum
+		br.AvgPassesAway += p.passesAwaySum
+		br.AvgPassAccHome += p.passAccHomeSum
+		br.AvgPassAccAway += p.passAccAwaySum
+		br.AvgTacklesHome += p.tacklesHomeSum
+		br.AvgTacklesAway += p.tacklesAwaySum
+		br.AvgCornersHome += p.cornersHomeSum
+		br.AvgCornersAway += p.cornersAwaySum
+		br.AvgFoulsHome += p.foulsHomeSum
+		br.AvgFoulsAway += p.foulsAwaySum
+		br.AvgYellowHome += p.yellowHomeSum
+		br.AvgYellowAway += p.yellowAwaySum
+		br.AvgRedHome += p.redHomeSum
+		br.AvgRedAway += p.redAwaySum
+		br.AvgFKHome += p.fkHomeSum
+		br.AvgFKAway += p.fkAwaySum
+		br.AvgFKGoalHome += p.fkGoalHomeSum
+		br.AvgFKGoalAway += p.fkGoalAwaySum
+		br.AvgPKHome += p.pkHomeSum
+		br.AvgPKAway += p.pkAwaySum
+		br.AvgPKGoalHome += p.pkGoalHomeSum
+		br.AvgPKGoalAway += p.pkGoalAwaySum
+	}
+
+	fn := float64(n)
+	br.AvgPossHome /= fn
+	br.AvgPossAway /= fn
+	br.AvgShotsHome /= fn
+	br.AvgShotsAway /= fn
+	br.AvgShotsOnHome /= fn
+	br.AvgShotsOnAway /= fn
+	br.AvgPassesHome /= fn
+	br.AvgPassesAway /= fn
+	br.AvgPassAccHome /= fn
+	br.AvgPassAccAway /= fn
+	br.AvgTacklesHome /= fn
+	br.AvgTacklesAway /= fn
+	br.AvgCornersHome /= fn
+	br.AvgCornersAway /= fn
+	br.AvgFoulsHome /= fn
+	br.AvgFoulsAway /= fn
+	br.AvgYellowHome /= fn
+	br.AvgYellowAway /= fn
+	br.AvgRedHome /= fn
+	br.AvgRedAway /= fn
+	br.AvgFKHome /= fn
+	br.AvgFKAway /= fn
+	br.AvgFKGoalHome /= fn
+	br.AvgFKGoalAway /= fn
+	br.AvgPKHome /= fn
+	br.AvgPKAway /= fn
+	br.AvgPKGoalHome /= fn
+	br.AvgPKGoalAway /= fn
+
 	return br
 }
 
@@ -494,7 +772,7 @@ func TestAttributeImpact(t *testing.T) {
 	awayBase := buildTeam("Away", base, defaultTactics())
 	
 	// Baseline
-	brBase := runBatch(homeBase, awayBase, 500, false)
+	brBase := runBatchParallel(homeBase, awayBase, 500, false)
 	t.Logf("BASELINE: Home win %.1f%%", float64(brBase.HomeWins)*100/float64(brBase.Total))
 	
 	attrNames := []string{"SHO", "PAS", "DRI", "SPD", "STR", "STA", "DEF", "HEA", "VIS", "TKL",
@@ -503,7 +781,7 @@ func TestAttributeImpact(t *testing.T) {
 	for _, attr := range attrNames {
 		homeMod := buildTeam("Home", cloneAttrs(base), defaultTactics())
 		homeMod = modifyTeamAttr(homeMod, attr, +5)
-		br := runBatch(homeMod, awayBase, 300, false)
+		br := runBatchParallel(homeMod, awayBase, 300, false)
 		winRate := float64(br.HomeWins) * 100 / float64(br.Total)
 		baseWinRate := float64(brBase.HomeWins) * 100 / float64(brBase.Total)
 		t.Logf("  %s +5: Home win %.1f%% (delta %.1f%%) | Avg goals %.2f-%.2f",
@@ -631,7 +909,7 @@ func TestEventCoverage(t *testing.T) {
 	base := baseAttrs()
 	home := buildTeam("Home", base, defaultTactics())
 	away := buildTeam("Away", base, defaultTactics())
-	br := runBatch(home, away, 5000, false)
+	br := runBatchParallel(home, away, 5000, false)
 	
 	allEvents := []string{
 		config.EventKickoff, config.EventBackPass, config.EventMidPass,
@@ -644,6 +922,21 @@ func TestEventCoverage(t *testing.T) {
 		config.EventFreeKick, config.EventYellowCard, config.EventRedCard,
 		config.EventOffside, config.EventHalftime, config.EventFulltime,
 		config.EventSubstitution, config.EventTurnover,
+		// Phase 1: Simple 1v1 events
+		config.EventSwitchPlay, config.EventLobPass, config.EventPassOverTop,
+		config.EventShotBlock, config.EventBlockPass, config.EventOneOnOne,
+		config.EventCoverDefense,
+		// Phase 2: Medium events
+		config.EventGoalKick, config.EventThrowIn, config.EventKeeperShortPass,
+		config.EventKeeperThrow, config.EventCounterAttack, config.EventMidBreak,
+		config.EventSecondHalfStart,
+		// Phase 3: Multi-player events
+		config.EventOverlap, config.EventTrianglePass, config.EventOneTwo,
+		config.EventCrossRun, config.EventDoubleTeam, config.EventPressTogether,
+		// Phase 4: Injury events
+		config.EventMinorInjury, config.EventMajorInjury,
+		// Phase 5: Rare dead ball
+		config.EventDropBall,
 	}
 	
 	for _, ev := range allEvents {

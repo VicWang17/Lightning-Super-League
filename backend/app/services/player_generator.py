@@ -144,7 +144,7 @@ OVR_WEIGHTS = {
         "fk": 0, "pk": 0, "rus": 0,
     },
     PlayerPosition.GK: {
-        "pas": 5, "com": 8, "sav": 30, "ref": 22, "pos": 12, "rus": 8, "dec": 12,
+        "pas": 5, "com": 8, "sav": 25, "ref": 18, "pos": 10, "rus": 8, "dec": 12,
         "sho": 0, "dri": 0, "spd": 0, "str_": 0, "sta": 0, "defe": 0, "hea": 0,
         "vis": 0, "tkl": 0, "acc": 0, "cro": 0, "con": 0, "fin": 0, "bal": 0,
         "fk": 0, "pk": 0,
