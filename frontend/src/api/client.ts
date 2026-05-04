@@ -302,6 +302,28 @@ class ApiClient {
       { method: 'GET' }
     )
   }
+
+  // ==================== 时钟 API ====================
+  async getClock() {
+    // 时钟接口不需要认证
+    const url = `${this.baseUrl}/clock`
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || '获取时钟失败')
+    }
+    return data as {
+      success: boolean
+      data: {
+        mode: string
+        virtual_now: string
+        speed: number
+      }
+    }
+  }
 }
 
 // Types needed for the API client

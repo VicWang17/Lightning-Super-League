@@ -21,12 +21,13 @@ func ComputeControlMatrix(m *domain.MatchState) [3][3]float64 {
 			deltaPlayer := playerDelta(home, away, r, c)
 			deltaTactic := tacticDelta(home.Tactics, away.Tactics, r, c)
 			deltaDynamic := dynamicDelta(m, r, c)
+			deltaTeamAttr := teamAttrDelta(home, away)
 
 			// Global momentum: tiny influence, capped
 			momentum := m.GlobalMomentum
 
 			// Natural control raw value
-			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum
+			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum + 0.10*deltaTeamAttr
 
 			result[r][c] = math.Tanh(raw * 2.0)
 		}
@@ -155,6 +156,48 @@ func playerStrength(p *domain.PlayerRuntime, r, c int) float64 {
 	}
 	// Normalize roughly to 0-1 range (weights sum to 100)
 	return sum / 100.0
+}
+
+// teamAttrDelta computes a lightweight team-average attribute bias.
+// Max absolute impact is capped at ~0.05 (5% control shift) via Tanh.
+func teamAttrDelta(atk, def *domain.TeamRuntime) float64 {
+	atkAvg := avgTeamAttrs(atk)
+	defAvg := avgTeamAttrs(def)
+
+	// Passing + vision + ball control → possession
+	possDelta := (atkAvg["PAS"] + atkAvg["VIS"] + atkAvg["CON"]) -
+		(defAvg["PAS"] + defAvg["VIS"] + defAvg["CON"])
+
+	// Defense + tackling + interception → defensive solidity
+	defDelta := (atkAvg["DEF"] + atkAvg["TKL"] + atkAvg["POS"]) -
+		(defAvg["DEF"] + defAvg["TKL"] + defAvg["POS"])
+
+	// Speed + acceleration → transition threat
+	spdDelta := (atkAvg["SPD"] + atkAvg["ACC"]) -
+		(defAvg["SPD"] + defAvg["ACC"])
+
+	// Combine and scale down to keep max impact small
+	// Raw range roughly ±15; divide by 300 to keep within ±0.05
+	raw := possDelta*0.004 + defDelta*0.002 + spdDelta*0.003
+	return raw
+}
+
+func avgTeamAttrs(team *domain.TeamRuntime) map[string]float64 {
+	result := make(map[string]float64)
+	players := team.GetActivePlayers()
+	if len(players) == 0 {
+		return result
+	}
+	for _, p := range players {
+		for _, name := range config.AttrNames {
+			result[name] += p.GetAttrByName(name)
+		}
+	}
+	fn := float64(len(players))
+	for name := range result {
+		result[name] /= fn
+	}
+	return result
 }
 
 func tacticDelta(atkT, defT domain.TacticalSetup, r, c int) float64 {

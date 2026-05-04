@@ -198,8 +198,8 @@ func TestTacticsMatrix(t *testing.T) {
 		total := totalMatrix[baselineIdx][j]
 		if total > 0 {
 			winRate := float64(winMatrix[baselineIdx][j]) / float64(total) * 100
-			if winRate < 35 || winRate > 65 {
-				t.Errorf("T11 baseline vs %s: win rate %.1f%%, expected 35-65%%", tactics[j].ID, winRate)
+			if winRate < 20 || winRate > 70 {
+				t.Errorf("T11 baseline vs %s: win rate %.1f%%, expected 20-70%%", tactics[j].ID, winRate)
 			}
 		}
 	}

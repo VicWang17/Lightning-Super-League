@@ -145,7 +145,7 @@ class SeasonService:
         except Exception as e:
             from app.core.logging import get_logger
             _logger = get_logger(__name__)
-            _logger.error("Event processing failed", event_id=event.id, error=str(e), exc_info=True)
+            _logger.error(f"Event processing failed: event_id={event.id}, error={str(e)}", exc_info=True)
             await EventQueue.fail(self.db, event.id, str(e))
             raise
     

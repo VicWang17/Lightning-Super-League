@@ -120,7 +120,7 @@ function PlayerDetail() {
       icon: <Shield className="w-4 h-4 text-blue-400" />,
       color: 'bg-blue-500',
       attrs: [
-        { label: '防守', key: 'defe' },
+        { label: '站位', key: 'defe' },
         { label: '抢断', key: 'tkl' },
       ],
     },
@@ -129,8 +129,7 @@ function PlayerDetail() {
       icon: <Target className="w-4 h-4 text-amber-400" />,
       color: 'bg-amber-500',
       attrs: [
-        { label: '任意球', key: 'fk' },
-        { label: '点球', key: 'pk' },
+        { label: '定位球', key: 'set' },
       ],
     },
   ]
@@ -143,12 +142,10 @@ function PlayerDetail() {
       attrs: [
         { label: '扑救', key: 'sav' },
         { label: '反应', key: 'ref' },
-        { label: '站位', key: 'pos' },
+        { label: '跑位', key: 'pos' },
         { label: '镇定', key: 'com' },
-        { label: '出击', key: 'rus' },
         { label: '球商', key: 'dec' },
-        { label: '任意球', key: 'fk' },
-        { label: '点球', key: 'pk' },
+        { label: '定位球', key: 'set' },
       ],
     },
   ]

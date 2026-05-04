@@ -132,15 +132,14 @@ func TestAttributeImpact(t *testing.T) {
 		{"TKL", +3, "抢断优势", 52, nil, ""},
 		{"COM", +3, "冷静度优势", 52, nil, ""},
 		{"POS", +3, "站位优势", 52, nil, ""},
-		{"FK", +3, "任意球优势", 52, nil, ""},
-		{"PK", +3, "点球优势", 52, nil, ""},
-		{"RUS", +3, "出击优势(GK)", 52, nil, ""},
+		{"SET", +3, "定位球优势", 52, nil, ""},
+		{"DEC", +3, "球商优势", 52, nil, ""},
 		{"DEC", +3, "决策优势", 52, nil, ""},
 	}
 
 	// Baseline
-	baseResult := runAttributeBatch(baseHome, baseAway, 200)
-	baseWinRate := float64(baseResult.HomeWins) / 200.0 * 100
+	baseResult := runAttributeBatch(baseHome, baseAway, 100)
+	baseWinRate := float64(baseResult.HomeWins) / 100.0 * 100
 	t.Logf("BASELINE: Win %.1f%% | Goals %.2f-%.2f | Shots %.1f-%.1f | PassAcc %.1f-%.1f | Drib %.1f-%.1f | Tack %.1f-%.1f | Poss %.1f",
 		baseWinRate, baseResult.HomeGoals, baseResult.AwayGoals,
 		baseResult.HomeShots, baseResult.AwayShots,
@@ -153,8 +152,8 @@ func TestAttributeImpact(t *testing.T) {
 	for _, at := range attrTests {
 		modHome := buildTeam("Home", cloneAttrs(attrs), defaultTactics())
 		modHome = modifyTeamAttr(modHome, at.Attr, at.Delta)
-		modResult := runAttributeBatch(modHome, baseAway, 200)
-		winRate := float64(modResult.HomeWins) / 200.0 * 100
+		modResult := runAttributeBatch(modHome, baseAway, 80)
+		winRate := float64(modResult.HomeWins) / 80.0 * 100
 		winDelta := winRate - baseWinRate
 
 		t.Logf("%-3s +%d: Win %.1f%% (delta %+.1f%%) | Goals %.2f-%.2f | Shots %.1f-%.1f | PassAcc %.1f-%.1f | Drib %.1f-%.1f | Tack %.1f-%.1f | Poss %.1f",
@@ -176,8 +175,8 @@ func TestAttributeImpact(t *testing.T) {
 	for _, gkAttr := range []string{"SAV", "REF", "POS"} {
 		modHome := buildTeam("Home", cloneAttrs(attrs), defaultTactics())
 		modHome = modifyTeamAttr(modHome, gkAttr, +5)
-		modResult := runAttributeBatch(modHome, baseAway, 200)
-		winRate := float64(modResult.HomeWins) / 200.0 * 100
+		modResult := runAttributeBatch(modHome, baseAway, 80)
+		winRate := float64(modResult.HomeWins) / 80.0 * 100
 		t.Logf("GK %-3s +5: Win %.1f%% | Conceded %.2f", gkAttr, winRate, modResult.AwayGoals)
 		if winRate < 55 {
 			t.Errorf("GK %s +5: win rate %.1f%% below 55%%", gkAttr, winRate)

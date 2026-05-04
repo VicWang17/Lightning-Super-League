@@ -21,6 +21,7 @@ from app.routers.seasons import router as seasons_router
 from app.routers.cups import router as cups_router
 from app.routers.internal import router as internal_router
 from app.routers.dev import router as dev_router
+from app.routers.clock import router as clock_router
 
 settings = get_settings()
 
@@ -90,6 +91,7 @@ app.include_router(cups_router, prefix="/api/v1")
 # TODO: 内部服务路由（Go 比赛引擎回调），生产环境应限制内网访问
 app.include_router(internal_router, prefix="/api/v1")
 app.include_router(dev_router, prefix="/api/v1")
+app.include_router(clock_router, prefix="/api/v1")
 
 
 @app.get("/")

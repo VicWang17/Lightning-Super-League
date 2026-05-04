@@ -33,7 +33,7 @@ export interface Player {
     sho: number; pas: number; dri: number; spd: number; str: number; sta: number
     acc: number; hea: number; bal: number; defe: number; tkl: number; vis: number
     cro: number; con: number; fin: number; com: number; sav: number; ref: number
-    pos: number; rus: number; dec: number; fk: number; pk: number
+    pos: number; set: number; dec: number
   }
   sho: number   // 射门
   pas: number   // 传球
@@ -44,7 +44,7 @@ export interface Player {
   acc: number   // 爆发力
   hea: number   // 头球
   bal: number   // 平衡
-  defe: number  // 防守
+  defe: number  // 站位（防守站位）
   tkl: number   // 抢断
   vis: number   // 视野
   cro: number   // 传中
@@ -53,11 +53,9 @@ export interface Player {
   com: number   // 镇定
   sav: number   // 扑救
   ref: number   // 反应
-  pos: number   // 站位
-  rus: number   // 出击
+  pos: number   // 跑位（进攻选位）
+  set: number   // 定位球
   dec: number   // 球商
-  fk: number    // 任意球
-  pk: number    // 点球
 
   ovr: number
   potential_letter: PotentialLetter

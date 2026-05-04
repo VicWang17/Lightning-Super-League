@@ -17,6 +17,7 @@ type MatchEvent struct {
 	Detail      string  `json:"detail,omitempty"`      // aggressive / safe / etc
 	Score       *Score  `json:"score,omitempty"`
 	Narrative   string  `json:"narrative,omitempty"`
+	ExtraValue  float64 `json:"extra_value,omitempty"` // numeric extra data (e.g. added time minutes)
 }
 
 // Score represents the current score

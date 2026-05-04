@@ -1,8 +1,10 @@
-import { Bell, SettingsCog as Settings, Search, Trophy, Calendar } from '../ui/pixel-icons'
+import { Bell, SettingsCog as Settings, Search, Trophy, Calendar, Clock } from '../ui/pixel-icons'
 import { useSeason } from '../../hooks/useSeason'
+import { useGameClock } from '../../hooks/useGameClock'
 
 function Header() {
   const { displayStatus, loading, error, season } = useSeason()
+  const { virtualNow, mode, speed, error: clockError } = useGameClock()
 
   // 调试信息
   console.log('Header render:', { loading, error, hasSeason: !!season, hasDisplayStatus: !!displayStatus })
@@ -40,6 +42,49 @@ function Header() {
       
       {/* Right */}
       <div className="flex items-center gap-6">
+        {/* Game Clock */}
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 flex items-center justify-center border-2 ${
+            mode === 'paused'
+              ? 'bg-[#8B4513]/20 border-[#D4A017]/50'
+              : mode === 'turbo'
+              ? 'bg-[#0D7377]/20 border-[#0D7377]/50'
+              : mode === 'step'
+              ? 'bg-[#4B0082]/20 border-[#8A2BE2]/50'
+              : 'bg-[#12121A] border-[#2D2D44]'
+          }`}>
+            <Clock className={`w-5 h-5 ${
+              mode === 'paused'
+                ? 'text-[#D4A017]'
+                : mode === 'turbo'
+                ? 'text-[#0D7377]'
+                : mode === 'step'
+                ? 'text-[#8A2BE2]'
+                : 'text-[#8B8BA7]'
+            }`} />
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-[#4B4B6A] uppercase tracking-wider">
+              {clockError ? '时钟同步失败' : `${mode}${mode === 'turbo' ? ` ×${speed}` : ''}`}
+            </p>
+            <p className="text-sm font-medium text-[#E2E2F0] font-mono">
+              {virtualNow.toLocaleDateString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+              })} {' '}
+              {virtualNow.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+              })}
+            </p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px h-8 bg-[#2D2D44]" />
+
         {/* Season Info */}
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 flex items-center justify-center ${

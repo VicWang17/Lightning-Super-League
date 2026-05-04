@@ -39,6 +39,7 @@ type MatchState struct {
 	GlobalMomentum float64       // global scalar momentum, range [-0.3, 0.3]
 
 	BallHolder *PlayerRuntime // current player with the ball
+	LastPasser *PlayerRuntime  // last successful passer on the possession team (for assist tracking)
 
 	PossessionTicks [2]int // home, away
 
@@ -46,6 +47,8 @@ type MatchState struct {
 
 	LastEventType string
 	ChainState    string // none, ongoing, goal, turnover, set_piece
+	AddedTime     float64 // stoppage time for second half (in minutes)
+	AddedTimeAnnounced bool
 
 	EventCounter int
 	Events       []MatchEvent
@@ -94,6 +97,11 @@ func (m *MatchState) AddEvent(ev MatchEvent) {
 // It combines the natural ControlMatrix with the event-driven ControlShift.
 func (m *MatchState) EffectiveControl(zone [2]int) float64 {
 	v := m.ControlMatrix[zone[0]][zone[1]] + m.ControlShift[zone[0]][zone[1]]
+	// Front zone naturally favors defense — it's much harder to maintain
+	// control in the penalty area due to compact defending and high stakes
+	if zone[0] == 0 {
+		v *= 0.65
+	}
 	if m.Possession == SideAway {
 		return -v
 	}

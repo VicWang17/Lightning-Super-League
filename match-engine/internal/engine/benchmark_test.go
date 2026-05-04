@@ -20,15 +20,15 @@ func baseAttrs() map[string]int {
 		"SHO": 10, "PAS": 10, "DRI": 10, "SPD": 10, "STR": 10,
 		"STA": 10, "DEF": 10, "HEA": 10, "VIS": 10, "TKL": 10,
 		"ACC": 10, "CRO": 10, "CON": 10, "FIN": 10, "BAL": 10,
-		"COM": 10, "SAV": 10, "REF": 10, "POS": 10, "FK": 10,
-		"PK": 10, "RUS": 10, "DEC": 10,
+		"COM": 10, "SAV": 10, "REF": 10, "POS": 10, "SET": 10,
+		"DEC": 10,
 	}
 }
 
 func positionBoost(pos string, attrs map[string]int) {
 	switch pos {
 	case "GK":
-		attrs["SAV"] = 16; attrs["REF"] = 15; attrs["POS"] = 14; attrs["COM"] = 13; attrs["RUS"] = 12; attrs["DEC"] = 12
+		attrs["SAV"] = 16; attrs["REF"] = 15; attrs["POS"] = 14; attrs["COM"] = 13; attrs["DEC"] = 12; attrs["DEC"] = 12
 	case "CB":
 		attrs["DEF"] = 16; attrs["HEA"] = 15; attrs["STR"] = 14; attrs["TKL"] = 13; attrs["COM"] = 12; attrs["DEC"] = 11
 	case "SB":
@@ -36,13 +36,13 @@ func positionBoost(pos string, attrs map[string]int) {
 	case "DMF":
 		attrs["DEF"] = 14; attrs["TKL"] = 14; attrs["PAS"] = 13; attrs["STA"] = 14; attrs["DEC"] = 13
 	case "CMF":
-		attrs["PAS"] = 15; attrs["VIS"] = 14; attrs["STA"] = 14; attrs["CON"] = 13; attrs["FK"] = 13; attrs["DEC"] = 13
+		attrs["PAS"] = 15; attrs["VIS"] = 14; attrs["STA"] = 14; attrs["CON"] = 13; attrs["SET"] = 13; attrs["DEC"] = 13
 	case "AMF":
-		attrs["PAS"] = 15; attrs["VIS"] = 15; attrs["DRI"] = 14; attrs["SHO"] = 12; attrs["FK"] = 13; attrs["DEC"] = 13
+		attrs["PAS"] = 15; attrs["VIS"] = 15; attrs["DRI"] = 14; attrs["SHO"] = 12; attrs["SET"] = 13; attrs["DEC"] = 13
 	case "WF":
 		attrs["SPD"] = 16; attrs["DRI"] = 14; attrs["CRO"] = 14; attrs["ACC"] = 14; attrs["DEC"] = 11
 	case "ST":
-		attrs["SHO"] = 16; attrs["HEA"] = 14; attrs["STR"] = 14; attrs["SPD"] = 13; attrs["PK"] = 13; attrs["DEC"] = 10
+		attrs["SHO"] = 16; attrs["HEA"] = 14; attrs["STR"] = 14; attrs["SPD"] = 13; attrs["SET"] = 13; attrs["DEC"] = 10
 	}
 }
 
@@ -776,7 +776,7 @@ func TestAttributeImpactLegacy(t *testing.T) {
 	t.Logf("BASELINE: Home win %.1f%%", float64(brBase.HomeWins)*100/float64(brBase.Total))
 	
 	attrNames := []string{"SHO", "PAS", "DRI", "SPD", "STR", "STA", "DEF", "HEA", "VIS", "TKL",
-		"ACC", "CRO", "CON", "FIN", "BAL", "COM", "SAV", "REF", "POS", "FK", "PK", "RUS", "DEC"}
+		"ACC", "CRO", "CON", "FIN", "BAL", "COM", "SAV", "REF", "POS", "SET", "SET", "DEC", "DEC"}
 	
 	for _, attr := range attrNames {
 		homeMod := buildTeam("Home", cloneAttrs(base), defaultTactics())
@@ -850,7 +850,7 @@ func TestFreeKickSpecialist(t *testing.T) {
 	// Test different FK levels
 	for _, fk := range []int{8, 12, 16, 18} {
 		attrs := cloneAttrs(base)
-		attrs["FK"] = fk
+		attrs["SET"] = fk
 		home := buildTeam("Home", attrs, defaultTactics())
 		away := buildTeam("Away", base, defaultTactics())
 		br := runBatch(home, away, 1000, false)
@@ -874,7 +874,7 @@ func TestPenaltyRate(t *testing.T) {
 	// Test different PK levels
 	for _, pk := range []int{8, 12, 16, 18} {
 		attrs := cloneAttrs(base)
-		attrs["PK"] = pk
+		attrs["SET"] = pk
 		home := buildTeam("Home", attrs, defaultTactics())
 		br := runBatch(home, away, 1000, false)
 		t.Logf("PK=%d: PK conversion %.2f%% (%d/%d)",

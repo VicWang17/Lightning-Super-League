@@ -13,7 +13,7 @@ import (
 // Single-roll design: no delta noise, COM deterministically stabilizes probability
 func ResolveDuel(attackValue, defenseValue float64, r *rand.Rand, com ...float64) bool {
 	delta := attackValue - defenseValue
-	pSuccess := sigmoid(delta / 6.0)
+	pSuccess := sigmoid(delta / 4.0)
 
 	if len(com) > 0 {
 		avgCom := 0.0

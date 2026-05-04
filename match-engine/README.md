@@ -10,10 +10,10 @@
 
 | 指标 | 目标值 | 说明 |
 |------|--------|------|
-| 场均进球 | ~3.2-3.5 | 双方合计 |
+| 场均进球 | ~3.0-3.5 | 双方合计 |
 | 场均射门 | ~20 | 双方合计 |
-| 射正率 | ~40% | 射正 / 射门 |
-| 转化率 | ~15% | 进球 / 射门 |
+| 射正率 | ~45% | 射正 / 射门 |
+| 转化率 | ~17% | 进球 / 射门 |
 | 场均传球 | ~150 | 双方合计 |
 | 大比分(≥4球) | <10% | 现实足球约 5-10% |
 | 点球占比 | ~15% | 点球进球 / 总进球 |
@@ -58,7 +58,7 @@ match-engine/
 
 ## 3. 核心数据模型
 
-### 3.1 球员属性（23 + DEC = 24 项）
+### 3.1 球员属性（21 项）
 
 属性值范围 **1-20**，由外部系统传入。引擎内部使用 `EffectiveAttrs`（受体力衰减影响）。
 
@@ -70,23 +70,21 @@ match-engine/
 | SPD | Speed | 跑动速度 |
 | STR | Strength | 身体对抗 |
 | STA | Stamina | 体力（决定衰减系数） |
-| DEF | Defense | 防守站位 |
+| DEF | Defense | 防守站位（拦截/卡位） |
 | HEA | Heading | 头球争顶 |
 | VIS | Vision | 视野、传球创造力 |
 | TKL | Tackling | 抢断能力 |
 | ACC | Acceleration | 爆发力 |
 | CRO | Crossing | 传中 |
-| CON | Control | 控球稳定性 |
+| CON | Control | 控球 |
 | FIN | Finishing | 远射/射门精度 |
 | BAL | Balance | 身体平衡 |
 | COM | Composure | 冷静度（决斗稳定化） |
 | SAV | Saving | 门将扑救 |
 | REF | Reflexes | 门将反应 |
-| POS | Positioning | 门将/球员站位 |
-| FK | Free Kick | 任意球 |
-| PK | Penalty Kick | 点球 |
-| RUS | Rushing | 门将出击 |
-| DEC | Decision Making | 决策（影响事件选择权重） |
+| POS | Positioning | 跑位（进攻选位） |
+| SET | Set Piece | 定位球（任意球+点球） |
+| DEC | Decision Making | 球商（影响单刀选择、门将出击等） |
 
 ### 3.2 位置类型（8 种）
 
@@ -233,7 +231,7 @@ throughBoost = 1.0 + pf * 0.05
 ### 6.1 核心公式
 
 ```
-pSuccess = sigmoid((attack - defense) / 6.0)
+pSuccess = sigmoid((attack - defense) / 4.0)
 
 // COM 稳定化（可选）
 stability = min(1.0, COM / 15.0)
@@ -258,7 +256,7 @@ COM 的作用：**高 COM 把概率推离 0.5（更确定），低 COM 把概率
 | **直塞** | PAS×0.40 + VIS×0.50 + ACC×0.10 | DEF×0.5 + SPD×0.3 + POS×0.2 |
 | **长传** | PAS×0.45 + STR×0.20 + VIS×0.35 | HEA×0.4 + SPD×0.4 + POS×0.2 |
 | **盘带** | DRI×0.45 + SPD×0.25 + ACC×0.15 + BAL×0.15 | DEF×0.40 + TKL×0.30 + SPD×0.30 |
-| **点球** | PK×0.85 + SHO×0.25 + FIN×0.15 + 2.5 | SAV×0.30 + REF×0.20 + POS×0.15 |
+| **点球** | SET×0.60 + SHO×0.30 + FIN×0.10 + 2.5 | SAV×0.30 + REF×0.20 + POS×0.15 |
 | **1v1 门将** | SHO×0.5 + DRI×0.3 + COM×0.2 | REF×0.30 + SAV×0.25 + POS×0.10 + 0.2 |
 | **射门封堵** | DEF×0.4 + TKL×0.3 + STR×0.3 | SHO×0.4 + STR×0.4 + ACC×0.2 |
 | **二过一** | p1.PAS×0.35 + p2.DRI×0.35 + p2.ACC×0.3 | DEF×0.5 + SPD×0.3 + TKL×0.2 |
@@ -281,7 +279,7 @@ COM 的作用：**高 COM 把概率推离 0.5（更确定），低 COM 把概率
 blockAtk = nearestDefender.DEF×0.4 + TKL×0.3 + HEA×0.2 + POS×0.1
 blockDef = shooter.SHO×0.3 + ACC×0.3 + FIN×0.2 + STR×0.2
 blockDelta = blockAtk - blockDef + ctrl×3.0
-blockChance = sigmoid(blockDelta/5.0) × 0.75 + DefensiveCompactness × 0.12
+blockChance = sigmoid(blockDelta/5.0) × 0.55 + DefensiveCompactness × 0.12
 
 // 封顶
 blockChance = clamp(blockChance, 0.05, 0.50)
@@ -305,7 +303,7 @@ if rand >= onTargetProb:
 **Step 3: 门将扑救**（仅射正时）
 
 ```
-success = ResolveDuel(atkVal, defVal + 4.0, rand, COM)
+success = ResolveDuel(atkVal, defVal + 2.5, rand, COM)
 // success = true → 进球
 // success = false → 被扑出或门框
 
@@ -449,8 +447,19 @@ else if !success:
 每场比赛维护一个 3×3 控球矩阵 `ControlMatrix`，表示每个区域的**绝对控球优势**（正 = 主队，负 = 客队）。
 
 ```
-raw = 0.28×formationDelta + 0.40×playerDelta + 0.18×tacticDelta + 0.03×dynamicDelta + 0.01×momentum
+raw = 0.28×formationDelta + 0.40×playerDelta + 0.18×tacticDelta + 0.03×dynamicDelta + 0.01×momentum + 0.10×teamAttrDelta
 ControlMatrix[r][c] = tanh(raw × 2.0)
+
+**teamAttrDelta（全队属性基线偏移）**
+
+```
+possDelta = (主队平均PAS+VIS+CON) - (客队平均PAS+VIS+CON)
+defDelta  = (主队平均DEF+TKL+POS) - (客队平均DEF+TKL+POS)
+spdDelta  = (主队平均SPD+ACC) - (客队平均SPD+ACC)
+
+teamAttrDelta = possDelta×0.004 + defDelta×0.002 + spdDelta×0.003
+// 最大绝对影响 ≈ ±5%
+```
 ```
 
 ### 8.2 控球偏移（Control Shift）
@@ -584,7 +593,7 @@ GK 被**明确排除**在防守者选择之外。
 |------|-----|
 | close_shot 权重 | 8 |
 | long_shot 权重 | 2 |
-| blockChance sigmoid 乘数 | 0.75 |
+| blockChance sigmoid 乘数 | 0.55 |
 | blockChance 封顶 | 0.50 |
 | blockChance 深位防守加成 | +0.25 |
 | onTargetProb 基础 | 0.60 |
@@ -619,7 +628,7 @@ GK 被**明确排除**在防守者选择之外。
 
 | 参数 | 值 |
 |------|-----|
-| PK 权重 | 0.85 |
+| SET 权重（点球） | 0.60 |
 | SHO 权重 | 0.25 |
 | FIN 权重 | 0.15 |
 | 基础加成 | +2.5 |
@@ -645,17 +654,20 @@ GK 被**明确排除**在防守者选择之外。
 
 | 测试文件 | 用途 |
 |----------|------|
-| `variance_analysis_test.go` | 50 场方差分析：比分、射门、射正、传球分布 |
-| `variance_analysis2_test.go` | 200 场深度分析：转化率、扑救率、点球占比、大比分 |
-| `benchmark_test.go` | 性能基准测试 |
+| `regression_test.go` | **500 场回归测试**：比分、射门、射正、传球、过人、抢断、扑救、点球率、任意球率等全量指标 |
+| `tactics_matrix_test.go` | **战术矩阵测试**：12 套战术 × 8 种阵型两两对打，验证战术区分度 |
+| `attribute_skill_test.go` | **属性敏感度测试**：单一属性 +3/+5 后 200 场对比，验证属性有效性 |
+| `position_analysis_test.go` | **位置评分分析**：1000 场各位置评分、射正率、扑救率、转化率 |
+| `benchmark_test.go` | 性能基准测试（历史保留） |
 | `control_test.go` | 控球矩阵验证 |
-| `quick_test.go` / `quick2_test.go` | 快速功能验证 |
 | `narrative_demo_test.go` | 叙事文本演示 |
 
-运行方差分析：
+运行回归测试：
 ```bash
-go test ./internal/engine -run TestVarianceAnalysis -v
-go test ./internal/engine -run TestVarianceDeepAnalysis -v
+go test ./internal/engine -run TestRegression -v
+go test ./internal/engine -run TestTacticsMatrix -v
+go test ./internal/engine -run TestAttributeImpact -v
+go test ./internal/engine -run TestPositionRatings -v
 ```
 
 ---

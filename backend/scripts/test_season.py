@@ -135,15 +135,21 @@ class SeasonTester:
         """获取当前正在进行的赛季"""
         if self._current_season is None:
             result = await self.db.execute(
-                select(Season).where(Season.status == SeasonStatus.ONGOING)
+                select(Season)
+                .where(Season.status == SeasonStatus.ONGOING)
+                .order_by(Season.season_number.desc())
+                .limit(1)
             )
             self._current_season = result.scalar_one_or_none()
         return self._current_season
     
     async def refresh_season(self) -> Optional[Season]:
-        """刷新当前赛季"""
+        """刷新当前赛季（取最新的一个 ONGOING 赛季）"""
         result = await self.db.execute(
-            select(Season).where(Season.status == SeasonStatus.ONGOING)
+            select(Season)
+            .where(Season.status == SeasonStatus.ONGOING)
+            .order_by(Season.season_number.desc())
+            .limit(1)
         )
         self._current_season = result.scalar_one_or_none()
         return self._current_season
@@ -540,7 +546,7 @@ class SeasonTester:
         
         if lightning:
             print(f"\n  ⚡ 闪电杯")
-            print(f"     阶段: {lightning.stage.value}")
+            print(f"     代码: {lightning.code}")
             if lightning.winner_team_id:
                 winner = await self.db.get(Team, lightning.winner_team_id)
                 print(f"     冠军: {winner.name if winner else '未知'}")
@@ -572,7 +578,7 @@ class SeasonTester:
         if jenny_comps:
             print(f"\n  🏅 杰尼杯（{len(jenny_comps)} 个赛区）")
             for comp in jenny_comps[:4]:  # 只显示前4个
-                print(f"     {comp.name}: {comp.stage.value}")
+                print(f"     {comp.name}: {comp.code}")
                 if comp.winner_team_id:
                     winner = await self.db.get(Team, comp.winner_team_id)
                     print(f"       冠军: {winner.name if winner else '未知'}")
@@ -971,7 +977,10 @@ class SeasonTester:
                 result = await self.season_service.process_next_day(season)
                 
                 result_query = await self.db.execute(
-                    select(Season).where(Season.status == SeasonStatus.ONGOING)
+                    select(Season)
+                    .where(Season.status == SeasonStatus.ONGOING)
+                    .order_by(Season.season_number.desc())
+                    .limit(1)
                 )
                 current_season = result_query.scalar_one_or_none()
                 

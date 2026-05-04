@@ -16,7 +16,7 @@ type PlayerSetup struct {
 type PlayerRuntime struct {
 	PlayerSetup
 	CurrentStamina float64
-	EffectiveAttrs [24]float64
+	EffectiveAttrs [21]float64
 
 	// Match stats
 	Stats PlayerMatchStats
@@ -112,14 +112,10 @@ func (p *PlayerRuntime) GetAttrByName(name string) float64 {
 		return p.GetAttr(17)
 	case "POS":
 		return p.GetAttr(18)
-	case "FK":
+	case "SET":
 		return p.GetAttr(19)
-	case "PK":
-		return p.GetAttr(20)
-	case "RUS":
-		return p.GetAttr(21)
 	case "DEC":
-		return p.GetAttr(22)
+		return p.GetAttr(20)
 	}
 	return 0
 }
@@ -131,7 +127,7 @@ func NewPlayerRuntime(p PlayerSetup) *PlayerRuntime {
 	}
 	// Initialize effective attrs from input
 	idx := 0
-	for _, name := range []string{"SHO", "PAS", "DRI", "SPD", "STR", "STA", "DEF", "HEA", "VIS", "TKL", "ACC", "CRO", "CON", "FIN", "BAL", "COM", "SAV", "REF", "POS", "FK", "PK", "RUS", "DEC"} {
+	for _, name := range []string{"SHO", "PAS", "DRI", "SPD", "STR", "STA", "DEF", "HEA", "VIS", "TKL", "ACC", "CRO", "CON", "FIN", "BAL", "COM", "SAV", "REF", "POS", "SET", "DEC"} {
 		if v, ok := p.Attributes[name]; ok {
 			pr.EffectiveAttrs[idx] = float64(v)
 		}

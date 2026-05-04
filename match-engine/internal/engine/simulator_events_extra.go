@@ -26,6 +26,9 @@ func (sim *Simulator) doSwitchPlayEvent(ms *domain.MatchState, possTeam, oppTeam
 	var target *domain.PlayerRuntime
 	result := "success"
 	if !success {
+		if sim.handlePassFailure(ms, possTeam, oppTeam, zone, config.EventSwitchPlay, defender, false) {
+			return
+		}
 		result = "fail"
 		ms.Possession = ms.Possession.Opponent()
 		ms.BallHolder = defender
@@ -80,6 +83,9 @@ func (sim *Simulator) doLobPassEvent(ms *domain.MatchState, possTeam, oppTeam *d
 
 	result := "success"
 	if !success {
+		if sim.handlePassFailure(ms, possTeam, oppTeam, zone, config.EventLobPass, defender, true) {
+			return
+		}
 		result = "fail"
 		ms.Possession = ms.Possession.Opponent()
 		ms.BallHolder = defender
@@ -145,6 +151,9 @@ func (sim *Simulator) doPassOverTopEvent(ms *domain.MatchState, possTeam, oppTea
 	var target *domain.PlayerRuntime
 	result := "success"
 	if !success {
+		if sim.handlePassFailure(ms, possTeam, oppTeam, zone, config.EventPassOverTop, defender, true) {
+			return
+		}
 		result = "fail"
 		ms.Possession = ms.Possession.Opponent()
 		ms.BallHolder = defender
@@ -245,8 +254,17 @@ func (sim *Simulator) doOneOnOneEvent(ms *domain.MatchState, possTeam, oppTeam *
 	atkVal := CalcOneOnOneAttack(shooter)
 	defVal := CalcOneOnOneDefense(keeper)
 
+	// Decision making: high DEC improves one-on-one choices
+	dec := shooter.GetAttrByName("DEC")
+	decBonus := 0.0
+	if dec >= 15 {
+		decBonus = 0.5
+	} else if dec >= 10 {
+		decBonus = 0.2
+	}
+
 	com := shooter.GetAttrByName("COM")
-	success := ResolveDuel(atkVal, defVal+0.3, sim.r, com)
+	success := ResolveDuel(atkVal+decBonus, defVal+0.3, sim.r, com)
 
 	ConsumeStamina(shooter, StaminaCost(config.EventOneOnOne))
 	shooter.Stats.Shots++
@@ -262,8 +280,9 @@ func (sim *Simulator) doOneOnOneEvent(ms *domain.MatchState, possTeam, oppTeam *
 		result = "goal"
 		shooter.Stats.Goals++
 		shooter.Stats.ShotsOnTarget++
-		shooter.Stats.RatingBase += 1.2
-		keeper.Stats.RatingBase -= 0.6
+		shooter.Stats.RatingBase += 1.8
+		keeper.Stats.RatingBase -= 0.5
+		sim.recordAssist(ms, shooter, possTeam)
 		if ms.Possession == domain.SideHome {
 			ms.Score.Home++
 			ms.HomeStats.ShotsOnTarget++
@@ -310,6 +329,16 @@ func (sim *Simulator) doOneOnOneEvent(ms *domain.MatchState, possTeam, oppTeam *
 			PlayerName:   shooter.Name,
 			Score:        &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
 		})
+		// Celebration event immediately after goal
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:       config.EventGoalCelebration,
+			Team:       possTeam.Name,
+			PlayerID:   shooter.PlayerID,
+			PlayerName: shooter.Name,
+			Score:      &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
+		})
+		// Celebration consumes 20-30 seconds before restart
+		ms.AdvanceClock(20.0 + sim.r.Float64()*10.0)
 		ms.Possession = ms.Possession.Opponent()
 		ms.ActiveZone = [2]int{1, 1}
 		ms.BallHolder = sim.selectKickoffTaker(ms.Team(ms.Possession))
@@ -466,7 +495,7 @@ func (sim *Simulator) doGoalKickEvent(ms *domain.MatchState, possTeam, oppTeam *
 		PlayerName: keeper.Name,
 		Zone:       zoneStr(zone),
 	})
-	ms.AdvanceClock(2.0 + sim.r.Float64()*2.0)
+	ms.AdvanceClock(10.0 + sim.r.Float64()*10.0)
 
 	// Goal kick: keeper passes/kicks to teammates
 	atkVal := keeper.GetAttrByName("PAS")*0.5 +
@@ -889,6 +918,9 @@ func (sim *Simulator) doTrianglePassEvent(ms *domain.MatchState, possTeam, oppTe
 		ms.BallHolder = p3
 		sim.applyControlShift(ms, zone, 0.25)
 	} else {
+		if sim.handlePassFailure(ms, possTeam, oppTeam, zone, config.EventTrianglePass, d1, true) {
+			return
+		}
 		result = "fail"
 		ms.Possession = ms.Possession.Opponent()
 		ms.BallHolder = d1
