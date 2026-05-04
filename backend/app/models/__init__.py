@@ -33,6 +33,7 @@ from app.models.player import (
 from app.models.player_season_stats import (
     PlayerSeasonStats,
 )
+from app.models.events import EventQueue
 
 __all__ = [
     # Base
@@ -69,4 +70,6 @@ __all__ = [
     "SquadRole",
     # Player Season Stats
     "PlayerSeasonStats",
+    # Event Queue
+    "EventQueue",
 ]

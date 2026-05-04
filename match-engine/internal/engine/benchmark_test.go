@@ -765,7 +765,7 @@ func TestSkillGap(t *testing.T) {
 	printBatchResult(t, "2c. WEAK vs STRONG (1000)", br3)
 }
 
-func TestAttributeImpact(t *testing.T) {
+func TestAttributeImpactLegacy(t *testing.T) {
 	t.Logf("\n========== 3. ATTRIBUTE IMPACT (each +5, 500 matches) ==========")
 	base := baseAttrs()
 	homeBase := buildTeam("Home", base, defaultTactics())

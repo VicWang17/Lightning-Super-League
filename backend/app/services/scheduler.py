@@ -19,6 +19,8 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import clock
+
 from app.models.season import Season, CupCompetition, CupGroup, Fixture, FixtureType, FixtureStatus, SeasonStatus
 from app.models.league import League
 from app.models.team import Team
@@ -670,7 +672,7 @@ class SeasonScheduler:
         # 检查赛季结束
         if next_day >= season.total_days:
             season.status = SeasonStatus.FINISHED
-            season.end_date = datetime.utcnow()
+            season.end_date = clock.now()
         
         await self.db.commit()
         return fixtures

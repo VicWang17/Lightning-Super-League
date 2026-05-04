@@ -13,6 +13,8 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.clock import clock
 from sqlalchemy import select, and_
 
 from app.models.season import Fixture, FixtureStatus, FixtureType, CupGroup
@@ -79,7 +81,7 @@ class MatchSimulator:
         fixture.home_score = result.home_score
         fixture.away_score = result.away_score
         fixture.status = FixtureStatus.FINISHED
-        fixture.finished_at = datetime.utcnow()
+        fixture.finished_at = clock.now()
         
         # 更新积分榜（联赛比赛）
         if db and fixture.fixture_type == FixtureType.LEAGUE:

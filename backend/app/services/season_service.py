@@ -1,6 +1,7 @@
 """
 Season service - 赛季业务逻辑服务
 """
+import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 
@@ -12,6 +13,8 @@ from app.models.league import League, LeagueSystem
 from app.models.team import Team
 from app.services.scheduler import SeasonScheduler, ScheduleMerger
 from app.core.formats import get_default_format
+from app.core.clock import clock
+from app.core.events import EventQueue, GameEvent, EventType, EventStatus
 from app.services.match_simulator import MatchSimulator
 from app.services.cup_progression import CupProgressionService
 from app.services.promotion_service import PromotionService
@@ -64,7 +67,7 @@ class SeasonService:
         
         # 默认明天开始
         if start_date is None:
-            start_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            start_date = clock.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         
         # 获取指定大区的联赛
@@ -93,6 +96,9 @@ class SeasonService:
             teams_by_league=teams_by_league
         )
         
+        # 生成并写入 EventQueue 事件序列
+        await self._seed_season_events(season, start_date)
+        
         return season
     
     async def start_season(self, season: Season) -> None:
@@ -102,67 +108,244 @@ class SeasonService:
         
         await self.scheduler.start_season(season)
     
-    async def process_next_day(self, season: Season) -> Dict:
-        """处理下一天的比赛
+    # =================================================================
+    # 事件驱动核心（Phase 3）
+    # =================================================================
+    
+    async def _seed_season_events(self, season: Season, start_date: datetime) -> None:
+        """为赛季生成完整的 EventQueue 事件序列"""
+        fmt = get_default_format()
+        template = fmt.season
         
-        如果当前赛季已结束（current_day >= total_days），
-        自动创建并切换到新赛季
+        events = EventQueue.build_season_events(
+            season_id=season.id,
+            league_days=list(template.league_days),
+            cup_days=list(template.lightning_cup_days),
+            promotion_day=22,  # 升降级处理日
+            total_days=season.total_days,
+            start_date=start_date,
+        )
+        await EventQueue.push_many(self.db, events)
+    
+    async def process_next_event(self, now: Optional[datetime] = None) -> Optional[Dict]:
+        """处理下一个事件（事件驱动核心入口）
+        
+        1. 从 EventQueue pop 一个 PENDING 事件
+        2. 根据 event_type 分发到对应处理器
+        3. 处理完成后标记为 COMPLETED（或 FAILED）
         """
-        # 检测是否需要自动创建新赛季
-        if season.current_day >= season.total_days:
+        event = await EventQueue.pop(self.db, now=now or clock.now())
+        if not event:
+            return None
+        
+        try:
+            result = await self._dispatch_event(event)
+            await EventQueue.complete(self.db, event.id)
+            return result
+        except Exception as e:
+            from app.core.logging import get_logger
+            _logger = get_logger(__name__)
+            _logger.error("Event processing failed", event_id=event.id, error=str(e), exc_info=True)
+            await EventQueue.fail(self.db, event.id, str(e))
+            raise
+    
+    async def _dispatch_event(self, event: GameEvent) -> Dict:
+        """根据事件类型分发处理"""
+        if event.event_type == EventType.SEASON_START:
+            return await self._handle_season_start(event)
+        elif event.event_type == EventType.MATCH_DAY:
+            return await self._handle_match_day(event)
+        elif event.event_type == EventType.CUP_PROGRESSION:
+            return await self._handle_cup_progression(event)
+        elif event.event_type == EventType.PROMOTION_RELEGATION:
+            return await self._handle_promotion_relegation(event)
+        elif event.event_type == EventType.SEASON_END:
+            return await self._handle_season_end(event)
+        else:
+            raise ValueError(f"Unknown event type: {event.event_type}")
+    
+    async def _handle_season_start(self, event: GameEvent) -> Dict:
+        """SEASON_START: 无额外操作（赛季已在 create_new_season 中创建）"""
+        return {"event": "season_start", "season_id": event.payload.get("season_id")}
+    
+    async def _handle_match_day(self, event: GameEvent) -> Dict:
+        """MATCH_DAY: 批量并发模拟当天所有比赛"""
+        season_id = event.payload.get("season_id")
+        day = event.payload.get("day", 0)
+        
+        result = await self.db.execute(
+            select(Season).where(Season.id == season_id)
+        )
+        season = result.scalar_one_or_none()
+        if not season:
+            raise ValueError(f"Season not found: {season_id}")
+        
+        # 获取当天所有 SCHEDULED 比赛
+        result = await self.db.execute(
+            select(Fixture)
+            .where(Fixture.season_id == season_id)
+            .where(Fixture.season_day == day)
+            .where(Fixture.status == FixtureStatus.SCHEDULED)
+        )
+        fixtures = list(result.scalars().all())
+        
+        # Step 1: 并发模拟所有比赛（纯计算，无 DB 写）
+        sim_tasks = [self.simulator.simulate(f) for f in fixtures]
+        sim_results = await asyncio.gather(*sim_tasks)
+        
+        # Step 2: 串行 apply_result（避免 standings 共享状态竞争）
+        match_results = []
+        for fixture, sim_result in zip(fixtures, sim_results):
+            await self.simulator.apply_result(fixture, sim_result, self.db)
+            match_results.append({
+                "fixture_id": fixture.id,
+                "type": fixture.fixture_type.value,
+                "home_team": fixture.home_team_id,
+                "away_team": fixture.away_team_id,
+                "home_score": sim_result.home_score,
+                "away_score": sim_result.away_score,
+            })
+        
+        # 更新赛季状态（复用 scheduler.process_matchday 的逻辑，但不重复 commit）
+        season.current_day = day
+        fmt = get_default_format()
+        template = fmt.season
+        league_days = list(template.league_days)
+        if day in league_days:
+            season.current_league_round = league_days.index(day) + 1
+        cup_days = list(template.lightning_cup_days)
+        if day in cup_days:
+            season.current_cup_round = cup_days.index(day) + 1
+        
+        await self.db.commit()
+        
+        return {
+            "event": "match_day",
+            "season_id": season_id,
+            "season_day": day,
+            "fixtures_processed": len(match_results),
+            "results": match_results,
+        }
+    
+    async def _handle_cup_progression(self, event: GameEvent) -> Dict:
+        """CUP_PROGRESSION: 处理杯赛晋级"""
+        season_id = event.payload.get("season_id")
+        after_day = event.payload.get("after_day", 0)
+        
+        result = await self.db.execute(
+            select(Season).where(Season.id == season_id)
+        )
+        season = result.scalar_one_or_none()
+        if not season:
+            raise ValueError(f"Season not found: {season_id}")
+        
+        progression = await self._process_cup_progression(season, after_day)
+        await self.db.commit()
+        return {
+            "event": "cup_progression",
+            "season_id": season_id,
+            "after_day": after_day,
+            "results": progression,
+        }
+    
+    async def _handle_promotion_relegation(self, event: GameEvent) -> Dict:
+        """PROMOTION_RELEGATION: 处理升降级"""
+        season_id = event.payload.get("season_id")
+        day = event.payload.get("day", 0)
+        
+        result = await self.db.execute(
+            select(Season).where(Season.id == season_id)
+        )
+        season = result.scalar_one_or_none()
+        if not season:
+            raise ValueError(f"Season not found: {season_id}")
+        
+        promotion = await self._process_promotion_relegation(season, day)
+        await self.db.commit()
+        return {
+            "event": "promotion_relegation",
+            "season_id": season_id,
+            "day": day,
+            "results": promotion,
+        }
+    
+    async def _handle_season_end(self, event: GameEvent) -> Dict:
+        """SEASON_END: 赛季结算"""
+        season_id = event.payload.get("season_id")
+        
+        result = await self.db.execute(
+            select(Season).where(Season.id == season_id)
+        )
+        season = result.scalar_one_or_none()
+        if not season:
+            raise ValueError(f"Season not found: {season_id}")
+        
+        season.status = SeasonStatus.FINISHED
+        season.end_date = clock.now()
+        await self.db.commit()
+        
+        return {
+            "event": "season_end",
+            "season_id": season_id,
+            "season_number": season.season_number,
+        }
+    
+    async def process_next_day(self, season: Season) -> Dict:
+        """处理下一天的比赛（兼容接口，内部使用事件驱动）
+        
+        不断处理事件，直到遇到一个 MATCH_DAY 或 SEASON_END 为止。
+        如果赛季已结束，自动创建并切换到新赛季。
+        """
+        if season.status == SeasonStatus.FINISHED:
             print(f"\n  🔄 第{season.season_number}赛季已结束，自动创建新赛季...")
-            
-            # 结束当前赛季
-            season.status = SeasonStatus.FINISHED
-            await self.db.commit()
-            
-            # 创建新赛季（同一大区）
             new_season = await self.create_new_season(zone_id=season.zone_id)
             await self.start_season(new_season)
-            
             print(f"  ✅ 第{new_season.season_number}赛季已启动！\n")
-            
-            # 递归调用以处理新赛季的第一天
             return await self.process_next_day(new_season)
         
         if season.status != SeasonStatus.ONGOING:
             raise ValueError(f"Season is not ongoing: {season.status}")
         
-        next_day = season.current_day + 1
+        # 处理事件直到遇到 MATCH_DAY 或 SEASON_END
+        while True:
+            result = await self.process_next_event()
+            if result is None:
+                # 没有更多事件
+                return {"season_day": season.current_day, "fixtures_processed": 0, "results": [], "cup_progression": {}}
+            
+            if result.get("event") in ("match_day", "season_end"):
+                return result
+    
+    async def run_until_next_event(self, season: Season, max_events: int = 100) -> List[Dict]:
+        """运行时钟直到下一个需要暂停的事件（用于 step/turbo 模式）
         
-        # 获取当天比赛
-        fixtures = await self.scheduler.process_matchday(season)
+        在 step 模式下：处理到下一个 MATCH_DAY 或 SEASON_END 停止
+        在 turbo 模式下：连续处理所有到期事件直到队列为空
+        """
+        results: List[Dict] = []
+        for _ in range(max_events):
+            result = await self.process_next_event()
+            if result is None:
+                break
+            results.append(result)
+            if result.get("event") in ("match_day", "season_end"):
+                break
+        return results
+    
+    async def fast_forward(self, target_day: int, season: Season) -> List[Dict]:
+        """快进赛季到指定天数（用于测试/调试）
         
-        # 模拟所有比赛
-        results = []
-        for fixture in fixtures:
-            result = await self.simulator.simulate(fixture)
-            await self.simulator.apply_result(fixture, result, self.db)
-            results.append({
-                "fixture_id": fixture.id,
-                "type": fixture.fixture_type.value,
-                "home_team": fixture.home_team_id,
-                "away_team": fixture.away_team_id,
-                "home_score": result.home_score,
-                "away_score": result.away_score,
-            })
-        
-        await self.db.commit()
-        
-        # 处理杯赛晋级
-        progression_results = await self._process_cup_progression(season, next_day)
-        
-        # 处理赛季结束和升降级
-        promotion_results = await self._process_promotion_relegation(season, next_day)
-        if promotion_results:
-            progression_results.update(promotion_results)
-        
-        return {
-            "season_day": season.current_day,
-            "fixtures_processed": len(results),
-            "results": results,
-            "cup_progression": progression_results
-        }
+        不断处理事件直到 season.current_day >= target_day。
+        """
+        results: List[Dict] = []
+        while season.current_day < target_day and season.status == SeasonStatus.ONGOING:
+            batch = await self.run_until_next_event(season, max_events=50)
+            if not batch:
+                break
+            results.extend(batch)
+            # refresh season state
+            await self.db.refresh(season)
+        return results
     
     async def _process_cup_progression(self, season: Season, day: int) -> Dict:
         """
