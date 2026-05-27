@@ -52,7 +52,7 @@ export default function Register() {
             <div className="bg-[#0A0A0F] border-2 border-[#2D2D44] p-4 text-left space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-[#8B8BA7]">邮箱：</span>
-                <span className="text-[#E2E2F0]">ai_east_l1_001@lightning.dev</span>
+                <span className="text-[#E2E2F0]">ai_east_l1_1_001@lightning.dev</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#8B8BA7]">密码：</span>

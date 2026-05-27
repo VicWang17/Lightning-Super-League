@@ -6,6 +6,7 @@ import {
   TrendingUp, Award, Ruler, User, Shield, Target, Zap
 } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
+import { PlayerTabs } from '../../components/players/PlayerTabs'
 import { getPositionColor, type Player } from '../../types/player'
 import { api } from '../../api/client'
 
@@ -168,6 +169,9 @@ function PlayerDetail() {
         <ChevronLeft className="w-4 h-4" />
         返回球队
       </Link>
+
+      {/* Tab 导航 */}
+      <PlayerTabs playerId={id!} />
 
       {/* 球员信息头部 */}
       <Card className="mb-6 bg-[#0D4A4D]/30 border-2 border-[#2D2D44] hover:-translate-y-1 hover:shadow-pixel transition-all">

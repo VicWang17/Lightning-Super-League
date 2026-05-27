@@ -17,6 +17,7 @@ import CupDetail from './pages/Cup/Detail'
 // Team Pages
 import TeamDetail from './pages/Team/Detail'
 import PlayerDetail from './pages/Team/PlayerDetail'
+import PlayerHistory from './pages/Players/History'
 import Tactics from './pages/Team/Tactics'
 
 // Training Pages
@@ -49,6 +50,7 @@ import FinanceOverview from './pages/Finance/Overview'
 import BudgetPlanning from './pages/Finance/BudgetPlanning'
 import IncomeDetails from './pages/Finance/Income'
 import ExpenseDetails from './pages/Finance/Expense'
+import RecordsPage from './pages/Records/Index'
 
 // 404 Page
 const NotFound = () => (
@@ -132,7 +134,10 @@ export const router = createBrowserRouter([
               },
               {
                 path: 'players/:id',
-                element: <PlayerDetail />,
+                children: [
+                  { path: '', element: <PlayerDetail /> },
+                  { path: 'history', element: <PlayerHistory /> },
+                ],
               },
               {
                 path: 'tactics',
@@ -181,7 +186,10 @@ export const router = createBrowserRouter([
           // 球员详情 (公开访问)
           {
             path: 'players/:id',
-            element: <PlayerDetail />,
+            children: [
+              { path: '', element: <PlayerDetail /> },
+              { path: 'history', element: <PlayerHistory /> },
+            ],
           },
           
           // 比赛
@@ -303,6 +311,12 @@ export const router = createBrowserRouter([
                 element: <YoungPlayers />,
               },
             ],
+          },
+          
+          // 纪录中心
+          {
+            path: 'records',
+            element: <RecordsPage />,
           },
           
           // 财务中心

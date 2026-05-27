@@ -175,7 +175,7 @@
 
   /* 像素标题 - 只有大标题用 */
   .pixel-title {
-    font-family: 'Press Start 2P', cursive;
+    font-family: 'Press Start 2P', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     text-shadow: 3px 3px 0px rgba(0, 0, 0, 0.5);
     line-height: 1.6;
   }

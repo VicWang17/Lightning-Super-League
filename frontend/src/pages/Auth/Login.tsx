@@ -196,7 +196,7 @@ export default function Login() {
           <p className="text-xs text-[#8B8BA7] text-center">
             <span className="text-[#0D7377] font-medium">测试账号：</span>
             <br />
-            邮箱: ai_east_1_1@ai.com
+            邮箱: ai_east_l1_1_001@lightning.dev
             <br />
             密码: ai_password
           </p>
