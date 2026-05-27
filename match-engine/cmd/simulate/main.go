@@ -36,25 +36,25 @@ func main() {
 func buildDemoTeam(name, formation string, isHome bool) domain.TeamSetup {
 	players := []domain.PlayerSetup{
 		makePlayer("GK", "门将"),
-		makePlayer("CB", "中卫A"),
-		makePlayer("CB", "中卫B"),
-		makePlayer("SB", "边卫"),
-		makePlayer("DMF", "后腰"),
-		makePlayer("CMF", "中场A"),
-		makePlayer("CMF", "中场B"),
-		makePlayer("ST", "前锋"),
+		makePlayer("DF", "中卫A"),
+		makePlayer("DF", "中卫B"),
+		makePlayer("DF", "边卫"),
+		makePlayer("MF", "后腰"),
+		makePlayer("MF", "中场A"),
+		makePlayer("MF", "中场B"),
+		makePlayer("FW", "前锋"),
 	}
 	if formation == "F02" {
 		// 2-2-3: remove DMF, add WF and AMF
 		players = []domain.PlayerSetup{
 			makePlayer("GK", "门将"),
-			makePlayer("CB", "中卫A"),
-			makePlayer("CB", "中卫B"),
-			makePlayer("CMF", "中场A"),
-			makePlayer("CMF", "中场B"),
-			makePlayer("AMF", "前腰"),
-			makePlayer("WF", "边锋"),
-			makePlayer("ST", "前锋"),
+			makePlayer("DF", "中卫A"),
+			makePlayer("DF", "中卫B"),
+			makePlayer("MF", "中场A"),
+			makePlayer("MF", "中场B"),
+			makePlayer("MF", "前腰"),
+			makePlayer("FW", "边锋"),
+			makePlayer("FW", "前锋"),
 		}
 	}
 
@@ -66,9 +66,9 @@ func buildDemoTeam(name, formation string, isHome bool) domain.TeamSetup {
 
 	// Bench players for substitutions
 	bench := []domain.PlayerSetup{
-		makePlayer("WF", "替补边锋"),
-		makePlayer("CMF", "替补中场"),
-		makePlayer("CB", "替补中卫"),
+		makePlayer("FW", "替补边锋"),
+		makePlayer("MF", "替补中场"),
+		makePlayer("DF", "替补中卫"),
 	}
 	for i := range bench {
 		bench[i].PlayerID = fmt.Sprintf("%s_bench_%d", strings.ReplaceAll(name, " ", "_"), i)
@@ -136,45 +136,22 @@ func makePlayer(pos, suffix string) domain.PlayerSetup {
 		attrs["REF"] = 15
 		attrs["POS"] = 14
 		attrs["COM"] = 13
-	case "CB":
+	case "DF":
 		attrs["DEF"] = 16
 		attrs["HEA"] = 15
 		attrs["STR"] = 14
 		attrs["TKL"] = 13
 		attrs["COM"] = 12
-	case "SB":
-		attrs["SPD"] = 15
-		attrs["CRO"] = 14
-		attrs["DEF"] = 12
-		attrs["STA"] = 14
-	case "DMF":
-		attrs["DEF"] = 14
-		attrs["TKL"] = 14
-		attrs["PAS"] = 13
-		attrs["STA"] = 14
-	case "CMF":
+	case "MF":
 		attrs["PAS"] = 15
 		attrs["VIS"] = 14
 		attrs["STA"] = 14
 		attrs["CON"] = 13
-		attrs["FK"] = 13
-	case "AMF":
-		attrs["PAS"] = 15
-		attrs["VIS"] = 15
-		attrs["DRI"] = 14
-		attrs["SHO"] = 12
-		attrs["FK"] = 13
-	case "WF":
-		attrs["SPD"] = 16
-		attrs["DRI"] = 14
-		attrs["CRO"] = 14
-		attrs["ACC"] = 14
-	case "ST":
+	case "FW":
 		attrs["SHO"] = 16
-		attrs["HEA"] = 14
-		attrs["STR"] = 14
-		attrs["SPD"] = 13
-		attrs["PK"] = 13
+		attrs["SPD"] = 14
+		attrs["DRI"] = 14
+		attrs["ACC"] = 14
 	}
 
 	name := pos + " " + suffix

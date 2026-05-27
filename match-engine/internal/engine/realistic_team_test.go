@@ -16,7 +16,7 @@ func buildRealisticTeam(name string, isElite bool) domain.TeamSetup {
 		"POS": 10, "SET": 10, "DEC": 10,
 	}
 
-	positions := []string{"GK", "CB", "CB", "SB", "DMF", "CMF", "CMF", "AMF", "WF", "ST", "SB"}
+	positions := []string{"GK", "DF", "DF", "DF", "MF", "MF", "MF", "MF", "FW", "FW", "DF"}
 	players := make([]domain.PlayerSetup, len(positions))
 	for i, pos := range positions {
 		attrs := make(map[string]int)
@@ -27,19 +27,11 @@ func buildRealisticTeam(name string, isElite bool) domain.TeamSetup {
 			switch pos {
 			case "GK":
 				attrs["SAV"] = 16; attrs["REF"] = 16; attrs["POS"] = 14; attrs["COM"] = 13
-			case "CB":
+			case "DF":
 				attrs["DEF"] = 15; attrs["TKL"] = 14; attrs["HEA"] = 14; attrs["STR"] = 13; attrs["POS"] = 13
-			case "SB":
-				attrs["DEF"] = 13; attrs["SPD"] = 14; attrs["CRO"] = 13; attrs["STA"] = 13
-			case "DMF":
-				attrs["DEF"] = 14; attrs["TKL"] = 13; attrs["PAS"] = 13; attrs["STR"] = 12; attrs["POS"] = 12
-			case "CMF":
+			case "MF":
 				attrs["PAS"] = 15; attrs["VIS"] = 14; attrs["DRI"] = 12; attrs["STA"] = 13; attrs["CON"] = 12
-			case "AMF":
-				attrs["PAS"] = 14; attrs["VIS"] = 14; attrs["SHO"] = 13; attrs["DRI"] = 12; attrs["FIN"] = 12
-			case "WF":
-				attrs["SPD"] = 15; attrs["DRI"] = 14; attrs["CRO"] = 13; attrs["SHO"] = 12; attrs["FIN"] = 12
-			case "ST":
+			case "FW":
 				attrs["SHO"] = 16; attrs["FIN"] = 15; attrs["HEA"] = 13; attrs["STR"] = 13; attrs["COM"] = 13
 			}
 		}
@@ -120,7 +112,7 @@ func buildTeamWithRoleElite(name string, eliteRoles map[string]bool) domain.Team
 		"CON": 10, "FIN": 10, "BAL": 10, "COM": 10, "SAV": 10, "REF": 10,
 		"POS": 10, "SET": 10, "DEC": 10,
 	}
-	positions := []string{"GK", "CB", "CB", "SB", "DMF", "CMF", "CMF", "AMF", "WF", "ST", "SB"}
+	positions := []string{"GK", "DF", "DF", "DF", "MF", "MF", "MF", "MF", "FW", "FW", "DF"}
 	players := make([]domain.PlayerSetup, len(positions))
 	for i, pos := range positions {
 		attrs := make(map[string]int)
@@ -131,19 +123,11 @@ func buildTeamWithRoleElite(name string, eliteRoles map[string]bool) domain.Team
 			switch pos {
 			case "GK":
 				attrs["SAV"] = 16; attrs["REF"] = 16; attrs["POS"] = 14; attrs["COM"] = 13
-			case "CB":
+			case "DF":
 				attrs["DEF"] = 15; attrs["TKL"] = 14; attrs["HEA"] = 14; attrs["STR"] = 13; attrs["POS"] = 13
-			case "SB":
-				attrs["DEF"] = 13; attrs["SPD"] = 14; attrs["CRO"] = 13; attrs["STA"] = 13
-			case "DMF":
-				attrs["DEF"] = 14; attrs["TKL"] = 13; attrs["PAS"] = 13; attrs["STR"] = 12; attrs["POS"] = 12
-			case "CMF":
+			case "MF":
 				attrs["PAS"] = 15; attrs["VIS"] = 14; attrs["DRI"] = 12; attrs["STA"] = 13; attrs["CON"] = 12
-			case "AMF":
-				attrs["PAS"] = 14; attrs["VIS"] = 14; attrs["SHO"] = 13; attrs["DRI"] = 12; attrs["FIN"] = 12
-			case "WF":
-				attrs["SPD"] = 15; attrs["DRI"] = 14; attrs["CRO"] = 13; attrs["SHO"] = 12; attrs["FIN"] = 12
-			case "ST":
+			case "FW":
 				attrs["SHO"] = 16; attrs["FIN"] = 15; attrs["HEA"] = 13; attrs["STR"] = 13; attrs["COM"] = 13
 			}
 		}
@@ -191,9 +175,9 @@ func TestRealisticVariants(t *testing.T) {
 	common := buildRealisticTeam("平民", false)
 	elite := buildRealisticTeam("全精英", true)
 	onlyGK := buildTeamWithRoleElite("门将强", map[string]bool{"GK": true})
-	onlyST := buildTeamWithRoleElite("前锋强", map[string]bool{"ST": true})
-	onlyCB := buildTeamWithRoleElite("后卫强", map[string]bool{"CB": true})
-	onlyCMF := buildTeamWithRoleElite("中场强", map[string]bool{"CMF": true})
+	onlyFW := buildTeamWithRoleElite("前锋强", map[string]bool{"FW": true})
+	onlyDF := buildTeamWithRoleElite("后卫强", map[string]bool{"DF": true})
+	onlyMF := buildTeamWithRoleElite("中场强", map[string]bool{"MF": true})
 	noGK := buildTeamWithRoleElite("烂门将", map[string]bool{})
 	for i := range noGK.Players {
 		if noGK.Players[i].Position == "GK" {
@@ -212,11 +196,11 @@ func TestRealisticVariants(t *testing.T) {
 	}{
 		{"全精英 vs 平民", elite, common},
 		{"门将强 vs 平民", onlyGK, common},
-		{"前锋强 vs 平民", onlyST, common},
-		{"后卫强 vs 平民", onlyCB, common},
-		{"中场强 vs 平民", onlyCMF, common},
+		{"前锋强 vs 平民", onlyFW, common},
+		{"后卫强 vs 平民", onlyDF, common},
+		{"中场强 vs 平民", onlyMF, common},
 		{"全精英 vs 门将强", elite, onlyGK},
-		{"全精英 vs 前锋强", elite, onlyST},
+		{"全精英 vs 前锋强", elite, onlyFW},
 		{"平民 vs 烂门将", common, noGK},
 	}
 	for _, c := range cases {

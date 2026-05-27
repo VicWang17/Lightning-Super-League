@@ -88,58 +88,7 @@ func CalculatePostMatchRating(ps *domain.PlayerMatchStats, position string) floa
 			}
 		}
 
-	case config.PosCB:
-		if ps.Tackles > 0 {
-			acc := float64(ps.TacklesSucc) / float64(ps.Tackles)
-			if acc >= 0.80 && ps.Tackles >= 3 {
-				adj += 0.20
-			} else if acc >= 0.70 {
-				adj += 0.10
-			} else if acc < 0.40 {
-				adj -= 0.10
-			}
-		}
-		if ps.Intercepts >= 3 {
-			adj += 0.10
-		} else if ps.Intercepts >= 1 {
-			adj += 0.05
-		}
-		if ps.Clearances >= 3 {
-			adj += 0.10
-		} else if ps.Clearances >= 1 {
-			adj += 0.05
-		}
-		if ps.Blocks >= 1 {
-			adj += 0.08
-		}
-		if ps.Headers > 0 {
-			acc := float64(ps.HeaderWins) / float64(ps.Headers)
-			if acc >= 0.70 {
-				adj += 0.08
-			}
-		}
-
-	case config.PosSB:
-		if ps.Tackles > 0 {
-			acc := float64(ps.TacklesSucc) / float64(ps.Tackles)
-			if acc >= 0.70 {
-				adj += 0.10
-			}
-		}
-		if ps.Crosses > 0 {
-			acc := float64(ps.CrossesSucc) / float64(ps.Crosses)
-			if acc >= 0.40 {
-				adj += 0.15
-			}
-		}
-		if ps.Intercepts >= 2 {
-			adj += 0.08
-		}
-		if ps.KeyPasses >= 2 {
-			adj += 0.08
-		}
-
-	case config.PosDMF:
+	case config.PosDF:
 		if ps.Tackles > 0 {
 			acc := float64(ps.TacklesSucc) / float64(ps.Tackles)
 			if acc >= 0.75 && ps.Tackles >= 3 {
@@ -151,25 +100,37 @@ func CalculatePostMatchRating(ps *domain.PlayerMatchStats, position string) floa
 			}
 		}
 		if ps.Intercepts >= 2 {
-			adj += 0.10
+			adj += 0.08
 		}
 		if ps.Clearances >= 2 {
 			adj += 0.08
 		}
-		if ps.Passes > 5 {
-			acc := float64(ps.PassesSucc) / float64(ps.Passes)
-			if acc >= 0.88 {
+		if ps.Blocks >= 1 {
+			adj += 0.08
+		}
+		if ps.Headers > 0 {
+			acc := float64(ps.HeaderWins) / float64(ps.Headers)
+			if acc >= 0.60 {
+				adj += 0.08
+			}
+		}
+		if ps.Crosses > 0 {
+			acc := float64(ps.CrossesSucc) / float64(ps.Crosses)
+			if acc >= 0.35 {
 				adj += 0.10
 			}
 		}
+		if ps.KeyPasses >= 2 {
+			adj += 0.08
+		}
 
-	case config.PosCMF:
+	case config.PosMF:
 		if ps.Passes > 5 {
 			acc := float64(ps.PassesSucc) / float64(ps.Passes)
-			if acc >= 0.90 {
-				adj += 0.15
-			} else if acc >= 0.82 {
-				adj += 0.08
+			if acc >= 0.88 {
+				adj += 0.12
+			} else if acc >= 0.80 {
+				adj += 0.06
 			}
 		}
 		if ps.Tackles > 0 {
@@ -184,59 +145,25 @@ func CalculatePostMatchRating(ps *domain.PlayerMatchStats, position string) floa
 		if ps.KeyPasses >= 2 {
 			adj += 0.08
 		}
-
-	case config.PosAMF:
-		if ps.Dribbles > 0 {
-			acc := float64(ps.DribblesSucc) / float64(ps.Dribbles)
-			if acc >= 0.60 {
-				adj += 0.10
-			}
-		}
-		if ps.Shots > 0 {
-			acc := float64(ps.ShotsOnTarget) / float64(ps.Shots)
-			if acc >= 0.60 {
-				adj += 0.10
-			}
-		}
-		if ps.KeyPasses >= 3 {
-			adj += 0.10
-		}
-
-	case config.PosWF:
 		if ps.Dribbles > 0 {
 			acc := float64(ps.DribblesSucc) / float64(ps.Dribbles)
 			if acc >= 0.55 {
-				adj += 0.10
+				adj += 0.08
 			}
-		}
-		if ps.Crosses > 0 {
-			acc := float64(ps.CrossesSucc) / float64(ps.Crosses)
-			if acc >= 0.35 {
-				adj += 0.10
-			}
-		}
-		if ps.Shots > 0 {
-			acc := float64(ps.ShotsOnTarget) / float64(ps.Shots)
-			if acc >= 0.50 {
-				adj += 0.10
-			}
-		}
-		if ps.KeyPasses >= 2 {
-			adj += 0.08
 		}
 
-	case config.PosST:
+	case config.PosFW:
 		if ps.Shots > 0 {
 			acc := float64(ps.ShotsOnTarget) / float64(ps.Shots)
-			if acc >= 0.60 {
+			if acc >= 0.55 {
 				adj += 0.15
-			} else if acc >= 0.40 {
+			} else if acc >= 0.35 {
 				adj += 0.08
 			}
 		}
 		if ps.Headers > 0 {
 			acc := float64(ps.HeaderWins) / float64(ps.Headers)
-			if acc >= 0.60 {
+			if acc >= 0.55 {
 				adj += 0.10
 			}
 		}
@@ -246,8 +173,16 @@ func CalculatePostMatchRating(ps *domain.PlayerMatchStats, position string) floa
 				adj += 0.08
 			}
 		}
+		if ps.Crosses > 0 {
+			acc := float64(ps.CrossesSucc) / float64(ps.Crosses)
+			if acc >= 0.30 {
+				adj += 0.08
+			}
+		}
+		if ps.KeyPasses >= 2 {
+			adj += 0.08
+		}
 		if ps.Touches >= 2 {
-			// High work-rate forwards get a tiny bump
 			adj += 0.03
 		}
 	}

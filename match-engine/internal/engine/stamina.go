@@ -43,6 +43,15 @@ func ApplyStaminaDecay(m *domain.MatchState) {
 					p.EffectiveAttrs[i] *= injuryMultiplier
 				}
 			}
+
+			// Apply skill attribute multipliers (e.g., 大场面先生)
+			ctx := SkillContext{Player: p, Zone: m.ActiveZone, Minute: m.Minute, Half: m.Half}
+			bonus := ComputeSkillBonus(ctx)
+			if bonus.AttrMultiplier > 0 {
+				for i := 0; i < config.AttrCount; i++ {
+					p.EffectiveAttrs[i] *= bonus.AttrMultiplier
+				}
+			}
 		}
 	}
 }
@@ -54,6 +63,19 @@ func ConsumeStamina(p *domain.PlayerRuntime, intensity float64) {
 	if staFactor < 0.5 {
 		staFactor = 0.5
 	}
+
+	// Apply skill stamina modifiers (e.g., 铁人)
+	if p != nil {
+		ctx := SkillContext{EventType: p.SkillEventType, Player: p, Zone: p.SkillZone, Minute: p.SkillMinute, Half: p.SkillHalf}
+		bonus := ComputeSkillBonus(ctx)
+		if bonus.StaminaMod != 0 {
+			staFactor *= bonus.StaminaMod
+			if bonus.NarrativeSuffix != "" {
+				p.LastSkillSuffix = bonus.NarrativeSuffix
+			}
+		}
+	}
+
 	p.CurrentStamina -= intensity * staFactor
 	if p.CurrentStamina < 0 {
 		p.CurrentStamina = 0
@@ -112,6 +134,23 @@ func HalftimeRecovery(m *domain.MatchState) {
 			p.CurrentStamina += 30.0
 			if p.CurrentStamina > 100 {
 				p.CurrentStamina = 100
+			}
+		}
+	}
+}
+
+// ApplyFastRecovery checks for 快速恢复 skill and grants extra stamina every 5 minutes
+func ApplyFastRecovery(m *domain.MatchState) {
+	for _, team := range []*domain.TeamRuntime{m.HomeTeam, m.AwayTeam} {
+		for _, p := range team.PlayerRuntimes {
+			for _, ps := range ParseSkills(p.Skills) {
+				if ps.Name == "快速恢复" {
+					p.CurrentStamina += 1.0
+					if p.CurrentStamina > 100 {
+						p.CurrentStamina = 100
+					}
+					break
+				}
 			}
 		}
 	}

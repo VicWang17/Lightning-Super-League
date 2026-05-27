@@ -25,43 +25,23 @@ func SelectPlayerByZone(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *do
 		// Position realism penalty
 		realismFactor := 1.0
 		switch p.Position {
-		case config.PosST:
+		case config.PosFW:
 			if zone[0] == 2 {
-				realismFactor = 0.05 // striker almost never in back zone
+				realismFactor = 0.08 // forwards rarely in back zone
 			} else if zone[0] == 1 {
-				realismFactor = 0.3
-			}
-		case config.PosWF:
-			if zone[0] == 2 {
-				realismFactor = 0.1
-			} else if zone[0] == 1 {
-				realismFactor = 0.5
-			}
-		case config.PosAMF:
-			if zone[0] == 2 {
-				realismFactor = 0.05
-			} else if zone[0] == 1 {
-				realismFactor = 0.8
-			}
-		case config.PosCMF:
-			if zone[0] == 2 {
-				realismFactor = 0.3
-			} else if zone[0] == 0 {
 				realismFactor = 0.4
 			}
-		case config.PosDMF:
-			if zone[0] == 0 {
-				realismFactor = 0.1
+		case config.PosMF:
+			if zone[0] == 2 {
+				realismFactor = 0.25
+			} else if zone[0] == 0 {
+				realismFactor = 0.25
 			}
-		case config.PosCB:
+		case config.PosDF:
 			if zone[0] == 0 {
-				realismFactor = 0.02
+				realismFactor = 0.15
 			} else if zone[0] == 1 {
-				realismFactor = 0.2
-			}
-		case config.PosSB:
-			if zone[0] == 0 {
-				realismFactor = 0.3
+				realismFactor = 0.25
 			}
 		case config.PosGK:
 			if zone[0] < 2 {
@@ -100,20 +80,20 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 		players = outfieldPlayers
 	}
 
-	manMarking := team.Tactics.MarkingStrategy == 1
+	manMarking := team.Tactics.MarkingStrategy >= 2
 
 	weights := make([]float64, len(players))
 	for i, p := range players {
 		zw := zoneWeight(p.Position, zone[0], zone[1])
 		defBonus := 1.0
-		if p.Position == config.PosCB || p.Position == config.PosDMF {
+		if p.Position == config.PosDF {
 			defBonus = 1.5
 			if manMarking {
-				defBonus = 2.2 // Man marking boosts CB/DMF selection significantly
+				defBonus = 2.2 // Man marking boosts defenders significantly
 			}
 		}
-		if manMarking && (p.Position == config.PosSB || p.Position == config.PosCMF) {
-			defBonus = 1.3 // Wide and central midfielders also involved in marking
+		if manMarking && p.Position == config.PosMF {
+			defBonus = 1.3 // Midfielders also involved in marking
 		}
 		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
 		weights[i] = zw * defBonus * staminaFactor
@@ -123,7 +103,7 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 }
 
 // SelectPassTarget picks a teammate to receive a pass
-func SelectPassTarget(team *domain.TeamRuntime, fromZone [2]int, r *rand.Rand) *domain.PlayerRuntime {
+func SelectPassTarget(team *domain.TeamRuntime, fromZone [2]int, r *rand.Rand, markingTeam ...*domain.TeamRuntime) *domain.PlayerRuntime {
 	players := team.GetActivePlayers()
 	if len(players) == 0 {
 		return team.PlayerRuntimes[0]
@@ -138,11 +118,39 @@ func SelectPassTarget(team *domain.TeamRuntime, fromZone [2]int, r *rand.Rand) *
 		}
 		// Prefer forward zones slightly
 		zw := zoneWeight(p.Position, fromZone[0], fromZone[1])
-		if p.Position == config.PosST {
+		if p.Position == config.PosFW {
 			zw += 0.3
 		}
 		staminaFactor := 0.5 + 0.5*(p.CurrentStamina/100.0)
 		weights[i] = zw * staminaFactor
+	}
+
+	// Man marking expert: reduce pass target weight for forwards when opponent uses man marking
+	if len(markingTeam) > 0 && markingTeam[0] != nil {
+		opp := markingTeam[0]
+		if opp.Tactics.MarkingStrategy >= 2 {
+			var markingPenalty float64 = 1.0
+			for _, p := range opp.GetActivePlayers() {
+				for _, ps := range ParseSkills(p.Skills) {
+					if ps.Name == "盯人专家" {
+						ctx := SkillContext{Player: p}
+						bonus := skillHandlers["盯人专家"](ctx)
+						mul := qualityMultiplier[ps.Quality]
+						mod := bonus.WeightMod * mul
+						if mod > 0 && mod < markingPenalty {
+							markingPenalty = mod
+						}
+					}
+				}
+			}
+			if markingPenalty < 1.0 {
+				for i, p := range players {
+					if p.Position == config.PosFW {
+						weights[i] *= markingPenalty
+					}
+				}
+			}
+		}
 	}
 
 	return weightedSelect(players, weights, r)
@@ -177,6 +185,35 @@ func weightedSelect[T any](items []T, weights []float64, r *rand.Rand) T {
 }
 
 
+// SelectReboundAttacker picks an attacker for a rebound chance after keeper spill
+func SelectReboundAttacker(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
+	players := team.GetActivePlayers()
+	if len(players) == 0 {
+		return team.PlayerRuntimes[0]
+	}
+
+	weights := make([]float64, len(players))
+	for i, p := range players {
+		zw := zoneWeight(p.Position, zone[0], zone[1])
+		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
+		if p.CurrentStamina < 20 {
+			staminaFactor *= 0.5
+		}
+		weights[i] = zw * staminaFactor
+
+		// 补射猎手 bonus
+		if len(p.Skills) > 0 {
+			ctx := SkillContext{EventType: config.EventCloseShot, Player: p, Zone: zone}
+			bonus := ComputeSkillBonus(ctx)
+			if bonus.WeightMod > 0 {
+				weights[i] *= bonus.WeightMod
+			}
+		}
+	}
+
+	return weightedSelect(players, weights, r)
+}
+
 // SelectSecondAttacker picks a teammate different from primary for multi-player events
 func SelectSecondAttacker(team *domain.TeamRuntime, primary *domain.PlayerRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
 	players := team.GetActivePlayers()
@@ -195,15 +232,13 @@ func SelectSecondAttacker(team *domain.TeamRuntime, primary *domain.PlayerRuntim
 		if p.CurrentStamina < 20 {
 			staminaFactor *= 0.5
 		}
-		// SB/WF preferred for overlap; CMF/AMF preferred for one-two; ST preferred for cross-run
+		// FW/MF preferred for multi-player attacks
 		positionBonus := 1.0
 		switch p.Position {
-		case config.PosSB, config.PosWF:
-			positionBonus = 1.3
-		case config.PosCMF, config.PosAMF:
+		case config.PosFW:
 			positionBonus = 1.2
-		case config.PosST:
-			positionBonus = 1.1
+		case config.PosMF:
+			positionBonus = 1.2
 		}
 		weights[i] = zw * staminaFactor * positionBonus
 	}
@@ -226,9 +261,9 @@ func SelectSecondDefender(team *domain.TeamRuntime, primary *domain.PlayerRuntim
 		}
 		zw := zoneWeight(p.Position, zone[0], zone[1])
 		defBonus := 1.0
-		if p.Position == config.PosCB || p.Position == config.PosDMF {
+		if p.Position == config.PosDF {
 			defBonus = 1.6
-		} else if p.Position == config.PosSB || p.Position == config.PosCMF {
+		} else if p.Position == config.PosMF {
 			defBonus = 1.2
 		}
 		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)

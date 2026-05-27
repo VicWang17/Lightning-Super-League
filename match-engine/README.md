@@ -70,7 +70,7 @@ match-engine/
 | SPD | Speed | 跑动速度 |
 | STR | Strength | 身体对抗 |
 | STA | Stamina | 体力（决定衰减系数） |
-| DEF | Defense | 防守站位（拦截/卡位） |
+| DEF | Defense | 防守意识（拦截/卡位） |
 | HEA | Heading | 头球争顶 |
 | VIS | Vision | 视野、传球创造力 |
 | TKL | Tackling | 抢断能力 |
@@ -82,13 +82,13 @@ match-engine/
 | COM | Composure | 冷静度（决斗稳定化） |
 | SAV | Saving | 门将扑救 |
 | REF | Reflexes | 门将反应 |
-| POS | Positioning | 跑位（进攻选位） |
+| POS | Positioning | 站位 |
 | SET | Set Piece | 定位球（任意球+点球） |
 | DEC | Decision Making | 球商（影响单刀选择、门将出击等） |
 
-### 3.2 位置类型（8 种）
+### 3.2 位置类型（4 种）
 
-`GK / ST / WF / AMF / CMF / DMF / CB / SB`
+`GK / FW / MF / DF`
 
 ### 3.3 比赛场地（3×3 区域矩阵）
 

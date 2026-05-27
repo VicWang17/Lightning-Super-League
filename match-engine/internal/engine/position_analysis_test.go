@@ -48,7 +48,7 @@ func TestPositionRatings(t *testing.T) {
 	}
 
 	posData := make(map[string]*posStats)
-	for _, pos := range []string{"GK", "CB", "SB", "DMF", "CMF", "AMF", "WF", "ST"} {
+	for _, pos := range []string{"GK", "DF", "MF", "FW"} {
 		posData[pos] = &posStats{}
 	}
 
@@ -121,7 +121,7 @@ func TestPositionRatings(t *testing.T) {
 	}
 
 	t.Log("\n--- PER POSITION ---")
-	for _, pos := range []string{"GK", "CB", "SB", "DMF", "CMF", "AMF", "WF", "ST"} {
+	for _, pos := range []string{"GK", "DF", "MF", "FW"} {
 		s := posData[pos]
 		if s.count == 0 {
 			continue
@@ -148,7 +148,7 @@ func TestPositionRatings(t *testing.T) {
 	// Assertions
 	t.Log("\n--- ASSERTIONS ---")
 	gk := posData["GK"]
-	st := posData["ST"]
+	fw := posData["FW"]
 	if gk != nil && gk.count > 0 {
 		avgRating := gk.ratingSum / float64(gk.count)
 		if avgRating > 7.5 {
@@ -161,15 +161,15 @@ func TestPositionRatings(t *testing.T) {
 			}
 		}
 	}
-	if st != nil && st.count > 0 {
-		avgRating := st.ratingSum / float64(st.count)
+	if fw != nil && fw.count > 0 {
+		avgRating := fw.ratingSum / float64(fw.count)
 		if avgRating < 6.0 {
-			t.Errorf("ST average rating %.2f too low (expected ≥6.0)", avgRating)
+			t.Errorf("FW average rating %.2f too low (expected ≥6.0)", avgRating)
 		}
-		if st.shots > 0 {
-			conv := float64(st.goals) / float64(st.shots) * 100
+		if fw.shots > 0 {
+			conv := float64(fw.goals) / float64(fw.shots) * 100
 			if conv < 8 {
-				t.Errorf("ST shot conversion %.1f%% too low (expected ≥8%%)", conv)
+				t.Errorf("FW shot conversion %.1f%% too low (expected ≥8%%)", conv)
 			}
 		}
 	}

@@ -18,7 +18,7 @@ func ComputeControlMatrix(m *domain.MatchState) [3][3]float64 {
 	for r := 0; r < 3; r++ {
 		for c := 0; c < 3; c++ {
 			deltaForm := formationDelta(home.FormationID, away.FormationID, r, c)
-			deltaPlayer := playerDelta(home, away, r, c)
+			deltaPlayer := playerDelta(home, away, r, c, m.Minute, m.Half)
 			deltaTactic := tacticDelta(home.Tactics, away.Tactics, r, c)
 			deltaDynamic := dynamicDelta(m, r, c)
 			deltaTeamAttr := teamAttrDelta(home, away)
@@ -29,10 +29,54 @@ func ComputeControlMatrix(m *domain.MatchState) [3][3]float64 {
 			// Natural control raw value
 			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum + 0.10*deltaTeamAttr
 
+			// Apply skill-based zone control mods
+			zone := [2]int{r, c}
+			raw = applyZoneSkillControl(raw, m, zone)
+
 			result[r][c] = math.Tanh(raw * 2.0)
 		}
 	}
 	return result
+}
+
+// applyZoneSkillControl applies event-aware skill control modifications
+func applyZoneSkillControl(raw float64, m *domain.MatchState, zone [2]int) float64 {
+	// Metronome: ball holder in midfield
+	if m.ActiveZone == zone && zone[0] == 1 && m.BallHolder != nil {
+		ctx := SkillContext{EventType: config.EventShortPass, Player: m.BallHolder, Zone: zone, Minute: m.Minute, Half: m.Half}
+		bonus := ComputeSkillBonus(ctx)
+		if bonus.ControlMod > 0 {
+			if m.Possession == domain.SideHome {
+				raw += bonus.ControlMod
+			} else {
+				raw -= bonus.ControlMod
+			}
+		}
+	}
+
+	// Sweeper: defending team in their back zone
+	if zone[0] == 2 && m.Possession == domain.SideAway {
+		for _, p := range m.HomeTeam.GetActivePlayers() {
+			ctx := SkillContext{EventType: config.EventCoverDefense, Player: p, Zone: zone, Minute: m.Minute, Half: m.Half}
+			bonus := ComputeSkillBonus(ctx)
+			if bonus.ControlMod > 0 {
+				raw += bonus.ControlMod
+				break
+			}
+		}
+	}
+	if zone[0] == 0 && m.Possession == domain.SideHome {
+		for _, p := range m.AwayTeam.GetActivePlayers() {
+			ctx := SkillContext{EventType: config.EventCoverDefense, Player: p, Zone: zone, Minute: m.Minute, Half: m.Half}
+			bonus := ComputeSkillBonus(ctx)
+			if bonus.ControlMod > 0 {
+				raw -= bonus.ControlMod
+				break
+			}
+		}
+	}
+
+	return raw
 }
 
 // decayControlShift drifts inactive zones back toward 0
@@ -93,7 +137,7 @@ func formationDelta(atkForm, defForm string, r, c int) float64 {
 	return aBase[r][c] - dBase[r][c]
 }
 
-func playerDelta(atk, def *domain.TeamRuntime, r, c int) float64 {
+func playerDelta(atk, def *domain.TeamRuntime, r, c int, minute float64, half int) float64 {
 	var atkSum, defSum float64
 
 	// Attack team contribution
@@ -123,6 +167,15 @@ func playerDelta(atk, def *domain.TeamRuntime, r, c int) float64 {
 			staminaFactor *= 0.7
 		}
 		defSum += zw * strength * staminaFactor
+	}
+
+	// Leadership aura: whole team playerStrength boost
+	ctx := SkillContext{Zone: [2]int{r, c}, Minute: minute, Half: half}
+	if atkBonus := ComputeTeamSkillBonus(atk.GetActivePlayers(), ctx); atkBonus.ControlMod > 0 {
+		atkSum += atkBonus.ControlMod
+	}
+	if defBonus := ComputeTeamSkillBonus(def.GetActivePlayers(), ctx); defBonus.ControlMod > 0 {
+		defSum += defBonus.ControlMod
 	}
 
 	return atkSum - defSum
@@ -177,8 +230,8 @@ func teamAttrDelta(atk, def *domain.TeamRuntime) float64 {
 		(defAvg["SPD"] + defAvg["ACC"])
 
 	// Combine and scale down to keep max impact small
-	// Raw range roughly ±15; divide by 300 to keep within ±0.05
-	raw := possDelta*0.004 + defDelta*0.002 + spdDelta*0.003
+	// Raw range roughly ±15; divide by 200 to keep within ±0.075
+	raw := possDelta*0.005 + defDelta*0.005 + spdDelta*0.003
 	return raw
 }
 
@@ -277,7 +330,7 @@ func ComputeControlBreakdown(m *domain.MatchState, zone [2]int) ControlBreakdown
 	r, c := zone[0], zone[1]
 
 	deltaForm := formationDelta(home.FormationID, away.FormationID, r, c)
-	deltaPlayer := playerDelta(home, away, r, c)
+	deltaPlayer := playerDelta(home, away, r, c, m.Minute, m.Half)
 	deltaTactic := tacticDelta(home.Tactics, away.Tactics, r, c)
 	deltaDynamic := dynamicDelta(m, r, c)
 	momentum := m.GlobalMomentum

@@ -25,20 +25,12 @@ func positionBoost(pos string, attrs map[string]int) {
 	switch pos {
 	case "GK":
 		attrs["SAV"] = 16; attrs["REF"] = 15; attrs["POS"] = 14; attrs["COM"] = 13; attrs["RUS"] = 12; attrs["DEC"] = 12
-	case "CB":
+	case "DF":
 		attrs["DEF"] = 16; attrs["HEA"] = 15; attrs["STR"] = 14; attrs["TKL"] = 13; attrs["COM"] = 12; attrs["DEC"] = 11
-	case "SB":
-		attrs["SPD"] = 15; attrs["CRO"] = 14; attrs["DEF"] = 12; attrs["STA"] = 14; attrs["DEC"] = 11
-	case "DMF":
-		attrs["DEF"] = 14; attrs["TKL"] = 14; attrs["PAS"] = 13; attrs["STA"] = 14; attrs["DEC"] = 13
-	case "CMF":
-		attrs["PAS"] = 15; attrs["VIS"] = 14; attrs["STA"] = 14; attrs["CON"] = 13; attrs["FK"] = 13; attrs["DEC"] = 13
-	case "AMF":
-		attrs["PAS"] = 15; attrs["VIS"] = 15; attrs["DRI"] = 14; attrs["SHO"] = 12; attrs["FK"] = 13; attrs["DEC"] = 13
-	case "WF":
-		attrs["SPD"] = 16; attrs["DRI"] = 14; attrs["CRO"] = 14; attrs["ACC"] = 14; attrs["DEC"] = 11
-	case "ST":
-		attrs["SHO"] = 16; attrs["HEA"] = 14; attrs["STR"] = 14; attrs["SPD"] = 13; attrs["PK"] = 13; attrs["DEC"] = 10
+	case "MF":
+		attrs["PAS"] = 15; attrs["VIS"] = 14; attrs["STA"] = 14; attrs["CON"] = 13; attrs["DEC"] = 13
+	case "FW":
+		attrs["SHO"] = 16; attrs["SPD"] = 14; attrs["DRI"] = 14; attrs["ACC"] = 14; attrs["DEC"] = 11
 	}
 }
 
@@ -57,18 +49,18 @@ func makeTestPlayer(id, pos string, attrs map[string]int) domain.PlayerSetup {
 func buildTeam(name string, attrs map[string]int, tactics domain.TacticalSetup) domain.TeamSetup {
 	players := []domain.PlayerSetup{
 		makeTestPlayer(name+"_GK", "GK", attrs),
-		makeTestPlayer(name+"_CB1", "CB", attrs),
-		makeTestPlayer(name+"_CB2", "CB", attrs),
-		makeTestPlayer(name+"_SB", "SB", attrs),
-		makeTestPlayer(name+"_DMF", "DMF", attrs),
-		makeTestPlayer(name+"_CMF1", "CMF", attrs),
-		makeTestPlayer(name+"_CMF2", "CMF", attrs),
-		makeTestPlayer(name+"_ST", "ST", attrs),
+		makeTestPlayer(name+"_DF1", "DF", attrs),
+		makeTestPlayer(name+"_DF2", "DF", attrs),
+		makeTestPlayer(name+"_DF3", "DF", attrs),
+		makeTestPlayer(name+"_MF1", "MF", attrs),
+		makeTestPlayer(name+"_MF2", "MF", attrs),
+		makeTestPlayer(name+"_MF3", "MF", attrs),
+		makeTestPlayer(name+"_FW1", "FW", attrs),
 	}
 	bench := []domain.PlayerSetup{
-		makeTestPlayer(name+"_WF", "WF", attrs),
-		makeTestPlayer(name+"_AMF", "AMF", attrs),
-		makeTestPlayer(name+"_CBb", "CB", attrs),
+		makeTestPlayer(name+"_FW2", "FW", attrs),
+		makeTestPlayer(name+"_MF4", "MF", attrs),
+		makeTestPlayer(name+"_DFb", "DF", attrs),
 	}
 	return domain.TeamSetup{TeamID: name, Name: name, FormationID: "F01", Players: players, Bench: bench, Tactics: tactics}
 }
@@ -274,7 +266,8 @@ func main() {
 
 	fmt.Println("========================================")
 	fmt.Println("   Match Engine Stats (100 matches)")
-	fmt.Println("========================================\n")
+	fmt.Println("========================================")
+	fmt.Println()
 
 	fmt.Printf("1. 平均每场传球次数: %.2f\n", float64(agg.TotalPassEvents)/fn)
 	fmt.Printf("2. 传球成功率: %.2f%% (%d / %d)\n", float64(agg.TotalPassSuccess)/float64(agg.TotalPassEvents)*100, agg.TotalPassSuccess, agg.TotalPassEvents)

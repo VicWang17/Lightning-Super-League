@@ -13,6 +13,7 @@ import (
 func (sim *Simulator) doSwitchPlayEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	holder := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(defender, config.EventSwitchPlay, zone, ms.Minute, ms.Half)
 
 	atkVal := CalcSwitchPlayAttack(holder)
 	defVal := CalcSwitchPlayDefense(defender)
@@ -71,6 +72,7 @@ func (sim *Simulator) doSwitchPlayEvent(ms *domain.MatchState, possTeam, oppTeam
 func (sim *Simulator) doLobPassEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	passer := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(defender, config.EventLobPass, zone, ms.Minute, ms.Half)
 
 	atkVal := CalcLobPassAttack(passer)
 	defVal := CalcLobPassDefense(defender)
@@ -138,6 +140,7 @@ func (sim *Simulator) doLobPassEvent(ms *domain.MatchState, possTeam, oppTeam *d
 func (sim *Simulator) doPassOverTopEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	passer := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(defender, config.EventPassOverTop, zone, ms.Minute, ms.Half)
 
 	atkVal := CalcPassOverTopAttack(passer)
 	defVal := CalcPassOverTopDefense(defender)
@@ -202,6 +205,7 @@ func (sim *Simulator) doBlockPassEvent(ms *domain.MatchState, possTeam, oppTeam 
 	// This event is triggered from the defending team's perspective
 	// but we keep possession team as the "attacking" context for event recording
 	blocker := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(blocker, config.EventBlockPass, zone, ms.Minute, ms.Half)
 	holder := ms.BallHolder
 
 	atkVal := CalcBlockPassAttack(blocker)
@@ -250,6 +254,7 @@ func (sim *Simulator) doBlockPassEvent(ms *domain.MatchState, possTeam, oppTeam 
 func (sim *Simulator) doOneOnOneEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	shooter := ms.BallHolder
 	keeper := oppTeam.GetGK()
+	setSkillContext(keeper, config.EventOneOnOne, zone, ms.Minute, ms.Half)
 
 	atkVal := CalcOneOnOneAttack(shooter)
 	defVal := CalcOneOnOneDefense(keeper)
@@ -368,6 +373,7 @@ func (sim *Simulator) doOneOnOneEvent(ms *domain.MatchState, possTeam, oppTeam *
 // This is triggered as an interrupt when control is very high.
 func (sim *Simulator) doCoverDefenseEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(defender, config.EventCoverDefense, zone, ms.Minute, ms.Half)
 	attacker := ms.BallHolder
 
 	atkVal := CalcCoverDefenseAttack(defender)
@@ -406,6 +412,7 @@ func (sim *Simulator) doCoverDefenseEvent(ms *domain.MatchState, possTeam, oppTe
 // doShotBlockEvent — defender blocks a shot (D02 封堵射门)
 // This is emitted independently from within doShotEvent when a block occurs.
 func (sim *Simulator) doShotBlockEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int, blocker, shooter *domain.PlayerRuntime) {
+	setSkillContext(blocker, config.EventShotBlock, zone, ms.Minute, ms.Half)
 	ConsumeStamina(blocker, StaminaCost(config.EventShotBlock))
 
 	blocker.Stats.RatingBase += 0.3
@@ -486,6 +493,8 @@ func (sim *Simulator) doGoalKickEvent(ms *domain.MatchState, possTeam, oppTeam *
 	resetControlShift(ms)
 	keeper := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(keeper, config.EventGoalKick, zone, ms.Minute, ms.Half)
+	setSkillContext(defender, config.EventGoalKick, zone, ms.Minute, ms.Half)
 
 	// Setup phase: keeper places ball, organizes defense
 	sim.addEvent(ms, domain.MatchEvent{
@@ -559,6 +568,8 @@ func (sim *Simulator) doThrowInEvent(ms *domain.MatchState, possTeam, oppTeam *d
 	// Throw-in taker: usually SB or WF on that side
 	thrower := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(thrower, config.EventThrowIn, zone, ms.Minute, ms.Half)
+	setSkillContext(defender, config.EventThrowIn, zone, ms.Minute, ms.Half)
 
 	// Setup phase: retrieving ball, teammates positioning
 	sim.addEvent(ms, domain.MatchEvent{
@@ -618,6 +629,8 @@ func (sim *Simulator) doKeeperShortPassEvent(ms *domain.MatchState, possTeam, op
 	keeper := ms.BallHolder
 	pressure := SelectDefender(oppTeam, zone, sim.r)
 	target := SelectPlayerByZone(possTeam, zone, sim.r)
+	setSkillContext(keeper, config.EventKeeperShortPass, zone, ms.Minute, ms.Half)
+	setSkillContext(pressure, config.EventKeeperShortPass, zone, ms.Minute, ms.Half)
 
 	atkVal := keeper.GetAttrByName("PAS")*0.5 +
 		keeper.GetAttrByName("ACC")*0.3 +
@@ -682,6 +695,8 @@ func (sim *Simulator) doKeeperShortPassEvent(ms *domain.MatchState, possTeam, op
 func (sim *Simulator) doKeeperThrowEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	keeper := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(keeper, config.EventKeeperThrow, zone, ms.Minute, ms.Half)
+	setSkillContext(defender, config.EventKeeperThrow, zone, ms.Minute, ms.Half)
 
 	atkVal := keeper.GetAttrByName("PAS")*0.4 +
 		keeper.GetAttrByName("REF")*0.2 +
@@ -740,6 +755,7 @@ func (sim *Simulator) doKeeperThrowEvent(ms *domain.MatchState, possTeam, oppTea
 func (sim *Simulator) doCounterAttackEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	carrier := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(defender, config.EventCounterAttack, zone, ms.Minute, ms.Half)
 
 	atkVal := carrier.GetAttrByName("DRI")*0.35 +
 		carrier.GetAttrByName("SPD")*0.35 +
@@ -804,6 +820,8 @@ func (sim *Simulator) doOverlapEvent(ms *domain.MatchState, possTeam, oppTeam *d
 	primary := ms.BallHolder
 	secondary := SelectSecondAttacker(possTeam, primary, zone, sim.r)
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(secondary, config.EventOverlap, zone, ms.Minute, ms.Half)
+	setSkillContext(defender, config.EventOverlap, zone, ms.Minute, ms.Half)
 
 	atkVal := CalcOverlapAttack(primary, secondary)
 	defVal := CalcOverlapDefense(defender)
@@ -890,9 +908,11 @@ func (sim *Simulator) doTrianglePassEvent(ms *domain.MatchState, possTeam, oppTe
 	if p3.PlayerID == p1.PlayerID {
 		p3 = p2
 	}
+	setSkillContext(p3, config.EventTrianglePass, zone, ms.Minute, ms.Half)
 
 	d1 := SelectDefender(oppTeam, zone, sim.r)
 	d2 := SelectSecondDefender(oppTeam, d1, zone, sim.r)
+	setSkillContext(d2, config.EventTrianglePass, zone, ms.Minute, ms.Half)
 
 	atkVal := CalcTriangleAttack(p1, p2, p3)
 	defVal := CalcTriangleDefense(d1, d2)
@@ -954,6 +974,8 @@ func (sim *Simulator) doOneTwoEvent(ms *domain.MatchState, possTeam, oppTeam *do
 	p1 := ms.BallHolder
 	p2 := SelectSecondAttacker(possTeam, p1, zone, sim.r)
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(p2, config.EventOneTwo, zone, ms.Minute, ms.Half)
+	setSkillContext(defender, config.EventOneTwo, zone, ms.Minute, ms.Half)
 
 	atkVal := CalcOneTwoAttack(p1, p2)
 	defVal := CalcOneTwoDefense(defender)
@@ -1026,6 +1048,8 @@ func (sim *Simulator) doCrossRunEvent(ms *domain.MatchState, possTeam, oppTeam *
 	p1 := ms.BallHolder
 	p2 := SelectSecondAttacker(possTeam, p1, zone, sim.r)
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(p2, config.EventCrossRun, zone, ms.Minute, ms.Half)
+	setSkillContext(defender, config.EventCrossRun, zone, ms.Minute, ms.Half)
 
 	atkVal := CalcCrossRunAttack(p1, p2)
 	defVal := CalcCrossRunDefense(defender)
@@ -1073,6 +1097,7 @@ func (sim *Simulator) doCrossRunEvent(ms *domain.MatchState, possTeam, oppTeam *
 func (sim *Simulator) doDoubleTeamEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	d1 := SelectDefender(oppTeam, zone, sim.r)
 	d2 := SelectSecondDefender(oppTeam, d1, zone, sim.r)
+	setSkillContext(d2, config.EventDoubleTeam, zone, ms.Minute, ms.Half)
 	attacker := ms.BallHolder
 
 	atkVal := CalcDoubleTeamAttack(d1, d2)
@@ -1120,6 +1145,7 @@ func (sim *Simulator) doDoubleTeamEvent(ms *domain.MatchState, possTeam, oppTeam
 func (sim *Simulator) doPressTogetherEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	d1 := SelectDefender(oppTeam, zone, sim.r)
 	d2 := SelectSecondDefender(oppTeam, d1, zone, sim.r)
+	setSkillContext(d2, config.EventPressTogether, zone, ms.Minute, ms.Half)
 	holder := ms.BallHolder
 
 	atkVal := CalcPressTogetherAttack(d1, d2)
@@ -1173,6 +1199,8 @@ func (sim *Simulator) doPressTogetherEvent(ms *domain.MatchState, possTeam, oppT
 func (sim *Simulator) doDropBallEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	p1 := SelectPlayerByZone(possTeam, zone, sim.r)
 	d1 := SelectDefender(oppTeam, zone, sim.r)
+	setSkillContext(p1, config.EventDropBall, zone, ms.Minute, ms.Half)
+	setSkillContext(d1, config.EventDropBall, zone, ms.Minute, ms.Half)
 
 	// Simple duel: who gets to the ball first
 	atkVal := p1.GetAttrByName("SPD")*0.35 + p1.GetAttrByName("STR")*0.25 + p1.GetAttrByName("HEA")*0.25 + p1.GetAttrByName("BAL")*0.15

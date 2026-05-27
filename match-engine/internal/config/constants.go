@@ -1,15 +1,11 @@
 package config
 
-// Position types
+// Position types (aligned with web game: 4 major positions)
 const (
-	PosGK  = "GK"
-	PosST  = "ST"
-	PosWF  = "WF"
-	PosAMF = "AMF"
-	PosCMF = "CMF"
-	PosDMF = "DMF"
-	PosCB  = "CB"
-	PosSB  = "SB"
+	PosGK = "GK"
+	PosFW = "FW"
+	PosMF = "MF"
+	PosDF = "DF"
 )
 
 // Attribute indices
@@ -45,80 +41,86 @@ var AttrNames = []string{
 
 // Event types (MVP subset)
 const (
-	EventKickoff        = "kickoff"
-	EventBackPass       = "back_pass"
-	EventMidPass        = "mid_pass"
-	EventShortPass      = "short_pass"
-	EventLongPass       = "long_pass"
-	EventWingBreak      = "wing_break"
-	EventCutInside      = "cut_inside"
-	EventDribblePast    = "dribble_past"
-	EventThroughBall    = "through_ball"
-	EventCross          = "cross"
-	EventHeader         = "header"
-	EventCloseShot      = "close_shot"
-	EventLongShot       = "long_shot"
-	EventTackle         = "tackle"
-	EventIntercept      = "intercept"
-	EventClearance      = "clearance"
-	EventKeeperSave     = "keeper_save"
-	EventKeeperClaim    = "keeper_claim"
-	EventKeeperRush     = "keeper_rush"
-	EventCorner         = "corner"
-	EventGoal           = "goal"
-	EventOwnGoal        = "own_goal"
-	EventFoul           = "foul"
-	EventFreeKick       = "free_kick"
-	EventYellowCard     = "yellow_card"
-	EventRedCard        = "red_card"
-	EventOffside        = "offside"
-	EventPreMatch       = "pre_match"
-	EventHalftime       = "halftime"
-	EventFulltime       = "fulltime"
-	EventAddedTime      = "added_time"
-	EventSubstitution   = "substitution"
-	EventTurnover       = "turnover"
+	EventKickoff      = "kickoff"
+	EventBackPass     = "back_pass"
+	EventMidPass      = "mid_pass"
+	EventShortPass    = "short_pass"
+	EventLongPass     = "long_pass"
+	EventWingBreak    = "wing_break"
+	EventCutInside    = "cut_inside"
+	EventDribblePast  = "dribble_past"
+	EventThroughBall  = "through_ball"
+	EventCross        = "cross"
+	EventHeader       = "header"
+	EventCloseShot    = "close_shot"
+	EventLongShot     = "long_shot"
+	EventTackle       = "tackle"
+	EventIntercept    = "intercept"
+	EventClearance    = "clearance"
+	EventKeeperSave   = "keeper_save"
+	EventKeeperClaim  = "keeper_claim"
+	EventKeeperRush   = "keeper_rush"
+	EventCorner       = "corner"
+	EventGoal         = "goal"
+	EventOwnGoal      = "own_goal"
+	EventFoul         = "foul"
+	EventFreeKick     = "free_kick"
+	EventYellowCard   = "yellow_card"
+	EventRedCard      = "red_card"
+	EventOffside      = "offside"
+	EventPreMatch     = "pre_match"
+	EventHalftime     = "halftime"
+	EventFulltime     = "fulltime"
+	EventAddedTime    = "added_time"
+	EventSubstitution = "substitution"
+	EventTurnover     = "turnover"
 
 	// Phase 1: Simple 1v1 events
-	EventSwitchPlay     = "switch_play"
-	EventLobPass        = "lob_pass"
-	EventPassOverTop    = "pass_over_top"
-	EventShotBlock      = "shot_block"
-	EventBlockPass      = "block_pass"
-	EventOneOnOne       = "one_on_one"
-	EventCoverDefense   = "cover_defense"
+	EventSwitchPlay   = "switch_play"
+	EventLobPass      = "lob_pass"
+	EventPassOverTop  = "pass_over_top"
+	EventShotBlock    = "shot_block"
+	EventBlockPass    = "block_pass"
+	EventOneOnOne     = "one_on_one"
+	EventCoverDefense = "cover_defense"
 
 	// Phase 2: Medium complexity events
-	EventGoalKick       = "goal_kick"
-	EventThrowIn        = "throw_in"
-	EventKeeperShortPass = "keeper_short_pass"
-	EventKeeperThrow    = "keeper_throw"
-	EventCounterAttack  = "counter_attack"
-	EventMidBreak       = "mid_break"
-	EventSecondHalfStart = "second_half_start"
+	EventGoalKick                 = "goal_kick"
+	EventThrowIn                  = "throw_in"
+	EventKeeperShortPass          = "keeper_short_pass"
+	EventKeeperThrow              = "keeper_throw"
+	EventCounterAttack            = "counter_attack"
+	EventMidBreak                 = "mid_break"
+	EventSecondHalfStart          = "second_half_start"
+	EventExtraTimeStart           = "extra_time_start"
+	EventExtraTimeSecondHalfStart = "extra_time_second_half_start"
+	EventPenaltyShootout          = "penalty_shootout"
 
 	// Phase 3: Multi-player events
-	EventOverlap        = "overlap"
-	EventTrianglePass   = "triangle_pass"
-	EventOneTwo         = "one_two"
-	EventCrossRun       = "cross_run"
-	EventDoubleTeam     = "double_team"
-	EventPressTogether  = "press_together"
+	EventOverlap       = "overlap"
+	EventTrianglePass  = "triangle_pass"
+	EventOneTwo        = "one_two"
+	EventCrossRun      = "cross_run"
+	EventDoubleTeam    = "double_team"
+	EventPressTogether = "press_together"
 
 	// Phase 3.5: Build-up / possession events
-	EventHoldBall       = "hold_ball"
-	EventPivotPass      = "pivot_pass"
-	EventBuildUp        = "build_up"
+	EventHoldBall  = "hold_ball"
+	EventPivotPass = "pivot_pass"
+	EventBuildUp   = "build_up"
 
 	// Phase 4: Injury events
-	EventMinorInjury    = "minor_injury"
-	EventMajorInjury    = "major_injury"
+	EventMinorInjury = "minor_injury"
+	EventMajorInjury = "major_injury"
 
 	// Phase 5: Rare dead ball
-	EventDropBall       = "drop_ball"
+	EventDropBall = "drop_ball"
 
 	// Pass went out of play (sideline or goal line)
-	EventPassOut        = "pass_out"
+	EventPassOut = "pass_out"
+
+	// Penalty kick event
+	EventPenalty = "penalty"
 
 	// Narrative stage events (no gameplay effect, for commentary flow)
 	EventPenaltySetup    = "penalty_setup"
@@ -134,15 +136,15 @@ const (
 
 // Zones [row][col]
 const (
-	ZoneFrontLeft  = "[0,0]"
+	ZoneFrontLeft   = "[0,0]"
 	ZoneFrontCenter = "[0,1]"
-	ZoneFrontRight = "[0,2]"
-	ZoneMidLeft    = "[1,0]"
-	ZoneMidCenter  = "[1,1]"
-	ZoneMidRight   = "[1,2]"
-	ZoneBackLeft   = "[2,0]"
-	ZoneBackCenter = "[2,1]"
-	ZoneBackRight  = "[2,2]"
+	ZoneFrontRight  = "[0,2]"
+	ZoneMidLeft     = "[1,0]"
+	ZoneMidCenter   = "[1,1]"
+	ZoneMidRight    = "[1,2]"
+	ZoneBackLeft    = "[2,0]"
+	ZoneBackCenter  = "[2,1]"
+	ZoneBackRight   = "[2,2]"
 )
 
 // Formation base control weights (attack perspective)
@@ -191,41 +193,22 @@ var FormationBase = map[string][3][3]float64{
 }
 
 // ZoneWeight for each position (base, without tactical modifiers)
+// Merged from 8 positions to 4 major positions (FW/MF/DF/GK)
 var ZoneWeight = map[string][3][3]float64{
-	PosST: {
-		{0.2, 1.0, 0.2},
-		{0.3, 0.6, 0.3},
-		{0.0, 0.1, 0.0},
+	PosFW: {
+		{0.6, 0.7, 0.6},
+		{0.5, 0.5, 0.5},
+		{0.05, 0.1, 0.05},
 	},
-	PosWF: {
-		{1.0, 0.4, 0.2},
-		{0.7, 0.3, 0.2},
-		{0.1, 0.1, 0.1},
-	},
-	PosAMF: {
-		{0.3, 0.9, 0.3},
+	PosMF: {
+		{0.2, 0.5, 0.2},
 		{0.6, 0.8, 0.6},
-		{0.1, 0.2, 0.1},
+		{0.2, 0.5, 0.2},
 	},
-	PosCMF: {
-		{0.2, 0.4, 0.2},
-		{0.7, 0.9, 0.7},
-		{0.3, 0.5, 0.3},
-	},
-	PosDMF: {
-		{0.1, 0.2, 0.1},
-		{0.4, 0.8, 0.4},
-		{0.3, 0.7, 0.3},
-	},
-	PosCB: {
-		{0.0, 0.1, 0.0},
-		{0.1, 0.2, 0.1},
-		{0.4, 0.9, 0.4},
-	},
-	PosSB: {
-		{0.3, 0.2, 0.1},
-		{0.6, 0.3, 0.2},
-		{0.8, 0.4, 0.2},
+	PosDF: {
+		{0.15, 0.15, 0.15},
+		{0.35, 0.25, 0.35},
+		{0.6, 0.65, 0.6},
 	},
 	PosGK: {
 		{0.0, 0.0, 0.0},
@@ -235,31 +218,18 @@ var ZoneWeight = map[string][3][3]float64{
 }
 
 // Position attribute weights for PlayerStrength calculation per zone
-// Simplified: each position values certain attributes more in certain zones
-// We'll use a simplified global weight per position for now
+// Merged from 8 positions to 4 major positions (FW/MF/DF/GK)
 var PositionAttrWeight = map[string][AttrCount]float64{
-	PosST:  {
-		20, 3, 15, 18, 10, 3, 0, 10, 0, 0, 10, 3, 0, 5, 3, 0, 0, 0, 0, 4, 4,
+	PosFW: {
+		14, 6, 15, 18, 7, 5, 0, 5, 2, 0, 11, 9, 3, 5, 3, 0, 0, 0, 0, 4, 5,
 	},
-	PosWF:  {
-		8, 8, 14, 17, 3, 7, 0, 0, 3, 0, 12, 15, 5, 5, 3, 0, 0, 0, 0, 3, 5,
+	PosMF: {
+		3, 14, 8, 7, 6, 12, 9, 1, 10, 5, 4, 0, 11, 6, 4, 0, 0, 0, 0, 3, 9,
 	},
-	PosAMF: {
-		9, 13, 9, 8, 5, 9, 0, 0, 16, 0, 8, 0, 10, 10, 3, 0, 0, 0, 0, 5, 8,
+	PosDF: {
+		0, 10, 4, 12, 9, 10, 18, 8, 2, 7, 0, 6, 4, 1, 5, 0, 0, 0, 0, 1, 6,
 	},
-	PosCMF: {
-		0, 20, 9, 7, 4, 12, 10, 0, 11, 5, 2, 0, 12, 5, 3, 0, 0, 0, 0, 2, 10,
-	},
-	PosDMF: {
-		0, 9, 5, 7, 9, 14, 18, 4, 4, 10, 2, 0, 10, 3, 5, 0, 0, 0, 0, 1, 8,
-	},
-	PosCB:  {
-		0, 8, 0, 6, 14, 10, 23, 16, 0, 9, 1, 0, 5, 0, 8, 0, 0, 0, 0, 1, 8,
-	},
-	PosSB:  {
-		0, 13, 9, 18, 4, 11, 14, 0, 5, 5, 0, 12, 3, 3, 3, 0, 0, 0, 0, 1, 5,
-	},
-	PosGK:  {
+	PosGK: {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 35, 25, 20, 10, 15,
 	},
 }

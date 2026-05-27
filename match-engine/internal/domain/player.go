@@ -4,7 +4,7 @@ package domain
 type PlayerSetup struct {
 	PlayerID   string         `json:"player_id"`
 	Name       string         `json:"name"`
-	Position   string         `json:"position"`    // GK/ST/WF/AMF/CMF/DMF/CB/SB
+	Position   string         `json:"position"`    // GK/FW/MF/DF
 	Attributes map[string]int `json:"attributes"`  // 21 attrs 1-20
 	Skills     []string       `json:"skills"`
 	Stamina    float64        `json:"stamina"`     // initial stamina 0-100
@@ -27,6 +27,16 @@ type PlayerRuntime struct {
 	Injured        bool
 	InjurySeverity int // 0=none, 1=minor, 2=major
 	Substituted    bool
+
+	// Skill context (set by simulator, read by resolver)
+	SkillEventType string
+	SkillZone      [2]int
+	SkillMinute    float64
+	SkillHalf      int
+
+	// LastSkillSuffix is set by applySkillAttack/Defense when a skill triggers,
+	// and consumed by addEvent to append to the event narrative.
+	LastSkillSuffix string
 }
 
 // PlayerMatchStats accumulates during match

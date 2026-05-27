@@ -31,14 +31,10 @@ function defaultPlayer(pos, suffix, teamPrefix) {
   const attrs = {};
   ATTRS.forEach(a => attrs[a] = 10);
   const biases = {
-    GK:  {SAV:16, REF:15, POS:14, COM:12},
-    CB:  {DEF:16, HEA:15, STR:14, TKL:13},
-    SB:  {SPD:15, CRO:14, DEF:12, STA:14},
-    DMF: {DEF:14, TKL:14, PAS:13, STA:14},
-    CMF: {PAS:15, VIS:14, STA:14, CON:13},
-    AMF: {PAS:15, VIS:15, DRI:14, SHO:12},
-    WF:  {SPD:16, DRI:14, CRO:14, ACC:14},
-    ST:  {SHO:16, HEA:14, STR:14, SPD:13},
+    GK: {SAV:16, REF:15, POS:14, COM:12},
+    DF: {DEF:16, HEA:15, STR:14, TKL:13},
+    MF: {PAS:15, VIS:14, STA:14, CON:13},
+    FW: {SHO:16, SPD:14, DRI:14, ACC:14},
   };
   if (biases[pos]) Object.assign(attrs, biases[pos]);
   return {
@@ -58,19 +54,19 @@ function defaultTeam(name, formation, isHome) {
   let players;
   if (formation === "F02") {
     players = [
-      defaultPlayer("GK","门将",prefix), defaultPlayer("CB","中卫A",prefix), defaultPlayer("CB","中卫B",prefix),
-      defaultPlayer("CMF","中场A",prefix), defaultPlayer("CMF","中场B",prefix),
-      defaultPlayer("AMF","前腰",prefix), defaultPlayer("WF","边锋",prefix), defaultPlayer("ST","前锋",prefix),
+      defaultPlayer("GK","门将",prefix), defaultPlayer("DF","中卫A",prefix), defaultPlayer("DF","中卫B",prefix),
+      defaultPlayer("MF","中场A",prefix), defaultPlayer("MF","中场B",prefix),
+      defaultPlayer("MF","前腰",prefix), defaultPlayer("FW","边锋",prefix), defaultPlayer("FW","前锋",prefix),
     ];
   } else {
     players = [
-      defaultPlayer("GK","门将",prefix), defaultPlayer("CB","中卫A",prefix), defaultPlayer("CB","中卫B",prefix),
-      defaultPlayer("SB","边卫",prefix), defaultPlayer("DMF","后腰",prefix),
-      defaultPlayer("CMF","中场A",prefix), defaultPlayer("CMF","中场B",prefix), defaultPlayer("ST","前锋",prefix),
+      defaultPlayer("GK","门将",prefix), defaultPlayer("DF","中卫A",prefix), defaultPlayer("DF","中卫B",prefix),
+      defaultPlayer("DF","边卫",prefix), defaultPlayer("MF","后腰",prefix),
+      defaultPlayer("MF","中场A",prefix), defaultPlayer("MF","中场B",prefix), defaultPlayer("FW","前锋",prefix),
     ];
   }
   const bench = [
-    defaultPlayer("WF","替补边锋",prefix), defaultPlayer("CMF","替补中场",prefix), defaultPlayer("CB","替补中卫",prefix),
+    defaultPlayer("FW","替补边锋",prefix), defaultPlayer("MF","替补中场",prefix), defaultPlayer("DF","替补中卫",prefix),
   ];
   let tactics;
   if (isHome) {

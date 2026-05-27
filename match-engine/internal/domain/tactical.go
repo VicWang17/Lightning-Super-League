@@ -34,8 +34,8 @@ func (t *TeamRuntime) ComputeTacticalFlags() TacticalFlags {
 		flags.OffsideTrapActive = true
 	}
 
-	// Man marking: marking_strategy = 2 (人盯人)
-	if tac.MarkingStrategy >= 2 {
+	// Man marking: marking_strategy >= 1 (混合防守也有人盯人元素)
+	if tac.MarkingStrategy >= 1 {
 		flags.ManMarkingActive = true
 	}
 
@@ -67,7 +67,7 @@ func (t *TeamRuntime) ComputeTacticalFlags() TacticalFlags {
 	if flags.ManMarkingActive {
 		// Simple heuristic: CBs mark opposing ST/WF, DMF marks AMF
 		for _, def := range t.GetActivePlayers() {
-			if def.Position == "CB" {
+			if def.Position == "DF" {
 				// Will be populated during match based on opponent lineup
 				flags.MarkingTargets[def.PlayerID] = ""
 			}
@@ -84,20 +84,16 @@ func (t *TeamRuntime) GetPlaymaker() *PlayerRuntime {
 	for _, p := range t.GetActivePlayers() {
 		weight := 0.0
 		switch p.Position {
-		case "ST":
+		case "FW":
 			weight = 1.0
-		case "AMF":
-			weight = 0.9
-		case "CMF":
-			weight = 0.7
-		case "WF":
-			weight = 0.6
+		case "MF":
+			weight = 0.8
 		}
 		// Playmaker focus boosts certain positions
-		if t.Tactics.PlaymakerFocus >= 3 && p.Position == "ST" {
+		if t.Tactics.PlaymakerFocus >= 3 && p.Position == "FW" {
 			weight += 0.3
 		}
-		if t.Tactics.PlaymakerFocus >= 2 && p.Position == "AMF" {
+		if t.Tactics.PlaymakerFocus >= 2 && p.Position == "MF" {
 			weight += 0.2
 		}
 		if weight > maxWeight {
