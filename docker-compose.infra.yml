@@ -1,22 +1,23 @@
 # 基础设施服务 - 数据库和缓存
 # 用法: docker-compose -f docker-compose.infra.yml up -d
+# 端口从 .env 文件读取，如未设置则使用默认值
 
 services:
   # Database - MySQL 8.0
   db:
     image: mysql:8.0
     ports:
-      - "3306:3306"
+      - "${DB_PORT:-3306}:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: lightning_league
-      MYSQL_USER: lightning
-      MYSQL_PASSWORD: lightning_pass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lightning_league}
+      MYSQL_USER: ${MYSQL_USER:-lightning}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-lightning_pass}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "lightning", "-plightning_pass"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "lightning", "-p${MYSQL_PASSWORD:-lightning_pass}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +29,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:

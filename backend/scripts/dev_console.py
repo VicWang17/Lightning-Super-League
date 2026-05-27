@@ -33,6 +33,13 @@ BACKEND_DIR = REPO_ROOT / "backend"
 MATCH_ENGINE_URL = os.getenv("MATCH_ENGINE_URL", "http://localhost:8080")
 ENGINE_LOG = Path("/private/tmp/lsl-match-engine.log")
 
+# 自动检测 Python 解释器（优先使用虚拟环境）
+VENV_PYTHON = BACKEND_DIR / ".venv" / "bin" / "python"
+if VENV_PYTHON.exists():
+    PYTHON = str(VENV_PYTHON)
+else:
+    PYTHON = shutil.which("python3") or shutil.which("python") or "python3"
+
 
 class C:
     BOLD = "\033[1m"
@@ -101,7 +108,7 @@ def handle_choice(choice: str) -> None:
         ensure_engine(force=True)
     elif choice in {"9", "api", "backend"}:
         print_info("将以前台方式启动 FastAPI 后端；按 Ctrl+C 返回。")
-        run(["python", "-m", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"], cwd=BACKEND_DIR)
+        run([PYTHON, "-m", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"], cwd=BACKEND_DIR)
     else:
         print_warning("未知选项。请输入 1-9，或 q 退出。")
 
@@ -115,10 +122,10 @@ def bootstrap() -> None:
 
     steps = [
         ("启动 MySQL + Redis", ["make", "infra-up"], REPO_ROOT),
-        ("重建开发数据库", ["python", "-m", "scripts.reset_dev_db"], BACKEND_DIR),
-        ("运行数据库迁移", ["python", "-m", "alembic", "upgrade", "head"], BACKEND_DIR),
-        ("初始化基础数据", ["python", "-m", "scripts.init_system"], BACKEND_DIR),
-        ("创建并启动赛季", ["python", "-m", "scripts.init_season"], BACKEND_DIR),
+        ("重建开发数据库", [PYTHON, "-m", "scripts.reset_dev_db"], BACKEND_DIR),
+        ("运行数据库迁移", [PYTHON, "-m", "alembic", "upgrade", "head"], BACKEND_DIR),
+        ("初始化基础数据", [PYTHON, "-m", "scripts.init_system"], BACKEND_DIR),
+        ("创建并启动赛季", [PYTHON, "-m", "scripts.init_season"], BACKEND_DIR),
     ]
     env = base_env()
     env["ENV"] = "dev"
@@ -130,12 +137,12 @@ def bootstrap() -> None:
 
 
 def run_dev_sim(command: str) -> None:
-    run(["python", "-m", "scripts.dev_sim", command], cwd=BACKEND_DIR, env=base_env())
+    run([PYTHON, "-m", "scripts.dev_sim", command], cwd=BACKEND_DIR, env=base_env())
 
 
 def health_check() -> None:
     print_header("健康检查")
-    run(["python", "-m", "scripts.dev_sim", "status"], cwd=BACKEND_DIR, env=base_env(), check=False)
+    run([PYTHON, "-m", "scripts.dev_sim", "status"], cwd=BACKEND_DIR, env=base_env(), check=False)
     print()
     if engine_healthy():
         print_success(f"Go 比赛引擎 OK: {MATCH_ENGINE_URL}")

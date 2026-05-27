@@ -2,6 +2,7 @@
 Application configuration using Pydantic Settings
 """
 import os
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -22,6 +23,10 @@ class Settings(BaseSettings):
     APP_NAME: str = "Lightning Super League API"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
+    
+    # Ports (used for CORS and docs links)
+    BACKEND_PORT: str = "8000"
+    FRONTEND_PORT: str = "5173"
     
     # Database
     DATABASE_URL: str = "mysql+asyncmy://user:pass@localhost:3306/lightning"
@@ -46,6 +51,22 @@ class Settings(BaseSettings):
     MATCH_ENGINE_MODE: str = "instant"  # realtime / accelerated / instant
     MATCH_ENGINE_TICK_INTERVAL_MS: int = 0
     MATCH_ENGINE_FALLBACK_RANDOM: bool = False
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, v, info):
+        """支持从环境变量以逗号分隔字符串解析 CORS_ORIGINS，并自动加入前端地址"""
+        origins = []
+        if isinstance(v, str):
+            origins = [x.strip() for x in v.split(",") if x.strip()]
+        elif isinstance(v, list):
+            origins = list(v)
+        # 自动包含当前 FRONTEND_PORT 对应的前端地址
+        frontend_port = info.data.get("FRONTEND_PORT", "5173")
+        frontend_origin = f"http://localhost:{frontend_port}"
+        if frontend_origin not in origins:
+            origins.insert(0, frontend_origin)
+        return origins
 
 
 @lru_cache()

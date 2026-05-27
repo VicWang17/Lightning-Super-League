@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler"""
     # Startup
     logger.info(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    logger.info(f"📚 API Documentation: http://localhost:8000/docs")
+    logger.info(f"📚 API Documentation: http://localhost:{settings.BACKEND_PORT}/docs")
     yield
     # Shutdown
     logger.info("👋 Shutting down...")
@@ -127,6 +127,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=int(settings.BACKEND_PORT),
         reload=settings.DEBUG
     )

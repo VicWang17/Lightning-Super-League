@@ -1,5 +1,30 @@
 .PHONY: help infra-up infra-down infra-logs frontend backend match-engine dev init-system init-season dev-bootstrap console sim-status sim-next sim-matchday sim-season sim-results
 
+# 加载根目录 .env（如果存在）
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
+# 检测 Python（优先使用虚拟环境）
+# 对于在项目根目录执行的命令
+ifneq (,$(wildcard backend/.venv/bin/python))
+    PYTHON = backend/.venv/bin/python
+else ifneq (,$(shell which python3 2>/dev/null))
+    PYTHON = python3
+else
+    PYTHON = python
+endif
+
+# 对于 cd backend 后执行的命令
+ifneq (,$(wildcard backend/.venv/bin/python))
+    PYTHON_IN_BACKEND = .venv/bin/python
+else ifneq (,$(shell which python3 2>/dev/null))
+    PYTHON_IN_BACKEND = python3
+else
+    PYTHON_IN_BACKEND = python
+endif
+
 # 默认显示帮助
 help:
 	@echo "Lightning Super League - 开发命令"
@@ -34,13 +59,13 @@ infra-up:
 	@echo "等待数据库初始化..."
 	@sleep 5
 	@echo "✅ MySQL 和 Redis 已启动"
-	@echo "   MySQL: localhost:3306"
-	@echo "   Redis: localhost:6379"
+	@echo "   MySQL: localhost:$(DB_PORT)"
+	@echo "   Redis: localhost:$(REDIS_PORT)"
 
 # 系统初始化（删除所有数据并重新创建基础数据，不创建赛季）
 init-system:
 	@echo "⚡ 正在初始化系统基础数据..."
-	cd backend && python -m scripts.init_system
+	cd backend && $(PYTHON_IN_BACKEND) -m scripts.init_system
 	@echo "✅ 系统基础数据初始化完成"
 	@echo ""
 	@echo "下一步: 创建赛季和赛程"
@@ -49,7 +74,7 @@ init-system:
 # 赛季初始化（创建新赛季和完整赛程）
 init-season:
 	@echo "⚡ 正在初始化赛季..."
-	cd backend && python -m scripts.init_season
+	cd backend && $(PYTHON_IN_BACKEND) -m scripts.init_season
 	@echo "✅ 赛季初始化完成"
 
 infra-down:
@@ -60,40 +85,40 @@ infra-logs:
 
 # 本地服务
 frontend:
-	cd frontend && npm run dev
+	cd frontend && VITE_API_URL=$(VITE_API_URL) npx vite --host 0.0.0.0 --port $(FRONTEND_PORT)
 
 backend:
-	cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && $(PYTHON_IN_BACKEND) -m uvicorn app.main:app --reload --host 0.0.0.0 --port $(BACKEND_PORT)
 
 match-engine:
 	cd match-engine && go run ./cmd/server
 
 dev-bootstrap: infra-up
 	@echo "⚠️  这会重建开发数据库数据..."
-	cd backend && PYTHONPATH=. alembic upgrade head
-	cd backend && ENV=dev PYTHONPATH=. python -m scripts.init_system
-	cd backend && PYTHONPATH=. python -m scripts.init_season
+	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m alembic upgrade head
+	cd backend && ENV=dev PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.init_system
+	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.init_season
 	@echo "✅ 开发数据和第一个赛季已准备好"
 
 console:
-	python backend/scripts/dev_console.py
+	$(PYTHON) backend/scripts/dev_console.py
 
 sim-status:
-	cd backend && PYTHONPATH=. python -m scripts.dev_sim status
+	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.dev_sim status
 
 sim-next:
-	cd backend && PYTHONPATH=. python -m scripts.dev_sim next-event
+	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.dev_sim next-event
 
 sim-matchday:
-	cd backend && PYTHONPATH=. python -m scripts.dev_sim matchday
+	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.dev_sim matchday
 
 sim-season:
-	cd backend && PYTHONPATH=. python -m scripts.dev_sim season
+	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.dev_sim season
 
 sim-results:
-	cd backend && PYTHONPATH=. python -m scripts.dev_sim results
+	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.dev_sim results
 
 # 开发模式：启动基础设施 + 前端
 dev: infra-up
 	@echo "启动前端开发服务器..."
-	cd frontend && npm run dev
+	cd frontend && VITE_API_URL=$(VITE_API_URL) npx vite --host 0.0.0.0 --port $(FRONTEND_PORT)
