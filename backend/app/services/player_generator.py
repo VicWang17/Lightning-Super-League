@@ -151,58 +151,68 @@ OVR_WEIGHTS = {
     },
 }
 
-# 招牌技能池 (按位置)
+# 招牌技能池 (按位置)。技能名必须与 Go 引擎 skillHandlers 保持一致。
 SKILL_POOL = {
     "通用": [
-        ("铁人", "稀有", "全场持续", "体能消耗-15%,受伤概率-20%"),
-        ("大赛型选手", "稀有", "杯赛/关键战", "全属性+5%(杯赛/淘汰赛生效)"),
-        ("领导力", "稀有", "全场持续", "队友全属性+2%(仅1人生效,队长优先)"),
-        ("青训之星", "普通", "全场持续", "年龄≤21岁时,全属性+3%"),
-        ("万金油", "普通", "被安排非首选位置时", "在非首选位置属性惩罚减半"),
-        ("玻璃体质", "负面", "受伤触发时", "受伤概率+30%,恢复时间+50%"),
-        ("大场面先生", "传奇", "比赛最后10分钟", "全属性+8%(80分钟后生效)"),
-        ("快速恢复", "稀有", "体能衰减时", "每5分钟额外恢复1%体能"),
+        ("铁人", "全场持续", "体能消耗降低，受伤概率降低"),
+        ("领导力", "全队区域控制", "队友获得区域控制加成，仅取最高品质"),
+        ("玻璃体质", "受伤触发时", "受伤概率提升，负面技能"),
+        ("大场面先生", "比赛最后阶段", "全属性临时提升"),
+        ("快速恢复", "体能衰减时", "周期性恢复额外体能"),
     ],
     "FW": [
-        ("禁区幽灵", "传奇", "禁区内射门时", "禁区射门命中率+10%"),
-        ("抢点专家", "稀有", "传中/角球争顶时", "头球争顶成功率+8%"),
-        ("远射重炮", "稀有", "禁区外射门时", "远射命中率和力量+7%"),
-        ("速度之魔", "传奇", "冲刺跑时", "速度突破成功率+10%,反击触发率+5%"),
-        ("盘带大师", "稀有", "1v1突破时", "盘带过人成功率+8%"),
-        ("致命直塞", "传奇", "直塞球时", "直塞成功率+10%,形成单刀概率+5%"),
-        ("内切杀手", "稀有", "从边路内切射门时", "内切射门命中率+8%"),
-        ("空中霸主", "普通", "争顶时", "头球属性临时+5%"),
-        ("点球专家", "稀有", "主罚点球时", "点球命中率+10%"),
-        ("补射猎手", "普通", "门将脱手后", "补射抢到概率+15%"),
+        ("禁区幽灵", "禁区内射门时", "禁区内进攻加成"),
+        ("抢点专家", "传中/角球争顶时", "抢点争顶加成"),
+        ("远射重炮", "禁区外射门时", "远射进攻加成"),
+        ("边路尖刀", "边路突破时", "边路事件权重提升"),
+        ("盘带大师", "1v1突破时", "盘带突破加成"),
+        ("致命直塞", "直塞球时", "直塞成功率和事件权重提升"),
+        ("内切杀手", "边路内切射门时", "内切进攻加成"),
+        ("点球专家", "主罚点球时", "点球进攻加成"),
+        ("补射猎手", "门将脱手后", "补射事件权重提升"),
+        ("花式魔术师", "盘带和摆脱时", "盘带类事件进攻加成"),
     ],
     "MF": [
-        ("手术刀传球", "传奇", "短传/直塞时", "传球成功率+10%,关键传球概率+5%"),
-        ("节拍器", "稀有", "持球组织时", "球队该区域控制度+5%"),
-        ("全能中场", "稀有", "参与进攻/防守事件时", "攻防转换效率+8%"),
-        ("长传调度", "普通", "长传转移时", "长传成功率+7%"),
-        ("拦截专家", "稀有", "预判拦截时", "拦截成功率+8%"),
-        ("组织核心", "传奇", "全队进攻事件时", "进攻事件成功率+5%(光环效果)"),
-        ("定位球大师", "稀有", "任意球/角球时", "定位球直接进球率+8%"),
-        ("绞肉机", "普通", "逼抢/铲球时", "逼抢成功率+5%,犯规率-10%"),
+        ("手术刀传球", "短传/直塞时", "关键传球进攻加成"),
+        ("节拍器", "持球组织时", "区域控制加成"),
+        ("全能中场", "攻防转换时", "攻防转换事件加成"),
+        ("长传调度", "长传转移时", "长传事件加成"),
+        ("拦截专家", "预判拦截时", "拦截事件加成"),
+        ("组织核心", "进攻组织时", "组织事件权重提升"),
+        ("定位球大师", "任意球/角球时", "定位球进攻加成"),
+        ("绞肉机", "逼抢/铲球时", "对抗事件加成"),
     ],
     "DF": [
-        ("铁壁", "传奇", "1v1防守时", "防守成功率+10%,被过概率-15%"),
-        ("铲球专家", "稀有", "铲球时", "铲球成功率+8%,铲空犯规率-10%"),
-        ("预判大师", "稀有", "对方传球时", "拦截/断球成功率+8%"),
-        ("盯人专家", "普通", "人盯人时", "被盯防对象接球成功率-5%"),
-        ("空中堡垒", "稀有", "争顶/解围时", "头球争顶成功率+8%,解围距离+10%"),
-        ("边路屏障", "普通", "边路防守时", "边路防守成功率+7%"),
-        ("清道夫", "稀有", "补位防守时", "补位成功率+8%,区域控制度+3%"),
-        ("造越位专家", "普通", "防线联动时", "造越位成功率+10%"),
+        ("铁壁", "1v1防守时", "防守对抗加成"),
+        ("铲球专家", "铲球时", "铲球事件加成"),
+        ("预判大师", "对方传球时", "预判防守加成"),
+        ("盯人专家", "人盯人时", "降低对手事件权重"),
+        ("空中堡垒", "争顶/解围时", "空中攻防加成"),
+        ("边路屏障", "边路防守时", "边路防守加成"),
+        ("清道夫", "补位防守时", "补位防守和控制加成"),
     ],
     "GK": [
-        ("神反应", "传奇", "近距离射门扑救时", "近距离扑救成功率+12%"),
-        ("门线技术", "稀有", "门线救险时", "门线解围成功率+10%"),
-        ("出击果断", "普通", "单刀球出击时", "出击成功率+7%,失误率-5%"),
-        ("手抛球反击", "稀有", "扑救后手抛球时", "手抛球精准度+10%,反击启动率+5%"),
-        ("点球克星", "传奇", "扑点球时", "点球扑救率+15%"),
+        ("神反应", "近距离射门扑救时", "近距离扑救加成"),
+        ("门线技术", "门线救险时", "门线防守加成"),
+        ("出击果断", "单刀球出击时", "出击防守加成"),
+        ("手抛球反击", "扑救后手抛球时", "反击发起加成"),
+        ("点球克星", "扑点球时", "点球防守加成"),
     ],
 }
+
+SKILL_QUALITY_COLORS = {
+    "普通": "white",
+    "优秀": "blue",
+    "精英": "purple",
+    "名人堂": "red",
+}
+
+SKILL_QUALITY_WEIGHTS = [
+    ("普通", 62),
+    ("优秀", 27),
+    ("精英", 9),
+    ("名人堂", 2),
+]
 
 PERSONALITIES = list(PlayerPersonality)
 
@@ -413,37 +423,61 @@ class SkillGenerator:
         
         # 70% 概率获得1个技能, 30% 概率0个
         if random.random() > 0.3:
-            # 按稀有度筛选
             candidates = []
-            for name, rarity, trigger, effect in pool:
-                if rarity == "传奇" and ovr < 75:
+            for name, trigger, effect in pool:
+                if name == "玻璃体质":
                     continue
-                weight = {"普通": 6, "稀有": 3, "传奇": 1, "负面": 2}.get(rarity, 1)
-                candidates.append((name, rarity, trigger, effect, weight))
+                if name in {"禁区幽灵", "致命直塞", "组织核心", "铁壁", "神反应", "点球克星"} and ovr < 65:
+                    continue
+                candidates.append((name, trigger, effect, 1))
             
             if candidates:
-                weights = [c[4] for c in candidates]
+                weights = [c[3] for c in candidates]
                 choice = random.choices(candidates, weights=weights, k=1)[0]
+                quality = SkillGenerator._quality_for_ovr(ovr)
                 skills.append({
                     "skill_id": choice[0],
-                    "rarity": choice[1],
-                    "trigger": choice[2],
-                    "effect": choice[3],
+                    "rarity": quality,
+                    "quality": quality,
+                    "color": SKILL_QUALITY_COLORS[quality],
+                    "trigger": choice[1],
+                    "effect": choice[2],
                 })
         
         # 15% 概率附加负面技能 (与主技能独立)
         if random.random() < 0.15:
-            neg_pool = [s for s in SKILL_POOL["通用"] if s[1] == "负面"]
-            if neg_pool:
-                s = random.choice(neg_pool)
-                skills.append({
-                    "skill_id": s[0],
-                    "rarity": s[1],
-                    "trigger": s[2],
-                    "effect": s[3],
-                })
+            skills.append({
+                "skill_id": "玻璃体质",
+                "rarity": "普通",
+                "quality": "普通",
+                "color": SKILL_QUALITY_COLORS["普通"],
+                "type": "negative",
+                "trigger": "受伤触发时",
+                "effect": "受伤概率提升，负面技能",
+            })
         
         return skills
+
+    @staticmethod
+    def _quality_for_ovr(ovr: int) -> str:
+        weights = list(SKILL_QUALITY_WEIGHTS)
+        if ovr >= 80:
+            weights = [("普通", 40), ("优秀", 35), ("精英", 18), ("名人堂", 7)]
+        elif ovr >= 70:
+            weights = [("普通", 50), ("优秀", 32), ("精英", 15), ("名人堂", 3)]
+        return random.choices([q for q, _ in weights], weights=[w for _, w in weights], k=1)[0]
+
+
+def potential_letter_from_value(potential_max: int) -> PotentialLetter:
+    if potential_max >= 80:
+        return PotentialLetter.S
+    if potential_max >= 60:
+        return PotentialLetter.A
+    if potential_max >= 40:
+        return PotentialLetter.B
+    if potential_max >= 20:
+        return PotentialLetter.C
+    return PotentialLetter.D
 
 
 # ==================== 主生成器 ====================
@@ -527,6 +561,10 @@ class PlayerGenerator:
             position, archetype, style, actual_age, potential_max, team_ovr
         )
         ovr = attr_result.pop("ovr", 50)  # 不持久化, 由模型 hybrid_property 计算
+        if potential_max < ovr:
+            growth_margin = random.randint(1, 8) if actual_age <= 24 else random.randint(0, 3)
+            potential_max = min(100, ovr + growth_margin)
+            potential_letter = potential_letter_from_value(potential_max)
         
         # Skills
         skills = SkillGenerator.generate(position, ovr)
@@ -568,7 +606,8 @@ class PlayerGenerator:
             defe=attr_result["defe"], tkl=attr_result["tkl"], vis=attr_result["vis"],
             cro=attr_result["cro"], con=attr_result["con"], fin=attr_result["fin"],
             com=attr_result["com"], sav=attr_result["sav"], ref=attr_result["ref"],
-            pos=attr_result["pos"], fk=attr_result["fk"], pk=attr_result["pk"],
+            pos=attr_result["pos"], rus=attr_result["rus"], dec=attr_result["dec"],
+            fk=attr_result["fk"], pk=attr_result["pk"],
             potential_max=potential_max,
             potential_letter=potential_letter,
             # skills & personality

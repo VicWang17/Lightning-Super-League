@@ -65,7 +65,10 @@ class MatchForm(str, Enum):
 class PlayerSkill(BaseSchema):
     """招牌技能"""
     skill_id: str = Field(..., description="技能ID/名称")
-    rarity: str = Field(..., description="稀有度: 普通/稀有/传奇/负面")
+    rarity: str = Field(..., description="品质: 普通/优秀/精英/名人堂")
+    quality: Optional[str] = Field(None, description="品质: 普通/优秀/精英/名人堂")
+    color: Optional[str] = Field(None, description="品质颜色: white/blue/purple/red")
+    type: Optional[str] = Field(None, description="技能类型，例如 negative")
     trigger: str = Field(..., description="触发条件")
     effect: str = Field(..., description="效果描述")
 
@@ -84,7 +87,7 @@ class PlayerAbility(BaseSchema):
     hea: int = Field(default=10, ge=1, le=20, description="头球 HEA")
     bal: int = Field(default=10, ge=1, le=20, description="平衡 BAL")
     # 防守
-    defe: int = Field(default=10, ge=1, le=20, description="防守 DEF")
+    defe: int = Field(default=10, ge=1, le=20, description="防守意识 DEF")
     tkl: int = Field(default=10, ge=1, le=20, description="抢断 TKL")
     # 技术/组织
     vis: int = Field(default=10, ge=1, le=20, description="视野 VIS")

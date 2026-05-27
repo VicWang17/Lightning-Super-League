@@ -12,6 +12,9 @@ export type SquadRole = 'key_player' | 'first_team' | 'rotation' | 'backup' | 'h
 export interface PlayerSkill {
   skill_id: string
   rarity: string
+  quality?: string
+  color?: 'white' | 'blue' | 'purple' | 'red'
+  type?: string
   trigger: string
   effect: string
 }
@@ -44,7 +47,7 @@ export interface Player {
   acc: number   // 爆发力
   hea: number   // 头球
   bal: number   // 平衡
-  defe: number  // 站位（防守站位）
+  defe: number  // 防守意识
   tkl: number   // 抢断
   vis: number   // 视野
   cro: number   // 传中
@@ -53,7 +56,7 @@ export interface Player {
   com: number   // 镇定
   sav: number   // 扑救
   ref: number   // 反应
-  pos: number   // 跑位（进攻选位）
+  pos: number   // 站位
   set: number   // 定位球
   dec: number   // 球商
 

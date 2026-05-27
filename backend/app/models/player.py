@@ -1,7 +1,7 @@
 """
 Player model - 球员模型 (PRD v5 简化版)
 位置: FW/MF/DF/GK 四种
-属性: 19项, 范围 1-20
+属性: 23项, 范围 1-20
 年龄: birth_offset 相对偏移量
 """
 from datetime import datetime, date
@@ -117,7 +117,7 @@ class Player(Base):
     # birth_offset: 负数, 如 -22 表示第0赛季时22岁, 第1赛季时23岁
     birth_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     
-    # ===== 19项能力属性 (1-20) =====
+    # ===== 能力属性 (1-20) =====
     # 进攻
     sho: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 射门
     pas: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 传球
@@ -130,7 +130,7 @@ class Player(Base):
     hea: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 头球
     bal: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 平衡
     # 防守
-    defe: Mapped[int] = mapped_column(Integer, default=10, nullable=False)  # 防守
+    defe: Mapped[int] = mapped_column(Integer, default=10, nullable=False)  # 防守意识
     tkl: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 抢断
     # 技术/组织
     vis: Mapped[int] = mapped_column(Integer, default=10, nullable=False)   # 视野
@@ -233,24 +233,24 @@ class Player(Base):
 _OVR_WEIGHTS = {
     PlayerPosition.FW: {
         "sho": 20, "pas": 3, "dri": 15, "spd": 18, "str_": 10, "sta": 3,
-        "hea": 10, "acc": 10, "fin": 5, "bal": 3, "cro": 3,
+        "hea": 10, "acc": 10, "fin": 5, "bal": 3, "cro": 3, "dec": 4,
         "defe": 0, "vis": 0, "tkl": 0, "con": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
-        "fk": 0, "pk": 0,
+        "fk": 0, "pk": 0, "rus": 0,
     },
     PlayerPosition.MF: {
-        "pas": 18, "dri": 12, "spd": 7, "str_": 2, "sta": 15, "defe": 10,
-        "vis": 14, "tkl": 7, "acc": 2, "cro": 8, "con": 8, "fin": 5,
+        "pas": 16, "dri": 11, "spd": 7, "str_": 2, "sta": 14, "defe": 9,
+        "vis": 13, "tkl": 6, "acc": 2, "cro": 7, "con": 7, "fin": 5, "dec": 10,
         "sho": 2, "hea": 0, "bal": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
-        "fk": 0, "pk": 0,
+        "fk": 0, "pk": 0, "rus": 0,
     },
     PlayerPosition.DF: {
-        "pas": 5, "spd": 12, "str_": 18, "sta": 12, "defe": 24, "hea": 12,
-        "tkl": 8, "cro": 5, "bal": 4,
+        "pas": 5, "spd": 11, "str_": 16, "sta": 11, "defe": 22, "hea": 11,
+        "tkl": 7, "cro": 5, "bal": 4, "dec": 8,
         "dri": 0, "vis": 0, "acc": 0, "con": 0, "fin": 0, "sho": 0, "com": 0, "sav": 0, "ref": 0, "pos": 0,
-        "fk": 0, "pk": 0,
+        "fk": 0, "pk": 0, "rus": 0,
     },
     PlayerPosition.GK: {
-        "pas": 5, "com": 15, "sav": 40, "ref": 30, "pos": 10,
+        "pas": 5, "com": 8, "sav": 25, "ref": 18, "pos": 10, "rus": 8, "dec": 12,
         "sho": 0, "dri": 0, "spd": 0, "str_": 0, "sta": 0, "defe": 0, "hea": 0,
         "vis": 0, "tkl": 0, "acc": 0, "cro": 0, "con": 0, "fin": 0, "bal": 0,
         "fk": 0, "pk": 0,
