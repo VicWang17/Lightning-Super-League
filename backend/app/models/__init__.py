@@ -34,6 +34,7 @@ from app.models.player_season_stats import (
     PlayerSeasonStats,
 )
 from app.models.events import EventQueue
+from app.models.match_result import MatchResult
 
 __all__ = [
     # Base
@@ -72,4 +73,6 @@ __all__ = [
     "PlayerSeasonStats",
     # Event Queue
     "EventQueue",
+    # Match Engine
+    "MatchResult",
 ]
