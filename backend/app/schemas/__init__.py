@@ -25,6 +25,19 @@ from app.schemas.season import (
     SeasonCalendarResponse, TeamFixtureResponse, TodayFixtureResponse,
     SeasonStatusForDisplay
 )
+from app.schemas.records import (
+    RecordItem,
+    RecordsByCategory,
+    RecordScope,
+    RecordCategory,
+    RecordType,
+    PlayerSeasonHistoryItem,
+    PlayerCareerSummary,
+    PlayerMilestone,
+    PlayerHistoryResponse,
+    TeamSeasonHistoryItem,
+    TeamHistoryResponse,
+)
 
 __all__ = [
     # Base
@@ -78,4 +91,16 @@ __all__ = [
     "TeamFixtureResponse",
     "TodayFixtureResponse",
     "SeasonStatusForDisplay",
+    # Records
+    "RecordItem",
+    "RecordsByCategory",
+    "RecordScope",
+    "RecordCategory",
+    "RecordType",
+    "PlayerSeasonHistoryItem",
+    "PlayerCareerSummary",
+    "PlayerMilestone",
+    "PlayerHistoryResponse",
+    "TeamSeasonHistoryItem",
+    "TeamHistoryResponse",
 ]

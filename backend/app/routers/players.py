@@ -16,8 +16,12 @@ from app.schemas import (
     PlayerPosition,
     PlayerListItem,
     ErrorResponse,
+    PlayerHistoryResponse,
+    PlayerSeasonHistoryItem,
+    PlayerCareerSummary,
+    PlayerMilestone,
 )
-from app.models import Player
+from app.models import Player, PlayerSeasonStats, Season, Team
 
 router = APIRouter(prefix="/players", tags=["球员"])
 
@@ -158,5 +162,182 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
             team_id=player.team_id,
             created_at=player.created_at,
             updated_at=player.updated_at,
+        ),
+    )
+
+
+@router.get(
+    "/{player_id}/history",
+    response_model=ResponseSchema[PlayerHistoryResponse],
+    summary="获取球员生涯历史",
+    description="获取球员每个赛季的表现数据和生涯总计",
+)
+async def get_player_history(
+    player_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取球员生涯历史"""
+    # 验证球员存在
+    player_result = await db.execute(select(Player).where(Player.id == player_id))
+    player = player_result.scalar_one_or_none()
+    if not player:
+        return ResponseSchema(success=False, message="球员不存在", code=404)
+
+    # 获取所有赛季统计
+    stats_result = await db.execute(
+        select(PlayerSeasonStats, Season, Team)
+        .join(Season, PlayerSeasonStats.season_id == Season.id)
+        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
+        .where(PlayerSeasonStats.player_id == player_id)
+        .order_by(Season.season_number.asc())
+    )
+    rows = stats_result.all()
+
+    # 按赛季聚合（联赛+杯赛合并）
+    season_map: dict[int, dict] = {}
+    competition_details: dict[int, list[dict]] = {}
+
+    for stats, season, team in rows:
+        sn = season.season_number
+        if sn not in season_map:
+            season_map[sn] = {
+                "season_number": sn,
+                "team_name": team.name if team else "未知",
+                "team_id": team.id if team else "",
+                "matches_played": 0,
+                "minutes_played": 0,
+                "goals": 0,
+                "assists": 0,
+                "yellow_cards": 0,
+                "red_cards": 0,
+                "clean_sheets": 0,
+                "total_rating_sum": 0.0,
+                "total_rating_matches": 0,
+            }
+            competition_details[sn] = []
+
+        s = season_map[sn]
+        s["matches_played"] += stats.matches_played
+        s["minutes_played"] += stats.minutes_played
+        s["goals"] += stats.goals
+        s["assists"] += stats.assists
+        s["yellow_cards"] += stats.yellow_cards
+        s["red_cards"] += stats.red_cards
+        s["clean_sheets"] += stats.clean_sheets
+
+        if stats.matches_played > 0:
+            s["total_rating_sum"] += float(stats.average_rating) * stats.matches_played
+            s["total_rating_matches"] += stats.matches_played
+
+        comp_name = "联赛" if stats.league_id else ("杯赛" if stats.cup_competition_id else "其他")
+        competition_details[sn].append({
+            "competition": comp_name,
+            "matches_played": stats.matches_played,
+            "goals": stats.goals,
+            "assists": stats.assists,
+            "minutes_played": stats.minutes_played,
+            "average_rating": float(stats.average_rating),
+        })
+
+    # 构建赛季历史项
+    seasons: list[PlayerSeasonHistoryItem] = []
+    for sn in sorted(season_map.keys()):
+        s = season_map[sn]
+        avg_rating = (
+            round(s["total_rating_sum"] / s["total_rating_matches"], 1)
+            if s["total_rating_matches"] > 0
+            else 0.0
+        )
+        seasons.append(PlayerSeasonHistoryItem(
+            season_number=s["season_number"],
+            team_name=s["team_name"],
+            team_id=s["team_id"],
+            matches_played=s["matches_played"],
+            minutes_played=s["minutes_played"],
+            goals=s["goals"],
+            assists=s["assists"],
+            yellow_cards=s["yellow_cards"],
+            red_cards=s["red_cards"],
+            clean_sheets=s["clean_sheets"],
+            average_rating=avg_rating,
+            competition_breakdown=competition_details[sn],
+        ))
+
+    # 生涯汇总
+    total_matches = sum(s.matches_played for s in seasons)
+    total_goals = sum(s.goals for s in seasons)
+    total_assists = sum(s.assists for s in seasons)
+    total_minutes = sum(s.minutes_played for s in seasons)
+    total_yellow = sum(s.yellow_cards for s in seasons)
+    total_red = sum(s.red_cards for s in seasons)
+
+    overall_rating = 0.0
+    if total_matches > 0:
+        rating_sum = sum(s.average_rating * s.matches_played for s in seasons)
+        overall_rating = round(rating_sum / total_matches, 1)
+
+    # 最佳赛季
+    best_season = None
+    if seasons:
+        best = max(seasons, key=lambda s: s.goals * 3 + s.assists)
+        best_season = {
+            "season_number": best.season_number,
+            "goals": best.goals,
+            "assists": best.assists,
+            "average_rating": best.average_rating,
+        }
+
+    summary = PlayerCareerSummary(
+        total_seasons=len(seasons),
+        total_matches=total_matches,
+        total_goals=total_goals,
+        total_assists=total_assists,
+        total_minutes=total_minutes,
+        total_yellow_cards=total_yellow,
+        total_red_cards=total_red,
+        overall_average_rating=overall_rating,
+        best_season=best_season,
+    )
+
+    # 里程碑（简化版）
+    milestones: list[PlayerMilestone] = []
+    if seasons:
+        first_season = min(seasons, key=lambda s: s.season_number)
+        milestones.append(PlayerMilestone(
+            milestone_type="debut",
+            season_number=first_season.season_number,
+            description=f"第 {first_season.season_number} 赛季首秀",
+        ))
+        if total_goals >= 1:
+            milestones.append(PlayerMilestone(
+                milestone_type="first_goal",
+                season_number=first_season.season_number,
+                description="攻入生涯首球",
+            ))
+        if total_goals >= 50:
+            milestones.append(PlayerMilestone(
+                milestone_type="50_goals",
+                season_number=next((s.season_number for s in seasons if sum(x.goals for x in seasons[:seasons.index(s)+1]) >= 50), seasons[-1].season_number),
+                description="达成 50 球里程碑",
+            ))
+        if total_goals >= 100:
+            milestones.append(PlayerMilestone(
+                milestone_type="100_goals",
+                season_number=seasons[-1].season_number,
+                description="达成 100 球里程碑",
+            ))
+        if total_matches >= 100:
+            milestones.append(PlayerMilestone(
+                milestone_type="100_appearances",
+                season_number=seasons[-1].season_number,
+                description="达成 100 场里程碑",
+            ))
+
+    return ResponseSchema(
+        success=True,
+        data=PlayerHistoryResponse(
+            seasons=seasons,
+            summary=summary,
+            milestones=milestones,
         ),
     )

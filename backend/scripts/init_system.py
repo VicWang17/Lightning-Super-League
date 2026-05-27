@@ -302,7 +302,7 @@ async def show_summary(db: AsyncSession):
     
     if IS_DEV_MODE:
         print(f"\n🔑 开发模式登录信息:")
-        print(f"   邮箱: ai_east_l1_001@lightning.dev")
+        print(f"   邮箱: ai_east_l1_1_001@lightning.dev")
         print(f"   密码: {AI_USER_PASSWORD}")
     
     print("\n" + "=" * 60)

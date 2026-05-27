@@ -134,11 +134,20 @@ class MatchSimulator:
                 await MatchSimulator._persist_engine_result(fixture, result, db)
                 await MatchSimulator._update_player_stats_from_engine(fixture, result, db)
             else:
-                await MatchSimulator._update_player_stats(fixture, db)
+                await MatchSimulator._update_player_stats(fixture, db, result)
+        
+        # 检测并更新纪录
+        if db:
+            from app.services.record_service import RecordService
+            await RecordService.process_match_records(fixture, result, db)
     
     @staticmethod
-    async def _update_player_stats(fixture: Fixture, db: AsyncSession) -> None:
-        """更新球员赛季统计"""
+    async def _update_player_stats(fixture: Fixture, db: AsyncSession, result: Optional[MatchResult] = None) -> None:
+        """更新球员赛季统计
+        
+        Args:
+            result: 如果传入，会将生成的 player_stats 写回 result，供纪录检测使用
+        """
         # 获取双方球队球员
         home_players = await MatchSimulator._get_team_players(db, fixture.home_team_id)
         away_players = await MatchSimulator._get_team_players(db, fixture.away_team_id)
@@ -165,6 +174,9 @@ class MatchSimulator:
             if event.player_id not in player_events:
                 player_events[event.player_id] = []
             player_events[event.player_id].append(event)
+        
+        # 构建 player_stats 列表（供纪录检测使用）
+        player_stats_for_records: list[dict] = []
         
         # 更新每个球员的赛季统计
         for player_id, player_event_list in player_events.items():
@@ -196,6 +208,7 @@ class MatchSimulator:
             stats.minutes_played += matches_played * 90
             
             # 更新平均评分（简化：随机 5.5-8.5）
+            new_rating = Decimal("6.0")
             if matches_played > 0:
                 new_rating = Decimal(str(round(random.uniform(5.5, 8.5), 1)))
                 # 加权移动平均
@@ -234,8 +247,42 @@ class MatchSimulator:
                         player.average_rating = new_avg
                     else:
                         player.average_rating = new_rating
+            
+            # 收集 player_stats 供纪录检测使用
+            # 确定球队 side
+            team_id_for_player = player_event_list[0].team_id if player_event_list else None
+            side = "home" if team_id_for_player == fixture.home_team_id else "away"
+            player_stats_for_records.append({
+                "player_id": player_id,
+                "team": side,
+                "goals": goals,
+                "assists": assists,
+                "yellow_cards": yellow_cards,
+                "red_cards": red_cards,
+                "rating": float(new_rating) if matches_played > 0 else 6.0,
+            })
         
         await db.flush()
+        
+        # 将生成的 player_stats 写回 result，供纪录检测使用
+        if result:
+            result.player_stats = player_stats_for_records
+            # 同时生成 events 供最快进球等纪录检测
+            # 随机分配进球时间
+            goal_events_for_records: list[dict] = []
+            minute_counter = 1
+            for ps in player_stats_for_records:
+                for _ in range(ps.get("goals", 0)):
+                    goal_events_for_records.append({
+                        "type": "GOAL",
+                        "player_id": ps["player_id"],
+                        "team_id": fixture.home_team_id if ps["team"] == "home" else fixture.away_team_id,
+                        "minute": minute_counter,
+                        "second": random.randint(0, 59),
+                    })
+                    minute_counter += random.randint(5, 20)
+            if goal_events_for_records:
+                result.events = goal_events_for_records
     
     @staticmethod
     async def _get_team_players(db: AsyncSession, team_id: str) -> list[Player]:
