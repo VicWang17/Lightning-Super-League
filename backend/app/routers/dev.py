@@ -221,6 +221,19 @@ async def simulation_status(db: AsyncSession = Depends(get_db)):
     return ResponseSchema(data=await runner.status())
 
 
+@router.get("/simulation/monitor", response_model=ResponseSchema[dict])
+async def simulation_monitor(db: AsyncSession = Depends(get_db)):
+    """获取综合监控数据（供 AI 监看模式使用）"""
+    runner = SimulationRunner(db, shared_clock=GameClockStateService(db))
+    return ResponseSchema(data={
+        "standings": await runner.get_standings_snapshot(),
+        "daily_scores": await runner.get_daily_scores(),
+        "top_players": await runner.get_top_players(limit=5),
+        "records": await runner.get_records_snapshot(limit=5),
+        "health": await runner.get_data_health_report(),
+    })
+
+
 @router.post("/simulation/process-due", response_model=ResponseSchema[dict])
 async def simulation_process_due(req: ProcessDueRequest, db: AsyncSession = Depends(get_db)):
     """处理所有 scheduled_at <= shared clock now 的到期事件。"""

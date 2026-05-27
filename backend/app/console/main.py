@@ -19,6 +19,7 @@ async def main() -> None:
                     api_mode.ApiModeContext(),
                     speed=args.speed,
                     interval_seconds=args.interval,
+                    monitor_mode=args.monitor,
                 )
             else:
                 await with_runner(
@@ -30,6 +31,7 @@ async def main() -> None:
                         step_hours=args.step_hours,
                         max_iterations=args.max_iterations,
                         max_events_at_time=args.max_events_at_time,
+                        monitor_mode=args.monitor,
                     )
                 )
         elif args.command == "bootstrap":
@@ -60,6 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--step-hours", type=int, default=1)
     watch_parser.add_argument("--max-iterations", type=int, default=0)
     watch_parser.add_argument("--max-events-at-time", type=int, default=200)
+    watch_parser.add_argument("--monitor", action="store_true", help="启用 AI 综合监控模式，输出积分榜/比分/球员榜/纪录/健康检查")
 
     bootstrap_parser = sub.add_parser("bootstrap", help="Reset dev data and create first season")
     bootstrap_parser.add_argument("--yes", action="store_true")
@@ -117,11 +120,13 @@ async def world_menu() -> None:
             [
                 ui.MenuItem("1", "启动观察模式（Core）", "直接调用 service，适合压测", highlight=True),
                 ui.MenuItem("2", "启动观察模式（API）", "检查/启动前后端，通过 HTTP 推进"),
-                ui.MenuItem("3", "暂停世界时间"),
-                ui.MenuItem("4", "恢复 20x 世界时间"),
-                ui.MenuItem("5", "设置倍速"),
-                ui.MenuItem("6", "推进到下一个事件"),
-                ui.MenuItem("7", "快进 N 天"),
+                ui.MenuItem("3", "启动 AI 监看模式（Core）", "综合监控：积分榜/比分/球员榜/纪录/健康", highlight=True),
+                ui.MenuItem("4", "启动 AI 监看模式（API）", "综合监控（API 模式）", highlight=True),
+                ui.MenuItem("5", "暂停世界时间"),
+                ui.MenuItem("6", "恢复 20x 世界时间"),
+                ui.MenuItem("7", "设置倍速"),
+                ui.MenuItem("8", "推进到下一个事件"),
+                ui.MenuItem("9", "快进 N 天"),
                 ui.MenuItem("0", "返回"),
             ],
         )
@@ -129,24 +134,30 @@ async def world_menu() -> None:
             return
         if choice == "1":
             speed, interval = world.ask_watch_settings()
-            await with_runner(lambda runner: world.watch(runner, speed, interval))
+            await with_runner(lambda runner: world.watch(runner, speed, interval, monitor_mode=False))
         elif choice == "2":
             speed, interval = world.ask_watch_settings()
-            api_mode.watch_api(api_mode.ApiModeContext(), speed=speed, interval_seconds=interval)
+            api_mode.watch_api(api_mode.ApiModeContext(), speed=speed, interval_seconds=interval, monitor_mode=False)
         elif choice == "3":
+            speed, interval = world.ask_watch_settings()
+            await with_runner(lambda runner: world.watch(runner, speed, interval, monitor_mode=True))
+        elif choice == "4":
+            speed, interval = world.ask_watch_settings()
+            api_mode.watch_api(api_mode.ApiModeContext(), speed=speed, interval_seconds=interval, monitor_mode=True)
+        elif choice == "5":
             await with_runner(lambda runner: actions.set_clock(runner, "paused", None))
             ui.pause()
-        elif choice == "4":
+        elif choice == "6":
             await with_runner(lambda runner: actions.set_clock(runner, "turbo", 20.0))
             ui.pause()
-        elif choice == "5":
+        elif choice == "7":
             speed = ui.ask_float("倍速", 20.0)
             await with_runner(lambda runner: actions.set_clock(runner, "turbo", speed))
             ui.pause()
-        elif choice == "6":
+        elif choice == "8":
             await with_runner(world.advance_next)
             ui.pause()
-        elif choice == "7":
+        elif choice == "9":
             await with_runner(world.run_days)
             ui.pause()
 
@@ -186,6 +197,11 @@ async def status_menu() -> None:
                 ui.MenuItem("1", "总览"),
                 ui.MenuItem("2", "基础 invariant 检查"),
                 ui.MenuItem("3", "最近比赛结果"),
+                ui.MenuItem("4", "数据健康报告"),
+                ui.MenuItem("5", "积分榜"),
+                ui.MenuItem("6", "每日比分"),
+                ui.MenuItem("7", "球员排行榜"),
+                ui.MenuItem("8", "最新纪录"),
                 ui.MenuItem("0", "返回"),
             ],
         )
@@ -197,6 +213,16 @@ async def status_menu() -> None:
             await with_runner(show_checks)
         elif choice == "3":
             await with_runner(show_results)
+        elif choice == "4":
+            await with_runner(show_health)
+        elif choice == "5":
+            await with_runner(show_standings)
+        elif choice == "6":
+            await with_runner(show_daily_scores)
+        elif choice == "7":
+            await with_runner(show_top_players)
+        elif choice == "8":
+            await with_runner(show_records)
         ui.pause()
 
 
@@ -295,6 +321,43 @@ async def show_results(runner) -> None:
             f"{row['home_score']} - {row['away_score']} {row['away_team_id'][:8]} "
             f"{row['type']} [{row['resolution']}]"
         )
+
+
+async def show_health(runner) -> None:
+    health = await runner.get_data_health_report()
+    panels.render_data_health(health)
+
+
+async def show_standings(runner) -> None:
+    standings = await runner.get_standings_snapshot()
+    if not standings:
+        ui.warning("no standings available")
+        return
+    panels.render_standings(standings)
+
+
+async def show_daily_scores(runner) -> None:
+    status = await runner.status()
+    season = status.get("season") or {}
+    day = season.get("day")
+    scores = await runner.get_daily_scores(day=day)
+    if not scores:
+        ui.warning("no scores for current day")
+        return
+    panels.render_daily_scores(scores, day=day)
+
+
+async def show_top_players(runner) -> None:
+    top = await runner.get_top_players(limit=10)
+    panels.render_top_players(top)
+
+
+async def show_records(runner) -> None:
+    records = await runner.get_records_snapshot(limit=20)
+    if not records:
+        ui.warning("no records available")
+        return
+    panels.render_records(records)
 
 
 async def run_stress(runner, count: int) -> None:

@@ -9,19 +9,25 @@ from app.services.simulation_runner import RunnerResult
 def ask_watch_settings() -> tuple[float, float]:
     ui.header("观察世界时间流逝")
     print("选择世界时间倍速：")
-    print("  1   5x   真实 1 秒 = 游戏 5 秒")
-    print("  2   20x  真实 1 秒 = 游戏 20 秒（推荐）")
-    print("  3   100x 真实 1 秒 = 游戏 100 秒")
-    print("  4   自定义")
-    choice = input("倍速 > ").strip() or "2"
+    print("  1   20x    真实 1 秒 = 游戏 20 秒（常规观察）")
+    print("  2   100x   真实 1 秒 = 游戏 100 秒")
+    print("  3   300x   真实 1 秒 = 游戏 5 分钟")
+    print("  4   1800x  真实 1 秒 = 游戏 30 分钟（推荐快测）")
+    print("  5   3600x  真实 1 秒 = 游戏 1 小时")
+    print("  6   自定义")
+    choice = input("倍速 > ").strip() or "4"
     if choice == "1":
-        speed = 5.0
-    elif choice == "3":
-        speed = 100.0
-    elif choice == "4":
-        speed = ui.ask_float("输入倍速", 20.0)
-    else:
         speed = 20.0
+    elif choice == "2":
+        speed = 100.0
+    elif choice == "3":
+        speed = 300.0
+    elif choice == "5":
+        speed = 3600.0
+    elif choice == "6":
+        speed = ui.ask_float("输入倍速，例如 1800 表示 1 秒 = 游戏 30 分钟", 1800.0)
+    else:
+        speed = 1800.0
 
     print()
     print("刷新频率：")
@@ -33,7 +39,7 @@ def ask_watch_settings() -> tuple[float, float]:
     return speed, interval
 
 
-async def watch(runner, speed: float, interval_seconds: float) -> None:
+async def watch(runner, speed: float, interval_seconds: float, monitor_mode: bool = False) -> None:
     if runner.shared_clock:
         await runner.shared_clock.set_mode("turbo", speed=speed)
         await runner.db.commit()
@@ -45,7 +51,24 @@ async def watch(runner, speed: float, interval_seconds: float) -> None:
         iteration += 1
         result = await runner.process_due_events(max_events=200)
         status = await runner.status()
-        panels.render_world(status, result, speed, interval_seconds, iteration)
+
+        if monitor_mode:
+            standings = await runner.get_standings_snapshot()
+            scores = await runner.get_daily_scores()
+            top_players = await runner.get_top_players(limit=5)
+            records = await runner.get_records_snapshot(limit=5)
+            health = await runner.get_data_health_report()
+            panels.render_monitor(
+                status, result, speed, interval_seconds, iteration,
+                standings=standings,
+                daily_scores=scores,
+                top_players=top_players,
+                records=records,
+                health=health,
+            )
+        else:
+            panels.render_world(status, result, speed, interval_seconds, iteration)
+
         time.sleep(max(0.0, interval_seconds))
 
 
@@ -81,6 +104,7 @@ async def watch_cli(
     step_hours: int,
     max_iterations: int,
     max_events_at_time: int,
+    monitor_mode: bool = False,
 ) -> None:
     if runner.shared_clock:
         await runner.shared_clock.set_mode("turbo", speed=speed)
@@ -99,7 +123,24 @@ async def watch_cli(
             result = await runner.process_due_events(max_events=max_events_at_time)
 
         status = await runner.status()
-        panels.render_world(status, result, speed, interval_seconds, iteration)
+
+        if monitor_mode:
+            standings = await runner.get_standings_snapshot()
+            scores = await runner.get_daily_scores()
+            top_players = await runner.get_top_players(limit=5)
+            records = await runner.get_records_snapshot(limit=5)
+            health = await runner.get_data_health_report()
+            panels.render_monitor(
+                status, result, speed, interval_seconds, iteration,
+                standings=standings,
+                daily_scores=scores,
+                top_players=top_players,
+                records=records,
+                health=health,
+            )
+        else:
+            panels.render_world(status, result, speed, interval_seconds, iteration)
+
         if result.stopped_reason in {"no_pending_events", "max_events", "max_events_at_same_time"}:
             return
         time.sleep(max(0.0, interval_seconds))

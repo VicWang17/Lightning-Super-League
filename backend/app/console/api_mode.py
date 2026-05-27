@@ -128,6 +128,9 @@ class ApiClient:
             results=data["results"],
         )
 
+    def monitor_data(self) -> dict:
+        return self.get("/dev/simulation/monitor")["data"]
+
 
 def http_ok(url: str) -> bool:
     try:
@@ -176,7 +179,7 @@ def terminate_process_group(item: StartedProcess) -> None:
             pass
 
 
-def watch_api(ctx: ApiModeContext, speed: float, interval_seconds: float) -> None:
+def watch_api(ctx: ApiModeContext, speed: float, interval_seconds: float, monitor_mode: bool = False) -> None:
     try:
         ctx.ensure_services()
         client = ApiClient(ctx.api_url)
@@ -186,7 +189,20 @@ def watch_api(ctx: ApiModeContext, speed: float, interval_seconds: float) -> Non
             iteration += 1
             result = client.process_due(max_events=200)
             status = client.status()
-            panels.render_world(status, result, speed, interval_seconds, iteration)
+
+            if monitor_mode:
+                monitor = client.monitor_data()
+                panels.render_monitor(
+                    status, result, speed, interval_seconds, iteration,
+                    standings=monitor.get("standings"),
+                    daily_scores=monitor.get("daily_scores"),
+                    top_players=monitor.get("top_players"),
+                    records=monitor.get("records"),
+                    health=monitor.get("health"),
+                )
+            else:
+                panels.render_world(status, result, speed, interval_seconds, iteration)
+
             time.sleep(max(0.0, interval_seconds))
     finally:
         ctx.cleanup_prompt()
