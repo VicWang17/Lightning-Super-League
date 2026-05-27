@@ -43,6 +43,7 @@ from app.core.formats import get_default_format
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 AI_USER_PASSWORD = "ai_password"
 IS_DEV_MODE = os.getenv("ENV", "").lower() == "dev"
+RESET_SCHEMA = os.getenv("INIT_SYSTEM_RESET_SCHEMA", "true").lower() not in {"0", "false", "no"}
 
 settings = get_settings()
 engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
@@ -323,8 +324,11 @@ async def main():
     
     async with AsyncSessionLocal() as db:
         try:
-            await drop_all_tables()
-            await create_tables()
+            if RESET_SCHEMA:
+                await drop_all_tables()
+                await create_tables()
+            else:
+                print("✅ 使用现有 Alembic schema，仅初始化基础数据")
             systems = await init_league_systems(db)
             leagues = await init_leagues(db, systems)
             users, teams = await init_teams_and_users(db, leagues)

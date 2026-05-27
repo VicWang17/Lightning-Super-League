@@ -1,7 +1,6 @@
 """
 Season service - 赛季业务逻辑服务
 """
-import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 
@@ -16,6 +15,10 @@ from app.core.formats import get_default_format
 from app.core.clock import clock
 from app.core.events import EventQueue, GameEvent, EventType, EventStatus
 from app.services.match_simulator import MatchSimulator
+from app.services.match_engine_client import (
+    MatchEngineUnavailableError,
+    get_match_engine_client,
+)
 from app.services.cup_progression import CupProgressionService
 from app.services.promotion_service import PromotionService
 
@@ -31,12 +34,13 @@ class SeasonService:
         self.promotion_service = PromotionService(db)
     
     async def get_current_season(self, zone_id: int = 1) -> Optional[Season]:
-        """获取当前进行中的赛季"""
+        """获取当前赛季（优先进行中，其次待开始）"""
         result = await self.db.execute(
             select(Season)
-            .where(Season.status == SeasonStatus.ONGOING)
+            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
             .where(Season.zone_id == zone_id)
             .order_by(Season.season_number.desc())
+            .limit(1)
         )
         return result.scalar_one_or_none()
     
@@ -189,9 +193,11 @@ class SeasonService:
         )
         fixtures = list(result.scalars().all())
         
-        # Step 1: 并发模拟所有比赛（纯计算，无 DB 写）
-        sim_tasks = [self.simulator.simulate(f) for f in fixtures]
-        sim_results = await asyncio.gather(*sim_tasks)
+        # Step 1: 调用 Go 比赛引擎。当前复用同一个 AsyncSession 构建快照，
+        # 因此串行执行；后续可用独立 session/连接池提升为并发。
+        sim_results = []
+        for fixture in fixtures:
+            sim_results.append(await self._simulate_with_engine(fixture))
         
         # Step 2: 串行 apply_result（避免 standings 共享状态竞争）
         match_results = []
@@ -226,6 +232,20 @@ class SeasonService:
             "fixtures_processed": len(match_results),
             "results": match_results,
         }
+
+    async def _simulate_with_engine(self, fixture: Fixture):
+        """Run one fixture through the authoritative Go match engine."""
+        from app.config import get_settings
+
+        settings = get_settings()
+        client = get_match_engine_client()
+        try:
+            engine_result = await client.simulate_fixture(self.db, fixture)
+            return MatchSimulator.from_engine_result(fixture, engine_result)
+        except MatchEngineUnavailableError:
+            if settings.MATCH_ENGINE_FALLBACK_RANDOM:
+                return await self.simulator.simulate(fixture)
+            raise
     
     async def _handle_cup_progression(self, event: GameEvent) -> Dict:
         """CUP_PROGRESSION: 处理杯赛晋级"""
@@ -280,14 +300,22 @@ class SeasonService:
         if not season:
             raise ValueError(f"Season not found: {season_id}")
         
+        end_date_raw = event.payload.get("end_date")
+        end_date = datetime.fromisoformat(end_date_raw) if end_date_raw else event.scheduled_at
+
         season.status = SeasonStatus.FINISHED
-        season.end_date = clock.now()
+        season.end_date = end_date
         await self.db.commit()
+
+        next_season = await self.create_new_season(start_date=end_date, zone_id=season.zone_id)
+        await self.start_season(next_season)
         
         return {
             "event": "season_end",
             "season_id": season_id,
             "season_number": season.season_number,
+            "next_season_id": next_season.id,
+            "next_season_number": next_season.season_number,
         }
     
     async def process_next_day(self, season: Season) -> Dict:
@@ -424,6 +452,8 @@ class SeasonService:
         """
         获取杯赛冠军（决赛胜者）
         """
+        from app.models.match_result import MatchResult as EngineMatchResult
+
         # 获取决赛比赛
         result = await self.db.execute(
             select(Fixture).where(
@@ -438,6 +468,13 @@ class SeasonService:
         
         if not final:
             return None
+
+        engine_result = await self.db.execute(
+            select(EngineMatchResult).where(EngineMatchResult.fixture_id == final.id)
+        )
+        persisted = engine_result.scalar_one_or_none()
+        if persisted and persisted.winner_team_id:
+            return persisted.winner_team_id
         
         # 返回胜者
         if final.home_score > final.away_score:

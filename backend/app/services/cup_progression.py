@@ -44,6 +44,22 @@ class CupProgressionService:
     
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _fixture_winner(self, fixture: Fixture) -> str:
+        """Return authoritative winner for a knockout fixture."""
+        from app.models.match_result import MatchResult as EngineMatchResult
+
+        result = await self.db.execute(
+            select(EngineMatchResult).where(EngineMatchResult.fixture_id == fixture.id)
+        )
+        engine_result = result.scalar_one_or_none()
+        if engine_result and engine_result.winner_team_id:
+            return engine_result.winner_team_id
+        if fixture.home_score > fixture.away_score:
+            return fixture.home_team_id
+        if fixture.away_score > fixture.home_score:
+            return fixture.away_team_id
+        return fixture.home_team_id
     
     # ==================== 小组赛排名计算 ====================
     
@@ -290,14 +306,7 @@ class CupProgressionService:
         if len(fixtures) == 0:
             return 0
         
-        winners = []
-        for f in fixtures:
-            if f.home_score > f.away_score:
-                winners.append(f.home_team_id)
-            elif f.away_score > f.home_score:
-                winners.append(f.away_team_id)
-            else:
-                winners.append(f.home_team_id)
+        winners = [await self._fixture_winner(f) for f in fixtures]
         
         # 获取下一轮比赛日
         cup_days = list(season_template.lightning_cup_days)
@@ -368,12 +377,7 @@ class CupProgressionService:
         )
         round1_fixtures = result.scalars().all()
         
-        round1_winners = []
-        for f in round1_fixtures:
-            if f.home_score > f.away_score:
-                round1_winners.append(f.home_team_id)
-            else:
-                round1_winners.append(f.away_team_id)
+        round1_winners = [await self._fixture_winner(f) for f in round1_fixtures]
         
         if len(round1_winners) != cup_config.jenny_preliminary_teams // 2:
             print(f"  ⚠️  杰尼杯预选赛胜者数量不对: {len(round1_winners)}/{cup_config.jenny_preliminary_teams // 2}")
@@ -446,12 +450,7 @@ class CupProgressionService:
         )
         fixtures = result.scalars().all()
         
-        winners = []
-        for f in fixtures:
-            if f.home_score > f.away_score:
-                winners.append(f.home_team_id)
-            else:
-                winners.append(f.away_team_id)
+        winners = [await self._fixture_winner(f) for f in fixtures]
         
         next_round = current_round + 1
         cup_days = list(season_template.jenny_cup_days)

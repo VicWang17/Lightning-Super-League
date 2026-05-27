@@ -38,6 +38,7 @@ from app.services.scheduler import (
     JennyCupGenerator, ScheduleMerger
 )
 from app.core.formats import get_default_format
+from app.core.events import EventQueue
 
 settings = get_settings()
 engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
@@ -378,9 +379,20 @@ async def init_season():
         
         # 7. 启动赛季
         season.status = SeasonStatus.ONGOING
+        fmt = get_default_format()
+        events = EventQueue.build_season_events(
+            season_id=season.id,
+            league_days=list(fmt.season.league_days),
+            cup_days=list(fmt.season.lightning_cup_days),
+            promotion_day=fmt.season.promotion_day,
+            total_days=season.total_days,
+            start_date=start_date,
+        )
+        await EventQueue.push_many(db, events)
         await db.commit()
         
         print(f"\n🚀 第{season_number}赛季已启动！")
+        print(f"   ✅ 已创建 {len(events)} 个虚拟时钟事件")
         return season
 
 

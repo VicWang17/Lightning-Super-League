@@ -46,10 +46,42 @@ class MatchResult:
     away_shots_on_target: Optional[int] = None
     mvp_player_id: Optional[str] = None
     events: Optional[list] = None  # 比赛事件（进球、红黄牌等）
+    winner_team_id: Optional[str] = None
+    resolution: str = "regular"
+    penalty_score: Optional[dict] = None
+    match_stats: Optional[dict] = None
+    player_stats: Optional[list] = None
+    narratives: Optional[list] = None
+    engine_raw: Optional[dict] = None
 
 
 class MatchSimulator:
     """比赛模拟器"""
+    
+    @staticmethod
+    def from_engine_result(fixture: Fixture, engine_result: dict[str, Any]) -> MatchResult:
+        """Convert Go engine SimulateResult into the backend result shape."""
+        score = engine_result.get("score") or {}
+        stats = engine_result.get("stats") or {}
+        return MatchResult(
+            fixture_id=fixture.id,
+            home_score=int(score.get("home", 0)),
+            away_score=int(score.get("away", 0)),
+            home_possession=round(stats.get("possession_home", 0)) if stats else None,
+            away_possession=round(stats.get("possession_away", 0)) if stats else None,
+            home_shots=stats.get("shots_home"),
+            away_shots=stats.get("shots_away"),
+            home_shots_on_target=stats.get("shots_on_target_home"),
+            away_shots_on_target=stats.get("shots_on_target_away"),
+            events=engine_result.get("events") or [],
+            winner_team_id=engine_result.get("winner_team_id") or None,
+            resolution=engine_result.get("resolution") or "regular",
+            penalty_score=engine_result.get("penalty_score"),
+            match_stats=stats,
+            player_stats=engine_result.get("player_stats") or [],
+            narratives=engine_result.get("narratives") or [],
+            engine_raw=engine_result,
+        )
     
     @staticmethod
     async def simulate(fixture: Fixture) -> MatchResult:
@@ -98,7 +130,11 @@ class MatchSimulator:
         
         # 更新球员赛季统计
         if db and fixture.season_id:
-            await MatchSimulator._update_player_stats(fixture, db)
+            if result.engine_raw:
+                await MatchSimulator._persist_engine_result(fixture, result, db)
+                await MatchSimulator._update_player_stats_from_engine(fixture, result, db)
+            else:
+                await MatchSimulator._update_player_stats(fixture, db)
     
     @staticmethod
     async def _update_player_stats(fixture: Fixture, db: AsyncSession) -> None:
@@ -417,4 +453,105 @@ class MatchSimulator:
         
         # 保存更新后的积分榜
         group.standings = standings
+        await db.flush()
+
+    @staticmethod
+    async def _persist_engine_result(fixture: Fixture, result: MatchResult, db: AsyncSession) -> None:
+        """Persist raw Go engine output for replay and post-match pages."""
+        from app.models.match_result import MatchResult as MatchResultModel
+
+        existing = await db.execute(
+            select(MatchResultModel).where(MatchResultModel.fixture_id == fixture.id)
+        )
+        obj = existing.scalar_one_or_none()
+        payload = {
+            "fixture_id": fixture.id,
+            "engine_match_id": result.engine_raw.get("match_id", fixture.id),
+            "home_score": result.home_score,
+            "away_score": result.away_score,
+            "winner_team_id": result.winner_team_id,
+            "resolution": result.resolution,
+            "penalty_score": result.penalty_score,
+            "match_stats": result.match_stats or {},
+            "player_stats": result.player_stats or [],
+            "events": result.events or [],
+            "narratives": result.narratives or [],
+            "raw_result": result.engine_raw or {},
+        }
+        if obj:
+            for key, value in payload.items():
+                setattr(obj, key, value)
+        else:
+            db.add(MatchResultModel(**payload))
+        await db.flush()
+
+    @staticmethod
+    async def _update_player_stats_from_engine(
+        fixture: Fixture,
+        result: MatchResult,
+        db: AsyncSession,
+    ) -> None:
+        """Apply authoritative per-player stats returned by the Go engine."""
+        if not result.player_stats:
+            return
+
+        team_for_side = {
+            "home": fixture.home_team_id,
+            "away": fixture.away_team_id,
+        }
+        minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
+
+        for ps in result.player_stats:
+            player_id = ps.get("player_id")
+            if not player_id:
+                continue
+
+            team_id = team_for_side.get(ps.get("team"))
+            stats = await MatchSimulator._get_or_create_player_season_stats(
+                db,
+                player_id,
+                fixture.season_id,
+                league_id=fixture.league_id,
+                cup_competition_id=fixture.cup_competition_id,
+            )
+            stats.team_id = team_id
+            stats.goals += int(ps.get("goals", 0))
+            stats.assists += int(ps.get("assists", 0))
+            stats.yellow_cards += int(ps.get("yellow_cards", 0))
+            stats.red_cards += int(ps.get("red_cards", 0))
+            if ps.get("position") == "GK":
+                conceded = result.away_score if ps.get("team") == "home" else result.home_score
+                if conceded == 0:
+                    stats.clean_sheets += 1
+            stats.matches_played += 1
+            stats.minutes_played += minutes
+
+            rating = Decimal(str(round(float(ps.get("rating", 6.0)), 1)))
+            old_matches = max(stats.matches_played - 1, 0)
+            if old_matches:
+                stats.average_rating = (
+                    (stats.average_rating * Decimal(old_matches) + rating)
+                    / Decimal(stats.matches_played)
+                ).quantize(Decimal("0.1"))
+            else:
+                stats.average_rating = rating
+
+            player_result = await db.execute(select(Player).where(Player.id == player_id))
+            player = player_result.scalar_one_or_none()
+            if player:
+                player.goals += int(ps.get("goals", 0))
+                player.assists += int(ps.get("assists", 0))
+                player.yellow_cards += int(ps.get("yellow_cards", 0))
+                player.red_cards += int(ps.get("red_cards", 0))
+                player.matches_played += 1
+                player.minutes_played += minutes
+                old_matches = max(player.matches_played - 1, 0)
+                if old_matches:
+                    player.average_rating = (
+                        (player.average_rating * Decimal(old_matches) + rating)
+                        / Decimal(player.matches_played)
+                    ).quantize(Decimal("0.1"))
+                else:
+                    player.average_rating = rating
+
         await db.flush()
