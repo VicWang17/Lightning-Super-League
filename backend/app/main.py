@@ -22,6 +22,7 @@ from app.routers.cups import router as cups_router
 from app.routers.internal import router as internal_router
 from app.routers.dev import router as dev_router
 from app.routers.clock import router as clock_router
+from app.routers.records import router as records_router
 
 settings = get_settings()
 
@@ -92,6 +93,7 @@ app.include_router(cups_router, prefix="/api/v1")
 app.include_router(internal_router, prefix="/api/v1")
 app.include_router(dev_router, prefix="/api/v1")
 app.include_router(clock_router, prefix="/api/v1")
+app.include_router(records_router, prefix="/api/v1")
 
 
 @app.get("/")
