@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { 
   Calendar, ChevronLeft, Trophy, MapPin, 
   Sword as Swords, CircleCheck as CheckCircle, Play as PlayCircle 
@@ -101,6 +101,7 @@ function MatchRow({
  team: Team
  isCurrentDay: boolean
 }) {
+ const navigate = useNavigate()
  const statusConfig = getStatusConfig(fixture.status)
  
  const myScore = fixture.is_home ? fixture.home_score : fixture.away_score
@@ -137,9 +138,19 @@ function MatchRow({
  <div className={`
  grid grid-cols-12 gap-4 items-center px-4 py-4 
  border-b border-[#2D2D44]/50 last:border-b-0
- hover:bg-[#1E1E2D]/50 transition-colors
+ hover:bg-[#1E1E2D]/50 transition-colors cursor-pointer
  ${isCurrentDay ? 'bg-[#0D7377]/5' : ''}
- `}>
+ `}
+ role="button"
+ tabIndex={0}
+ onClick={() => navigate(`/match/${fixture.id}`)}
+ onKeyDown={(event) => {
+ if (event.key === 'Enter' || event.key === ' ') {
+ event.preventDefault()
+ navigate(`/match/${fixture.id}`)
+ }
+ }}
+ >
  {/* 日期 */}
  <div className="col-span-2">
  <div className="flex items-center gap-2">
@@ -165,6 +176,7 @@ function MatchRow({
  <div className="col-span-2 text-right">
  <Link 
  to={`/teams/${homeTeamId}`}
+ onClick={(event) => event.stopPropagation()}
  className={`text-sm font-medium hover:text-[#0D7377] transition-colors ${
  isHomeMyTeam ? 'text-white' : 'text-[#8B8BA7]'
  }`}
@@ -198,6 +210,7 @@ function MatchRow({
  <div className="col-span-2 text-left">
  <Link 
  to={`/teams/${awayTeamId}`}
+ onClick={(event) => event.stopPropagation()}
  className={`text-sm font-medium hover:text-[#0D7377] transition-colors ${
  isAwayMyTeam ? 'text-white' : 'text-[#8B8BA7]'
  }`}

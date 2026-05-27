@@ -30,6 +30,7 @@ import Schedule from './pages/Match/Schedule'
 import PreMatch from './pages/Match/PreMatch'
 import LiveMatch from './pages/Match/LiveMatch'
 import PostMatch from './pages/Match/PostMatch'
+import MatchDetail from './pages/Match/Detail'
 
 // Transfer Pages
 import TransferMarket from './pages/Transfer/Market'
@@ -202,6 +203,10 @@ export const router = createBrowserRouter([
               {
                 path: 'schedule',
                 element: <Schedule />,
+              },
+              {
+                path: ':id',
+                element: <MatchDetail />,
               },
             ],
           },
