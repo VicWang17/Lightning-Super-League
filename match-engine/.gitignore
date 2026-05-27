@@ -1,0 +1,9 @@
+# Binaries
+engine-server
+engine.test
+*.exe
+*.test
+
+# Build artifacts
+/tmp/
+/private/tmp/
