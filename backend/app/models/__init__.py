@@ -35,6 +35,7 @@ from app.models.player_season_stats import (
 )
 from app.models.events import EventQueue
 from app.models.match_result import MatchResult
+from app.models.clock import GameClockState
 
 __all__ = [
     # Base
@@ -75,4 +76,6 @@ __all__ = [
     "EventQueue",
     # Match Engine
     "MatchResult",
+    # Clock
+    "GameClockState",
 ]

@@ -10,7 +10,7 @@ interface ClockState {
 }
 
 const SYNC_INTERVAL = 10000 // 每 10 秒同步一次后端
-const TICK_INTERVAL = 1000   // 每秒更新显示
+const TICK_INTERVAL = 250    // 更细颗粒度显示 5x/20x 等虚拟时间
 
 export function useGameClock(): ClockState {
   const [state, setState] = useState<ClockState>({

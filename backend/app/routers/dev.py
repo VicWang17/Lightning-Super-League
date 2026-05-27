@@ -15,6 +15,8 @@ from app.core.clock import clock, GameClock
 from app.core.events import EventQueue, EventStatus, GameEvent, EventType
 from app.schemas import ResponseSchema
 from app.services.season_service import SeasonService
+from app.services.game_clock_state import GameClockStateService
+from app.services.simulation_runner import SimulationRunner
 from app.models.season import Season, SeasonStatus
 from sqlalchemy import select, desc, asc
 
@@ -53,30 +55,35 @@ class SeasonAdvanceRequest(BaseModel):
     days: int = 1
 
 
+class ProcessDueRequest(BaseModel):
+    max_events: int = 200
+
+
 # =================================================================
 # Clock APIs
 # =================================================================
 @router.get("/clock", response_model=ResponseSchema[ClockStatusResponse])
-async def get_clock_status():
+async def get_clock_status(db: AsyncSession = Depends(get_db)):
     """查看 GameClock 当前状态"""
+    status = await GameClockStateService(db).status()
     return ResponseSchema(data=ClockStatusResponse(
-        mode=clock.mode,
-        virtual_now=clock.now(),
-        speed=clock.speed,
+        mode=status["mode"],
+        virtual_now=datetime.fromisoformat(status["virtual_now"]),
+        speed=status["speed"],
     ))
 
 
 @router.post("/clock/tick", response_model=ResponseSchema[dict])
 async def clock_tick(req: ClockTickRequest, db: AsyncSession = Depends(get_db)):
-    """单步推进时钟：处理下一个事件"""
-    service = SeasonService(db)
-    results = []
-    for _ in range(req.steps):
-        result = await service.process_next_event()
-        if result is None:
-            break
-        results.append(result)
-    return ResponseSchema(data={"processed": len(results), "results": results})
+    """兼容接口：处理共享虚拟时钟下已经到期的事件。"""
+    runner = SimulationRunner(db, shared_clock=GameClockStateService(db))
+    result = await runner.process_due_events(max_events=req.steps)
+    return ResponseSchema(data={
+        "processed": result.processed,
+        "season_ends": result.season_ends,
+        "stopped_reason": result.stopped_reason,
+        "results": result.results,
+    })
 
 
 @router.post("/clock/fast-forward", response_model=ResponseSchema[dict])
@@ -106,14 +113,13 @@ async def clock_fast_forward(req: ClockFastForwardRequest, db: AsyncSession = De
 
 
 @router.post("/clock/set-mode", response_model=ResponseSchema[dict])
-async def set_clock_mode(mode: str, speed: Optional[float] = None):
+async def set_clock_mode(mode: str, speed: Optional[float] = None, db: AsyncSession = Depends(get_db)):
     """设置时钟模式（realtime / turbo / step / paused）"""
     if mode not in ("realtime", "turbo", "step", "paused"):
         raise HTTPException(status_code=400, detail="Invalid mode")
-    clock.set_mode(mode)
-    if speed is not None and mode == "turbo":
-        clock.speed = max(1.0, speed)
-    return ResponseSchema(data={"mode": clock.mode, "speed": clock.speed})
+    state = await GameClockStateService(db).set_mode(mode, speed=speed)
+    await db.commit()
+    return ResponseSchema(data={"mode": state.mode, "speed": state.speed})
 
 
 # =================================================================
@@ -203,3 +209,39 @@ async def season_advance(req: SeasonAdvanceRequest, db: AsyncSession = Depends(g
         await db.refresh(season)
     
     return ResponseSchema(data={"days": len(results), "results": results})
+
+
+# =================================================================
+# Simulation APIs for API-mode console
+# =================================================================
+@router.get("/simulation/status", response_model=ResponseSchema[dict])
+async def simulation_status(db: AsyncSession = Depends(get_db)):
+    """查看共享虚拟时钟驱动下的世界状态。"""
+    runner = SimulationRunner(db, shared_clock=GameClockStateService(db))
+    return ResponseSchema(data=await runner.status())
+
+
+@router.post("/simulation/process-due", response_model=ResponseSchema[dict])
+async def simulation_process_due(req: ProcessDueRequest, db: AsyncSession = Depends(get_db)):
+    """处理所有 scheduled_at <= shared clock now 的到期事件。"""
+    runner = SimulationRunner(db, shared_clock=GameClockStateService(db))
+    result = await runner.process_due_events(max_events=req.max_events)
+    return ResponseSchema(data={
+        "processed": result.processed,
+        "season_ends": result.season_ends,
+        "stopped_reason": result.stopped_reason,
+        "results": result.results,
+    })
+
+
+@router.post("/simulation/next-event", response_model=ResponseSchema[dict])
+async def simulation_next_event(req: ProcessDueRequest, db: AsyncSession = Depends(get_db)):
+    """推进共享虚拟时钟到下一个 pending event 并处理该时间点事件。"""
+    runner = SimulationRunner(db, shared_clock=GameClockStateService(db))
+    result = await runner.run_next_event_time(max_events_at_time=req.max_events)
+    return ResponseSchema(data={
+        "processed": result.processed,
+        "season_ends": result.season_ends,
+        "stopped_reason": result.stopped_reason,
+        "results": result.results,
+    })

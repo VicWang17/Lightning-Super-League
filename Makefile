@@ -101,7 +101,7 @@ dev-bootstrap: infra-up
 	@echo "✅ 开发数据和第一个赛季已准备好"
 
 console:
-	$(PYTHON) backend/scripts/dev_console.py
+	$(PYTHON) backend/scripts/console.py
 
 sim-status:
 	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.dev_sim status

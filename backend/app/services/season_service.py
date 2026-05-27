@@ -193,13 +193,28 @@ class SeasonService:
         )
         fixtures = list(result.scalars().all())
         
-        # Step 1: 调用 Go 比赛引擎。当前复用同一个 AsyncSession 构建快照，
-        # 因此串行执行；后续可用独立 session/连接池提升为并发。
-        sim_results = []
+        # Step 1: 将本日比赛显式分层为 ongoing -> finished。
+        # TODO(real-time-engine): 这里未来应改为创建 Go engine match sessions，
+        # 由引擎按 match_speed tick 推送事件，并接收临场战术/换人命令；
+        # Python 后端只负责持久化状态、广播和最终结算回调。
         for fixture in fixtures:
-            sim_results.append(await self._simulate_with_engine(fixture))
+            fixture.status = FixtureStatus.ONGOING
+        await self.db.flush()
+
+        # Step 2: 调用 Go 比赛引擎。当前仍是同步最终结果：
+        # engine 返回后，比赛立即从 ongoing 落为 finished。
+        sim_results = []
+        try:
+            for fixture in fixtures:
+                sim_results.append(await self._simulate_with_engine(fixture))
+        except Exception:
+            for fixture in fixtures:
+                if fixture.status == FixtureStatus.ONGOING:
+                    fixture.status = FixtureStatus.SCHEDULED
+            await self.db.flush()
+            raise
         
-        # Step 2: 串行 apply_result（避免 standings 共享状态竞争）
+        # Step 3: 串行 apply_result（避免 standings 共享状态竞争）
         match_results = []
         for fixture, sim_result in zip(fixtures, sim_results):
             await self.simulator.apply_result(fixture, sim_result, self.db)

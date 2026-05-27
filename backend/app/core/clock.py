@@ -99,6 +99,12 @@ class GameClock:
         self._virtual_now = target
         self._reset_anchor()
 
+    def freeze_at(self, target: datetime) -> None:
+        """Set virtual time exactly and freeze automatic local progression."""
+        self._virtual_now = target
+        self.mode = "step"
+        self._reset_anchor()
+
     # ------------------------------------------------------------------
     # 模式切换
     # ------------------------------------------------------------------

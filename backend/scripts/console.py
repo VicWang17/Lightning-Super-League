@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-Compatibility entrypoint.
-
-Use:
-    python backend/scripts/console.py
-"""
 from __future__ import annotations
 
 import asyncio
@@ -24,5 +18,4 @@ from app.console.main import main
 
 
 if __name__ == "__main__":
-    print("dev_console.py is deprecated; forwarding to scripts/console.py.\n")
     asyncio.run(main())
