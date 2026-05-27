@@ -1,4 +1,4 @@
-.PHONY: help infra-up infra-down infra-logs frontend backend dev init-system init-season
+.PHONY: help infra-up infra-down infra-logs frontend backend match-engine dev init-system init-season dev-bootstrap console sim-status sim-next sim-matchday sim-season sim-results
 
 # 默认显示帮助
 help:
@@ -12,10 +12,18 @@ help:
 	@echo "系统初始化:"
 	@echo "  make init-system   初始化基础数据（联赛、球队、用户、球员）"
 	@echo "  make init-season   创建新赛季（赛程、积分榜）"
+	@echo "  make dev-bootstrap 一键重置基础数据并创建赛季（会删除数据）"
 	@echo ""
 	@echo "本地开发:"
 	@echo "  make frontend      启动前端 (npm run dev)"
 	@echo "  make backend       启动后端 (uvicorn)"
+	@echo "  make match-engine  启动 Go 比赛引擎服务"
+	@echo "  make console       打开一键开发控制台"
+	@echo "  make sim-status    查看当前测试状态"
+	@echo "  make sim-next      推进下一个虚拟事件"
+	@echo "  make sim-matchday  推进到下一个比赛日并打印结果"
+	@echo "  make sim-season    快进到赛季结束"
+	@echo "  make sim-results   显示最近比赛结果"
 	@echo ""
 	@echo "一键启动:"
 	@echo "  make dev           启动基础设施 + 前端"
@@ -56,6 +64,34 @@ frontend:
 
 backend:
 	cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+match-engine:
+	cd match-engine && go run ./cmd/server
+
+dev-bootstrap: infra-up
+	@echo "⚠️  这会重建开发数据库数据..."
+	cd backend && PYTHONPATH=. alembic upgrade head
+	cd backend && ENV=dev PYTHONPATH=. python -m scripts.init_system
+	cd backend && PYTHONPATH=. python -m scripts.init_season
+	@echo "✅ 开发数据和第一个赛季已准备好"
+
+console:
+	python backend/scripts/dev_console.py
+
+sim-status:
+	cd backend && PYTHONPATH=. python -m scripts.dev_sim status
+
+sim-next:
+	cd backend && PYTHONPATH=. python -m scripts.dev_sim next-event
+
+sim-matchday:
+	cd backend && PYTHONPATH=. python -m scripts.dev_sim matchday
+
+sim-season:
+	cd backend && PYTHONPATH=. python -m scripts.dev_sim season
+
+sim-results:
+	cd backend && PYTHONPATH=. python -m scripts.dev_sim results
 
 # 开发模式：启动基础设施 + 前端
 dev: infra-up

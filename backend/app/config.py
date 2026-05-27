@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # Python FastAPI 保留管理功能，比赛推演由独立 Go/Gin 微服务处理
     MATCH_ENGINE_URL: str = "http://localhost:8080"  # Go 引擎地址
     MATCH_ENGINE_API_KEY: str = ""  # 服务间通信密钥（预留）
+    MATCH_ENGINE_TRANSPORT: str = "http"  # http / process
+    MATCH_ENGINE_MODE: str = "instant"  # realtime / accelerated / instant
+    MATCH_ENGINE_TICK_INTERVAL_MS: int = 0
+    MATCH_ENGINE_FALLBACK_RANDOM: bool = False
 
 
 @lru_cache()
