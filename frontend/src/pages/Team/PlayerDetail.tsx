@@ -120,7 +120,7 @@ function PlayerDetail() {
       icon: <Shield className="w-4 h-4 text-blue-400" />,
       color: 'bg-blue-500',
       attrs: [
-        { label: '站位', key: 'defe' },
+        { label: '防守意识', key: 'defe' },
         { label: '抢断', key: 'tkl' },
       ],
     },
@@ -142,7 +142,7 @@ function PlayerDetail() {
       attrs: [
         { label: '扑救', key: 'sav' },
         { label: '反应', key: 'ref' },
-        { label: '跑位', key: 'pos' },
+        { label: '站位', key: 'pos' },
         { label: '镇定', key: 'com' },
         { label: '球商', key: 'dec' },
         { label: '定位球', key: 'set' },
@@ -151,6 +151,12 @@ function PlayerDetail() {
   ]
 
   const groups = player.position === 'GK' ? gkAbilityGroups : abilityGroups
+
+  const getAbilityColor = (val: number) => {
+    if (val > 15) return 'text-emerald-400'
+    if (val > 10) return 'text-[#0D7377]'
+    return 'text-white'
+  }
 
   return (
     <div className="max-w-[1200px]">
@@ -232,17 +238,19 @@ function PlayerDetail() {
               <span
                 key={idx}
                 className={`px-3 py-1 text-sm border ${
-                  skill.rarity === '传奇'
-                    ? 'border-amber-500 text-amber-400 bg-amber-500/10'
-                    : skill.rarity === '稀有'
-                    ? 'border-[#0D7377] text-[#0D7377] bg-[#0D7377]/10'
-                    : skill.rarity === '负面'
+                  skill.type === 'negative'
+                    ? 'border-zinc-500 text-zinc-300 bg-zinc-500/10'
+                    : (skill.quality || skill.rarity) === '名人堂'
                     ? 'border-red-500 text-red-400 bg-red-500/10'
-                    : 'border-[#8B8BA7] text-[#8B8BA7] bg-[#8B8BA7]/10'
+                    : (skill.quality || skill.rarity) === '精英'
+                    ? 'border-purple-500 text-purple-400 bg-purple-500/10'
+                    : (skill.quality || skill.rarity) === '优秀'
+                    ? 'border-blue-500 text-blue-400 bg-blue-500/10'
+                    : 'border-white/40 text-white bg-white/10'
                 }`}
               >
                 {skill.skill_id}
-                <span className="text-xs opacity-70 ml-1">({skill.rarity})</span>
+                <span className="text-xs opacity-70 ml-1">({skill.quality || skill.rarity})</span>
               </span>
             ))}
           </div>
@@ -271,7 +279,7 @@ function PlayerDetail() {
                       <div key={key}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-sm">{label}</span>
-                          <span className="font-bold stat-number pixel-number">{val}</span>
+                          <span className={`font-bold stat-number pixel-number ${getAbilityColor(val)}`}>{val}</span>
                         </div>
                         <div className="pixel-progress-track">
                           <div
