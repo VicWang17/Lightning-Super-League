@@ -3,8 +3,9 @@ Player management API routes
 """
 from fastapi import APIRouter, Depends, Query
 from typing import List, Optional
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.dependencies import get_db
 from app.schemas import (
@@ -24,6 +25,45 @@ from app.schemas import (
 from app.models import Player, PlayerSeasonStats, Season, Team
 
 router = APIRouter(prefix="/players", tags=["球员"])
+
+
+async def _get_career_stats(db: AsyncSession, player_id: str):
+    """从赛季统计表聚合生涯统计。"""
+    result = await db.execute(
+        select(
+            func.coalesce(func.sum(PlayerSeasonStats.matches_played), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.goals), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.assists), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.yellow_cards), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.red_cards), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.minutes_played), 0),
+            func.coalesce(
+                func.sum(PlayerSeasonStats.average_rating * PlayerSeasonStats.matches_played),
+                0,
+            ),
+        ).where(PlayerSeasonStats.player_id == player_id)
+    )
+    (
+        matches_played,
+        goals,
+        assists,
+        yellow_cards,
+        red_cards,
+        minutes_played,
+        rating_sum,
+    ) = result.one()
+    avg_rating = Decimal("6.0")
+    if matches_played:
+        avg_rating = (Decimal(str(rating_sum)) / Decimal(matches_played)).quantize(Decimal("0.1"))
+    return {
+        "matches_played": int(matches_played or 0),
+        "goals": int(goals or 0),
+        "assists": int(assists or 0),
+        "yellow_cards": int(yellow_cards or 0),
+        "red_cards": int(red_cards or 0),
+        "average_rating": float(avg_rating),
+        "minutes_played": int(minutes_played or 0),
+    }
 
 
 @router.get(
@@ -117,20 +157,14 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
         defe=player.defe, tkl=player.tkl, vis=player.vis,
         cro=player.cro, con=player.con, fin=player.fin,
         com=player.com, sav=player.sav, ref=player.ref,
-        pos=player.pos,
+        pos=player.pos, rus=player.rus, dec=player.dec,
+        fk=player.fk, pk=player.pk,
     )
     
     skills = [PlayerSkill(**s) for s in (player.skills or [])]
     
-    stats = PlayerStats(
-        matches_played=player.matches_played,
-        goals=player.goals,
-        assists=player.assists,
-        yellow_cards=player.yellow_cards,
-        red_cards=player.red_cards,
-        average_rating=float(player.average_rating),
-        minutes_played=player.minutes_played,
-    )
+    career_stats = await _get_career_stats(db, player.id)
+    stats = PlayerStats(**career_stats)
     
     return ResponseSchema(
         success=True,
@@ -159,6 +193,13 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
             squad_role=player.squad_role,
             market_value=player.market_value,
             stats=stats,
+            matches_played=career_stats["matches_played"],
+            goals=career_stats["goals"],
+            assists=career_stats["assists"],
+            yellow_cards=career_stats["yellow_cards"],
+            red_cards=career_stats["red_cards"],
+            average_rating=career_stats["average_rating"],
+            minutes_played=career_stats["minutes_played"],
             team_id=player.team_id,
             created_at=player.created_at,
             updated_at=player.updated_at,

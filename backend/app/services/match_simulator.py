@@ -223,31 +223,6 @@ class MatchSimulator:
                 else:
                     stats.average_rating = new_rating
             
-            # 同时更新 Player 表的累计数据
-            player_result = await db.execute(
-                select(Player).where(Player.id == player_id)
-            )
-            player = player_result.scalar_one_or_none()
-            if player:
-                player.goals += goals
-                player.assists += assists
-                player.yellow_cards += yellow_cards
-                player.red_cards += red_cards
-                player.matches_played += matches_played
-                player.minutes_played += matches_played * 90
-                if matches_played > 0:
-                    total_mins = player.minutes_played
-                    old_mins = total_mins - 90
-                    if old_mins > 0:
-                        old_avg = player.average_rating
-                        new_avg = (
-                            (old_avg * Decimal(old_mins / total_mins)) +
-                            (new_rating * Decimal(90 / total_mins))
-                        ).quantize(Decimal("0.1"))
-                        player.average_rating = new_avg
-                    else:
-                        player.average_rating = new_rating
-            
             # 收集 player_stats 供纪录检测使用
             # 确定球队 side
             team_id_for_player = player_event_list[0].team_id if player_event_list else None
@@ -582,23 +557,5 @@ class MatchSimulator:
                 ).quantize(Decimal("0.1"))
             else:
                 stats.average_rating = rating
-
-            player_result = await db.execute(select(Player).where(Player.id == player_id))
-            player = player_result.scalar_one_or_none()
-            if player:
-                player.goals += int(ps.get("goals", 0))
-                player.assists += int(ps.get("assists", 0))
-                player.yellow_cards += int(ps.get("yellow_cards", 0))
-                player.red_cards += int(ps.get("red_cards", 0))
-                player.matches_played += 1
-                player.minutes_played += minutes
-                old_matches = max(player.matches_played - 1, 0)
-                if old_matches:
-                    player.average_rating = (
-                        (player.average_rating * Decimal(old_matches) + rating)
-                        / Decimal(player.matches_played)
-                    ).quantize(Decimal("0.1"))
-                else:
-                    player.average_rating = rating
 
         await db.flush()

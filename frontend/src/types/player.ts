@@ -31,12 +31,12 @@ export interface Player {
   birth_offset: number
   age: number
 
-  // 19项属性 (1-20) - 兼容平铺和嵌套两种格式
+  // 23项属性 (1-20) - 兼容平铺和嵌套两种格式
   abilities?: {
     sho: number; pas: number; dri: number; spd: number; str: number; sta: number
     acc: number; hea: number; bal: number; defe: number; tkl: number; vis: number
     cro: number; con: number; fin: number; com: number; sav: number; ref: number
-    pos: number; set: number; dec: number
+    pos: number; rus: number; dec: number; fk: number; pk: number
   }
   sho: number   // 射门
   pas: number   // 传球
@@ -57,8 +57,10 @@ export interface Player {
   sav: number   // 扑救
   ref: number   // 反应
   pos: number   // 站位
-  set: number   // 定位球
+  rus: number   // 出击
   dec: number   // 球商
+  fk: number    // 任意球
+  pk: number    // 点球
 
   ovr: number
   potential_letter: PotentialLetter

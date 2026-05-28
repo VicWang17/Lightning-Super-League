@@ -3,7 +3,7 @@ Player Generator Service - 球员生成器
 
 职责:
 - 按种族/region生成姓名
-- 按位置原型(Archetype)+风格(Style)生成19项属性
+- 按位置原型(Archetype)+风格(Style)生成23项属性
 - 分配招牌技能、性格、头像
 - 为球队生成完整阵容(squad)
 """
@@ -330,7 +330,7 @@ class AttributeGenerator:
     def generate(position: PlayerPosition, archetype: str, style: str,
                  age: int, potential_max: int, team_ovr: int) -> dict:
         """
-        生成19项属性,返回属性字典 + 计算后的OVR
+        生成23项属性,返回属性字典 + 计算后的OVR
         """
         # 1. 确定基准OVR (由年龄、潜力、球队水平共同决定)
         age_factor = 1.0 if 21 <= age <= 28 else (0.85 if age <= 20 else 0.90 if age <= 31 else 0.75)
@@ -542,7 +542,7 @@ class PlayerGenerator:
         style = _weighted_choice(STYLE_DISTRIBUTION)
         
         # Age & Potential
-        birth_offset, potential_letter, potential_max, actual_age = self._generate_age_and_potential(team_level)
+        birth_offset, _potential_letter, potential_max, actual_age = self._generate_age_and_potential(team_level)
         
         # Height & Weight
         height, weight = self._generate_height_weight(position)
@@ -561,10 +561,13 @@ class PlayerGenerator:
             position, archetype, style, actual_age, potential_max, team_ovr
         )
         ovr = attr_result.pop("ovr", 50)  # 不持久化, 由模型 hybrid_property 计算
-        if potential_max < ovr:
+        while ovr >= 100 and any(value > 1 for value in attr_result.values()):
+            for attr, value in attr_result.items():
+                attr_result[attr] = max(1, value - 1)
+            ovr = AttributeGenerator.calculate_ovr(position, attr_result)
+        if potential_max <= ovr:
             growth_margin = random.randint(1, 8) if actual_age <= 24 else random.randint(0, 3)
-            potential_max = min(100, ovr + growth_margin)
-            potential_letter = potential_letter_from_value(potential_max)
+            potential_max = min(100, ovr + max(growth_margin, 1))
         
         # Skills
         skills = SkillGenerator.generate(position, ovr)
@@ -576,7 +579,6 @@ class PlayerGenerator:
         contract_end = random.randint(1, 4)  # 1-4个赛季后到期
         wage = Decimal(str(1000 + ovr * 800 + (potential_max - 50) * 50))
         release_clause = Decimal(str(wage * 20))
-        market_value = Decimal(str(ovr * 10000 + potential_max * 500))
         
         # Squad role by age/OVR
         if actual_age <= 20:
@@ -599,7 +601,7 @@ class PlayerGenerator:
             height=height,
             weight=weight,
             birth_offset=birth_offset,
-            # 21 attrs
+            # 23 attrs
             sho=attr_result["sho"], pas=attr_result["pas"], dri=attr_result["dri"],
             spd=attr_result["spd"], str_=attr_result["str_"], sta=attr_result["sta"],
             acc=attr_result["acc"], hea=attr_result["hea"], bal=attr_result["bal"],
@@ -609,7 +611,6 @@ class PlayerGenerator:
             pos=attr_result["pos"], rus=attr_result["rus"], dec=attr_result["dec"],
             fk=attr_result["fk"], pk=attr_result["pk"],
             potential_max=potential_max,
-            potential_letter=potential_letter,
             # skills & personality
             skills=skills,
             personality=personality,
@@ -623,7 +624,6 @@ class PlayerGenerator:
             wage=wage,
             release_clause=release_clause,
             squad_role=role,
-            market_value=market_value,
             team_id=team.id,
         )
     

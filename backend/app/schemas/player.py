@@ -74,7 +74,7 @@ class PlayerSkill(BaseSchema):
 
 
 class PlayerAbility(BaseSchema):
-    """21项能力属性 (1-20)"""
+    """23项能力属性 (1-20)"""
     # 进攻
     sho: int = Field(default=10, ge=1, le=20, description="射门 SHO")
     pas: int = Field(default=10, ge=1, le=20, description="传球 PAS")
@@ -136,13 +136,12 @@ class PlayerCreate(PlayerBase):
     """Player creation schema"""
     abilities: PlayerAbility = Field(default_factory=PlayerAbility)
     ovr: int = Field(default=50, ge=1, le=100, description="总评")
-    potential_letter: PotentialLetter = PotentialLetter.C
+    potential_max: int = Field(default=50, ge=1, le=100, description="隐藏潜力上限")
     skills: List[PlayerSkill] = Field(default_factory=list)
     personality: str = Field(default="professional")
     contract_type: ContractType = ContractType.NORMAL
     contract_end_season: Optional[int] = None
     wage: Decimal = Field(default=Decimal("1000.00"))
-    market_value: Decimal = Field(default=Decimal("100000.00"))
 
 
 class PlayerUpdate(BaseSchema):
@@ -184,6 +183,13 @@ class PlayerResponse(PlayerBase):
     
     # 统计
     stats: Optional[PlayerStats] = None
+    matches_played: int = 0
+    goals: int = 0
+    assists: int = 0
+    yellow_cards: int = 0
+    red_cards: int = 0
+    average_rating: float = Field(default=6.0, ge=1, le=10)
+    minutes_played: int = 0
     
     created_at: datetime
     updated_at: datetime

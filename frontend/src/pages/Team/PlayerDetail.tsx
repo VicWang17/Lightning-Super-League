@@ -130,7 +130,8 @@ function PlayerDetail() {
       icon: <Target className="w-4 h-4 text-amber-400" />,
       color: 'bg-amber-500',
       attrs: [
-        { label: '定位球', key: 'set' },
+        { label: '任意球', key: 'fk' },
+        { label: '点球', key: 'pk' },
       ],
     },
   ]
@@ -146,7 +147,9 @@ function PlayerDetail() {
         { label: '站位', key: 'pos' },
         { label: '镇定', key: 'com' },
         { label: '球商', key: 'dec' },
-        { label: '定位球', key: 'set' },
+        { label: '出击', key: 'rus' },
+        { label: '任意球', key: 'fk' },
+        { label: '点球', key: 'pk' },
       ],
     },
   ]

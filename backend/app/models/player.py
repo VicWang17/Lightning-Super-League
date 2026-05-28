@@ -4,11 +4,10 @@ Player model - 球员模型 (PRD v5 简化版)
 属性: 23项, 范围 1-20
 年龄: birth_offset 相对偏移量
 """
-from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum as PyEnum
 
-from sqlalchemy import String, Integer, ForeignKey, DateTime, Enum, DECIMAL, JSON, case
+from sqlalchemy import String, Integer, ForeignKey, Enum, DECIMAL, JSON, case
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import func
@@ -95,7 +94,7 @@ class Player(Base):
     
     设计说明:
     - 位置简化为 FW/MF/DF/GK 四种
-    - 属性 19 项, 范围 1-20
+    - 属性 23 项, 范围 1-20
     - 年龄用 birth_offset(负数), 当前年龄 = current_season + |offset|
     - 性格完全隐藏, API 不暴露
     - 招牌技能以 JSON 存储
@@ -148,11 +147,11 @@ class Player(Base):
     pk: Mapped[int] = mapped_column(Integer, default=10, nullable=False)    # 点球
     
     # ===== 综合能力 (计算属性, 不持久化) =====
-    # ovr 由 19 项属性按位置权重实时计算
+    # ovr 由属性按位置权重实时计算
     
     # ===== 潜力系统 =====
     potential_max: Mapped[int] = mapped_column(Integer, default=50, nullable=False)      # 隐藏潜力上限(1-100)
-    potential_letter: Mapped[PotentialLetter] = mapped_column(Enum(PotentialLetter), default=PotentialLetter.C, nullable=False)
+    # potential_letter 由 potential_max 计算，不持久化。
     
     # ===== 招牌技能 (JSON) =====
     skills: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
@@ -172,24 +171,7 @@ class Player(Base):
     release_clause: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
     squad_role: Mapped[SquadRole] = mapped_column(Enum(SquadRole), default=SquadRole.FIRST_TEAM, nullable=False)
     
-    # ===== 市场价值 =====
-    market_value: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), default=Decimal("100000.00"), nullable=False)
-    
-    # ===== Phase 5: 合同与状态预留字段 =====
-    recommended_wage: Mapped[Decimal | None] = mapped_column(DECIMAL(12, 2), nullable=True)
-    wage_ratio: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)
-    wage_satisfaction: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    state_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    state_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    
-    # ===== 统计数据(生涯累计) =====
-    matches_played: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    goals: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    assists: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    yellow_cards: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    red_cards: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    average_rating: Mapped[Decimal] = mapped_column(DECIMAL(3, 1), default=Decimal("6.0"), nullable=False)
-    minutes_played: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # market_value / recommended_wage / 生涯统计由服务实时计算，不持久化在 players。
     
     # ===== 外键 =====
     team_id: Mapped[str | None] = mapped_column(
@@ -206,6 +188,29 @@ class Player(Base):
     def age(self, current_season: int = 0) -> int:
         """计算当前年龄"""
         return current_season + abs(self.birth_offset)
+    
+    @property
+    def potential_letter(self) -> PotentialLetter:
+        """根据隐藏潜力上限计算前端展示档位。"""
+        if self.potential_max >= 80:
+            return PotentialLetter.S
+        if self.potential_max >= 60:
+            return PotentialLetter.A
+        if self.potential_max >= 40:
+            return PotentialLetter.B
+        if self.potential_max >= 20:
+            return PotentialLetter.C
+        return PotentialLetter.D
+    
+    @property
+    def market_value(self) -> Decimal:
+        """实时估算市场价值，不落库。"""
+        return Decimal(self.ovr * 10000 + self.potential_max * 500).quantize(Decimal("0.01"))
+    
+    @property
+    def recommended_wage(self) -> Decimal:
+        """实时估算建议工资，不落库。"""
+        return Decimal(1000 + self.ovr * 800 + (self.potential_max - 50) * 50).quantize(Decimal("0.01"))
     
     @hybrid_property
     def ovr(self) -> int:

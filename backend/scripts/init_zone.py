@@ -18,7 +18,6 @@ import asyncio
 import sys
 import os
 import argparse
-from datetime import date
 from decimal import Decimal
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -33,9 +32,10 @@ from app.models import (
     Base, User, UserStatus,
     Team, TeamStatus, TeamFinance,
     LeagueSystem, League,
-    Player, PlayerPosition, PlayerFoot, PlayerStatus, SquadRole
+    Player,
 )
 from app.core.formats import get_default_format
+from app.services.player_generator import PlayerGenerator
 from data.teams_and_users import LEAGUE_SYSTEMS
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -218,86 +218,16 @@ async def init_zone_players(db: AsyncSession, zone_id: int, teams: list) -> list
     """为指定大区的球队创建球员"""
     print(f"\n⚽ 初始化第{zone_id}区球员...")
     
+    generator = PlayerGenerator()
     players = []
-    position_configs = [
-        (PlayerPosition.GK, 1),
-        (PlayerPosition.CB, 2), (PlayerPosition.LB, 1), (PlayerPosition.RB, 1),
-        (PlayerPosition.CM, 2), (PlayerPosition.CAM, 1), (PlayerPosition.LM, 1),
-        (PlayerPosition.ST, 2), (PlayerPosition.RW, 1),
-        (PlayerPosition.GK, 1), (PlayerPosition.CB, 1), (PlayerPosition.CM, 1),
-        (PlayerPosition.CAM, 1), (PlayerPosition.ST, 1), (PlayerPosition.LW, 1),
-    ]
-    
-    first_names = ["李", "王", "张", "刘", "陈", "杨", "赵", "黄", "周", "吴", "徐", "孙", "马", "朱", "胡", "郭"]
-    last_names = ["伟", "芳", "娜", "敏", "静", "强", "磊", "军", "洋", "勇", "艳", "杰", "涛", "明", "超", "秀英"]
-    
-    player_idx = 0
     
     for team in teams:
-        player_num = 1
-        for pos, count in position_configs:
-            for _ in range(count):
-                player_idx += 1
-                
-                base_rating = team.overall_rating + (player_num <= 11 and 5 or -5)
-                overall = max(40, min(85, base_rating + (player_num % 3 - 1) * 5))
-                potential = min(99, overall + 10)
-                
-                first_name = first_names[player_idx % len(first_names)]
-                last_name = last_names[player_idx % len(last_names)]
-                
-                player = Player(
-                    first_name=first_name,
-                    last_name=last_name,
-                    display_name=f"{first_name}{last_name}",
-                    nationality="中国",
-                    birth_date=date(1995 + (player_idx % 10), 1 + (player_idx % 12), 1 + (player_idx % 28)),
-                    height=170 + (player_idx % 25),
-                    weight=65 + (player_idx % 20),
-                    preferred_foot=PlayerFoot.RIGHT if player_idx % 3 != 0 else PlayerFoot.LEFT,
-                    primary_position=pos,
-                    shooting=overall + (pos in [PlayerPosition.ST, PlayerPosition.LW, PlayerPosition.RW] and 10 or 0),
-                    finishing=overall,
-                    long_shots=overall - 5,
-                    passing=overall + (pos in [PlayerPosition.CM, PlayerPosition.CAM] and 10 or 0),
-                    vision=overall,
-                    crossing=overall,
-                    dribbling=overall + (pos in [PlayerPosition.LW, PlayerPosition.RW] and 10 or 0),
-                    ball_control=overall,
-                    defending=overall + (pos in [PlayerPosition.CB, PlayerPosition.LB, PlayerPosition.RB] and 15 or -10),
-                    tackling=overall,
-                    marking=overall,
-                    pace=overall + (pos in [PlayerPosition.LW, PlayerPosition.RW, PlayerPosition.ST] and 10 or 0),
-                    acceleration=overall,
-                    strength=overall + (pos == PlayerPosition.CB and 10 or 0),
-                    stamina=overall,
-                    diving=overall if pos == PlayerPosition.GK else 30,
-                    handling=overall if pos == PlayerPosition.GK else 30,
-                    kicking=overall if pos == PlayerPosition.GK else 30,
-                    reflexes=overall if pos == PlayerPosition.GK else 30,
-                    positioning=overall if pos == PlayerPosition.GK else 30,
-                    aggression=overall - 10,
-                    composure=overall,
-                    work_rate=overall,
-                    overall_rating=overall,
-                    potential=potential,
-                    status=PlayerStatus.ACTIVE,
-                    fitness=100,
-                    morale=50 + (player_idx % 30),
-                    form=50 + (player_idx % 20),
-                    wage=Decimal("5000.00") + Decimal(overall * 100),
-                    contract_end=date(2025, 6, 30),
-                    release_clause=Decimal("1000000.00") + Decimal(overall * 50000),
-                    squad_role=SquadRole.FIRST_TEAM if player_num <= 11 else SquadRole.ROTATION,
-                    market_value=Decimal("500000.00") + Decimal(overall * 100000),
-                    team_id=team.id
-                )
-                db.add(player)
-                players.append(player)
-                player_num += 1
+        for player in generator.generate_squad(team, size=15):
+            db.add(player)
+            players.append(player)
         
-        if len(players) % (18 * 32) == 0:
-            print(f"   🔄 已创建 {len(players)//18}/256 支球队球员...")
+        if len(players) % (15 * 32) == 0:
+            print(f"   🔄 已创建 {len(players)//15}/256 支球队球员...")
     
     await db.commit()
     print(f"✅ 第{zone_id}区已创建 {len(players)} 名球员")

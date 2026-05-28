@@ -39,10 +39,10 @@ def upgrade() -> None:
     op.create_index(op.f('ix_event_queues_scheduled_at'), 'event_queues', ['scheduled_at'], unique=False)
     op.create_index(op.f('ix_event_queues_status'), 'event_queues', ['status'], unique=False)
     op.create_index('ix_event_queues_status_scheduled', 'event_queues', ['status', 'scheduled_at'], unique=False)
-    op.add_column('players', sa.Column('rus', sa.Integer(), nullable=False))
-    op.add_column('players', sa.Column('dec', sa.Integer(), nullable=False))
-    op.add_column('players', sa.Column('fk', sa.Integer(), nullable=False))
-    op.add_column('players', sa.Column('pk', sa.Integer(), nullable=False))
+    op.add_column('players', sa.Column('rus', sa.Integer(), nullable=False, server_default='10'))
+    op.add_column('players', sa.Column('dec', sa.Integer(), nullable=False, server_default='10'))
+    op.add_column('players', sa.Column('fk', sa.Integer(), nullable=False, server_default='10'))
+    op.add_column('players', sa.Column('pk', sa.Integer(), nullable=False, server_default='10'))
     # ### end Alembic commands ###
 
 

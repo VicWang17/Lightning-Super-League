@@ -449,96 +449,114 @@ class RecordService:
         db: AsyncSession,
     ) -> None:
         """检测球员生涯累计纪录"""
-        # 需要聚合每个球员的累计数据
-        # 由于 player_stats 是单场比赛的，我们需要查询 Player 表获取最新累计值
         player_ids = [ps.get("player_id") for ps in (result.player_stats or []) if ps.get("player_id")]
         if not player_ids:
             return
 
-        player_result = await db.execute(
-            select(Player).where(Player.id.in_(player_ids))
+        career_result = await db.execute(
+            select(
+                Player.id,
+                Player.team_id,
+                func.coalesce(func.sum(PlayerSeasonStats.goals), 0).label("goals"),
+                func.coalesce(func.sum(PlayerSeasonStats.assists), 0).label("assists"),
+                func.coalesce(func.sum(PlayerSeasonStats.matches_played), 0).label("matches_played"),
+                func.coalesce(func.sum(PlayerSeasonStats.yellow_cards), 0).label("yellow_cards"),
+                func.coalesce(func.sum(PlayerSeasonStats.red_cards), 0).label("red_cards"),
+                func.coalesce(
+                    func.sum(PlayerSeasonStats.average_rating * PlayerSeasonStats.matches_played),
+                    0,
+                ).label("rating_sum"),
+            )
+            .join(PlayerSeasonStats, PlayerSeasonStats.player_id == Player.id)
+            .where(Player.id.in_(player_ids))
+            .group_by(Player.id, Player.team_id)
         )
-        players = player_result.scalars().all()
+        rows = career_result.all()
 
-        for player in players:
+        for row in rows:
+            matches_played = int(row.matches_played or 0)
+            goals = int(row.goals or 0)
+            assists = int(row.assists or 0)
+            yellow_cards = int(row.yellow_cards or 0)
+            red_cards = int(row.red_cards or 0)
             # 生涯总进球
-            if player.goals > 0:
+            if goals > 0:
                 await RecordService._update_record(
                     scope=RecordScope.WORLD,
                     scope_target_id=None,
                     record_type=RecordType.CAREER_GOALS,
                     category=RecordCategory.PLAYER,
-                    value_str=f"{player.goals}球",
-                    value_num=float(player.goals),
-                    holder_player_id=player.id,
-                    holder_team_id=player.team_id,
+                    value_str=f"{goals}球",
+                    value_num=float(goals),
+                    holder_player_id=row.id,
+                    holder_team_id=row.team_id,
                     season_id=fixture.season_id,
                     db=db,
                 )
 
             # 生涯总助攻
-            if player.assists > 0:
+            if assists > 0:
                 await RecordService._update_record(
                     scope=RecordScope.WORLD,
                     scope_target_id=None,
                     record_type=RecordType.CAREER_ASSISTS,
                     category=RecordCategory.PLAYER,
-                    value_str=f"{player.assists}次",
-                    value_num=float(player.assists),
-                    holder_player_id=player.id,
-                    holder_team_id=player.team_id,
+                    value_str=f"{assists}次",
+                    value_num=float(assists),
+                    holder_player_id=row.id,
+                    holder_team_id=row.team_id,
                     season_id=fixture.season_id,
                     db=db,
                 )
 
             # 生涯出场
-            if player.matches_played > 0:
+            if matches_played > 0:
                 await RecordService._update_record(
                     scope=RecordScope.WORLD,
                     scope_target_id=None,
                     record_type=RecordType.CAREER_APPEARANCES,
                     category=RecordCategory.PLAYER,
-                    value_str=f"{player.matches_played}场",
-                    value_num=float(player.matches_played),
-                    holder_player_id=player.id,
-                    holder_team_id=player.team_id,
+                    value_str=f"{matches_played}场",
+                    value_num=float(matches_played),
+                    holder_player_id=row.id,
+                    holder_team_id=row.team_id,
                     season_id=fixture.season_id,
                     db=db,
                 )
 
             # 生涯黄牌
-            if player.yellow_cards > 0:
+            if yellow_cards > 0:
                 await RecordService._update_record(
                     scope=RecordScope.WORLD,
                     scope_target_id=None,
                     record_type=RecordType.CAREER_YELLOW_CARDS,
                     category=RecordCategory.PLAYER,
-                    value_str=f"{player.yellow_cards}张",
-                    value_num=float(player.yellow_cards),
-                    holder_player_id=player.id,
-                    holder_team_id=player.team_id,
+                    value_str=f"{yellow_cards}张",
+                    value_num=float(yellow_cards),
+                    holder_player_id=row.id,
+                    holder_team_id=row.team_id,
                     season_id=fixture.season_id,
                     db=db,
                 )
 
             # 生涯红牌
-            if player.red_cards > 0:
+            if red_cards > 0:
                 await RecordService._update_record(
                     scope=RecordScope.WORLD,
                     scope_target_id=None,
                     record_type=RecordType.CAREER_RED_CARDS,
                     category=RecordCategory.PLAYER,
-                    value_str=f"{player.red_cards}张",
-                    value_num=float(player.red_cards),
-                    holder_player_id=player.id,
-                    holder_team_id=player.team_id,
+                    value_str=f"{red_cards}张",
+                    value_num=float(red_cards),
+                    holder_player_id=row.id,
+                    holder_team_id=row.team_id,
                     season_id=fixture.season_id,
                     db=db,
                 )
 
             # 生涯场均评分（至少50场）
-            if player.matches_played >= 50:
-                rating = float(player.average_rating)
+            if matches_played >= 50:
+                rating = float(Decimal(str(row.rating_sum or 0)) / Decimal(matches_played))
                 await RecordService._update_record(
                     scope=RecordScope.WORLD,
                     scope_target_id=None,
@@ -546,11 +564,11 @@ class RecordService:
                     category=RecordCategory.PLAYER,
                     value_str=f"{rating:.1f}分",
                     value_num=rating,
-                    holder_player_id=player.id,
-                    holder_team_id=player.team_id,
+                    holder_player_id=row.id,
+                    holder_team_id=row.team_id,
                     season_id=fixture.season_id,
                     db=db,
-                    context={"matches_played": player.matches_played},
+                    context={"matches_played": matches_played},
                 )
 
     # ------------------------------------------------------------------
