@@ -51,13 +51,13 @@ const features = [
   },
 ]
 
-const heroBgs = ['/bg1.png', '/bg2.png', '/bg3.png']
+const heroBg = '/home/hero-stadium-night-v2.png'
+const ctaBg = '/home/cta-manager-bench-v2.png'
 
 export default function Home() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
   const [isScrolled, setIsScrolled] = useState(false)
-  const [heroBg] = useState(() => heroBgs[Math.floor(Math.random() * heroBgs.length)])
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -101,14 +101,14 @@ export default function Home() {
               <img 
                 src="/logo.png" 
                 alt="闪电超级联赛"
-                className="h-10 w-auto object-contain"
+                className="h-8 sm:h-10 w-auto object-contain"
               />
             </Link>
 
             {/* 右侧 */}
             <button
               onClick={handleStartGame}
-              className="px-5 py-2 bg-[#C6F135] hover:bg-[#a8d92a] text-[#0A0A0F] text-sm font-bold border-2 border-[#14532D] transition-colors shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
+              className="hidden sm:inline-flex px-4 py-2 bg-[#0A0A0F]/45 hover:bg-[#C6F135] text-[#E2E2F0] hover:text-[#0A0A0F] text-sm font-bold border-2 border-[#C6F135]/50 hover:border-[#14532D] transition-all duration-150 shadow-[3px_3px_0_rgba(0,0,0,0.55)] hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
               进入游戏
             </button>
@@ -127,15 +127,17 @@ export default function Home() {
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage: `url('${heroBg}')`,
-              filter: 'brightness(0.75) saturate(0.85)',
+              filter: 'brightness(0.92) saturate(0.98)',
             }}
           />
           {/* 深色遮罩 */}
-          <div className="absolute inset-0 bg-[#0A0A0F]/50" />
+          <div className="absolute inset-0 bg-[#05060A]/25" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(198,241,53,0.10),transparent_34%),radial-gradient(circle_at_bottom,rgba(7,46,48,0.24),transparent_42%)]" />
+          <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(rgba(255,255,255,0.35)_1px,transparent_1px)] bg-[length:100%_4px]" />
           {/* 底部渐变 — 让下方衔接更自然 */}
-          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0A0A0F] to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/50 to-transparent" />
           {/* 顶部微渐变 — 避免和 header 冲突 */}
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#0A0A0F]/60 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-36 bg-gradient-to-b from-[#05060A]/78 to-transparent" />
         </motion.div>
 
         {/* Hero 内容 */}
@@ -144,7 +146,7 @@ export default function Home() {
             variants={staggerContainer}
             initial="initial"
             animate="animate"
-            className="space-y-8"
+            className="space-y-7"
           >
             {/* 主标题 */}
             <motion.div
@@ -154,19 +156,27 @@ export default function Home() {
               <img
                 src="/title.png"
                 alt="闪电超级联赛"
-                className="h-48 sm:h-72 lg:h-96 w-auto object-contain mx-auto"
+                className="h-40 sm:h-60 lg:h-80 xl:h-[21rem] w-auto object-contain mx-auto drop-shadow-[0_16px_0_rgba(0,0,0,0.34)]"
               />
             </motion.div>
+
+            <motion.p
+              variants={fadeInUp}
+              transition={fadeInUpTransition}
+              className="mx-auto max-w-[32rem] text-sm sm:text-base text-[#C8CAD8] tracking-[0.18em] font-semibold"
+            >
+              像素足球经理 · 实时联赛模拟
+            </motion.p>
 
             {/* CTA 按钮 */}
             <motion.div
               variants={fadeInUp}
               transition={fadeInUpTransition}
-              className="pt-4"
+              className="pt-2"
             >
               <button
                 onClick={handleStartGame}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#C6F135] hover:bg-[#a8d92a] text-[#0A0A0F] font-bold border-2 border-[#14532D] transition-all duration-200 shadow-pixel-green hover:shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
+                className="btn-primary inline-flex min-w-[11rem] items-center gap-2 px-8 py-3.5 text-base"
               >
                 立即开始
                 <Zap className="w-4 h-4" />
@@ -179,7 +189,7 @@ export default function Home() {
               transition={fadeInTransition}
               className="pt-16"
             >
-              <div className="animate-bounce text-[#4B4B6A]">
+              <div className="animate-bounce text-[#7E83A1]">
                 <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                 </svg>
@@ -236,41 +246,36 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="relative py-24">
-        <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+      <section id="start" className="relative py-24 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-70"
+          style={{ backgroundImage: `url('${ctaBg}')` }}
+        />
+        <div className="absolute inset-0 bg-[#05060A]/62" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0F] via-[#0A0A0F]/76 to-[#0A0A0F]/24" />
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#0A0A0F] to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0A0A0F] to-transparent" />
+
+        <div className="relative max-w-[1440px] mx-auto px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="relative overflow-hidden "
+            className="relative min-h-[26rem] flex items-center"
           >
-            {/* 背景 */}
-            <div className="absolute inset-0 bg-[#12121A]" />
-            <div 
-              className="absolute inset-0 opacity-40"
-              style={{
-                backgroundImage: `url('https://images.unsplash.com/photo-1551958219-acbc608c6377?w=1200&q=80')`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            />
-            <div className="absolute inset-0" />
-            {/* 青色光晕 */}
-            <div className="absolute right-0 top-0 bottom-0 w-1/2" />
-            
             {/* 内容 */}
-            <div className="relative py-16 px-8 lg:px-16">
+            <div className="relative py-16">
               <div className="max-w-xl">
-                <h2 className="text-3xl sm:text-4xl font-bold font-pixel text-white mb-4">
+                <h2 className="text-3xl sm:text-4xl font-bold font-pixel text-white mb-5 leading-tight">
                   准备好开始了吗？
                 </h2>
-                <p className="text-[#8B8BA7] mb-8">
-                  立即加入，免费开启你的足球经理生涯。无需下载，即开即玩。
+                <p className="text-[#B9BBCD] mb-8 leading-relaxed">
+                  进入教练席，接管阵容、训练、转会与比赛日决策。无需下载，即开即玩。
                 </p>
                 <button
                   onClick={handleStartGame}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#C6F135] hover:bg-[#a8d92a] text-[#0A0A0F] font-bold border-2 border-[#14532D] transition-all duration-200 shadow-pixel-green hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  className="btn-primary inline-flex items-center gap-2 px-6 py-3"
                 >
                   免费开始游戏
                   <Zap className="w-4 h-4" />
