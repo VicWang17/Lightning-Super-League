@@ -23,6 +23,8 @@ from app.routers.internal import router as internal_router
 from app.routers.dev import router as dev_router
 from app.routers.clock import router as clock_router
 from app.routers.records import router as records_router
+from app.routers.mail import router as mail_router
+from app.routers.finance import router as finance_router
 
 settings = get_settings()
 
@@ -62,6 +64,8 @@ app = FastAPI(
         {"name": "比赛", "description": "比赛数据、直播、统计"},
         {"name": "赛季", "description": "赛季管理、赛程生成、比赛调度"},
         {"name": "杯赛", "description": "杯赛信息、小组赛、淘汰赛"},
+        {"name": "邮件", "description": "游戏内邮件与通知中心"},
+        {"name": "财务", "description": "球队财务管理、交易流水、预算规划"},
     ],
 )
 
@@ -94,6 +98,8 @@ app.include_router(internal_router, prefix="/api/v1")
 app.include_router(dev_router, prefix="/api/v1")
 app.include_router(clock_router, prefix="/api/v1")
 app.include_router(records_router, prefix="/api/v1")
+app.include_router(mail_router, prefix="/api/v1")
+app.include_router(finance_router, prefix="/api/v1")
 
 
 @app.get("/")

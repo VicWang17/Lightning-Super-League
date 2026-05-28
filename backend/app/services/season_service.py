@@ -128,6 +128,7 @@ class SeasonService:
             promotion_day=22,  # 升降级处理日
             total_days=season.total_days,
             start_date=start_date,
+            wage_days=list(template.wage_days),
         )
         await EventQueue.push_many(self.db, events)
     
@@ -165,12 +166,111 @@ class SeasonService:
             return await self._handle_promotion_relegation(event)
         elif event.event_type == EventType.SEASON_END:
             return await self._handle_season_end(event)
+        elif event.event_type == EventType.SEASON_FINANCE_INITIALIZED:
+            return await self._handle_season_finance_initialized(event)
+        elif event.event_type == EventType.MATCH_FINANCE_SETTLED:
+            return await self._handle_match_finance_settled(event)
+        elif event.event_type == EventType.WAGES_PAID:
+            return await self._handle_wages_paid(event)
+        elif event.event_type == EventType.SEASON_FINANCE_CLOSED:
+            return await self._handle_season_finance_closed(event)
+        elif event.event_type == EventType.BUDGET_WINDOW_OPENED:
+            return await self._handle_budget_window_opened(event)
+        elif event.event_type == EventType.BUDGET_WINDOW_CLOSED:
+            return await self._handle_budget_window_closed(event)
         else:
             raise ValueError(f"Unknown event type: {event.event_type}")
     
+    async def _handle_budget_window_opened(self, event: GameEvent) -> Dict:
+        """BUDGET_WINDOW_OPENED: 打开预算窗口"""
+        season_id = event.payload.get("season_id")
+        from app.services.finance_service import FinanceService
+        finance_service = FinanceService(self.db)
+        result = await finance_service.open_budget_window(season_id)
+        await self.db.commit()
+        return {"event": "budget_window_opened", **result}
+
+    async def _handle_budget_window_closed(self, event: GameEvent) -> Dict:
+        """BUDGET_WINDOW_CLOSED: 关闭预算窗口"""
+        season_id = event.payload.get("season_id")
+        from app.services.finance_service import FinanceService
+        finance_service = FinanceService(self.db)
+        result = await finance_service.close_budget_window(season_id)
+        await self.db.commit()
+        return {"event": "budget_window_closed", **result}
+
     async def _handle_season_start(self, event: GameEvent) -> Dict:
         """SEASON_START: 无额外操作（赛季已在 create_new_season 中创建）"""
         return {"event": "season_start", "season_id": event.payload.get("season_id")}
+
+    async def _handle_season_finance_initialized(self, event: GameEvent) -> Dict:
+        """SEASON_FINANCE_INITIALIZED: 为所有球队初始化赛季财务"""
+        season_id = event.payload.get("season_id")
+        
+        result = await self.db.execute(select(Season).where(Season.id == season_id))
+        season = result.scalar_one_or_none()
+        if not season:
+            raise ValueError(f"Season not found: {season_id}")
+        
+        from app.services.finance_service import FinanceService
+        finance_service = FinanceService(self.db)
+        
+        # 获取本赛季所有参赛球队
+        result = await self.db.execute(
+            select(Fixture.home_team_id, Fixture.away_team_id)
+            .where(Fixture.season_id == season_id)
+            .distinct()
+        )
+        team_ids = set()
+        for row in result.all():
+            team_ids.add(row[0])
+            team_ids.add(row[1])
+        
+        initialized = 0
+        for team_id in team_ids:
+            try:
+                await finance_service.initialize_season_finance(team_id, season_id)
+                initialized += 1
+            except Exception as e:
+                logger.warning(f"赛季财务初始化失败: team={team_id}, error={e}")
+        
+        await self.db.commit()
+        return {"event": "season_finance_initialized", "season_id": season_id, "teams_initialized": initialized}
+
+    async def _handle_match_finance_settled(self, event: GameEvent) -> Dict:
+        """MATCH_FINANCE_SETTLED: 单场财务结算（通常由 MATCH_DAY 自动触发）"""
+        fixture_id = event.payload.get("fixture_id")
+        from app.services.finance_service import FinanceService
+        finance_service = FinanceService(self.db)
+        await finance_service.settle_match_finance(fixture_id)
+        await self.db.commit()
+        return {"event": "match_finance_settled", "fixture_id": fixture_id}
+
+    async def _handle_wages_paid(self, event: GameEvent) -> Dict:
+        """WAGES_PAID: 定期工资发放"""
+        season_id = event.payload.get("season_id")
+        period_key = event.payload.get("period_key", "default")
+        
+        from app.services.finance_service import FinanceService
+        finance_service = FinanceService(self.db)
+        await finance_service.pay_wages(season_id, period_key)
+        await self.db.commit()
+        return {"event": "wages_paid", "season_id": season_id, "period_key": period_key}
+
+    async def _handle_season_finance_closed(self, event: GameEvent) -> Dict:
+        """SEASON_FINANCE_CLOSED: 赛季末财务结算"""
+        season_id = event.payload.get("season_id")
+        
+        result = await self.db.execute(select(Season).where(Season.id == season_id))
+        season = result.scalar_one_or_none()
+        if not season:
+            raise ValueError(f"Season not found: {season_id}")
+        
+        from app.services.finance_service import FinanceService
+        finance_service = FinanceService(self.db)
+        await finance_service.close_season_finance(season_id)
+        await self.db.commit()
+        return {"event": "season_finance_closed", "season_id": season_id}
     
     async def _handle_match_day(self, event: GameEvent) -> Dict:
         """MATCH_DAY: 批量并发模拟当天所有比赛"""
@@ -237,6 +337,16 @@ class SeasonService:
         cup_days = list(template.lightning_cup_days)
         if day in cup_days:
             season.current_cup_round = cup_days.index(day) + 1
+        
+        # Phase 2: 比赛财务结算
+        from app.services.finance_service import FinanceService
+        finance_service = FinanceService(self.db)
+        for fixture in fixtures:
+            if fixture.status == FixtureStatus.FINISHED:
+                try:
+                    await finance_service.settle_match_finance(fixture.id)
+                except Exception as e:
+                    logger.warning(f"比赛财务结算失败: fixture={fixture.id}, error={e}")
         
         await self.db.commit()
         

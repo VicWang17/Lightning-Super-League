@@ -32,6 +32,14 @@ class EventType(str, Enum):
     MATCH_ENGINE_COMPLETE = "match_engine_complete"
     CUP_PROGRESSION = "cup_progression"
     PROMOTION_RELEGATION = "promotion_relegation"
+    # Economy events (Phase 2)
+    SEASON_FINANCE_INITIALIZED = "season_finance_initialized"
+    MATCH_FINANCE_SETTLED = "match_finance_settled"
+    WAGES_PAID = "wages_paid"
+    SEASON_FINANCE_CLOSED = "season_finance_closed"
+    # Budget / Sponsor events (Phase 3)
+    BUDGET_WINDOW_OPENED = "budget_window_opened"
+    BUDGET_WINDOW_CLOSED = "budget_window_closed"
 
 
 class EventStatus(str, Enum):
@@ -297,8 +305,9 @@ class EventQueue:
         promotion_day: int,
         total_days: int,
         start_date: datetime,
+        wage_days: Optional[List[int]] = None,
     ) -> List[GameEvent]:
-        """根据赛季模板一次性生成全部赛季事件（SEASON_START + 每天 MATCH_DAY + CUP_PROGRESSION + PROMOTION_RELEGATION + SEASON_END）"""
+        """根据赛季模板一次性生成全部赛季事件（SEASON_START + 每天 MATCH_DAY + CUP_PROGRESSION + PROMOTION_RELEGATION + SEASON_END + 经济事件）"""
         events: List[GameEvent] = []
 
         # 赛季开始
@@ -307,6 +316,15 @@ class EventQueue:
                 event_type=EventType.SEASON_START,
                 payload={"season_id": season_id, "start_date": start_date.isoformat()},
                 scheduled_at=start_date,
+            )
+        )
+
+        # 赛季财务初始化（Day 1）
+        events.append(
+            GameEvent(
+                event_type=EventType.SEASON_FINANCE_INITIALIZED,
+                payload={"season_id": season_id, "day": 1},
+                scheduled_at=start_date + timedelta(days=1),
             )
         )
 
@@ -348,13 +366,52 @@ class EventQueue:
                 )
             )
 
-        # 赛季结束
+        # 工资发放事件（Phase 2 经济系统）
+        for wage_day in (wage_days or []):
+            if wage_day <= total_days:
+                scheduled = start_date + timedelta(days=wage_day)
+                events.append(
+                    GameEvent(
+                        event_type=EventType.WAGES_PAID,
+                        payload={"season_id": season_id, "day": wage_day, "period_key": f"wage_{wage_day}"},
+                        scheduled_at=scheduled,
+                    )
+                )
+
+        # Phase 3: 预算窗口事件（赛季中后期）
+        budget_open_day = max(1, total_days - 10)
+        budget_close_day = max(1, total_days - 5)
+        events.append(
+            GameEvent(
+                event_type=EventType.BUDGET_WINDOW_OPENED,
+                payload={"season_id": season_id, "day": budget_open_day},
+                scheduled_at=start_date + timedelta(days=budget_open_day),
+            )
+        )
+        events.append(
+            GameEvent(
+                event_type=EventType.BUDGET_WINDOW_CLOSED,
+                payload={"season_id": season_id, "day": budget_close_day},
+                scheduled_at=start_date + timedelta(days=budget_close_day),
+            )
+        )
+
+        # 赛季结束 + 财务结算
         end_date = start_date + timedelta(days=total_days)
+        events.append(
+            GameEvent(
+                event_type=EventType.SEASON_FINANCE_CLOSED,
+                payload={"season_id": season_id, "end_date": end_date.isoformat()},
+                scheduled_at=end_date,
+            )
+        )
+
+        # 赛季结束（原有系统事件，放在财务结算之后）
         events.append(
             GameEvent(
                 event_type=EventType.SEASON_END,
                 payload={"season_id": season_id, "end_date": end_date.isoformat()},
-                scheduled_at=end_date,
+                scheduled_at=end_date + timedelta(seconds=1),
             )
         )
 

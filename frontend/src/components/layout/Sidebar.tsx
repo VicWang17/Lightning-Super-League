@@ -12,11 +12,13 @@ import {
   Wallet,
   Zap,
   Crown,
+  Mailbox,
 } from '../ui/pixel-icons'
 import { useAuthStore } from '../../stores/auth'
 
 const menuItems = [
   { path: '/dashboard', label: '总览', icon: LayoutDashboard },
+  { path: '/mail', label: '邮件', icon: Mailbox },
   { path: '/team', label: '球队', icon: Users },
   { path: '/match/schedule', label: '赛程', icon: CalendarDays },
   { path: '/training', label: '训练', icon: Zap },

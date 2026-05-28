@@ -52,6 +52,9 @@ import IncomeDetails from './pages/Finance/Income'
 import ExpenseDetails from './pages/Finance/Expense'
 import RecordsPage from './pages/Records/Index'
 
+// 邮件中心
+import MailPage from './pages/Mail/Index'
+
 // 404 Page
 const NotFound = () => (
   <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -317,6 +320,12 @@ export const router = createBrowserRouter([
           {
             path: 'records',
             element: <RecordsPage />,
+          },
+          
+          // 邮件中心
+          {
+            path: 'mail',
+            element: <MailPage />,
           },
           
           // 财务中心

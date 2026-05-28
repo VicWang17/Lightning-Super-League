@@ -38,6 +38,32 @@ from app.schemas.records import (
     TeamSeasonHistoryItem,
     TeamHistoryResponse,
 )
+from app.schemas.mail import (
+    MailItem,
+    MailDetail,
+    MailListResponse,
+    MailCategory,
+    MailPriority,
+    UnreadCountResponse,
+)
+from app.schemas.finance import (
+    TransactionSourceType,
+    TransactionDirection,
+    FinancialHealth,
+    OverspendLevel,
+    BudgetPolicy,
+    SponsorPolicy,
+    FinanceTransactionItem,
+    FinanceTransactionListParams,
+    IncomeBreakdown,
+    ExpenseBreakdown,
+    BudgetPlan,
+    WageCapInfo,
+    FinanceOverview,
+    BudgetPlanSchema,
+    SponsorContractSchema,
+    SponsorOption,
+)
 
 __all__ = [
     # Base
@@ -103,4 +129,28 @@ __all__ = [
     "PlayerHistoryResponse",
     "TeamSeasonHistoryItem",
     "TeamHistoryResponse",
+    # Mail
+    "MailItem",
+    "MailDetail",
+    "MailListResponse",
+    "MailCategory",
+    "MailPriority",
+    "UnreadCountResponse",
+    # Finance
+    "TransactionSourceType",
+    "TransactionDirection",
+    "FinancialHealth",
+    "OverspendLevel",
+    "BudgetPolicy",
+    "SponsorPolicy",
+    "FinanceTransactionItem",
+    "FinanceTransactionListParams",
+    "IncomeBreakdown",
+    "ExpenseBreakdown",
+    "BudgetPlan",
+    "WageCapInfo",
+    "FinanceOverview",
+    "BudgetPlanSchema",
+    "SponsorContractSchema",
+    "SponsorOption",
 ]

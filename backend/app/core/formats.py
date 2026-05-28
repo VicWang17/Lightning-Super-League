@@ -59,6 +59,8 @@ class SeasonTimelineConfig:
     promotion_day: int = 24
     offseason_days: Tuple[int, ...] = (25,)
     kickoff_hour: int = 20
+    # 工资发放日（Phase 2 经济系统），默认基于 25 天赛季
+    wage_days: Tuple[int, ...] = (7, 14, 21, 25)
     
     @property
     def cup_progression_days(self) -> Tuple[int, ...]:

@@ -1,32 +1,89 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   Tv,
   Store,
   Users,
   Trophy,
-  Sparkles
+  Sparkles,
+  Loader
 } from '../../components/ui/pixel-icons'
+import { api } from '../../api/client'
 
-const mockIncomeItems = [
-  { id: '1', type: 'broadcast', label: '转播收入', amount: 35, date: '赛季初', icon: Tv },
-  { id: '2', type: 'sponsor', label: '商业赞助', amount: 25, date: '赛季初', icon: Store },
-  { id: '3', type: 'matchday', label: '比赛日收入', amount: 3, date: 'Day 5', icon: Users },
-  { id: '4', type: 'matchday', label: '比赛日收入', amount: 3, date: 'Day 10', icon: Users },
-  { id: '5', type: 'matchday', label: '比赛日收入', amount: 3, date: 'Day 15', icon: Users },
-  { id: '6', type: 'cup', label: '杯赛奖金', amount: 6, date: 'Day 8', icon: Trophy },
-  { id: '7', type: 'bonus', label: '联赛分红', amount: 10, date: '赛季中', icon: Sparkles },
-]
+interface TransactionItem {
+  id: string
+  source_type: string
+  amount: number
+  description: string
+  created_at: string
+}
 
-const typeColors: Record<string, string> = {
-  broadcast: 'text-blue-400',
-  sponsor: 'text-purple-400',
-  matchday: 'text-emerald-400',
-  cup: 'text-yellow-400',
-  bonus: 'text-[#0D7377]',
+const sourceConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  broadcast: { label: '转播收入', icon: Tv, color: 'text-blue-400' },
+  sponsor: { label: '商业赞助', icon: Store, color: 'text-purple-400' },
+  match_bonus: { label: '比赛奖金', icon: Users, color: 'text-emerald-400' },
+  cup_prize: { label: '杯赛奖金', icon: Trophy, color: 'text-yellow-400' },
+  league_prize: { label: '联赛分红', icon: Sparkles, color: 'text-[#0D7377]' },
+  transfer: { label: '转会收入', icon: Store, color: 'text-emerald-400' },
+  manual_adjustment: { label: '系统调整', icon: Sparkles, color: 'text-gray-400' },
+}
+
+function formatWan(value: number): string {
+  return (value / 10000).toFixed(1)
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
 export default function IncomeDetails() {
-  const total = mockIncomeItems.reduce((s, i) => s + i.amount, 0)
+  const [items, setItems] = useState<TransactionItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        setLoading(true)
+        const teamRes = await api.get<{ id: string }>('/teams/my-team')
+        if (!teamRes.success || !teamRes.data?.id) {
+          setError('未找到球队信息')
+          return
+        }
+        const teamId = teamRes.data.id
+        const res = await api.getFinanceTransactions(teamId, { direction: 'income', page_size: 100 })
+        if (!cancelled && res.success && res.data) {
+          setItems(res.data.items)
+          setTotal(res.data.items.reduce((s, i) => s + i.amount, 0))
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || '加载失败')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader className="w-8 h-8 text-[#0D7377] animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-red-400">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -63,22 +120,29 @@ export default function IncomeDetails() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">收入记录</h3>
-          <span className="text-sm font-bold text-emerald-400">合计: {total}万</span>
+          <span className="text-sm font-bold text-emerald-400">合计: {formatWan(total)}万</span>
         </div>
         
         <div className="space-y-2">
-          {mockIncomeItems.map((item) => (
-            <div key={item.id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
-              <div className="w-10 h-10 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center">
-                <item.icon className={clsx('w-5 h-5', typeColors[item.type])} />
+          {items.length === 0 && (
+            <p className="text-sm text-[#4B4B6A]">暂无收入记录</p>
+          )}
+          {items.map((item) => {
+            const config = sourceConfig[item.source_type] || { label: item.source_type, icon: Sparkles, color: 'text-gray-400' }
+            const Icon = config.icon
+            return (
+              <div key={item.id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
+                <div className="w-10 h-10 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center">
+                  <Icon className={clsx('w-5 h-5', config.color)} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-white">{item.description || config.label}</p>
+                  <p className="text-xs text-[#4B4B6A]">{formatDate(item.created_at)}</p>
+                </div>
+                <span className="text-sm font-bold text-emerald-400">+{formatWan(item.amount)}万</span>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-white">{item.label}</p>
-                <p className="text-xs text-[#4B4B6A]">{item.date}</p>
-              </div>
-              <span className="text-sm font-bold text-emerald-400">+{item.amount}万</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>

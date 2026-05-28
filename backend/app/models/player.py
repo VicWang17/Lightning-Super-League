@@ -175,6 +175,13 @@ class Player(Base):
     # ===== 市场价值 =====
     market_value: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), default=Decimal("100000.00"), nullable=False)
     
+    # ===== Phase 5: 合同与状态预留字段 =====
+    recommended_wage: Mapped[Decimal | None] = mapped_column(DECIMAL(12, 2), nullable=True)
+    wage_ratio: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)
+    wage_satisfaction: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
     # ===== 统计数据(生涯累计) =====
     matches_played: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     goals: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

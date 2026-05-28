@@ -303,6 +303,215 @@ class ApiClient {
     )
   }
 
+  // ==================== 邮件 API ====================
+  async getMails(params?: { category?: string; is_read?: boolean; limit?: number; offset?: number }) {
+    const query = new URLSearchParams()
+    if (params?.category) query.append('category', params.category)
+    if (params?.is_read !== undefined) query.append('is_read', String(params.is_read))
+    if (params?.limit) query.append('limit', String(params.limit))
+    if (params?.offset !== undefined) query.append('offset', String(params.offset))
+    return this.requestWithAuth<{
+      items: import('../types/mail').MailItem[]
+      total: number
+      unread_count: number
+      category_counts: Record<string, number>
+    }>(`/mail?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getMailDetail(mailId: string) {
+    return this.requestWithAuth<import('../types/mail').MailDetail>(`/mail/${mailId}`, { method: 'GET' })
+  }
+
+  async getUnreadCount() {
+    return this.requestWithAuth<{ total: number; by_category: Record<string, number> }>('/mail/unread-count', { method: 'GET' })
+  }
+
+  async markMailsRead(mailIds: string[]) {
+    return this.post<void>('/mail/read', { mail_ids: mailIds })
+  }
+
+  async markAllMailsRead(category?: string) {
+    const query = category ? `?category=${category}` : ''
+    return this.requestWithAuth<void>(`/mail/read-all${query}`, { method: 'POST' })
+  }
+
+  // ==================== 财务 API ====================
+  async getFinanceOverview(teamId: string, seasonId?: string) {
+    const query = seasonId ? `?season_id=${seasonId}` : ''
+    return this.requestWithAuth<{
+      team_id: string
+      season_id: string
+      current_balance: number
+      opening_balance: number
+      projected_income: number
+      projected_expense: number
+      locked_budget_total: number
+      transfer_budget: number
+      youth_budget: number
+      wage_budget: number
+      reserve_budget: number
+      total_income: number
+      total_expense: number
+      income_breakdown: {
+        broadcast: number
+        sponsor: number
+        match_bonus: number
+        cup_prize: number
+        league_prize: number
+        other: number
+      }
+      expense_breakdown: {
+        wage: number
+        youth: number
+        transfer: number
+        penalty: number
+        other: number
+      }
+      wage_cap_info: {
+        wage_cap: number
+        wage_bill: number
+        wage_pressure_pct: number
+        status: string
+      }
+      financial_health: string
+      overspend_level: string
+      budget_locked: boolean
+      budget_locked_at: string | null
+      budget_plan: {
+        team_id: string
+        target_season_id: string
+        policy: string
+        transfer_pct: number
+        youth_pct: number
+        wage_pct: number
+        reserve_pct: number
+        is_player_confirmed: boolean
+        locked_at: string | null
+      } | null
+      sponsor_contract: {
+        team_id: string
+        season_id: string
+        policy: string
+        base_amount: number
+        win_bonus: number
+        draw_bonus: number
+        max_bonus: number
+        health_modifier_pct: number
+        status: string
+      } | null
+    }>(`/teams/${teamId}/finance/overview${query}`, { method: 'GET' })
+  }
+
+  async getFinanceTransactions(teamId: string, params?: {
+    season_id?: string
+    source_type?: string
+    direction?: string
+    page?: number
+    page_size?: number
+  }) {
+    const query = new URLSearchParams()
+    if (params?.season_id) query.append('season_id', params.season_id)
+    if (params?.source_type) query.append('source_type', params.source_type)
+    if (params?.direction) query.append('direction', params.direction)
+    if (params?.page) query.append('page', String(params.page))
+    if (params?.page_size) query.append('page_size', String(params.page_size))
+    return this.requestWithAuth<{
+      items: Array<{
+        id: string
+        team_id: string
+        season_id: string
+        source_type: string
+        direction: string
+        amount: number
+        balance_after: number
+        description: string
+        extra_data: Record<string, unknown> | null
+        created_at: string
+      }>
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }>(`/teams/${teamId}/finance/transactions?${query.toString()}`, { method: 'GET' })
+  }
+
+  // ==================== 预算与赞助商 API ====================
+  async getBudgetPlan(teamId: string, targetSeasonId: string) {
+    return this.requestWithAuth<{
+      team_id: string
+      target_season_id: string
+      policy: string
+      transfer_pct: number
+      youth_pct: number
+      wage_pct: number
+      reserve_pct: number
+      is_player_confirmed: boolean
+      locked_at: string | null
+    }>(`/teams/${teamId}/finance/budget-plan?target_season_id=${targetSeasonId}`, { method: 'GET' })
+  }
+
+  async confirmBudgetPlan(
+    teamId: string,
+    targetSeasonId: string,
+    policy: string,
+    transferPct: number,
+    youthPct: number,
+    wagePct: number,
+    reservePct: number
+  ) {
+    return this.requestWithAuth<{
+      team_id: string
+      target_season_id: string
+      policy: string
+      transfer_pct: number
+      youth_pct: number
+      wage_pct: number
+      reserve_pct: number
+      is_player_confirmed: boolean
+      locked_at: string | null
+    }>(`/teams/${teamId}/finance/budget-plan?target_season_id=${targetSeasonId}&policy=${policy}&transfer_pct=${transferPct}&youth_pct=${youthPct}&wage_pct=${wagePct}&reserve_pct=${reservePct}`, { method: 'POST' })
+  }
+
+  async getSponsorOptions(teamId: string, seasonId: string) {
+    return this.requestWithAuth<Array<{
+      policy: string
+      label: string
+      base_amount: number
+      win_bonus: number
+      draw_bonus: number
+      max_bonus: number
+      description: string
+    }>>(`/teams/${teamId}/finance/sponsor-options?season_id=${seasonId}`, { method: 'GET' })
+  }
+
+  async signSponsorContract(teamId: string, seasonId: string, policy: string) {
+    return this.requestWithAuth<{
+      team_id: string
+      season_id: string
+      policy: string
+      base_amount: number
+      win_bonus: number
+      draw_bonus: number
+      max_bonus: number
+      health_modifier_pct: number
+      status: string
+    }>(`/teams/${teamId}/finance/sponsor-contract?season_id=${seasonId}&policy=${policy}`, { method: 'POST' })
+  }
+
+  async getSponsorContract(teamId: string, seasonId: string) {
+    return this.requestWithAuth<{
+      team_id: string
+      season_id: string
+      policy: string
+      base_amount: number
+      win_bonus: number
+      draw_bonus: number
+      max_bonus: number
+      health_modifier_pct: number
+      status: string
+    }>(`/teams/${teamId}/finance/sponsor-contract?season_id=${seasonId}`, { method: 'GET' })
+  }
+
   // ==================== 时钟 API ====================
   async getClock() {
     // 时钟接口不需要认证

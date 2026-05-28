@@ -41,7 +41,25 @@ from app.models.record import (
     RecordCategory,
     RecordType,
 )
+from app.models.mail import (
+    Mail,
+    MailCategory,
+    MailPriority,
+)
 from app.models.clock import GameClockState
+from app.models.finance import (
+    FinanceTransaction,
+    TransactionSourceType,
+    TransactionDirection,
+    TeamSeasonFinance,
+    FinancialHealth,
+    OverspendLevel,
+    BudgetPolicy,
+    SponsorPolicy,
+    SponsorContractStatus,
+    TeamBudgetPlan,
+    SponsorContract,
+)
 
 __all__ = [
     # Base
@@ -87,6 +105,22 @@ __all__ = [
     "RecordScope",
     "RecordCategory",
     "RecordType",
+    # Mail
+    "Mail",
+    "MailCategory",
+    "MailPriority",
     # Clock
     "GameClockState",
+    # Finance
+    "FinanceTransaction",
+    "TransactionSourceType",
+    "TransactionDirection",
+    "TeamSeasonFinance",
+    "FinancialHealth",
+    "OverspendLevel",
+    "BudgetPolicy",
+    "SponsorPolicy",
+    "SponsorContractStatus",
+    "TeamBudgetPlan",
+    "SponsorContract",
 ]

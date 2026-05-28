@@ -372,25 +372,48 @@ async def get_team_stats(team_id: int):
 @router.get(
     "/{team_id}/finances",
     response_model=ResponseSchema[dict],
-    summary="获取球队财务",
-    description="获取指定球队的财务信息",
+    summary="获取球队财务（兼容旧接口）",
+    description="获取指定球队的财务基本信息",
 )
-async def get_team_finances(team_id: int):
+async def get_team_finances(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+):
     """
-    获取球队财务信息
+    获取球队财务信息（兼容旧接口，返回基本信息）
     
     - **team_id**: 球队ID
     """
-    # TODO: 实现球队财务查询
-    return ResponseSchema(
-        success=True,
-        data={
-            "balance": 10000000.00,
-            "weekly_wages": 50000.00,
-            "stadium_capacity": 30000,
-            "ticket_price": 25.00,
-        },
-    )
+    from app.services.finance_service import FinanceService
+    service = FinanceService(db)
+    try:
+        overview = await service.get_overview(team_id)
+        return ResponseSchema(
+            success=True,
+            data={
+                "balance": overview["current_balance"],
+                "weekly_wages": overview["wage_cap_info"]["wage_bill"],
+                "stadium_capacity": 30000,  # v1 暂不启用
+                "ticket_price": 25.00,      # v1 暂不启用
+            },
+        )
+    except ValueError:
+        # 赛季未初始化，返回基础财务数据
+        from app.models.team import TeamFinance
+        from sqlalchemy import select
+        result = await db.execute(select(TeamFinance).where(TeamFinance.team_id == team_id))
+        tf = result.scalar_one_or_none()
+        if tf:
+            return ResponseSchema(
+                success=True,
+                data={
+                    "balance": tf.balance,
+                    "weekly_wages": tf.weekly_wage_bill,
+                    "stadium_capacity": tf.stadium_capacity,
+                    "ticket_price": tf.ticket_price,
+                },
+            )
+        raise HTTPException(status_code=404, detail="球队财务未找到")
 
 
 
