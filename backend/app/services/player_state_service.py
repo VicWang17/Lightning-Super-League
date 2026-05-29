@@ -226,10 +226,7 @@ class PlayerStateService:
     
     async def build_match_player_setup(self, player: Player) -> dict:
         """为比赛引擎构建带状态修正的球员数据"""
-        snapshot = await self.recalculate_player_state(
-            player.id,
-            source_event="pre_match_snapshot",
-        )
+        components = await self.calculate_state_components(player)
         
         base_attributes = {
             "SHO": player.sho,
@@ -256,9 +253,12 @@ class PlayerStateService:
         }
         
         effective_attributes = self.apply_state_to_attributes(
-            base_attributes, snapshot.attribute_modifier_pct
+            base_attributes, components.attribute_modifier_pct
         )
-        initial_stamina = self.calculate_initial_stamina(player, snapshot)
+        initial_stamina = max(
+            30.0,
+            min(100.0, player.fitness + float(components.stamina_modifier)),
+        )
         
         return {
             "player_id": player.id,

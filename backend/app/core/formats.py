@@ -70,6 +70,17 @@ class SeasonTimelineConfig:
     budget_close_hour: int = 18
     season_finance_close_hour: int = 22
     season_end_hour: int = 23
+    # 青训配置
+    youth_refresh_days: Tuple[int, ...] = (4, 8)
+    youth_training_interval_days: int = 2
+    youth_capacity: int = 8
+    youth_refresh_hour: int = 11
+    youth_training_hour: int = 12
+    # 选秀配置
+    draft_preferences_open_day: int = 22
+    draft_day: int = 24
+    draft_preferences_open_hour: int = 10
+    draft_run_hour: int = 20
     
     @property
     def cup_progression_days(self) -> Tuple[int, ...]:

@@ -41,6 +41,13 @@ class EventType(str, Enum):
     # Budget / Sponsor events (Phase 3)
     BUDGET_WINDOW_OPENED = "budget_window_opened"
     BUDGET_WINDOW_CLOSED = "budget_window_closed"
+    # Youth Academy events (Phase 3)
+    YOUTH_REFRESH = "youth_refresh"
+    YOUTH_TRAINING = "youth_training"
+    # Draft events (Phase 4)
+    DRAFT_PREFERENCES_OPEN = "draft_preferences_open"
+    DRAFT_RUN = "draft_run"
+    DRAFT_SIGNING_EXPIRE = "draft_signing_expire"
 
 
 class EventStatus(str, Enum):
@@ -389,6 +396,28 @@ class EventQueue:
                     )
                 )
 
+        # Phase 3: 青训刷新事件
+        for refresh_day in template.youth_refresh_days:
+            if refresh_day <= total_days:
+                events.append(
+                    GameEvent(
+                        event_type=EventType.YOUTH_REFRESH,
+                        payload={"season_id": season_id, "day": refresh_day},
+                        scheduled_at=at_day_hour(refresh_day, template.youth_refresh_hour),
+                    )
+                )
+
+        # Phase 3: 青训训练事件（每 training_interval_days 天一次）
+        for train_day in range(1, total_days + 1):
+            if train_day % template.youth_training_interval_days == 0:
+                events.append(
+                    GameEvent(
+                        event_type=EventType.YOUTH_TRAINING,
+                        payload={"season_id": season_id, "day": train_day},
+                        scheduled_at=at_day_hour(train_day, template.youth_training_hour),
+                    )
+                )
+
         # Phase 3: 预算窗口事件（赛季中后期）
         budget_open_day = max(1, total_days - 10)
         budget_close_day = max(1, total_days - 5)
@@ -406,6 +435,24 @@ class EventQueue:
                 scheduled_at=at_day_hour(budget_close_day, template.budget_close_hour),
             )
         )
+
+        # Phase 4: 选秀事件
+        if template.draft_preferences_open_day <= total_days:
+            events.append(
+                GameEvent(
+                    event_type=EventType.DRAFT_PREFERENCES_OPEN,
+                    payload={"season_id": season_id, "day": template.draft_preferences_open_day},
+                    scheduled_at=at_day_hour(template.draft_preferences_open_day, template.draft_preferences_open_hour),
+                )
+            )
+        if template.draft_day <= total_days:
+            events.append(
+                GameEvent(
+                    event_type=EventType.DRAFT_RUN,
+                    payload={"season_id": season_id, "day": template.draft_day},
+                    scheduled_at=at_day_hour(template.draft_day, template.draft_run_hour),
+                )
+            )
 
         # 赛季结束 + 财务结算
         end_date = at_day_hour(total_days, template.season_end_hour)

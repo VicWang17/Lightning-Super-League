@@ -244,7 +244,7 @@ class ContractPreviewRequest(BaseSchema):
     """合同预览请求"""
     team_id: str
     contract_type: ContractType
-    years: int = Field(..., ge=1, le=3)
+    years: int = Field(..., ge=1, le=4)
     wage: Decimal
     squad_role: SquadRole
 
@@ -265,7 +265,7 @@ class ContractSignRequest(BaseSchema):
     """签约请求"""
     team_id: str
     contract_type: ContractType
-    years: int = Field(..., ge=1, le=3)
+    years: int = Field(..., ge=1, le=4)
     wage: Decimal
     squad_role: SquadRole
     release_clause: Optional[Decimal] = None

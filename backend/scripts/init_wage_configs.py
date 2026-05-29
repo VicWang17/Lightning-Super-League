@@ -85,10 +85,11 @@ async def init_wage_configs():
             description=f"年龄范围 {age_range} 系数",
         ))
     
-    # === 合同类型系数 (设计文档 5.3) ===
+    # === 合同类型系数 (设计文档 5.3 / 闭环文档 5.2) ===
+    # ROOKIE 系数按闭环文档调整为 0.70（青训/选秀签约折扣）
     contract_factors = [
         ("NORMAL", Decimal("1.00")),
-        ("ROOKIE", Decimal("0.40")),
+        ("ROOKIE", Decimal("0.70")),
         ("FREE", Decimal("0.85")),
     ]
     for ctype, factor in contract_factors:

@@ -2,7 +2,7 @@
 Finance service - 经济系统业务逻辑服务
 """
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, List, Dict
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +32,13 @@ from app.core.economy_config import get_economy_config
 import random
 
 logger = get_logger("app.finance")
+
+MONEY_QUANT = Decimal("0.01")
+
+
+def quantize_money(value: Decimal | int | float | str) -> Decimal:
+    """Normalize money before persisting to DECIMAL(..., 2) columns."""
+    return Decimal(str(value)).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
 
 
 # 预算策略预设
@@ -66,6 +73,7 @@ class FinanceService:
         idempotency_key: Optional[str] = None,
     ) -> FinanceTransaction:
         """应用财务交易（幂等）"""
+        amount = quantize_money(amount)
         txn_extra = dict(extra_data) if extra_data else {}
         if idempotency_key:
             txn_extra["idempotency_key"] = idempotency_key
@@ -86,6 +94,7 @@ class FinanceService:
             new_balance = team_finance.balance + amount
         else:
             new_balance = team_finance.balance - amount
+        new_balance = quantize_money(new_balance)
         
         transaction = FinanceTransaction(
             team_id=team_id,
@@ -287,20 +296,20 @@ class FinanceService:
             youth_pct = max(youth_pct, self.economy.budget.youth_min_pct)
             youth_pct = min(youth_pct, self.economy.budget.youth_min_pct)
         
-        season_finance.opening_balance = opening_balance
-        season_finance.current_balance = opening_balance
-        season_finance.projected_income = projected_income
-        season_finance.projected_expense = projected_expense
-        season_finance.locked_budget_total = locked_total
-        season_finance.transfer_budget = locked_total * Decimal(transfer_pct) / Decimal("100")
-        season_finance.youth_budget = locked_total * Decimal(youth_pct) / Decimal("100")
-        season_finance.wage_budget = locked_total * Decimal(wage_pct) / Decimal("100")
-        season_finance.reserve_budget = locked_total * Decimal(reserve_pct) / Decimal("100")
+        season_finance.opening_balance = quantize_money(opening_balance)
+        season_finance.current_balance = quantize_money(opening_balance)
+        season_finance.projected_income = quantize_money(projected_income)
+        season_finance.projected_expense = quantize_money(projected_expense)
+        season_finance.locked_budget_total = quantize_money(locked_total)
+        season_finance.transfer_budget = quantize_money(locked_total * Decimal(str(transfer_pct)) / Decimal("100"))
+        season_finance.youth_budget = quantize_money(locked_total * Decimal(str(youth_pct)) / Decimal("100"))
+        season_finance.wage_budget = quantize_money(locked_total * Decimal(str(wage_pct)) / Decimal("100"))
+        season_finance.reserve_budget = quantize_money(locked_total * Decimal(str(reserve_pct)) / Decimal("100"))
         
         health = season_finance.financial_health.value
         cap_ratio = self.economy.wage_cap.ratio_by_health.get(health, Decimal("0.65"))
-        season_finance.wage_cap = projected_income * cap_ratio
-        season_finance.wage_bill = wage_bill
+        season_finance.wage_cap = quantize_money(projected_income * cap_ratio)
+        season_finance.wage_bill = quantize_money(wage_bill)
         
         await self.db.flush()
         
@@ -930,6 +939,34 @@ class FinanceService:
         result = await self.db.execute(select(League.level).where(League.id == team.current_league_id))
         level = result.scalar_one_or_none()
         return level or 4
+    
+    async def can_sign_player(self, team_id: str, new_wage: Decimal) -> bool:
+        """检查球队是否可以签约球员（工资帽和余额校验）
+        
+        - 工资帽压力不能超过 120%（允许轻微超支）
+        - 球队余额不能为负（签约后至少保留少量资金）
+        """
+        season = await self._get_current_season_for_team(team_id)
+        if not season:
+            return False
+        
+        season_finance = await self._get_or_create_team_season_finance(team_id, season.id)
+        wage_cap = season_finance.wage_cap if season_finance.wage_cap > 0 else Decimal("1")
+        
+        # 计算加入新工资后的压力
+        current_wage_bill = await self._calculate_team_wage_bill(team_id)
+        projected_wage_bill = current_wage_bill + new_wage
+        wage_pressure_pct = (projected_wage_bill / wage_cap) * 100
+        
+        if wage_pressure_pct > Decimal("120"):
+            return False
+        
+        # 检查余额（至少保留 1 万）
+        team_finance = await self._get_team_finance(team_id)
+        if team_finance and team_finance.balance < Decimal("10000"):
+            return False
+        
+        return True
     
     async def _calculate_team_wage_bill(self, team_id: str) -> Decimal:
         result = await self.db.execute(

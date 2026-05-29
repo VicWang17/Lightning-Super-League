@@ -8,7 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func, and_
 
 from app.models.player import (
     Player,
@@ -16,6 +16,7 @@ from app.models.player import (
     SquadRole,
     PlayerPersonality,
     PlayerStatus,
+    OriginType,
 )
 from app.models.player_contract import PlayerContract, ContractStatus
 from app.models.wage_config import WageConfig, WageConfigType
@@ -45,6 +46,9 @@ _WAGE_SATISFACTION_MAP = [
 class ContractService:
     """合同服务"""
     
+    ROSTER_MAX = 15
+    ROSTER_MIN = 8
+    
     def __init__(self, db: AsyncSession):
         self.db = db
         self.state_service = PlayerStateService(db)
@@ -60,7 +64,10 @@ class ContractService:
         contract_type: ContractType,
         squad_role: SquadRole,
     ) -> Decimal:
-        """计算建议工资 (设计文档 5.1)"""
+        """计算建议工资 (设计文档 5.1)
+        
+        年龄按当前赛季号计算：age = current_season_number + abs(birth_offset)
+        """
         player = await self._get_player(player_id)
         team = await self._get_team(team_id)
         if not player or not team:
@@ -73,8 +80,9 @@ class ContractService:
         league_level = await self._get_team_league_level(team_id)
         league_factor = await self._get_wage_config(WageConfigType.LEAGUE_FACTOR, str(league_level))
         
-        # 3. 年龄系数
-        age = abs(player.birth_offset)  # 简化：当前赛季约等于 0 赛季起始
+        # 3. 年龄系数（按当前赛季号计算真实年龄）
+        current_season_number = await self._get_current_season_number(team_id)
+        age = current_season_number + abs(player.birth_offset)
         age_key = self._age_range_key(age)
         age_factor = await self._get_wage_config(WageConfigType.AGE_FACTOR, age_key)
         
@@ -104,6 +112,10 @@ class ContractService:
         squad_role: SquadRole,
     ) -> "ContractPreview":
         """预览合同 offer (设计文档 7.1)"""
+        # 校验年限
+        if not (1 <= years <= 4):
+            raise ValueError("合同年限必须在 1-4 个赛季之间")
+        
         recommended = await self.calculate_recommended_wage(
             player_id, team_id, contract_type, squad_role
         )
@@ -128,14 +140,20 @@ class ContractService:
         new_wage_bill = current_wage_bill - old_wage + wage
         wage_pressure_pct = int((new_wage_bill / wage_cap) * 100) if wage_cap > 0 else 0
         
+        # roster 人数检查
+        roster_count = await self._get_team_roster_count(team_id)
+        roster_after_count = roster_count + (0 if player and player.team_id == team_id else 1)
+        
         # 可见反应
         visible_reaction = self._satisfaction_to_reaction(satisfaction)
         
         # 能否提交
-        can_submit = wage_pressure_pct <= 120  # 允许轻微超支
+        can_submit = wage_pressure_pct <= 120 and roster_after_count <= self.ROSTER_MAX
         warnings = []
         if wage_pressure_pct > 100:
             warnings.append("工资帽超限，可能导致财务惩罚")
+        if roster_after_count > self.ROSTER_MAX:
+            warnings.append(f"一线队人数将超过上限 {self.ROSTER_MAX} 人")
         if satisfaction < -2:
             warnings.append("球员对工资非常不满")
         elif satisfaction < 0:
@@ -148,6 +166,7 @@ class ContractService:
             visible_reaction=visible_reaction,
             hidden_wage_satisfaction=satisfaction,
             wage_cap_after_pct=wage_pressure_pct,
+            roster_after_count=roster_after_count,
             can_submit=can_submit,
             warnings=warnings,
         )
@@ -161,11 +180,31 @@ class ContractService:
         wage: Decimal,
         squad_role: SquadRole,
         release_clause: Optional[Decimal] = None,
+        source: str = "normal",
     ) -> PlayerContract:
-        """签约新合同"""
+        """签约新合同
+        
+        Args:
+            source: 签约来源，用于追踪（normal / free_market / academy / draft）
+        """
+        if not (1 <= years <= 4):
+            raise ValueError("合同年限必须在 1-4 个赛季之间")
+        
         player = await self._get_player(player_id)
         if not player:
             raise ValueError(f"Player not found: {player_id}")
+        
+        # roster 上限校验
+        if player.team_id != team_id:
+            roster_count = await self._get_team_roster_count(team_id)
+            if roster_count >= self.ROSTER_MAX:
+                raise ValueError(f"一线队已满 {self.ROSTER_MAX} 人，无法签约新球员")
+        
+        # 财务校验（工资帽/余额）
+        finance_service = FinanceService(self.db)
+        can_sign = await finance_service.can_sign_player(team_id, wage)
+        if not can_sign:
+            raise ValueError("球队财务状况不允许签约该球员（工资帽超限或余额不足）")
         
         # 计算建议工资和满意度
         recommended = await self.calculate_recommended_wage(
@@ -176,7 +215,8 @@ class ContractService:
         
         # 当前赛季号
         current_season = await self._get_current_season_number(team_id)
-        end_season = current_season + years if years > 0 else None
+        # 修正：end_season_number = start + years - 1
+        end_season = current_season + years - 1 if years > 0 else None
         season_id = await self._get_current_season_id(team_id)
         
         # 创建合同记录
@@ -200,11 +240,25 @@ class ContractService:
         # 同步 players 表当前合同字段
         await self._sync_player_contract_fields(player, contract)
         
+        # 更新来源追踪字段
+        if source == "academy":
+            player.origin_type = OriginType.ACADEMY
+        elif source == "draft":
+            player.origin_type = OriginType.DRAFT
+        elif source == "free_market":
+            player.origin_type = OriginType.FREE_MARKET
+        elif source == "auto_fill":
+            player.origin_type = OriginType.AUTO_FILL
+        
+        if player.team_id != team_id:
+            player.team_id = team_id
+            player.joined_first_team_season = current_season
+        
         # 刷新状态
         await self.state_service.recalculate_player_state(player_id, "contract_signed")
         
         await self.db.flush()
-        logger.info(f"Contract signed: player={player_id}, team={team_id}, wage={wage}")
+        logger.info(f"Contract signed: player={player_id}, team={team_id}, wage={wage}, years={years}, end={end_season}")
         return contract
     
     async def renew_contract(
@@ -216,7 +270,10 @@ class ContractService:
         squad_role: Optional[SquadRole] = None,
         release_clause: Optional[Decimal] = None,
     ) -> PlayerContract:
-        """续约合同"""
+        """续约合同
+        
+        续约不改变 team_id，只更新合同记录。
+        """
         player = await self._get_player(player_id)
         if not player:
             raise ValueError(f"Player not found: {player_id}")
@@ -230,6 +287,7 @@ class ContractService:
         role = squad_role if squad_role else player.squad_role
         contract_type = player.contract_type
         
+        # 续约不改变 team_id，直接调用 sign_contract 但 team_id 不变
         return await self.sign_contract(
             player_id=player_id,
             team_id=team_id,
@@ -238,6 +296,7 @@ class ContractService:
             wage=wage,
             squad_role=role,
             release_clause=release_clause,
+            source="normal",
         )
     
     async def release_player(self, player_id: str, team_id: str) -> None:
@@ -256,12 +315,16 @@ class ContractService:
             player.wage_satisfaction = 0
             player.wage_ratio = None
             player.recommended_wage = None
+            player.squad_role = SquadRole.NOT_NEEDED
         
         await self.db.flush()
         logger.info(f"Player released: player={player_id}, team={team_id}")
     
     async def expire_contracts(self, season_id: str) -> None:
-        """赛季切换时处理到期合同"""
+        """赛季切换时处理到期合同
+        
+        将 end_season_number <= current_season_number 的活跃合同标记为过期。
+        """
         result = await self.db.execute(
             select(PlayerContract)
             .where(PlayerContract.status == ContractStatus.ACTIVE)
@@ -285,10 +348,65 @@ class ContractService:
                 if player and player.team_id == contract.team_id:
                     player.contract_type = ContractType.FREE
                     player.contract_end_season = None
+                    player.team_id = None
+                    player.wage = Decimal("0")
                 expired_count += 1
         
         await self.db.flush()
         logger.info(f"Expired {expired_count} contracts for season {season_id}")
+    
+    # =====================================================================
+    # 自由市场 / 青训签约（Phase 2/3 填充）
+    # =====================================================================
+    
+    async def sign_free_agent(
+        self,
+        player_id: str,
+        team_id: str,
+        years: int,
+        wage: Decimal,
+        squad_role: SquadRole,
+        signing_fee: Decimal = Decimal("0"),
+    ) -> PlayerContract:
+        """自由市场签约
+        
+        扣除签字费后调用标准签约流程。
+        """
+        # 扣除签字费
+        if signing_fee > 0:
+            from app.models.finance import TransactionSourceType, TransactionDirection
+            finance_service = FinanceService(self.db)
+            season_id = await self._get_current_season_id(team_id)
+            await finance_service.apply_transaction(
+                team_id=team_id,
+                season_id=season_id,
+                source_type=TransactionSourceType.TRANSFER,
+                direction=TransactionDirection.EXPENSE,
+                amount=signing_fee,
+                description=f"自由市场签约签字费",
+            )
+        
+        return await self.sign_contract(
+            player_id=player_id,
+            team_id=team_id,
+            contract_type=ContractType.NORMAL,
+            years=years,
+            wage=wage,
+            squad_role=squad_role,
+            source="free_market",
+        )
+    
+    async def sign_academy_player(
+        self,
+        academy_player_id: str,
+        team_id: str,
+        years: int,
+        wage: Decimal,
+        squad_role: SquadRole,
+    ) -> PlayerContract:
+        """青训球员签约入一线队（Phase 3 实现）"""
+        # TODO: Phase 3 实现 - 需要从 youth_academy_players 获取 player_id
+        raise NotImplementedError("青训签约将在 Phase 3 实现")
     
     # =====================================================================
     # 内部辅助
@@ -339,6 +457,15 @@ class ContractService:
             if sn is not None:
                 return sn
         return 1
+    
+    async def _get_team_roster_count(self, team_id: str) -> int:
+        """获取球队当前一线队人数（ACTIVE/INJURED/SUSPENDED）"""
+        result = await self.db.execute(
+            select(func.count(Player.id))
+            .where(Player.team_id == team_id)
+            .where(Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]))
+        )
+        return result.scalar_one_or_none() or 0
     
     async def _get_base_wage_by_ovr(self, ovr: int) -> Decimal:
         """按 OVR 线性插值获取基础工资"""
@@ -433,7 +560,6 @@ class ContractService:
         player.recommended_wage = contract.recommended_wage
         player.wage_ratio = contract.wage_ratio
         player.wage_satisfaction = contract.wage_satisfaction
-        player.team_id = contract.team_id
 
 
 class ContractPreview:
@@ -447,6 +573,7 @@ class ContractPreview:
         visible_reaction: str,
         hidden_wage_satisfaction: int,
         wage_cap_after_pct: int,
+        roster_after_count: int,
         can_submit: bool,
         warnings: list[str],
     ):
@@ -456,6 +583,7 @@ class ContractPreview:
         self.visible_reaction = visible_reaction
         self.hidden_wage_satisfaction = hidden_wage_satisfaction
         self.wage_cap_after_pct = wage_cap_after_pct
+        self.roster_after_count = roster_after_count
         self.can_submit = can_submit
         self.warnings = warnings
     
@@ -467,6 +595,7 @@ class ContractPreview:
             "visible_reaction": self.visible_reaction,
             "hidden_wage_satisfaction": self.hidden_wage_satisfaction,
             "wage_cap_after_pct": self.wage_cap_after_pct,
+            "roster_after_count": self.roster_after_count,
             "can_submit": self.can_submit,
             "warnings": self.warnings,
         }

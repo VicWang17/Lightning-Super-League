@@ -178,6 +178,15 @@ class SeasonService:
             return await self._handle_budget_window_opened(event)
         elif event.event_type == EventType.BUDGET_WINDOW_CLOSED:
             return await self._handle_budget_window_closed(event)
+        # Phase 3/4/5: 青训、选秀、AI 管理事件
+        elif event.event_type == EventType.YOUTH_REFRESH:
+            return await self._handle_youth_refresh(event)
+        elif event.event_type == EventType.YOUTH_TRAINING:
+            return await self._handle_youth_training(event)
+        elif event.event_type == EventType.DRAFT_PREFERENCES_OPEN:
+            return await self._handle_draft_preferences_open(event)
+        elif event.event_type == EventType.DRAFT_RUN:
+            return await self._handle_draft_run(event)
         else:
             raise ValueError(f"Unknown event type: {event.event_type}")
     
@@ -199,6 +208,77 @@ class SeasonService:
         await self.db.commit()
         return {"event": "budget_window_closed", **result}
 
+    # =====================================================================
+    # Phase 3: 青训事件
+    # =====================================================================
+    
+    async def _handle_youth_refresh(self, event: GameEvent) -> Dict:
+        """YOUTH_REFRESH: 青训刷新 + AI 决策"""
+        season_id = event.payload.get("season_id")
+        day = event.payload.get("day", 1)
+        from app.services.youth_academy_service import YouthAcademyService
+        service = YouthAcademyService(self.db)
+        result = await service.refresh_academy_players(season_id, day)
+        
+        # AI 青训决策
+        from app.services.ai_team_management_service import AITeamManagementService
+        ai_service = AITeamManagementService(self.db)
+        ai_result = await ai_service.run_midseason_academy_decisions(season_id, day)
+        
+        await self.db.commit()
+        return {"event": "youth_refresh", "refresh": result, "ai": ai_result}
+    
+    async def _handle_youth_training(self, event: GameEvent) -> Dict:
+        """YOUTH_TRAINING: 青训训练"""
+        season_id = event.payload.get("season_id")
+        day = event.payload.get("day", 1)
+        from app.services.youth_academy_service import YouthAcademyService
+        service = YouthAcademyService(self.db)
+        result = await service.train_academy_players(season_id, day)
+        await self.db.commit()
+        return {"event": "youth_training", **result}
+    
+    # =====================================================================
+    # Phase 4: 选秀事件
+    # =====================================================================
+    
+    async def _handle_draft_preferences_open(self, event: GameEvent) -> Dict:
+        """DRAFT_PREFERENCES_OPEN: 开放选秀志愿 + AI 生成志愿"""
+        season_id = event.payload.get("season_id")
+        from app.services.draft_service import DraftService
+        draft_service = DraftService(self.db)
+        
+        # 更新选秀池状态
+        result = await self.db.execute(
+            select(DraftPool).where(DraftPool.season_id == season_id)
+        )
+        pools = result.scalars().all()
+        for pool in pools:
+            pool.status = "preferences_open"
+        
+        # AI 生成志愿
+        from app.services.ai_team_management_service import AITeamManagementService
+        ai_service = AITeamManagementService(self.db)
+        ai_result = await ai_service.run_pre_draft_preferences(season_id)
+        
+        await self.db.commit()
+        return {"event": "draft_preferences_open", "pools": len(pools), "ai": ai_result}
+    
+    async def _handle_draft_run(self, event: GameEvent) -> Dict:
+        """DRAFT_RUN: 执行选秀 + AI 签约决策"""
+        season_id = event.payload.get("season_id")
+        from app.services.draft_service import DraftService
+        draft_service = DraftService(self.db)
+        draft_result = await draft_service.run_draft(season_id)
+        
+        # AI 选秀签约决策
+        from app.services.ai_team_management_service import AITeamManagementService
+        ai_service = AITeamManagementService(self.db)
+        ai_result = await ai_service.run_draft_selection_decisions(season_id)
+        
+        await self.db.commit()
+        return {"event": "draft_run", "draft": draft_result, "ai": ai_result}
+    
     async def _handle_season_start(self, event: GameEvent) -> Dict:
         """SEASON_START: 无额外操作（赛季已在 create_new_season 中创建）"""
         return {"event": "season_start", "season_id": event.payload.get("season_id")}
@@ -431,7 +511,13 @@ class SeasonService:
         }
     
     async def _handle_season_end(self, event: GameEvent) -> Dict:
-        """SEASON_END: 赛季结算"""
+        """SEASON_END: 赛季结算
+        
+        处理顺序：
+        1. 赛季末名单闭环（退役、合同到期、自动补员）
+        2. 标记赛季结束
+        3. 创建并启动下赛季
+        """
         season_id = event.payload.get("season_id")
         
         result = await self.db.execute(
@@ -440,6 +526,16 @@ class SeasonService:
         season = result.scalar_one_or_none()
         if not season:
             raise ValueError(f"Season not found: {season_id}")
+        
+        # Phase 5: AI 赛季末决策（续约、签青训、签自由市场）
+        from app.services.ai_team_management_service import AITeamManagementService
+        ai_service = AITeamManagementService(self.db)
+        ai_result = await ai_service.run_season_end_roster_decisions(season_id)
+        
+        # Phase 2: 赛季末名单闭环（退役、合同到期、选秀、自动补员）
+        from app.services.roster_lifecycle_service import RosterLifecycleService
+        roster_service = RosterLifecycleService(self.db)
+        roster_result = await roster_service.close_season(season_id)
         
         season.current_day = season.total_days
         end_date_raw = event.payload.get("end_date")
@@ -459,6 +555,7 @@ class SeasonService:
             "season_number": season.season_number,
             "next_season_id": next_season.id,
             "next_season_number": next_season.season_number,
+            "roster_lifecycle": roster_result,
         }
     
     async def process_next_day(self, season: Season) -> Dict:

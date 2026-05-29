@@ -16,7 +16,8 @@ from pathlib import Path
 
 from app.models.player import (
     Player, PlayerPosition, PlayerFoot, PlayerRace, PlayerStatus,
-    PotentialLetter, PlayerPersonality, ContractType, MatchForm, SquadRole
+    PotentialLetter, PlayerPersonality, ContractType, MatchForm, SquadRole,
+    OriginType,
 )
 
 
@@ -76,11 +77,11 @@ STYLE_DISTRIBUTION = [
 
 # 潜力分布 -> (letter, min_potential, max_potential, weight)
 POTENTIAL_DISTRIBUTION = [
-    (PotentialLetter.S, 80, 100, 0.02),
-    (PotentialLetter.A, 60, 79, 0.08),
-    (PotentialLetter.B, 40, 59, 0.25),
-    (PotentialLetter.C, 20, 39, 0.35),
-    (PotentialLetter.D, 1, 19, 0.30),
+    (PotentialLetter.S, 95, 100, 0.02),
+    (PotentialLetter.A, 85, 94, 0.08),
+    (PotentialLetter.B, 75, 84, 0.25),
+    (PotentialLetter.C, 65, 74, 0.35),
+    (PotentialLetter.D, 50, 64, 0.30),
 ]
 
 # 年龄分布 -> (min_age, max_age, weight)
@@ -338,7 +339,7 @@ class AttributeGenerator:
         # 基准在 team_ovr ± 5 浮动, 受潜力修正
         base_ovr = team_ovr + random.randint(-5, 5)
         base_ovr = int(base_ovr * age_factor * (0.8 + 0.4 * potential_factor))
-        base_ovr = _clamp(base_ovr, 20, 95)
+        base_ovr = _clamp(base_ovr, 20, 99)
         
         # 2. 核心属性组 (该位置看重的属性)
         core_attrs = POSITION_NON_CORE_ATTRS[position]
@@ -469,13 +470,13 @@ class SkillGenerator:
 
 
 def potential_letter_from_value(potential_max: int) -> PotentialLetter:
-    if potential_max >= 80:
+    if potential_max >= 95:
         return PotentialLetter.S
-    if potential_max >= 60:
+    if potential_max >= 85:
         return PotentialLetter.A
-    if potential_max >= 40:
+    if potential_max >= 75:
         return PotentialLetter.B
-    if potential_max >= 20:
+    if potential_max >= 65:
         return PotentialLetter.C
     return PotentialLetter.D
 
@@ -625,6 +626,251 @@ class PlayerGenerator:
             release_clause=release_clause,
             squad_role=role,
             team_id=team.id,
+        )
+    
+    def generate_auto_fill_player(self, team, season_number: int = 1) -> Player:
+        """生成自动补员兜底球员（设计文档 7.2）
+        
+        - 年龄 20-28
+        - OVR 35-45
+        - 潜力 C/D
+        - 合同 NORMAL，1 年
+        - origin_type = auto_fill
+        """
+        race_str = random.choice(["asian", "western"])
+        race = PlayerRace.ASIAN if race_str == "asian" else PlayerRace.WESTERN
+        name, region = self.name_gen.generate(race_str)
+        avatar_url = self.avatar_pool.pick(race_str)
+        
+        position = random.choice(list(PlayerPosition))
+        archetype = _weighted_choice(ARCHETYPE_CONFIG[position])
+        style = _weighted_choice(STYLE_DISTRIBUTION)
+        
+        # 年龄 20-28
+        actual_age = random.randint(20, 28)
+        birth_offset = -actual_age
+        
+        # 潜力 C/D
+        potential_max = random.randint(50, 74)
+        if potential_max >= 65:
+            potential_letter = PotentialLetter.C
+        else:
+            potential_letter = PotentialLetter.D
+        
+        # 初始 OVR 35-45
+        base_ovr = random.randint(35, 45)
+        
+        height, weight = self._generate_height_weight(position)
+        
+        foot_roll = random.random()
+        if foot_roll < 0.70:
+            foot = PlayerFoot.RIGHT
+        elif foot_roll < 0.95:
+            foot = PlayerFoot.LEFT
+        else:
+            foot = PlayerFoot.BOTH
+        
+        # 生成属性
+        attr_result = AttributeGenerator.generate(
+            position, archetype, style, actual_age, potential_max, base_ovr
+        )
+        attr_result["ovr"] = base_ovr  # 强制设定 OVR
+        
+        # 技能
+        skills = SkillGenerator.generate(position, base_ovr)
+        
+        # 性格
+        personality = random.choice(PERSONALITIES)
+        
+        # 工资：OVR 35 对应的基础工资
+        wage = Decimal(str(1000 + base_ovr * 800))
+        
+        return Player(
+            name=name,
+            race=race,
+            avatar_url=avatar_url,
+            position=position,
+            preferred_foot=foot,
+            height=height,
+            weight=weight,
+            birth_offset=birth_offset,
+            sho=attr_result["sho"], pas=attr_result["pas"], dri=attr_result["dri"],
+            spd=attr_result["spd"], str_=attr_result["str_"], sta=attr_result["sta"],
+            acc=attr_result["acc"], hea=attr_result["hea"], bal=attr_result["bal"],
+            defe=attr_result["defe"], tkl=attr_result["tkl"], vis=attr_result["vis"],
+            cro=attr_result["cro"], con=attr_result["con"], fin=attr_result["fin"],
+            com=attr_result["com"], sav=attr_result["sav"], ref=attr_result["ref"],
+            pos=attr_result["pos"], rus=attr_result["rus"], dec=attr_result["dec"],
+            fk=attr_result["fk"], pk=attr_result["pk"],
+            potential_max=potential_max,
+            skills=skills,
+            personality=personality,
+            status=PlayerStatus.ACTIVE,
+            match_form=MatchForm.NEUTRAL,
+            fitness=100,
+            contract_type=ContractType.NORMAL,
+            contract_end_season=season_number,  # 1 年合同，当前赛季末到期
+            wage=wage,
+            squad_role=SquadRole.BACKUP,
+            origin_type=OriginType.AUTO_FILL,
+        )
+    
+    def generate_youth_player(
+        self,
+        team,
+        season_number: int = 1,
+        investment_level: str = "medium",
+        league_level: int = 3,
+    ) -> Player:
+        """生成青训球员（设计文档 8.2-8.3）
+        
+        - 年龄 15-18
+        - 投入等级影响潜力、OVR、年龄倾向
+        - 联赛级别修正
+        - origin_type = academy, team_id = null
+        """
+        # 投入等级基础配置
+        investment_config = {
+            "low": {
+                "age_weights": [(17, 0.35), (18, 0.35), (16, 0.20), (15, 0.10)],
+                "potential_weights": [
+                    (PotentialLetter.S, 0.01), (PotentialLetter.A, 0.05),
+                    (PotentialLetter.B, 0.20), (PotentialLetter.C, 0.40), (PotentialLetter.D, 0.34)
+                ],
+                "ovr_range": (28, 42),
+            },
+            "medium": {
+                "age_weights": [(15, 0.20), (16, 0.25), (17, 0.30), (18, 0.25)],
+                "potential_weights": [
+                    (PotentialLetter.S, 0.02), (PotentialLetter.A, 0.10),
+                    (PotentialLetter.B, 0.35), (PotentialLetter.C, 0.38), (PotentialLetter.D, 0.15)
+                ],
+                "ovr_range": (30, 45),
+            },
+            "high": {
+                "age_weights": [(15, 0.35), (16, 0.30), (17, 0.25), (18, 0.10)],
+                "potential_weights": [
+                    (PotentialLetter.S, 0.05), (PotentialLetter.A, 0.18),
+                    (PotentialLetter.B, 0.40), (PotentialLetter.C, 0.30), (PotentialLetter.D, 0.07)
+                ],
+                "ovr_range": (32, 48),
+            },
+        }
+        config = investment_config.get(investment_level, investment_config["medium"])
+        
+        # 联赛级别修正
+        league_modifier = {
+            1: {"potential_bonus": 0.20, "ovr_bonus": (3, 6)},
+            2: {"potential_bonus": 0.10, "ovr_bonus": (1, 3)},
+            3: {"potential_bonus": 0.00, "ovr_bonus": (0, 0)},
+            4: {"potential_bonus": -0.10, "ovr_bonus": (-3, -1)},
+        }.get(league_level, {"potential_bonus": 0.00, "ovr_bonus": (0, 0)})
+        
+        # 年龄
+        age_weights = config["age_weights"]
+        actual_age = _weighted_choice([(a, w) for a, w in age_weights])
+        birth_offset = -actual_age
+        
+        # 年龄修正
+        age_ovr_modifier = {15: (-12, -8), 16: (-8, -5), 17: (-5, -2), 18: (0, 0)}.get(actual_age, (0, 0))
+        
+        # 潜力（应用联赛修正）
+        potential_weights = list(config["potential_weights"])
+        bonus = league_modifier["potential_bonus"]
+        if bonus != 0:
+            # 提升高潜概率，降低低潜概率
+            adjusted = []
+            for letter, weight in potential_weights:
+                if letter in (PotentialLetter.S, PotentialLetter.A, PotentialLetter.B):
+                    new_w = weight * (1 + bonus)
+                else:
+                    new_w = weight * (1 - bonus)
+                adjusted.append((letter, new_w))
+            potential_weights = adjusted
+        
+        potential_letter = _weighted_choice(potential_weights)
+        # potential_max 映射
+        potential_ranges = {
+            PotentialLetter.S: (95, 100), PotentialLetter.A: (85, 94),
+            PotentialLetter.B: (75, 84), PotentialLetter.C: (65, 74), PotentialLetter.D: (50, 64)
+        }
+        p_min, p_max = potential_ranges[potential_letter]
+        potential_max = random.randint(p_min, p_max)
+        
+        # OVR
+        ovr_min, ovr_max = config["ovr_range"]
+        ovr_bonus_min, ovr_bonus_max = league_modifier["ovr_bonus"]
+        age_ovr_min, age_ovr_max = age_ovr_modifier
+        base_ovr = random.randint(ovr_min, ovr_max)
+        base_ovr += random.randint(ovr_bonus_min, ovr_bonus_max)
+        base_ovr += random.randint(age_ovr_min, age_ovr_max)
+        base_ovr = max(20, min(60, base_ovr))
+        
+        # Race / Name / Avatar
+        race_str = random.choice(["asian", "western"])
+        race = PlayerRace.ASIAN if race_str == "asian" else PlayerRace.WESTERN
+        name, region = self.name_gen.generate(race_str)
+        avatar_url = self.avatar_pool.pick(race_str)
+        
+        # Position
+        position = random.choice(list(PlayerPosition))
+        archetype = _weighted_choice(ARCHETYPE_CONFIG[position])
+        style = _weighted_choice(STYLE_DISTRIBUTION)
+        
+        # Height / Weight
+        height, weight = self._generate_height_weight(position)
+        
+        # Foot
+        foot_roll = random.random()
+        if foot_roll < 0.70:
+            foot = PlayerFoot.RIGHT
+        elif foot_roll < 0.95:
+            foot = PlayerFoot.LEFT
+        else:
+            foot = PlayerFoot.BOTH
+        
+        # Attributes
+        attr_result = AttributeGenerator.generate(
+            position, archetype, style, actual_age, potential_max, base_ovr
+        )
+        attr_result["ovr"] = base_ovr
+        
+        # Skills
+        skills = SkillGenerator.generate(position, base_ovr)
+        
+        # Personality
+        personality = random.choice(PERSONALITIES)
+        
+        return Player(
+            name=name,
+            race=race,
+            avatar_url=avatar_url,
+            position=position,
+            preferred_foot=foot,
+            height=height,
+            weight=weight,
+            birth_offset=birth_offset,
+            sho=attr_result["sho"], pas=attr_result["pas"], dri=attr_result["dri"],
+            spd=attr_result["spd"], str_=attr_result["str_"], sta=attr_result["sta"],
+            acc=attr_result["acc"], hea=attr_result["hea"], bal=attr_result["bal"],
+            defe=attr_result["defe"], tkl=attr_result["tkl"], vis=attr_result["vis"],
+            cro=attr_result["cro"], con=attr_result["con"], fin=attr_result["fin"],
+            com=attr_result["com"], sav=attr_result["sav"], ref=attr_result["ref"],
+            pos=attr_result["pos"], rus=attr_result["rus"], dec=attr_result["dec"],
+            fk=attr_result["fk"], pk=attr_result["pk"],
+            potential_max=potential_max,
+            skills=skills,
+            personality=personality,
+            status=PlayerStatus.ACTIVE,
+            match_form=MatchForm.NEUTRAL,
+            fitness=100,
+            contract_type=ContractType.FREE,
+            contract_end_season=None,
+            wage=Decimal("0"),
+            squad_role=SquadRole.YOUNGSTER,
+            team_id=None,
+            origin_type=OriginType.ACADEMY,
+            academy_team_id=team.id,
         )
     
     def generate_squad(self, team, size: int = 15) -> list:

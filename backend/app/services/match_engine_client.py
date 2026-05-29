@@ -107,10 +107,13 @@ class MatchEngineClient:
     def _simulate_with_process(self, payload: dict[str, Any]) -> dict[str, Any]:
         env = os.environ.copy()
         env.setdefault("GOCACHE", "/private/tmp/go-cache")
+        engine_dir = self._engine_dir()
+        binary = engine_dir / "jsonsimulate"
+        command = [str(binary)] if binary.exists() else ["go", "run", "./cmd/jsonsimulate"]
         try:
             completed = subprocess.run(
-                ["go", "run", "./cmd/jsonsimulate"],
-                cwd=str(self._engine_dir()),
+                command,
+                cwd=str(engine_dir),
                 env=env,
                 input=json.dumps(payload),
                 text=True,
@@ -148,8 +151,8 @@ class MatchEngineClient:
 
         return {
             "match_id": fixture.id,
-            "home_team": self._build_team_setup(home_team, home_players, "F01", db),
-            "away_team": self._build_team_setup(away_team, away_players, "F01", db),
+            "home_team": await self._build_team_setup(home_team, home_players, "F01", db),
+            "away_team": await self._build_team_setup(away_team, away_players, "F01", db),
             "home_advantage": True,
             "requires_winner": requires_winner,
             "mode": self.mode,

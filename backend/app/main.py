@@ -25,6 +25,9 @@ from app.routers.clock import router as clock_router
 from app.routers.records import router as records_router
 from app.routers.mail import router as mail_router
 from app.routers.finance import router as finance_router
+from app.routers.free_market import router as free_market_router
+from app.routers.youth_academy import router as youth_academy_router
+from app.routers.draft import router as draft_router
 
 settings = get_settings()
 
@@ -100,6 +103,9 @@ app.include_router(clock_router, prefix="/api/v1")
 app.include_router(records_router, prefix="/api/v1")
 app.include_router(mail_router, prefix="/api/v1")
 app.include_router(finance_router, prefix="/api/v1")
+app.include_router(free_market_router, prefix="/api/v1")
+app.include_router(youth_academy_router, prefix="/api/v1")
+app.include_router(draft_router, prefix="/api/v1")
 
 
 @app.get("/")
