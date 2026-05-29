@@ -93,6 +93,15 @@ class SquadRole(str, PyEnum):
     NOT_NEEDED = "not_needed"
 
 
+class OriginType(str, PyEnum):
+    """Player origin - 球员来源"""
+    GENERATED = "generated"      # 系统初始生成
+    ACADEMY = "academy"          # 青训营产出
+    DRAFT = "draft"              # 选秀大会
+    FREE_MARKET = "free_market"  # 自由市场签约
+    AUTO_FILL = "auto_fill"      # 系统自动补员兜底
+
+
 class Player(Base):
     """Player model - 球员表
     
@@ -175,6 +184,21 @@ class Player(Base):
     release_clause: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
     squad_role: Mapped[SquadRole] = mapped_column(Enum(SquadRole), default=SquadRole.FIRST_TEAM, nullable=False)
     
+    # ===== 来源与青训/选秀追踪 (闭环系统新增) =====
+    origin_type: Mapped[OriginType] = mapped_column(Enum(OriginType), default=OriginType.GENERATED, nullable=False)
+    academy_team_id: Mapped[str | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    draft_league_id: Mapped[str | None] = mapped_column(
+        ForeignKey("leagues.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    joined_first_team_season: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    retired_at_season: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    
     # ===== 状态系统 (v1 新增) =====
     recommended_wage: Mapped[Decimal | None] = mapped_column(DECIMAL(12, 2), nullable=True)
     wage_ratio: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)
@@ -193,7 +217,16 @@ class Player(Base):
     )
     
     # ===== 关联关系 =====
-    team: Mapped["Team"] = relationship("Team", back_populates="players")
+    team: Mapped["Team"] = relationship(
+        "Team",
+        foreign_keys=[team_id],
+        back_populates="players",
+    )
+    academy_team: Mapped["Team"] = relationship(
+        "Team",
+        foreign_keys=[academy_team_id],
+        back_populates="academy_players",
+    )
     season_stats: Mapped[list["PlayerSeasonStats"]] = relationship("PlayerSeasonStats", back_populates="player")
     contracts: Mapped[list["PlayerContract"]] = relationship("PlayerContract", back_populates="player")
     state_snapshots: Mapped[list["PlayerStateSnapshot"]] = relationship("PlayerStateSnapshot", back_populates="player")

@@ -69,7 +69,16 @@ class Team(Base):
     league: Mapped["League"] = relationship("League", back_populates="teams")
     season: Mapped["Season"] = relationship("Season", back_populates="teams")
     finances: Mapped["TeamFinance"] = relationship("TeamFinance", back_populates="team", uselist=False)
-    players: Mapped[list["Player"]] = relationship("Player", back_populates="team")
+    players: Mapped[list["Player"]] = relationship(
+        "Player",
+        foreign_keys="Player.team_id",
+        back_populates="team",
+    )
+    academy_players: Mapped[list["Player"]] = relationship(
+        "Player",
+        foreign_keys="Player.academy_team_id",
+        back_populates="academy_team",
+    )
     home_fixtures: Mapped[list["Fixture"]] = relationship("Fixture", foreign_keys="Fixture.home_team_id", back_populates="home_team")
     away_fixtures: Mapped[list["Fixture"]] = relationship("Fixture", foreign_keys="Fixture.away_team_id", back_populates="away_team")
     standing: Mapped["LeagueStanding"] = relationship("LeagueStanding", back_populates="team", uselist=False)
