@@ -88,7 +88,7 @@ frontend:
 	cd frontend && VITE_API_URL=$(VITE_API_URL) npx vite --host 0.0.0.0 --port $(FRONTEND_PORT)
 
 backend:
-	cd backend && $(PYTHON_IN_BACKEND) -m uvicorn app.main:app --reload --host 0.0.0.0 --port $(BACKEND_PORT)
+	cd backend && NO_PROXY=localhost,127.0.0.1,::1 no_proxy=localhost,127.0.0.1,::1 $(PYTHON_IN_BACKEND) -m uvicorn app.main:app --reload --host 0.0.0.0 --port $(BACKEND_PORT)
 
 match-engine:
 	cd match-engine && go run ./cmd/server

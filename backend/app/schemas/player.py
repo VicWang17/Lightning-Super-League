@@ -207,3 +207,88 @@ class PlayerListItem(BaseSchema):
     potential_letter: PotentialLetter
     market_value: Decimal
     team_id: Optional[str] = None
+
+
+# =====================================================================
+# Contract & State schemas (v1 新增)
+# =====================================================================
+
+class SquadRole(str, Enum):
+    """Squad role"""
+    KEY_PLAYER = "key_player"
+    FIRST_TEAM = "first_team"
+    ROTATION = "rotation"
+    BACKUP = "backup"
+    HOT_PROSPECT = "hot_prospect"
+    YOUNGSTER = "youngster"
+    NOT_NEEDED = "not_needed"
+
+
+class PlayerContractResponse(BaseSchema):
+    """球员合同详情"""
+    player_id: str
+    team_id: Optional[str]
+    contract_type: ContractType
+    start_season_number: int
+    end_season_number: Optional[int]
+    wage: Decimal
+    recommended_wage: Decimal
+    wage_ratio: Decimal
+    release_clause: Optional[Decimal]
+    squad_role: SquadRole
+    status: str
+    created_at: datetime
+
+
+class ContractPreviewRequest(BaseSchema):
+    """合同预览请求"""
+    team_id: str
+    contract_type: ContractType
+    years: int = Field(..., ge=1, le=3)
+    wage: Decimal
+    squad_role: SquadRole
+
+
+class ContractPreviewResponse(BaseSchema):
+    """合同预览响应"""
+    recommended_wage: Decimal
+    offered_wage: Decimal
+    wage_ratio: Decimal
+    visible_reaction: str
+    hidden_wage_satisfaction: int
+    wage_cap_after_pct: int
+    can_submit: bool
+    warnings: List[str]
+
+
+class ContractSignRequest(BaseSchema):
+    """签约请求"""
+    team_id: str
+    contract_type: ContractType
+    years: int = Field(..., ge=1, le=3)
+    wage: Decimal
+    squad_role: SquadRole
+    release_clause: Optional[Decimal] = None
+
+
+class PlayerStateResponse(BaseSchema):
+    """球员状态响应（玩家可见）"""
+    player_id: str
+    visible_form: MatchForm
+    fitness: int = Field(..., ge=0, le=100)
+    availability: PlayerStatus
+    trend: str = Field(default="stable", description="趋势: up/down/stable")
+    hints: List[str] = Field(default_factory=list)
+    # 管理/调试字段（开发环境可用）
+    state_score: Optional[int] = Field(None, description="综合状态分")
+    contract_score: Optional[int] = None
+    recent_match_score: Optional[int] = None
+    fitness_score: Optional[int] = None
+    match_load_score: Optional[int] = None
+    match_rust_score: Optional[int] = None
+
+
+class TeamPlayerStatesResponse(BaseSchema):
+    """全队球员状态列表"""
+    team_id: str
+    players: List[PlayerStateResponse]

@@ -125,7 +125,7 @@ class SeasonService:
             season_id=season.id,
             league_days=list(template.league_days),
             cup_days=list(template.lightning_cup_days),
-            promotion_day=22,  # 升降级处理日
+            promotion_day=template.promotion_day,
             total_days=season.total_days,
             start_date=start_date,
             wage_days=list(template.wage_days),
@@ -305,8 +305,7 @@ class SeasonService:
         # engine 返回后，比赛立即从 ongoing 落为 finished。
         sim_results = []
         try:
-            for fixture in fixtures:
-                sim_results.append(await self._simulate_with_engine(fixture))
+            sim_results = await self._simulate_fixtures_with_engine(fixtures)
         except Exception:
             for fixture in fixtures:
                 if fixture.status == FixtureStatus.ONGOING:
@@ -357,6 +356,23 @@ class SeasonService:
             "fixtures_processed": len(match_results),
             "results": match_results,
         }
+
+    async def _simulate_fixtures_with_engine(self, fixtures: list[Fixture]):
+        """Run fixtures through the authoritative Go match engine."""
+        from app.config import get_settings
+
+        settings = get_settings()
+        client = get_match_engine_client()
+        try:
+            engine_results = await client.simulate_fixtures(self.db, fixtures)
+            return [
+                MatchSimulator.from_engine_result(fixture, engine_result)
+                for fixture, engine_result in zip(fixtures, engine_results)
+            ]
+        except MatchEngineUnavailableError:
+            if settings.MATCH_ENGINE_FALLBACK_RANDOM:
+                return [await self.simulator.simulate(fixture) for fixture in fixtures]
+            raise
 
     async def _simulate_with_engine(self, fixture: Fixture):
         """Run one fixture through the authoritative Go match engine."""
@@ -425,6 +441,7 @@ class SeasonService:
         if not season:
             raise ValueError(f"Season not found: {season_id}")
         
+        season.current_day = season.total_days
         end_date_raw = event.payload.get("end_date")
         end_date = datetime.fromisoformat(end_date_raw) if end_date_raw else event.scheduled_at
 
@@ -432,7 +449,8 @@ class SeasonService:
         season.end_date = end_date
         await self.db.commit()
 
-        next_season = await self.create_new_season(start_date=end_date, zone_id=season.zone_id)
+        next_start = (end_date + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        next_season = await self.create_new_season(start_date=next_start, zone_id=season.zone_id)
         await self.start_season(next_season)
         
         return {
@@ -751,8 +769,14 @@ class SeasonService:
         Day 24-25: 休赛期
         """
         results = {}
+        fmt = get_default_format()
+        template = fmt.season
+        final_day = template.lightning_cup_days[-1] if template.lightning_cup_days else 21
+        preliminary_day = template.playoff_days[0] if template.playoff_days else 22
+        final_playoff_day = template.playoff_days[1] if len(template.playoff_days) > 1 else preliminary_day + 1
+        movement_day = template.promotion_day
         
-        if day == 21:
+        if day == final_day:
             # 闪电杯决赛结束，赛季正式结束，计算升降级并创建附加赛
             print(f"\n  📊 闪电杯决赛结束，处理赛季结束，计算升降级...")
             promotion_data = await self.promotion_service.process_season_end(season)
@@ -774,7 +798,7 @@ class SeasonService:
             print(f"  ⬆️ 直升: {auto_up} 队")
             print(f"  ⬇️ 直降: {auto_down} 队")
             
-        elif day == 22:
+        elif day == preliminary_day:
             # 附加赛预选赛日，比赛由主循环模拟
             # 预选赛后创建Day 23的决赛对阵
             playoff_fixtures = await self._create_playoff_finals(season)
@@ -782,7 +806,7 @@ class SeasonService:
                 results['playoff_finals_created'] = len(playoff_fixtures)
                 print(f"  📝 创建附加赛决赛: {len(playoff_fixtures)} 场")
             
-        elif day == 24:
+        elif day == movement_day:
             # Day 24 休赛期，统一处理所有升降级
             print(f"\n  📊 处理赛季升降级...")
             
@@ -823,14 +847,17 @@ class SeasonService:
         from app.models.league import LeagueSystem, LeagueStanding
         
         fixtures = []
+        template = get_default_format().season
+        preliminary_day = template.playoff_days[0] if template.playoff_days else 22
+        final_playoff_day = template.playoff_days[1] if len(template.playoff_days) > 1 else preliminary_day + 1
         
-        # 获取Day 22的附加赛结果
+        # 获取附加赛预选赛结果
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
                     Fixture.season_id == season.id,
                     Fixture.fixture_type == FixtureType.PLAYOFF,
-                    Fixture.season_day == 22,
+                    Fixture.season_day == preliminary_day,
                     Fixture.status == FixtureStatus.FINISHED
                 )
             )
@@ -856,9 +883,8 @@ class SeasonService:
                 system = stage.split("-")[-1]
                 winners[f"{system}_L4CD"] = winner_id
         
-        # Day 23 决赛时间
-        day23_date = season.start_date + timedelta(days=22)
-        day23_kickoff = day23_date.replace(hour=20, minute=0, second=0)
+        final_date = season.start_date + timedelta(days=final_playoff_day - 1)
+        final_kickoff = final_date.replace(hour=template.kickoff_hour, minute=0, second=0)
         
         # 获取升降级数据（包含L1-L2决赛对阵）
         promotion_data = getattr(season, '_promotion_data', {})
@@ -872,8 +898,8 @@ class SeasonService:
                     fixture = Fixture(
                         season_id=season.id,
                         fixture_type=FixtureType.PLAYOFF,
-                        season_day=23,
-                        scheduled_at=day23_kickoff,
+                        season_day=final_playoff_day,
+                        scheduled_at=final_kickoff,
                         round_number=2,
                         league_id=None,
                         cup_competition_id=None,
@@ -923,8 +949,8 @@ class SeasonService:
                     fixture = Fixture(
                         season_id=season.id,
                         fixture_type=FixtureType.PLAYOFF,
-                        season_day=23,
-                        scheduled_at=day23_kickoff,
+                        season_day=final_playoff_day,
+                        scheduled_at=final_kickoff,
                         round_number=2,
                         league_id=None,
                         cup_competition_id=None,
@@ -946,8 +972,8 @@ class SeasonService:
                     fixture = Fixture(
                         season_id=season.id,
                         fixture_type=FixtureType.PLAYOFF,
-                        season_day=23,
-                        scheduled_at=day23_kickoff,
+                        season_day=final_playoff_day,
+                        scheduled_at=final_kickoff,
                         round_number=2,
                         league_id=None,
                         cup_competition_id=None,
@@ -969,8 +995,8 @@ class SeasonService:
                     fixture = Fixture(
                         season_id=season.id,
                         fixture_type=FixtureType.PLAYOFF,
-                        season_day=23,
-                        scheduled_at=day23_kickoff,
+                        season_day=final_playoff_day,
+                        scheduled_at=final_kickoff,
                         round_number=2,
                         league_id=None,
                         cup_competition_id=None,
@@ -1019,13 +1045,16 @@ class SeasonService:
         playoff_promotions = []
         playoff_relegations = []
         
-        # 获取Day 23的附加赛结果
+        template = get_default_format().season
+        final_playoff_day = template.playoff_days[1] if len(template.playoff_days) > 1 else 23
+
+        # 获取附加赛决赛结果
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
                     Fixture.season_id == season.id,
                     Fixture.fixture_type == FixtureType.PLAYOFF,
-                    Fixture.season_day == 23,
+                    Fixture.season_day == final_playoff_day,
                     Fixture.status == FixtureStatus.FINISHED
                 )
             )

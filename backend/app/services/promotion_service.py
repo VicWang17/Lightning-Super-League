@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.season import Season, Fixture, FixtureType, FixtureStatus
 from app.models.league import League, LeagueStanding, LeagueSystem
+from app.core.formats import get_default_format
 from app.models.team import Team
 
 
@@ -284,9 +285,10 @@ class PromotionService:
         """
         fixtures = []
         
-        # Day 22 - 预选赛
-        day22_date = season.start_date + timedelta(days=21)  # Day 22
-        day22_kickoff = day22_date.replace(hour=20, minute=0, second=0)
+        template = get_default_format().season
+        preliminary_day = template.playoff_days[0]
+        preliminary_date = season.start_date + timedelta(days=preliminary_day - 1)
+        preliminary_kickoff = preliminary_date.replace(hour=template.kickoff_hour, minute=0, second=0)
         
         for match_name, (home_id, away_id) in playoff_teams.items():
             if "亚军预赛" in match_name or "L3亚军" in match_name:
@@ -295,8 +297,8 @@ class PromotionService:
                     fixture = Fixture(
                         season_id=season.id,
                         fixture_type=FixtureType.PLAYOFF,
-                        season_day=22,
-                        scheduled_at=day22_kickoff,
+                        season_day=preliminary_day,
+                        scheduled_at=preliminary_kickoff,
                         round_number=1,
                         league_id=None,
                         cup_competition_id=None,
@@ -328,27 +330,30 @@ class PromotionService:
         """
         final_promotions = list(auto_promotions)
         final_relegations = list(auto_relegations)
+        template = get_default_format().season
+        final_playoff_day = template.playoff_days[1] if len(template.playoff_days) > 1 else 23
+        movement_day = template.promotion_day
         
-        # 获取Day 24的附加赛结果
+        # 获取最终升降级处理日的附加赛结果
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
                     Fixture.season_id == season.id,
                     Fixture.fixture_type == FixtureType.PLAYOFF,
-                    Fixture.season_day == 24,
+                    Fixture.season_day == movement_day,
                     Fixture.status == FixtureStatus.FINISHED
                 )
             )
         )
         day24_fixtures = result.scalars().all()
         
-        # 获取Day 23的附加赛结果
+        # 获取附加赛决赛结果
         result = await self.db.execute(
             select(Fixture).where(
                 and_(
                     Fixture.season_id == season.id,
                     Fixture.fixture_type == FixtureType.PLAYOFF,
-                    Fixture.season_day == 23,
+                    Fixture.season_day == final_playoff_day,
                     Fixture.status == FixtureStatus.FINISHED
                 )
             )

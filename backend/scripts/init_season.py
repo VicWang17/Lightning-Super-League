@@ -63,7 +63,7 @@ async def create_season(db: AsyncSession, season_number: int, start_date: dateti
         season_number=season_number,
         start_date=start_date,
         status=SeasonStatus.PENDING,
-        current_day=0,
+        current_day=1,
         current_league_round=0,
         current_cup_round=0,
         total_days=template.total_days,
@@ -387,6 +387,7 @@ async def init_season():
             promotion_day=fmt.season.promotion_day,
             total_days=season.total_days,
             start_date=start_date,
+            wage_days=list(fmt.season.wage_days),
         )
         await EventQueue.push_many(db, events)
         await db.commit()

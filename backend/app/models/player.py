@@ -7,7 +7,11 @@ Player model - 球员模型 (PRD v5 简化版)
 from decimal import Decimal
 from enum import Enum as PyEnum
 
-from sqlalchemy import String, Integer, ForeignKey, Enum, DECIMAL, JSON, case
+from datetime import datetime
+from decimal import Decimal
+from enum import Enum as PyEnum
+
+from sqlalchemy import String, Integer, ForeignKey, Enum, DECIMAL, JSON, case, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import func
@@ -171,7 +175,15 @@ class Player(Base):
     release_clause: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
     squad_role: Mapped[SquadRole] = mapped_column(Enum(SquadRole), default=SquadRole.FIRST_TEAM, nullable=False)
     
-    # market_value / recommended_wage / 生涯统计由服务实时计算，不持久化在 players。
+    # ===== 状态系统 (v1 新增) =====
+    recommended_wage: Mapped[Decimal | None] = mapped_column(DECIMAL(12, 2), nullable=True)
+    wage_ratio: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)
+    wage_satisfaction: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    match_rust_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    
+    # market_value / 生涯统计由服务实时计算，不持久化在 players。
     
     # ===== 外键 =====
     team_id: Mapped[str | None] = mapped_column(
@@ -183,6 +195,8 @@ class Player(Base):
     # ===== 关联关系 =====
     team: Mapped["Team"] = relationship("Team", back_populates="players")
     season_stats: Mapped[list["PlayerSeasonStats"]] = relationship("PlayerSeasonStats", back_populates="player")
+    contracts: Mapped[list["PlayerContract"]] = relationship("PlayerContract", back_populates="player")
+    state_snapshots: Mapped[list["PlayerStateSnapshot"]] = relationship("PlayerStateSnapshot", back_populates="player")
     
     @property
     def age(self, current_season: int = 0) -> int:
@@ -206,11 +220,6 @@ class Player(Base):
     def market_value(self) -> Decimal:
         """实时估算市场价值，不落库。"""
         return Decimal(self.ovr * 10000 + self.potential_max * 500).quantize(Decimal("0.01"))
-    
-    @property
-    def recommended_wage(self) -> Decimal:
-        """实时估算建议工资，不落库。"""
-        return Decimal(1000 + self.ovr * 800 + (self.potential_max - 50) * 50).quantize(Decimal("0.01"))
     
     @hybrid_property
     def ovr(self) -> int:

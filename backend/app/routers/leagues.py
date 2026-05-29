@@ -16,6 +16,7 @@ from app.schemas.league import (
 from app.models import LeagueSystem, League, Season, SeasonStatus, LeagueStanding, Fixture, FixtureStatus, Team, Player, PlayerSeasonStats
 from app.models.season import FixtureType
 from app.dependencies import get_db
+from app.core.formats import get_default_format
 
 router = APIRouter(prefix="/leagues", tags=["联赛"])
 
@@ -329,7 +330,10 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
             )
             league_team_ids = {str(t[0]) for t in standings_team_result.all()}
             
-            # 查询该赛季的所有附加赛（Day 22, 23, 24）
+            season_template = get_default_format().season
+            playoff_days = list(season_template.playoff_days) + [season_template.promotion_day]
+
+            # 查询该赛季的所有附加赛
             playoffs_result = await db.execute(
                 select(Fixture)
                 .options(
@@ -340,7 +344,7 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
                     and_(
                         Fixture.season_id == current_season.id,
                         Fixture.fixture_type == FixtureType.PLAYOFF,
-                        Fixture.season_day.in_([22, 23, 24])
+                        Fixture.season_day.in_(playoff_days)
                     )
                 )
                 .order_by(Fixture.season_day, Fixture.scheduled_at)
@@ -369,7 +373,7 @@ async def get_league(league_id: str, db: AsyncSession = Depends(get_db)):
                     playoffs_data.append(PlayoffMatchItem(
                         id=str(playoff.id),
                         name=name,
-                        round=1 if playoff.season_day == 22 else 2,
+                        round=1 if playoff.season_day == season_template.playoff_days[0] else 2,
                         home_team=MatchTeamInfo(
                             id=str(playoff.home_team.id),
                             name=playoff.home_team.name,

@@ -5,7 +5,7 @@ import {
   MapPin, Calendar, TrendingUp, ChevronRight
 } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
-import { getPositionColor, type PlayerListItem } from '../../types/player'
+import { getPositionColor, type PlayerListItem, type PlayerState } from '../../types/player'
 import { api } from '../../api/client'
 
 // Mock team data
@@ -47,10 +47,18 @@ const MOCK_TEAM = {
   }
 }
 
+const formColors: Record<string, string> = {
+  HOT: 'text-red-400',
+  GOOD: 'text-emerald-400',
+  NEUTRAL: 'text-[#8B8BA7]',
+  LOW: 'text-amber-400',
+}
+
 function TeamDetail() {
   const { id: _id } = useParams<{ id: string }>()
   const [team, setTeam] = useState(MOCK_TEAM)
   const [players, setPlayers] = useState<PlayerListItem[]>([])
+  const [playerStates, setPlayerStates] = useState<Record<string, PlayerState>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -73,9 +81,19 @@ function TeamDetail() {
 
         if (!cancelled && teamId) {
           setTeam(teamData)
-          const playersRes = await api.get<{ items: PlayerListItem[], total: number, page: number, page_size: number }>(`/teams/${teamId}/players?page=1&page_size=50`)
+          const [playersRes, statesRes] = await Promise.all([
+            api.get<{ items: PlayerListItem[], total: number, page: number, page_size: number }>(`/teams/${teamId}/players?page=1&page_size=50`),
+            api.get<{ team_id: string; players: PlayerState[] }>(`/teams/${teamId}/player-states`).catch(() => null),
+          ])
           if (!cancelled && playersRes.success) {
             setPlayers(playersRes.data.items || [])
+          }
+          if (!cancelled && statesRes?.success) {
+            const stateMap: Record<string, PlayerState> = {}
+            statesRes.data.players.forEach((s: PlayerState) => {
+              stateMap[s.player_id] = s
+            })
+            setPlayerStates(stateMap)
           }
         }
       } catch (err) {
@@ -287,55 +305,86 @@ function TeamDetail() {
                       <th className="py-3 px-2 font-medium text-center">年龄</th>
                       <th className="py-3 px-2 font-medium text-center">潜力</th>
                       <th className="py-3 px-2 font-medium text-center">能力</th>
+                      <th className="py-3 px-2 font-medium text-center">状态</th>
+                      <th className="py-3 px-2 font-medium text-center">体能</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {players.map(player => (
-                      <tr key={player.id} className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
-                        <td className="py-3 px-2">
-                          <div className="w-8 h-8 bg-[#1E1E2D] border border-[#2D2D44] overflow-hidden">
-                            {player.avatar_url ? (
-                              <img src={`/${player.avatar_url}`} alt={player.name} className="w-full h-full object-cover" />
+                    {players.map(player => {
+                      const state = playerStates[player.id]
+                      return (
+                        <tr key={player.id} className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+                          <td className="py-3 px-2">
+                            <div className="w-8 h-8 bg-[#1E1E2D] border border-[#2D2D44] overflow-hidden">
+                              {player.avatar_url ? (
+                                <img src={`/${player.avatar_url}`} alt={player.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs flex items-center justify-center h-full">👤</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2">
+                            <span className={`inline-flex items-center justify-center w-8 h-8 text-xs font-bold ${getPositionColor(player.position)}`}>
+                              {player.position}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2">
+                            <Link
+                              to={`/players/${player.id}`}
+                              className="font-medium text-white hover:text-[#0D7377] transition-colors"
+                            >
+                              {player.name}
+                            </Link>
+                          </td>
+                          <td className="py-3 px-2 text-center stat-number text-[#8B8BA7]">{player.age}</td>
+                          <td className="py-3 px-2 text-center">
+                            <span className={`text-xs font-bold ${
+                              player.potential_letter === 'S' ? 'text-amber-400' :
+                              player.potential_letter === 'A' ? 'text-emerald-400' :
+                              player.potential_letter === 'B' ? 'text-[#0D7377]' :
+                              'text-[#8B8BA7]'
+                            }`}>
+                              {player.potential_letter}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <span className={`font-bold stat-number pixel-number ${
+                              player.ovr >= 75 ? 'text-emerald-400' :
+                              player.ovr >= 70 ? 'text-[#0D7377]' :
+                              'text-[#8B8BA7]'
+                            }`}>
+                              {player.ovr}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            {state ? (
+                              <span className={`text-xs font-bold ${formColors[state.visible_form] || 'text-[#8B8BA7]'}`}>
+                                {state.visible_form === 'HOT' ? '🔥' :
+                                 state.visible_form === 'GOOD' ? '👍' :
+                                 state.visible_form === 'LOW' ? '↓' : '—'}
+                              </span>
                             ) : (
-                              <span className="text-xs flex items-center justify-center h-full">👤</span>
+                              <span className="text-xs text-[#8B8BA7]">—</span>
                             )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-2">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 text-xs font-bold ${getPositionColor(player.position)}`}>
-                            {player.position}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2">
-                          <Link
-                            to={`/players/${player.id}`}
-                            className="font-medium text-white hover:text-[#0D7377] transition-colors"
-                          >
-                            {player.name}
-                          </Link>
-                        </td>
-                        <td className="py-3 px-2 text-center stat-number text-[#8B8BA7]">{player.age}</td>
-                        <td className="py-3 px-2 text-center">
-                          <span className={`text-xs font-bold ${
-                            player.potential_letter === 'S' ? 'text-amber-400' :
-                            player.potential_letter === 'A' ? 'text-emerald-400' :
-                            player.potential_letter === 'B' ? 'text-[#0D7377]' :
-                            'text-[#8B8BA7]'
-                          }`}>
-                            {player.potential_letter}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <span className={`font-bold stat-number pixel-number ${
-                            player.ovr >= 75 ? 'text-emerald-400' :
-                            player.ovr >= 70 ? 'text-[#0D7377]' :
-                            'text-[#8B8BA7]'
-                          }`}>
-                            {player.ovr}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            {state ? (
+                              <div className="w-12 h-2 bg-[#2D2D44] mx-auto overflow-hidden">
+                                <div
+                                  className={`h-full ${
+                                    state.fitness > 80 ? 'bg-emerald-500' :
+                                    state.fitness > 50 ? 'bg-amber-500' : 'bg-red-500'
+                                  }`}
+                                  style={{ width: `${state.fitness}%` }}
+                                />
+                              </div>
+                            ) : (
+                              <span className="text-xs text-[#8B8BA7]">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

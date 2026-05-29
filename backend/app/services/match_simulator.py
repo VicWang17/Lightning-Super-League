@@ -18,10 +18,11 @@ from app.core.clock import clock
 from sqlalchemy import select, and_
 
 from app.models.season import Fixture, FixtureStatus, FixtureType, CupGroup
-from app.models.player import Player, PlayerPosition
+from app.models.player import Player, PlayerPosition, PlayerStatus
 from app.models.player_season_stats import PlayerSeasonStats
 from app.models.team import Team
 from app.services.standing_service import StandingService
+from app.services.player_state_service import PlayerStateService
 
 
 @dataclass
@@ -133,8 +134,10 @@ class MatchSimulator:
             if result.engine_raw:
                 await MatchSimulator._persist_engine_result(fixture, result, db)
                 await MatchSimulator._update_player_stats_from_engine(fixture, result, db)
+                await MatchSimulator._update_player_match_state(fixture, result, db)
             else:
                 await MatchSimulator._update_player_stats(fixture, db, result)
+                await MatchSimulator._update_player_match_state(fixture, result, db)
         
         # 检测并更新纪录
         if db:
@@ -558,4 +561,70 @@ class MatchSimulator:
             else:
                 stats.average_rating = rating
 
+        await db.flush()
+
+    @staticmethod
+    async def _update_player_match_state(
+        fixture: Fixture,
+        result: MatchResult,
+        db: AsyncSession,
+    ) -> None:
+        """赛后更新球员 fitness、match_rust_score 并触发状态重算"""
+        if not result.player_stats:
+            return
+        
+        # 获取双方球队所有球员
+        home_players = await MatchSimulator._get_team_players(db, fixture.home_team_id)
+        away_players = await MatchSimulator._get_team_players(db, fixture.away_team_id)
+        all_players = {p.id: p for p in home_players + away_players}
+        
+        # 找出出场的球员
+        played_player_ids = set()
+        for ps in result.player_stats:
+            player_id = ps.get("player_id")
+            if player_id:
+                played_player_ids.add(player_id)
+        
+        state_service = PlayerStateService(db)
+        
+        # 处理出场的球员
+        for player_id in played_player_ids:
+            player = all_players.get(player_id)
+            if not player:
+                continue
+            
+            # fitness 下降（设计文档 8.3）
+            # 默认 50 分钟 -12，70 分钟 -18
+            minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
+            fitness_drop = 18 if minutes >= 70 else 12
+            player.fitness = max(0, player.fitness - fitness_drop)
+            
+            # match_rust_score 恢复（栈式弹出）
+            player.match_rust_score = min(player.match_rust_score + 1, 0)
+            
+            # 触发状态重算
+            try:
+                await state_service.recalculate_player_state(player_id, "match_finished")
+            except Exception as exc:
+                logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
+        
+        # 处理未出场的球员（非伤停/停赛）
+        for player_id, player in all_players.items():
+            if player_id in played_player_ids:
+                continue
+            if player.status in (PlayerStatus.INJURED, PlayerStatus.SUSPENDED):
+                continue
+            
+            # fitness 恢复（设计文档 8.3 / 9.4）
+            player.fitness = min(100, player.fitness + 5)
+            
+            # match_rust_score 下降（栈式压入）
+            player.match_rust_score = max(player.match_rust_score - 1, -4)
+            
+            # 触发状态重算
+            try:
+                await state_service.recalculate_player_state(player_id, "match_finished")
+            except Exception as exc:
+                logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
+        
         await db.flush()

@@ -98,6 +98,7 @@ fitness + 疲劳修正 = 初始 stamina
 | `recent_match` | 是 | 最近 2-3 场评分。 |
 | `fitness` | 是 | 现有 `fitness` 字段。 |
 | `match_load` | 轻量实现 | 根据最近出场分钟数估算连续比赛劳累。 |
+| `match_rust` | 是 | 连续 2–3 场未出场导致比赛生疏，轻微降低状态。 |
 | `training_load` | 预留接口 | 等训练系统完成后写入。 |
 | `injury` | 预留/兼容 | 已有 `status=INJURED`，后续扩展伤停天数。 |
 | `suspension` | 预留/兼容 | 已有 `status=SUSPENDED`。 |
@@ -116,6 +117,7 @@ fitness + 疲劳修正 = 初始 stamina
 | `wage_satisfaction` | int default 0 | 隐藏工资满意度，范围 -3 到 +3。 |
 | `state_score` | int default 0 | 最近一次聚合后的综合状态分。 |
 | `state_updated_at` | datetime nullable | 最近聚合时间。 |
+| `match_rust_score` | int default 0 | 比赛生疏分，范围 -4 ~ 0，栈式累积。 |
 
 说明：
 
@@ -159,6 +161,7 @@ fitness + 疲劳修正 = 初始 stamina
 | `recent_match_score` | int | 近期比赛来源分。 |
 | `fitness_score` | int | 体能来源分。 |
 | `match_load_score` | int | 连续比赛来源分。 |
+| `match_rust_score` | int | 比赛生疏来源分。 |
 | `training_load_score` | int | 训练来源分，v1 可为 0。 |
 | `morale_score` | int | 其他士气事件来源分，v1 可为 0。 |
 | `total_score` | int | 聚合分。 |
@@ -369,6 +372,34 @@ recent_minutes = 最近 7 个赛季日内出场分钟数
 
 如果当前赛季日难以查询，先用最近 3 场出场次数估算。
 
+#### 比赛生疏来源
+
+`match_rust_score` 是一个带状态的累积值，像**栈**一样工作：每缺席一场正式比赛就往栈里压一层（-1），每出场一场就弹出一层（+1），始终回补之前的生疏惩罚，不单独额外加分。
+
+**维护规则（由赛后/赛事件写入 `players.match_rust_score`）：**
+
+| 事件 | 变化 | 说明 |
+| --- | --- | --- |
+| 赛季内正式比赛有出场（≥1 分钟） | +1 | 逐场回补生疏分，`min(当前值 + 1, 0)`。 |
+| 赛季内正式比赛未出场（非伤停/停赛） | -1 | 进入大名单但未上场，或未进大名单均计入，`max(当前值 - 1, -4)`。 |
+| 伤停/停赛期间的比赛 | 不变 | 不计入缺席，避免球员康复后立刻被惩罚。 |
+
+**边界：**
+- 上限 `0`（栈空，无生疏）。
+- 下限 `-4`（栈满，连续 4 场及以上未出场的最大惩罚）。
+- 友谊赛、热身赛不计入。
+- 赛季切换时重置为 `0`。
+
+**示例：**
+- 连续 3 场未出场：`0 → -1 → -2 → -3`
+- 第 4 场出场：`-3 → -2`
+- 第 5 场出场：`-2 → -1`
+- 第 6 场出场：`-1 → 0`
+
+**聚合时：** 直接读取 `players.match_rust_score` 进入 `total_score`，不再实时统计。
+
+与 `match_load` 形成平衡：打得太多会疲劳，太久不打会生疏，交替出场和休息才能维持最佳状态。
+
 #### 训练负荷来源
 
 第一版预留接口：
@@ -393,6 +424,7 @@ total_score =
   + recent_match_score
   + fitness_score
   + match_load_score
+  + match_rust_score
   + training_load_score
   + morale_score
 ```
@@ -561,7 +593,11 @@ effective_attr = clamp(effective_attr, 1, 20)
 1. 根据 Go 引擎 `player_stats.rating` 更新球员和赛季统计。
 2. 调用 `PlayerStateService.recalculate_player_state(player_id, "match_finished")`。
 3. 根据出场分钟降低 `fitness` 或写入连续比赛负荷。
-4. 如果受伤/红黄牌系统已实现，再更新 `status`。
+4. 更新 `match_rust_score`：
+   - 本场有出场（≥1 分钟）：`match_rust_score = min(match_rust_score + 1, 0)`
+   - 本场未出场且非伤停/停赛：`match_rust_score = max(match_rust_score - 1, -4)`
+   - 伤停/停赛期间不更新。
+5. 如果受伤/红黄牌系统已实现，再更新 `status`。
 
 第一版可以先做：
 

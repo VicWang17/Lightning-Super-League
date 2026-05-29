@@ -45,8 +45,6 @@ function calculateDisplayStatus(
   let displayText = ''
   if (season.status === 'finished') {
     displayText = `第${season.season_number}赛季 已结束`
-  } else if (season.current_day === 0) {
-    displayText = `第${season.season_number}赛季 即将开始`
   } else if (season.current_day >= season.offseason_start) {
     displayText = `第${season.season_number}赛季 休赛期 ${season.current_day}/${season.total_days}`
   } else if (hasLeague && hasCup) {

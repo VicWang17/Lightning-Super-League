@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, asc, update
 
 from app.core.logging import get_logger
+from app.core.formats import get_default_format
 
 logger = get_logger(__name__)
 
@@ -307,15 +308,26 @@ class EventQueue:
         start_date: datetime,
         wage_days: Optional[List[int]] = None,
     ) -> List[GameEvent]:
-        """根据赛季模板一次性生成全部赛季事件（SEASON_START + 每天 MATCH_DAY + CUP_PROGRESSION + PROMOTION_RELEGATION + SEASON_END + 经济事件）"""
+        """根据赛季模板一次性生成小时级赛季事件。
+
+        业务日从 1 开始；scheduled_at 才是定时任务的精确触发时间。
+        """
+        template = get_default_format().season
         events: List[GameEvent] = []
+
+        def at_day_hour(day: int, hour: int, minute: int = 0, second: int = 0) -> datetime:
+            if day < 1:
+                raise ValueError(f"season day must be >= 1, got {day}")
+            return (start_date + timedelta(days=day - 1)).replace(
+                hour=hour, minute=minute, second=second, microsecond=0
+            )
 
         # 赛季开始
         events.append(
             GameEvent(
                 event_type=EventType.SEASON_START,
                 payload={"season_id": season_id, "start_date": start_date.isoformat()},
-                scheduled_at=start_date,
+                scheduled_at=at_day_hour(1, template.season_start_hour),
             )
         )
 
@@ -324,13 +336,12 @@ class EventQueue:
             GameEvent(
                 event_type=EventType.SEASON_FINANCE_INITIALIZED,
                 payload={"season_id": season_id, "day": 1},
-                scheduled_at=start_date + timedelta(days=1),
+                scheduled_at=at_day_hour(1, template.finance_initialization_hour),
             )
         )
 
         # 每天一个 MATCH_DAY 事件
-        for day in range(total_days):
-            scheduled = start_date + timedelta(days=day)
+        for day in range(1, total_days + 1):
             payload: Dict[str, Any] = {"season_id": season_id, "day": day}
             if day in league_days:
                 payload["league_round"] = league_days.index(day) + 1
@@ -340,41 +351,41 @@ class EventQueue:
                 GameEvent(
                     event_type=EventType.MATCH_DAY,
                     payload=payload,
-                    scheduled_at=scheduled,
+                    scheduled_at=at_day_hour(day, template.kickoff_hour),
                 )
             )
 
-        # 杯赛晋级事件（每个杯赛日之后）
+        # 杯赛晋级事件（杯赛日比赛结束后）
         for cup_day in cup_days:
-            scheduled = start_date + timedelta(days=cup_day + 1)
             events.append(
                 GameEvent(
                     event_type=EventType.CUP_PROGRESSION,
                     payload={"season_id": season_id, "after_day": cup_day},
-                    scheduled_at=scheduled,
+                    scheduled_at=at_day_hour(cup_day, template.cup_progression_hour),
                 )
             )
 
         # 升降级
-        if promotion_day > 0:
-            scheduled = start_date + timedelta(days=promotion_day)
+        promotion_days = getattr(template, "promotion_event_days", (promotion_day,))
+        for event_day in promotion_days:
+            if event_day <= 0 or event_day > total_days:
+                continue
             events.append(
                 GameEvent(
                     event_type=EventType.PROMOTION_RELEGATION,
-                    payload={"season_id": season_id, "day": promotion_day},
-                    scheduled_at=scheduled,
+                    payload={"season_id": season_id, "day": event_day},
+                    scheduled_at=at_day_hour(event_day, template.promotion_hour),
                 )
             )
 
         # 工资发放事件（Phase 2 经济系统）
         for wage_day in (wage_days or []):
             if wage_day <= total_days:
-                scheduled = start_date + timedelta(days=wage_day)
                 events.append(
                     GameEvent(
                         event_type=EventType.WAGES_PAID,
                         payload={"season_id": season_id, "day": wage_day, "period_key": f"wage_{wage_day}"},
-                        scheduled_at=scheduled,
+                        scheduled_at=at_day_hour(wage_day, template.wage_hour),
                     )
                 )
 
@@ -385,24 +396,24 @@ class EventQueue:
             GameEvent(
                 event_type=EventType.BUDGET_WINDOW_OPENED,
                 payload={"season_id": season_id, "day": budget_open_day},
-                scheduled_at=start_date + timedelta(days=budget_open_day),
+                scheduled_at=at_day_hour(budget_open_day, template.budget_open_hour),
             )
         )
         events.append(
             GameEvent(
                 event_type=EventType.BUDGET_WINDOW_CLOSED,
                 payload={"season_id": season_id, "day": budget_close_day},
-                scheduled_at=start_date + timedelta(days=budget_close_day),
+                scheduled_at=at_day_hour(budget_close_day, template.budget_close_hour),
             )
         )
 
         # 赛季结束 + 财务结算
-        end_date = start_date + timedelta(days=total_days)
+        end_date = at_day_hour(total_days, template.season_end_hour)
         events.append(
             GameEvent(
                 event_type=EventType.SEASON_FINANCE_CLOSED,
                 payload={"season_id": season_id, "end_date": end_date.isoformat()},
-                scheduled_at=end_date,
+                scheduled_at=at_day_hour(total_days, template.season_finance_close_hour),
             )
         )
 
@@ -411,8 +422,8 @@ class EventQueue:
             GameEvent(
                 event_type=EventType.SEASON_END,
                 payload={"season_id": season_id, "end_date": end_date.isoformat()},
-                scheduled_at=end_date + timedelta(seconds=1),
+                scheduled_at=end_date,
             )
         )
 
-        return events
+        return sorted(events, key=lambda event: event.scheduled_at)

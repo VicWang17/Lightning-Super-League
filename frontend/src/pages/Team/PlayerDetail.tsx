@@ -1,30 +1,45 @@
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Weight, Footprints } from 'lucide-react'
+import { Weight, Footprints, PenSquare } from 'lucide-react'
 import {
   Clock, ChevronLeft, Calendar,
   TrendingUp, Award, Ruler, User, Shield, Target, Zap
 } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 import { PlayerTabs } from '../../components/players/PlayerTabs'
-import { getPositionColor, type Player } from '../../types/player'
+import { ContractModal } from '../../components/players/ContractModal'
+import { getPositionColor, type Player, type PlayerContract, type PlayerState } from '../../types/player'
 import { api } from '../../api/client'
 
 function PlayerDetail() {
   const { id } = useParams<{ id: string }>()
   const [player, setPlayer] = useState<Player | null>(null)
+  const [contract, setContract] = useState<PlayerContract | null>(null)
+  const [playerState, setPlayerState] = useState<PlayerState | null>(null)
+  const [showContractModal, setShowContractModal] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!id) return
-    api.get<Player>(`/players/${id}`)
-      .then(res => {
-        if (res.success) {
-          setPlayer(res.data)
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    setLoading(true)
+    try {
+      const [playerRes, contractRes, stateRes] = await Promise.all([
+        api.get<Player>(`/players/${id}`),
+        api.get<PlayerContract>(`/players/${id}/contract`).catch(() => null),
+        api.get<PlayerState>(`/players/${id}/state`).catch(() => null),
+      ])
+      if (playerRes.success) setPlayer(playerRes.data)
+      if (contractRes?.success) setContract(contractRes.data)
+      if (stateRes?.success) setPlayerState(stateRes.data)
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
   }, [id])
 
   if (loading) {
@@ -304,7 +319,18 @@ function PlayerDetail() {
 
           {/* 合同信息 */}
           <Card hover>
-            <h3 className="text-lg font-semibold mb-4">合同信息</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">合同信息</h3>
+              {player.team_id && (
+                <button
+                  onClick={() => setShowContractModal(true)}
+                  className="flex items-center gap-1 text-sm text-[#0D7377] hover:text-white transition-colors"
+                >
+                  <PenSquare className="w-4 h-4" />
+                  {contract ? '续约' : '签约'}
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-[#1E1E2D]">
                 <p className="text-xs text-[#8B8BA7] mb-1">工资</p>
@@ -312,11 +338,15 @@ function PlayerDetail() {
               </div>
               <div className="p-4 bg-[#1E1E2D]">
                 <p className="text-xs text-[#8B8BA7] mb-1">合同到期</p>
-                <p className="font-bold stat-number pixel-number text-white">第 {player.contract_end_season} 赛季</p>
+                <p className="font-bold stat-number pixel-number text-white">
+                  {player.contract_end_season ? `第 ${player.contract_end_season} 赛季` : '自由身'}
+                </p>
               </div>
               <div className="p-4 bg-[#1E1E2D]">
                 <p className="text-xs text-[#8B8BA7] mb-1">解约金</p>
-                <p className="font-bold stat-number pixel-number text-emerald-400">€{(player.release_clause! / 1000000).toFixed(1)}M</p>
+                <p className="font-bold stat-number pixel-number text-emerald-400">
+                  {player.release_clause ? `€${(player.release_clause / 1000000).toFixed(1)}M` : '无'}
+                </p>
               </div>
               <div className="p-4 bg-[#1E1E2D]">
                 <p className="text-xs text-[#8B8BA7] mb-1">市场价值</p>
@@ -372,6 +402,38 @@ function PlayerDetail() {
           <Card hover>
             <h3 className="text-lg font-semibold mb-4">当前状态</h3>
             <div className="space-y-4">
+              {/* match_form 标签 */}
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 text-sm font-bold border-2 ${
+                  player.match_form === 'HOT' ? 'border-red-500 text-red-400 bg-red-500/10' :
+                  player.match_form === 'GOOD' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' :
+                  player.match_form === 'LOW' ? 'border-amber-500 text-amber-400 bg-amber-500/10' :
+                  'border-[#8B8BA7] text-[#8B8BA7] bg-[#8B8BA7]/10'
+                }`}>
+                  {formNames[player.match_form]}
+                </span>
+                {playerState?.trend && (
+                  <span className={`text-xs ${
+                    playerState.trend === 'up' ? 'text-emerald-400' :
+                    playerState.trend === 'down' ? 'text-red-400' :
+                    'text-[#8B8BA7]'
+                  }`}>
+                    {playerState.trend === 'up' ? '↗ 上升' :
+                     playerState.trend === 'down' ? '↘ 下降' : '→ 稳定'}
+                  </span>
+                )}
+              </div>
+
+              {/* 状态提示 */}
+              {playerState?.hints && playerState.hints.length > 0 && (
+                <div className="space-y-1.5">
+                  {playerState.hints.map((hint, i) => (
+                    <p key={i} className="text-sm text-[#8B8BA7]">• {hint}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* 体能条 */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[#8B8BA7]">体能</span>
@@ -384,6 +446,13 @@ function PlayerDetail() {
                   />
                 </div>
               </div>
+
+              {/* 比赛生疏提示 */}
+              {(player.match_rust_score ?? 0) < -1 && (
+                <div className="p-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
+                  ⚠ 久疏战阵，连续 {-(player.match_rust_score ?? 0)} 场未出场
+                </div>
+              )}
             </div>
           </Card>
 
@@ -396,6 +465,17 @@ function PlayerDetail() {
           </Card>
         </div>
       </div>
+
+      {/* 合同弹窗 */}
+      {showContractModal && player.team_id && (
+        <ContractModal
+          player={player}
+          teamId={player.team_id}
+          existingContract={contract}
+          onClose={() => setShowContractModal(false)}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   )
 }

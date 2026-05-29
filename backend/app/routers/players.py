@@ -21,8 +21,17 @@ from app.schemas import (
     PlayerSeasonHistoryItem,
     PlayerCareerSummary,
     PlayerMilestone,
+    SquadRole,
+    PlayerContractResponse,
+    ContractPreviewRequest,
+    ContractPreviewResponse,
+    ContractSignRequest,
+    PlayerStateResponse,
+    TeamPlayerStatesResponse,
 )
 from app.models import Player, PlayerSeasonStats, Season, Team
+from app.services.contract_service import ContractService
+from app.services.player_state_service import PlayerStateService
 
 router = APIRouter(prefix="/players", tags=["球员"])
 
@@ -381,4 +390,269 @@ async def get_player_history(
             summary=summary,
             milestones=milestones,
         ),
+    )
+
+
+# =====================================================================
+# Contract API (v1 新增)
+# =====================================================================
+
+@router.get(
+    "/{player_id}/contract",
+    response_model=ResponseSchema[PlayerContractResponse],
+    summary="获取球员当前合同",
+)
+async def get_player_contract(
+    player_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取球员当前生效的合同详情"""
+    contract_service = ContractService(db)
+    contract = await contract_service._get_active_contract(player_id)
+    if not contract:
+        return ResponseSchema(success=False, message="球员没有生效的合同", code=404)
+    
+    return ResponseSchema(
+        success=True,
+        data=PlayerContractResponse(
+            player_id=contract.player_id,
+            team_id=contract.team_id,
+            contract_type=contract.contract_type,
+            start_season_number=contract.start_season_number,
+            end_season_number=contract.end_season_number,
+            wage=contract.wage,
+            recommended_wage=contract.recommended_wage,
+            wage_ratio=contract.wage_ratio,
+            release_clause=contract.release_clause,
+            squad_role=contract.squad_role,
+            status=contract.status,
+            created_at=contract.created_at,
+        ),
+    )
+
+
+@router.post(
+    "/{player_id}/contract/preview",
+    response_model=ResponseSchema[ContractPreviewResponse],
+    summary="预览合同 offer",
+)
+async def preview_contract(
+    player_id: str,
+    req: ContractPreviewRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """预览合同 offer，返回建议工资、满意度、工资帽压力等"""
+    contract_service = ContractService(db)
+    preview = await contract_service.preview_contract_offer(
+        player_id=player_id,
+        team_id=req.team_id,
+        contract_type=req.contract_type,
+        years=req.years,
+        wage=req.wage,
+        squad_role=req.squad_role,
+    )
+    return ResponseSchema(success=True, data=preview.to_dict())
+
+
+@router.post(
+    "/{player_id}/contract/sign",
+    response_model=ResponseSchema[PlayerContractResponse],
+    summary="签约",
+)
+async def sign_contract(
+    player_id: str,
+    req: ContractSignRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """与球员签订新合同"""
+    contract_service = ContractService(db)
+    contract = await contract_service.sign_contract(
+        player_id=player_id,
+        team_id=req.team_id,
+        contract_type=req.contract_type,
+        years=req.years,
+        wage=req.wage,
+        squad_role=req.squad_role,
+        release_clause=req.release_clause,
+    )
+    return ResponseSchema(
+        success=True,
+        data=PlayerContractResponse(
+            player_id=contract.player_id,
+            team_id=contract.team_id,
+            contract_type=contract.contract_type,
+            start_season_number=contract.start_season_number,
+            end_season_number=contract.end_season_number,
+            wage=contract.wage,
+            recommended_wage=contract.recommended_wage,
+            wage_ratio=contract.wage_ratio,
+            release_clause=contract.release_clause,
+            squad_role=contract.squad_role,
+            status=contract.status,
+            created_at=contract.created_at,
+        ),
+    )
+
+
+@router.post(
+    "/{player_id}/contract/renew",
+    response_model=ResponseSchema[PlayerContractResponse],
+    summary="续约",
+)
+async def renew_contract(
+    player_id: str,
+    req: ContractSignRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """与球员续约"""
+    contract_service = ContractService(db)
+    contract = await contract_service.renew_contract(
+        player_id=player_id,
+        team_id=req.team_id,
+        years=req.years,
+        wage=req.wage,
+        squad_role=req.squad_role,
+        release_clause=req.release_clause,
+    )
+    return ResponseSchema(
+        success=True,
+        data=PlayerContractResponse(
+            player_id=contract.player_id,
+            team_id=contract.team_id,
+            contract_type=contract.contract_type,
+            start_season_number=contract.start_season_number,
+            end_season_number=contract.end_season_number,
+            wage=contract.wage,
+            recommended_wage=contract.recommended_wage,
+            wage_ratio=contract.wage_ratio,
+            release_clause=contract.release_clause,
+            squad_role=contract.squad_role,
+            status=contract.status,
+            created_at=contract.created_at,
+        ),
+    )
+
+
+@router.post(
+    "/{player_id}/contract/release",
+    response_model=ResponseSchema[dict],
+    summary="解约",
+)
+async def release_player(
+    player_id: str,
+    team_id: str = Query(..., description="球队ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """解约球员"""
+    contract_service = ContractService(db)
+    await contract_service.release_player(player_id, team_id)
+    return ResponseSchema(success=True, data={"released": True})
+
+
+# =====================================================================
+# Player State API (v1 新增)
+# =====================================================================
+
+@router.get(
+    "/{player_id}/state",
+    response_model=ResponseSchema[PlayerStateResponse],
+    summary="获取球员状态",
+)
+async def get_player_state(
+    player_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取球员当前状态（玩家可见）"""
+    player = await db.execute(select(Player).where(Player.id == player_id))
+    player = player.scalar_one_or_none()
+    if not player:
+        return ResponseSchema(success=False, message="球员不存在", code=404)
+    
+    # 生成状态提示
+    hints = []
+    if player.match_form.value == "HOT":
+        hints.append("近期状态火热")
+    elif player.match_form.value == "LOW":
+        hints.append("近期状态低迷")
+    
+    if player.fitness >= 90:
+        hints.append("体能充沛")
+    elif player.fitness < 50:
+        hints.append("体能堪忧")
+    
+    if player.wage_satisfaction < 0:
+        hints.append("合同问题可能影响他的投入程度")
+    elif player.wage_satisfaction > 0:
+        hints.append("对合同感到满意")
+    
+    if player.match_rust_score < -1:
+        hints.append("久疏战阵，可能需要比赛找回节奏")
+    
+    # 趋势判断（简化：基于 state_score 与 0 的比较）
+    trend = "stable"
+    if player.state_score >= 3:
+        trend = "up"
+    elif player.state_score <= -2:
+        trend = "down"
+    
+    return ResponseSchema(
+        success=True,
+        data=PlayerStateResponse(
+            player_id=player.id,
+            visible_form=player.match_form,
+            fitness=player.fitness,
+            availability=player.status,
+            trend=trend,
+            hints=hints,
+            state_score=player.state_score,
+            match_rust_score=player.match_rust_score,
+        ),
+    )
+
+
+@router.get(
+    "/teams/{team_id}/player-states",
+    response_model=ResponseSchema[TeamPlayerStatesResponse],
+    summary="获取全队球员状态",
+)
+async def get_team_player_states(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取全队所有球员的状态列表"""
+    result = await db.execute(select(Player).where(Player.team_id == team_id))
+    players = result.scalars().all()
+    
+    states = []
+    for player in players:
+        hints = []
+        if player.match_form.value == "HOT":
+            hints.append("近期状态火热")
+        elif player.match_form.value == "LOW":
+            hints.append("近期状态低迷")
+        if player.fitness < 50:
+            hints.append("体能堪忧")
+        if player.match_rust_score < -1:
+            hints.append("久疏战阵")
+        
+        trend = "stable"
+        if player.state_score >= 3:
+            trend = "up"
+        elif player.state_score <= -2:
+            trend = "down"
+        
+        states.append(PlayerStateResponse(
+            player_id=player.id,
+            visible_form=player.match_form,
+            fitness=player.fitness,
+            availability=player.status,
+            trend=trend,
+            hints=hints,
+            state_score=player.state_score,
+            match_rust_score=player.match_rust_score,
+        ))
+    
+    return ResponseSchema(
+        success=True,
+        data=TeamPlayerStatesResponse(team_id=team_id, players=states),
     )

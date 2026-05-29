@@ -27,7 +27,7 @@ class TestBuildSeasonEvents:
         start = datetime(2025, 1, 1)
         events = EventQueue.build_season_events(
             season_id="season-1",
-            league_days=[0, 7, 14],
+            league_days=[1, 7, 14],
             cup_days=[10, 20],
             promotion_day=22,
             total_days=30,
@@ -39,14 +39,14 @@ class TestBuildSeasonEvents:
         assert EventType.SEASON_END in types
         assert types.count(EventType.MATCH_DAY) == 30  # 每天一场
         assert types.count(EventType.CUP_PROGRESSION) == 2  # 每个杯赛日之后
-        assert types.count(EventType.PROMOTION_RELEGATION) == 1
+        assert types.count(EventType.PROMOTION_RELEGATION) == 3
     
     def test_match_day_payload_contains_day_info(self):
         """MATCH_DAY 事件的 payload 应包含 day 和 league_round"""
         start = datetime(2025, 1, 1)
         events = EventQueue.build_season_events(
             season_id="season-1",
-            league_days=[0, 7],
+            league_days=[1, 7],
             cup_days=[10],
             promotion_day=22,
             total_days=15,
@@ -54,13 +54,36 @@ class TestBuildSeasonEvents:
         )
         
         match_days = [e for e in events if e.event_type == EventType.MATCH_DAY]
-        day0 = match_days[0]
-        assert day0.payload["day"] == 0
-        assert day0.payload.get("league_round") == 1
+        day1 = match_days[0]
+        assert day1.payload["day"] == 1
+        assert day1.payload.get("league_round") == 1
         
-        day7 = match_days[7]
+        day7 = match_days[6]
         assert day7.payload["day"] == 7
         assert day7.payload.get("league_round") == 2
+
+    def test_events_use_hour_level_schedule(self):
+        """关键事件应使用小时级 scheduled_at，而不是全挤在日期零点。"""
+        start = datetime(2025, 1, 1)
+        events = EventQueue.build_season_events(
+            season_id="season-1",
+            league_days=[1],
+            cup_days=[1],
+            promotion_day=2,
+            total_days=2,
+            start_date=start,
+            wage_days=[1],
+        )
+
+        by_type = {}
+        for event in events:
+            by_type.setdefault(event.event_type, []).append(event)
+
+        assert by_type[EventType.SEASON_START][0].scheduled_at.hour == 8
+        assert by_type[EventType.SEASON_FINANCE_INITIALIZED][0].scheduled_at.hour == 9
+        assert by_type[EventType.WAGES_PAID][0].scheduled_at.hour == 10
+        assert by_type[EventType.MATCH_DAY][0].scheduled_at.hour == 20
+        assert by_type[EventType.CUP_PROGRESSION][0].scheduled_at.hour == 23
     
     def test_events_are_ordered_by_scheduled_at(self):
         """事件应按 scheduled_at 升序排列"""
@@ -94,7 +117,7 @@ class TestDispatchEvent:
         # 使用不存在的 season_id，查询不到 fixtures
         event = GameEvent(
             event_type=EventType.MATCH_DAY,
-            payload={"season_id": "nonexistent", "day": 0}
+            payload={"season_id": "nonexistent", "day": 1}
         )
         with pytest.raises(ValueError, match="Season not found"):
             await service._dispatch_event(event)

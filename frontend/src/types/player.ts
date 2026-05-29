@@ -76,6 +76,7 @@ export interface Player {
   release_clause?: number
   squad_role: SquadRole
   market_value: number
+  match_rust_score?: number
 
   matches_played: number
   goals: number
@@ -111,6 +112,65 @@ export interface PlayerListItem {
   potential_letter: PotentialLetter
   market_value: number
   team_id?: string
+}
+
+// =====================================================================
+// Contract & State types (v1 新增)
+// =====================================================================
+
+export interface PlayerContract {
+  player_id: string
+  team_id: string | null
+  contract_type: ContractType
+  start_season_number: number
+  end_season_number: number | null
+  wage: number
+  recommended_wage: number
+  wage_ratio: number
+  release_clause: number | null
+  squad_role: SquadRole
+  status: string
+  created_at: string
+}
+
+export interface ContractPreview {
+  recommended_wage: number
+  offered_wage: number
+  wage_ratio: number
+  visible_reaction: string
+  hidden_wage_satisfaction: number
+  wage_cap_after_pct: number
+  can_submit: boolean
+  warnings: string[]
+}
+
+export interface ContractOffer {
+  team_id: string
+  contract_type: ContractType
+  years: number
+  wage: number
+  squad_role: SquadRole
+  release_clause?: number
+}
+
+export interface PlayerState {
+  player_id: string
+  visible_form: MatchForm
+  fitness: number
+  availability: PlayerStatus
+  trend: string
+  hints: string[]
+  state_score?: number
+  contract_score?: number
+  recent_match_score?: number
+  fitness_score?: number
+  match_load_score?: number
+  match_rust_score?: number
+}
+
+export interface TeamPlayerStates {
+  team_id: string
+  players: PlayerState[]
 }
 
 // Position display names

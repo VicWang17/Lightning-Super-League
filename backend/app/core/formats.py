@@ -61,11 +61,31 @@ class SeasonTimelineConfig:
     kickoff_hour: int = 20
     # 工资发放日（Phase 2 经济系统），默认基于 25 天赛季
     wage_days: Tuple[int, ...] = (7, 14, 21, 25)
+    season_start_hour: int = 8
+    finance_initialization_hour: int = 9
+    cup_progression_hour: int = 23
+    promotion_hour: int = 23
+    wage_hour: int = 10
+    budget_open_hour: int = 10
+    budget_close_hour: int = 18
+    season_finance_close_hour: int = 22
+    season_end_hour: int = 23
     
     @property
     def cup_progression_days(self) -> Tuple[int, ...]:
         """杯赛晋级处理日（闪电杯+杰尼杯的去重合并）"""
         return tuple(sorted(set(self.lightning_cup_days + self.jenny_cup_days)))
+
+    @property
+    def promotion_event_days(self) -> Tuple[int, ...]:
+        """升降级相关事件日：赛季收官、附加赛中段、最终升降级。"""
+        final_day = self.lightning_cup_days[-1] if self.lightning_cup_days else self.promotion_day
+        days = [final_day]
+        if self.playoff_days:
+            days.append(self.playoff_days[0])
+        if self.promotion_day > 0:
+            days.append(self.promotion_day)
+        return tuple(sorted(set(days)))
 
 
 @dataclass(frozen=True)

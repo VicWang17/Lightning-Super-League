@@ -22,6 +22,8 @@ def base_env() -> dict[str, str]:
     env.setdefault("MATCH_ENGINE_TRANSPORT", "process")
     env.setdefault("MATCH_ENGINE_MODE", "instant")
     env.setdefault("MATCH_ENGINE_FALLBACK_RANDOM", "false")
+    env.setdefault("NO_PROXY", "localhost,127.0.0.1,::1")
+    env.setdefault("no_proxy", "localhost,127.0.0.1,::1")
     return env
 
 

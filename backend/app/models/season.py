@@ -66,7 +66,7 @@ class Season(Base):
     )
     
     # 当前进度
-    current_day: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # 当前第几天 (0-42)
+    current_day: Mapped[int] = mapped_column(Integer, default=1, nullable=False)  # 当前第几天 (1-42)
     current_league_round: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # 当前联赛轮次 (0-30)
     current_cup_round: Mapped[int] = mapped_column(Integer, default=0, nullable=False)     # 当前杯赛轮次 (0-8)
     

@@ -1,5 +1,6 @@
 import { useAuthStore } from '../stores/auth'
 import type { Season, SeasonDetail, TodayFixturesResponse, SeasonCalendarResponse } from '../types/season'
+import type { PlayerContract, ContractPreview, ContractOffer, PlayerState, TeamPlayerStates } from '../types/player'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
@@ -510,6 +511,35 @@ class ApiClient {
       health_modifier_pct: number
       status: string
     }>(`/teams/${teamId}/finance/sponsor-contract?season_id=${seasonId}`, { method: 'GET' })
+  }
+
+  // ==================== 球员合同与状态 API ====================
+  async getPlayerContract(playerId: string) {
+    return this.get<PlayerContract>(`/players/${playerId}/contract`)
+  }
+
+  async previewContract(playerId: string, data: ContractOffer) {
+    return this.post<ContractPreview>(`/players/${playerId}/contract/preview`, data)
+  }
+
+  async signContract(playerId: string, data: ContractOffer) {
+    return this.post<PlayerContract>(`/players/${playerId}/contract/sign`, data)
+  }
+
+  async renewContract(playerId: string, data: ContractOffer) {
+    return this.post<PlayerContract>(`/players/${playerId}/contract/renew`, data)
+  }
+
+  async releasePlayer(playerId: string, teamId: string) {
+    return this.post<{ released: boolean }>(`/players/${playerId}/contract/release?team_id=${teamId}`, {})
+  }
+
+  async getPlayerState(playerId: string) {
+    return this.get<PlayerState>(`/players/${playerId}/state`)
+  }
+
+  async getTeamPlayerStates(teamId: string) {
+    return this.get<TeamPlayerStates>(`/teams/${teamId}/player-states`)
   }
 
   // ==================== 时钟 API ====================

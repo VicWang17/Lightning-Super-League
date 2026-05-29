@@ -4,11 +4,14 @@ HTTP client and request adapter for the Go match engine.
 from __future__ import annotations
 
 import hashlib
+import asyncio
 import json
 import os
 import subprocess
 from pathlib import Path
 from typing import Optional, Any
+
+from app.core.logging import get_logger
 
 import httpx
 from sqlalchemy import select
@@ -18,8 +21,10 @@ from app.config import get_settings
 from app.models.player import Player, PlayerPosition
 from app.models.season import Fixture, FixtureType
 from app.models.team import Team
+from app.services.player_state_service import PlayerStateService
 
 settings = get_settings()
+logger = get_logger("app.match_engine")
 
 
 class MatchEngineUnavailableError(RuntimeError):
@@ -49,6 +54,10 @@ class MatchEngineClient:
     async def simulate_fixture(self, db: AsyncSession, fixture: Fixture) -> dict[str, Any]:
         """Build a frozen fixture snapshot, call Go, and return SimulateResult."""
         payload = await self._build_request(db, fixture)
+        return await self.simulate_payload(fixture.id, payload)
+
+    async def simulate_payload(self, fixture_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Call the configured engine with an already built immutable payload."""
         if self.transport == "process":
             return self._simulate_with_process(payload)
 
@@ -56,7 +65,7 @@ class MatchEngineClient:
         if self.api_key:
             headers["X-Match-Engine-Key"] = self.api_key
 
-        url = f"{self.base_url}/api/v1/engine/matches/{fixture.id}/start"
+        url = f"{self.base_url}/api/v1/engine/matches/{fixture_id}/start"
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(url, json=payload, headers=headers)
@@ -69,6 +78,31 @@ class MatchEngineClient:
         if not isinstance(result, dict):
             raise MatchEngineUnavailableError("match engine response missing result")
         return result
+
+    async def simulate_fixtures(
+        self,
+        db: AsyncSession,
+        fixtures: list[Fixture],
+        concurrency: int = 16,
+    ) -> list[dict[str, Any]]:
+        """Simulate fixtures while keeping DB reads deterministic.
+
+        SQLAlchemy sessions are not shared concurrently, so payload snapshots are
+        built sequentially. HTTP engine calls are then fanned out with a bounded
+        semaphore; process transport remains sequential to avoid spawning many Go
+        compilers at once.
+        """
+        payloads = [(fixture.id, await self._build_request(db, fixture)) for fixture in fixtures]
+        if self.transport == "process":
+            return [self._simulate_with_process(payload) for _, payload in payloads]
+
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def run_one(fixture_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+            async with semaphore:
+                return await self.simulate_payload(fixture_id, payload)
+
+        return await asyncio.gather(*(run_one(fixture_id, payload) for fixture_id, payload in payloads))
 
     def _simulate_with_process(self, payload: dict[str, Any]) -> dict[str, Any]:
         env = os.environ.copy()
@@ -114,8 +148,8 @@ class MatchEngineClient:
 
         return {
             "match_id": fixture.id,
-            "home_team": self._build_team_setup(home_team, home_players, "F01"),
-            "away_team": self._build_team_setup(away_team, away_players, "F01"),
+            "home_team": self._build_team_setup(home_team, home_players, "F01", db),
+            "away_team": self._build_team_setup(away_team, away_players, "F01", db),
             "home_advantage": True,
             "requires_winner": requires_winner,
             "mode": self.mode,
@@ -137,14 +171,16 @@ class MatchEngineClient:
             raise ValueError(f"Team {team_id} has fewer than 8 players")
         return players
 
-    def _build_team_setup(self, team: Team, players: list[Player], formation_id: str) -> dict[str, Any]:
+    async def _build_team_setup(self, team: Team, players: list[Player], formation_id: str, db=None) -> dict[str, Any]:
         starters, bench = self._select_lineup(players)
+        starter_setups = await asyncio.gather(*[self._player_setup(p, db) for p in starters])
+        bench_setups = await asyncio.gather(*[self._player_setup(p, db) for p in bench])
         return {
             "team_id": team.id,
             "name": team.name,
             "formation_id": formation_id,
-            "players": [self._player_setup(p) for p in starters],
-            "bench": [self._player_setup(p) for p in bench],
+            "players": list(starter_setups),
+            "bench": list(bench_setups),
             "tactics": self._default_tactics(),
         }
 
@@ -166,36 +202,53 @@ class MatchEngineClient:
         bench = [p for p in sorted(pool, key=lambda p: p.ovr, reverse=True) if p not in starters][:5]
         return starters[:8], bench
 
-    def _player_setup(self, player: Player) -> dict[str, Any]:
+    async def _player_setup(self, player: Player, db=None) -> dict[str, Any]:
+        # 基础属性
+        base_attributes = {
+            "SHO": player.sho,
+            "PAS": player.pas,
+            "DRI": player.dri,
+            "SPD": player.spd,
+            "STR": player.str_,
+            "STA": player.sta,
+            "DEF": player.defe,
+            "HEA": player.hea,
+            "VIS": player.vis,
+            "TKL": player.tkl,
+            "ACC": player.acc,
+            "CRO": player.cro,
+            "CON": player.con,
+            "FIN": player.fin,
+            "BAL": player.bal,
+            "COM": player.com,
+            "SAV": player.sav,
+            "REF": player.ref,
+            "POS": player.pos,
+            "SET": round((player.fk + player.pk) / 2),
+            "DEC": player.dec,
+        }
+        stamina = float(player.fitness or 100)
+        
+        # 应用状态修正（需要 db session）
+        if db is not None:
+            try:
+                state_service = PlayerStateService(db)
+                setup = await state_service.build_match_player_setup(player)
+                # 保留 skills 和其他字段，build_match_player_setup 只返回基础结构
+                setup["skills"] = self._skill_names(player.skills or [])
+                return setup
+            except Exception as exc:
+                logger.warning(
+                    f"State setup failed for player {player.id}, using raw stats: {exc}"
+                )
+        
         return {
             "player_id": player.id,
             "name": player.name,
             "position": getattr(player.position, "value", player.position),
-            "attributes": {
-                "SHO": player.sho,
-                "PAS": player.pas,
-                "DRI": player.dri,
-                "SPD": player.spd,
-                "STR": player.str_,
-                "STA": player.sta,
-                "DEF": player.defe,
-                "HEA": player.hea,
-                "VIS": player.vis,
-                "TKL": player.tkl,
-                "ACC": player.acc,
-                "CRO": player.cro,
-                "CON": player.con,
-                "FIN": player.fin,
-                "BAL": player.bal,
-                "COM": player.com,
-                "SAV": player.sav,
-                "REF": player.ref,
-                "POS": player.pos,
-                "SET": round((player.fk + player.pk) / 2),
-                "DEC": player.dec,
-            },
+            "attributes": base_attributes,
             "skills": self._skill_names(player.skills or []),
-            "stamina": float(player.fitness or 100),
+            "stamina": stamina,
             "height": player.height,
             "foot": self._foot(player.preferred_foot),
         }

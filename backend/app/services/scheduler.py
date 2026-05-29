@@ -459,7 +459,7 @@ class SeasonScheduler:
             season_number=season_number,
             start_date=start_date,
             status=SeasonStatus.PENDING,
-            current_day=0,
+            current_day=1,
             current_league_round=0,
             current_cup_round=0,
             total_days=season_template.total_days,
@@ -619,7 +619,7 @@ class SeasonScheduler:
         fmt = get_default_format()
         template = fmt.season
         
-        next_day = season.current_day + 1
+        next_day = season.current_day if season.current_day <= 1 else season.current_day + 1
         
         # 获取当天所有比赛
         result = await self.db.execute(
