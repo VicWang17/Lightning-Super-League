@@ -251,6 +251,19 @@ class ApiClient {
     })
   }
 
+  // PUT helper
+  async put<T>(endpoint: string, body: unknown, options: RequestInit = {}) {
+    return this.requestWithAuth<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        ...((options.headers as Record<string, string>) || {}),
+      },
+    })
+  }
+
   // ==================== 赛季 API ====================
   
   async getSeasons() {
@@ -540,6 +553,205 @@ class ApiClient {
 
   async getTeamPlayerStates(teamId: string) {
     return this.get<TeamPlayerStates>(`/teams/${teamId}/player-states`)
+  }
+
+  // ==================== 自由市场 API ====================
+  async getFreeMarketList(params?: {
+    position?: string
+    min_ovr?: number
+    max_ovr?: number
+    min_age?: number
+    max_age?: number
+    origin?: string
+    page?: number
+    page_size?: number
+  }) {
+    const query = new URLSearchParams()
+    if (params?.position) query.append('position', params.position)
+    if (params?.min_ovr !== undefined) query.append('min_ovr', String(params.min_ovr))
+    if (params?.max_ovr !== undefined) query.append('max_ovr', String(params.max_ovr))
+    if (params?.min_age !== undefined) query.append('min_age', String(params.min_age))
+    if (params?.max_age !== undefined) query.append('max_age', String(params.max_age))
+    if (params?.origin) query.append('origin', params.origin)
+    if (params?.page) query.append('page', String(params.page))
+    if (params?.page_size) query.append('page_size', String(params.page_size))
+    return this.requestWithAuth<{
+      items: import('../types/free_market').FreeMarketPlayer[]
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }>(`/free-market?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getFreeMarketDetail(listingId: string) {
+    return this.requestWithAuth<import('../types/free_market').FreeMarketDetail>(`/free-market/${listingId}`, { method: 'GET' })
+  }
+
+  async previewFreeMarketSign(listingId: string, data: import('../types/free_market').FreeMarketSignRequest) {
+    return this.post<import('../types/free_market').FreeMarketPreview>(`/free-market/${listingId}/preview`, data)
+  }
+
+  async signFreeMarketPlayer(listingId: string, data: import('../types/free_market').FreeMarketSignRequest) {
+    return this.post<import('../types/free_market').FreeMarketSignResult>(`/free-market/${listingId}/sign`, data)
+  }
+
+  // ==================== 青训 API ====================
+  async getYouthAcademy(teamId: string, seasonId?: string) {
+    const query = seasonId ? `?season_id=${seasonId}` : ''
+    return this.requestWithAuth<{
+      team_id: string
+      season_id: string
+      players: Array<{
+        academy_player_id: string
+        player_id: string
+        name: string
+        race: string
+        avatar_url?: string
+        position: string
+        age: number
+        ovr: number
+        potential_letter: string
+        growth_speed: string
+        joined_day: number
+        last_trained_day: number | null
+      }>
+      capacity: number
+      count: number
+    }>(`/teams/${teamId}/youth/academy${query}`, { method: 'GET' })
+  }
+
+  async previewYouthSigning(academyPlayerId: string, data: {
+    team_id: string
+    years: number
+    wage: number
+    squad_role?: string
+  }) {
+    return this.post<import('../types/player').ContractPreview>(`/youth/academy/${academyPlayerId}/preview-signing`, data)
+  }
+
+  async signYouthPlayer(academyPlayerId: string, data: {
+    team_id: string
+    years: number
+    wage: number
+    squad_role?: string
+  }) {
+    return this.post<{ contract_id: string; player_id: string; team_id: string; signing_fee: number }>(`/youth/academy/${academyPlayerId}/sign`, data)
+  }
+
+  async releaseYouthPlayer(academyPlayerId: string) {
+    return this.post<{ academy_player_id: string; status: string }>(`/youth/academy/${academyPlayerId}/release`, {})
+  }
+
+  async getYouthGrowthCurve(academyPlayerId: string) {
+    return this.requestWithAuth<Array<{
+      season_day: number
+      ovr: number
+      extra_data: Record<string, unknown> | null
+      created_at: string
+    }>>(`/youth/academy/${academyPlayerId}/growth`, { method: 'GET' })
+  }
+
+  // ==================== 选秀 API ====================
+  async getDraftPool(leagueId: string, seasonId?: string) {
+    const query = seasonId ? `?season_id=${seasonId}` : ''
+    return this.requestWithAuth<{
+      pool_id: string
+      league_id: string
+      season_id: string
+      status: string
+      opened_at_day: number
+      draft_day: number
+      players: Array<{
+        pool_player_id: string
+        player_id: string
+        name: string
+        race: string
+        avatar_url?: string
+        position: string
+        age: number
+        ovr: number
+        potential_letter: string
+        source_team_name: string | null
+        status: string
+        rank_snapshot: number
+      }>
+    }>(`/draft/leagues/${leagueId}/draft${query}`, { method: 'GET' })
+  }
+
+  async getDraftPreferences(draftPoolId: string, teamId: string) {
+    return this.requestWithAuth<Array<{
+      player_id: string
+      name: string
+      position: string
+      ovr: number
+      potential_letter: string
+      priority: number
+      excluded: boolean
+    }>>(`/draft/teams/${teamId}/draft/preferences?draft_pool_id=${draftPoolId}`, { method: 'GET' })
+  }
+
+  async saveDraftPreferences(draftPoolId: string, teamId: string, preferences: Array<{
+    player_id: string
+    priority: number
+    excluded: boolean
+  }>) {
+    return this.put<{ saved: number }>(`/draft/teams/${teamId}/draft/preferences`, {
+      draft_pool_id: draftPoolId,
+      preferences,
+    })
+  }
+
+  async getDraftResults(leagueId: string, seasonId?: string) {
+    const query = seasonId ? `?season_id=${seasonId}` : ''
+    return this.requestWithAuth<{
+      pool_id: string
+      league_id: string
+      season_id: string
+      status: string
+      selections: Array<{
+        selection_id: string
+        selection_order: number
+        team_id: string
+        team_name: string
+        player_id: string
+        player_name: string
+        position: string
+        ovr: number
+        potential_letter: string
+        status: string
+        expires_at: string | null
+      }>
+    }>(`/draft/leagues/${leagueId}/draft/results${query}`, { method: 'GET' })
+  }
+
+  async getTeamDraftSelections(teamId: string, seasonId?: string) {
+    const query = seasonId ? `?season_id=${seasonId}` : ''
+    return this.requestWithAuth<Array<{
+      selection_id: string
+      player_id: string
+      name: string
+      race: string
+      avatar_url?: string
+      position: string
+      age: number
+      ovr: number
+      potential_letter: string
+      expires_at: string | null
+    }>>(`/draft/teams/${teamId}/draft/selections${query}`, { method: 'GET' })
+  }
+
+  async signDraftPlayer(selectionId: string, data: {
+    team_id: string
+    years: number
+    wage: number
+    squad_role?: string
+  }) {
+    return this.post<{ contract_id: string; player_id: string; team_id: string; signing_fee: number }>(`/draft/selections/${selectionId}/sign`, data)
+  }
+
+  async declineDraftPlayer(selectionId: string) {
+    return this.post<{ selection_id: string; status: string }>(`/draft/selections/${selectionId}/decline`, {})
   }
 
   // ==================== 时钟 API ====================

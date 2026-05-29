@@ -10,6 +10,8 @@ interface ContractModalProps {
   player: Player
   teamId: string
   existingContract?: PlayerContract | null
+  contractType?: 'NORMAL' | 'ROOKIE' | 'FREE'
+  signingFee?: number
   onClose: () => void
   onSuccess: () => void
 }
@@ -32,11 +34,12 @@ const REACTION_COLORS: Record<string, string> = {
   '非常不满': 'text-red-400',
 }
 
-export function ContractModal({ player, teamId, existingContract, onClose, onSuccess }: ContractModalProps) {
+export function ContractModal({ player, teamId, existingContract, contractType: propContractType, signingFee, onClose, onSuccess }: ContractModalProps) {
   const isRenewal = !!existingContract
+  const isRookie = propContractType === 'ROOKIE'
   const [years, setYears] = useState(isRenewal ? 2 : 2)
   const [wage, setWage] = useState(Math.round(player.wage / 1000) * 1000)
-  const [squadRole, setSquadRole] = useState<SquadRole>(player.squad_role)
+  const [squadRole, setSquadRole] = useState<SquadRole>(isRookie ? 'youngster' : player.squad_role)
   const [preview, setPreview] = useState<ContractPreview | null>(null)
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -48,7 +51,7 @@ export function ContractModal({ player, teamId, existingContract, onClose, onSuc
     try {
       const offer: ContractOffer = {
         team_id: teamId,
-        contract_type: player.contract_type,
+        contract_type: propContractType || player.contract_type,
         years,
         wage,
         squad_role: squadRole,
@@ -73,7 +76,7 @@ export function ContractModal({ player, teamId, existingContract, onClose, onSuc
     try {
       const offer: ContractOffer = {
         team_id: teamId,
-        contract_type: player.contract_type,
+        contract_type: propContractType || player.contract_type,
         years,
         wage,
         squad_role: squadRole,
@@ -93,13 +96,19 @@ export function ContractModal({ player, teamId, existingContract, onClose, onSuc
     }
   }
 
+  const quickWageButtons = preview ? [
+    { label: '70%', value: Math.round(preview.recommended_wage * 0.70) },
+    { label: '100%', value: preview.recommended_wage },
+    { label: '130%', value: Math.round(preview.recommended_wage * 1.30) },
+  ] : []
+
   return (
     <Modal isOpen={true} onClose={onClose}>
       <div className="w-full max-w-lg">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-[#0D7377]" />
-            {isRenewal ? '续约合同' : '新签合同'}
+            {isRenewal ? '续约合同' : isRookie ? '新人合同 (ROOKIE)' : '新签合同'}
           </h2>
           <button onClick={onClose} className="text-[#8B8BA7] hover:text-white">
             <X className="w-5 h-5" />
@@ -135,7 +144,7 @@ export function ContractModal({ player, teamId, existingContract, onClose, onSuc
             <div>
               <label className="text-sm text-[#8B8BA7] block mb-1">合同年限</label>
               <div className="flex gap-2">
-                {[1, 2, 3].map(y => (
+                {[1, 2, 3, 4].map(y => (
                   <button
                     key={y}
                     onClick={() => { setYears(y); setPreview(null) }}
@@ -161,6 +170,19 @@ export function ContractModal({ player, teamId, existingContract, onClose, onSuc
                 step={1000}
                 min={0}
               />
+              {preview && (
+                <div className="flex gap-2 mt-2">
+                  {quickWageButtons.map(btn => (
+                    <button
+                      key={btn.label}
+                      onClick={() => { setWage(btn.value); setPreview(null) }}
+                      className="px-2 py-1 text-xs bg-[#2D2D44] text-[#8B8BA7] hover:text-white border border-[#2D2D44] hover:border-[#0D7377]/50 transition-colors"
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
@@ -190,6 +212,12 @@ export function ContractModal({ player, teamId, existingContract, onClose, onSuc
           {preview && (
             <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
               <div className="space-y-2 text-sm">
+                {signingFee !== undefined && signingFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-[#8B8BA7]">签字费</span>
+                    <span className="text-[#0D7377] font-bold">€{(signingFee / 1000).toFixed(0)}K</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-[#8B8BA7]">建议工资</span>
                   <span className="text-white">€{(preview.recommended_wage / 1000).toFixed(0)}K</span>
