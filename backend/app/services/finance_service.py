@@ -420,10 +420,9 @@ class FinanceService:
         
         for team in teams:
             season_finance = await self._get_or_create_team_season_finance(team.id, season_id)
-            wage_bill = season_finance.wage_bill
-            if wage_bill <= 0:
-                wage_bill = await self._calculate_team_wage_bill(team.id)
-                season_finance.wage_bill = wage_bill
+            # 每次发放都重新计算当前在队球员工资总额（支持赛季中签约/解约实时反映）
+            wage_bill = await self._calculate_team_wage_bill(team.id)
+            season_finance.wage_bill = wage_bill
             
             if wage_bill <= 0:
                 continue

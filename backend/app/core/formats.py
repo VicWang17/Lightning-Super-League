@@ -59,8 +59,8 @@ class SeasonTimelineConfig:
     promotion_day: int = 24
     offseason_days: Tuple[int, ...] = (25,)
     kickoff_hour: int = 20
-    # 工资发放日（Phase 2 经济系统），默认基于 25 天赛季
-    wage_days: Tuple[int, ...] = (7, 14, 21, 25)
+    # 工资发放日（基于 25 天赛季，共 6 次，与 economy_config.payments_per_season=6 对齐）
+    wage_days: Tuple[int, ...] = (4, 8, 12, 16, 20, 24)
     season_start_hour: int = 8
     finance_initialization_hour: int = 9
     cup_progression_hour: int = 23
