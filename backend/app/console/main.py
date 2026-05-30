@@ -6,7 +6,7 @@ import asyncio
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.console import actions, api_mode, panels, ui, world
-from app.console.context import with_runner
+from app.console.context import BACKEND_DIR, REPO_ROOT, with_runner
 
 
 async def main() -> None:
@@ -260,6 +260,12 @@ async def stress_menu() -> None:
                 ui.MenuItem("2", "跑 10 个赛季"),
                 ui.MenuItem("3", "跑 100 个赛季"),
                 ui.MenuItem("4", "自定义"),
+                ui.MenuItem("5", "闭环压测：一键全跑（rebuild + audit + smoke + balance）", highlight=True),
+                ui.MenuItem("6", "闭环压测：单事件 smoke"),
+                ui.MenuItem("7", "闭环压测：1 赛季 smoke"),
+                ui.MenuItem("8", "闭环压测：5 赛季 balance"),
+                ui.MenuItem("9", "闭环压测：10 赛季 balance"),
+                ui.MenuItem("10", "闭环压测：30 赛季 long"),
                 ui.MenuItem("0", "返回"),
             ],
         )
@@ -270,6 +276,28 @@ async def stress_menu() -> None:
             count = ui.ask_int("赛季数量", 1)
         if count:
             await with_runner(lambda runner: run_stress(runner, count))
+            ui.pause()
+            continue
+
+        suite_batch = {
+            "6": "smoke-event",
+            "7": "smoke-season",
+            "8": "balance-short",
+            "9": "balance-mid",
+            "10": "balance-long",
+        }.get(choice)
+        if choice == "5" or suite_batch:
+            env = actions.base_env()
+            out = REPO_ROOT / "reports" / "closed_loop" / "suite-latest"
+            suite = "full" if choice == "5" else suite_batch
+            rebuild_flag = ["--rebuild"] if choice == "5" else []
+            cmd = [
+                actions.PYTHON, "-m", "scripts.closed_loop_balance_test",
+                "--suite", suite,
+                "--out", str(out),
+                *rebuild_flag,
+            ]
+            actions.run(cmd, actions.BACKEND_DIR, env)
             ui.pause()
 
 

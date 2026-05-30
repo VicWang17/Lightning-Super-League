@@ -23,6 +23,9 @@ from app.models.player_season_stats import PlayerSeasonStats
 from app.models.team import Team
 from app.services.standing_service import StandingService
 from app.services.player_state_service import PlayerStateService
+from app.core.logging import get_logger
+
+logger = get_logger("app.match_simulator")
 
 
 @dataclass
@@ -587,20 +590,41 @@ class MatchSimulator:
         
         state_service = PlayerStateService(db)
         
+        # 构建 player_stats 查找表
+        stats_by_player = {
+            ps.get("player_id"): ps
+            for ps in result.player_stats
+            if ps.get("player_id")
+        }
+
         # 处理出场的球员
         for player_id in played_player_ids:
             player = all_players.get(player_id)
             if not player:
                 continue
             
+            ps = stats_by_player.get(player_id, {})
+            
             # fitness 下降（设计文档 8.3）
-            # 默认 50 分钟 -12，70 分钟 -18
-            minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
+            minutes = ps.get("minutes_played")
+            if minutes is None:
+                minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
             fitness_drop = 18 if minutes >= 70 else 12
             player.fitness = max(0, player.fitness - fitness_drop)
             
             # match_rust_score 恢复（栈式弹出）
             player.match_rust_score = min(player.match_rust_score + 1, 0)
+            
+            # 更新近期比赛滑动窗口
+            rating = ps.get("rating")
+            if rating is not None:
+                ratings = player.recent_ratings or []
+                ratings.append(float(rating))
+                player.recent_ratings = ratings[-3:]
+            
+            minutes_list = player.recent_minutes or []
+            minutes_list.append(int(minutes))
+            player.recent_minutes = minutes_list[-3:]
             
             # 触发状态重算
             try:

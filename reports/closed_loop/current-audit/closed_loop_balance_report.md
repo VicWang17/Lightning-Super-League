@@ -1,6 +1,6 @@
 # Closed Loop Balance Test Report
 
-Generated at: `2026-05-29T09:59:19.162656Z`
+Generated at: `2026-05-29T10:37:09.813788Z`
 
 ## Run Summary
 
@@ -26,7 +26,7 @@ Generated at: `2026-05-29T09:59:19.162656Z`
 
 ## Long-Term Balance Signals
 
-- Latest balance Gini: 0.000
+- Latest balance Gini: 0.195
 - Latest top8 OVR Gini: 0.054
 - Champion relegations next season: 0
 - Repeat champions in same league: 0
@@ -35,7 +35,7 @@ Generated at: `2026-05-29T09:59:19.162656Z`
 
 | Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Draft Signed | FA Listings | Auto Fill | Roster Min/Max | Wage Avg/Max | Errors |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |
-| 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 15/15 | 0.0%/0.0% | 0 |
+| 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 15/15 | 346.2%/442.8% | 0 |
 
 ## Suggested Interpretation
 

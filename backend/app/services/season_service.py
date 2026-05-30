@@ -10,10 +10,12 @@ from sqlalchemy import select, and_
 from app.models.season import Season, SeasonStatus, Fixture, FixtureType, FixtureStatus, CupCompetition
 from app.models.league import League, LeagueSystem
 from app.models.team import Team
+from app.models.draft_pool import DraftPool, DraftPoolStatus
 from app.services.scheduler import SeasonScheduler, ScheduleMerger
 from app.core.formats import get_default_format
 from app.core.clock import clock
 from app.core.events import EventQueue, GameEvent, EventType, EventStatus
+from app.core.logging import get_logger
 from app.services.match_simulator import MatchSimulator
 from app.services.match_engine_client import (
     MatchEngineUnavailableError,
@@ -21,6 +23,8 @@ from app.services.match_engine_client import (
 )
 from app.services.cup_progression import CupProgressionService
 from app.services.promotion_service import PromotionService
+
+logger = get_logger(__name__)
 
 
 class SeasonService:
@@ -254,7 +258,7 @@ class SeasonService:
         )
         pools = result.scalars().all()
         for pool in pools:
-            pool.status = "preferences_open"
+            pool.status = DraftPoolStatus.PREFERENCES_OPEN
         
         # AI 生成志愿
         from app.services.ai_team_management_service import AITeamManagementService

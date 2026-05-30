@@ -109,10 +109,14 @@ class MatchEngineClient:
         env.setdefault("GOCACHE", "/private/tmp/go-cache")
         engine_dir = self._engine_dir()
         binary = engine_dir / "jsonsimulate"
-        command = [str(binary)] if binary.exists() else ["go", "run", "./cmd/jsonsimulate"]
+        if not binary.exists():
+            raise MatchEngineUnavailableError(
+                f"compiled match engine not found at {binary}; "
+                f"run: cd {engine_dir} && go build -o jsonsimulate ./cmd/jsonsimulate"
+            )
         try:
             completed = subprocess.run(
-                command,
+                [str(binary)],
                 cwd=str(engine_dir),
                 env=env,
                 input=json.dumps(payload),

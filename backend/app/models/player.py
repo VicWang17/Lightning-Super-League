@@ -207,6 +207,10 @@ class Player(Base):
     state_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     match_rust_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     
+    # ===== 近期比赛滑动窗口 (避免重复查询大 JSON 表) =====
+    recent_ratings: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    recent_minutes: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    
     # market_value / 生涯统计由服务实时计算，不持久化在 players。
     
     # ===== 外键 =====

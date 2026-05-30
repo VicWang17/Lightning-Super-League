@@ -3,7 +3,7 @@ Youth Academy Service - 青训营服务
 按设计文档 CONTRACT-YOUTH-CLOSED-LOOP-TECH-DESIGN.md 第 8 节实现。
 """
 import random
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, List, Dict, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -129,7 +129,7 @@ class YouthAcademyService:
                 season_id=season.id,
                 season_day=day,
                 ovr=player.ovr,
-                extra_data={"event": "refresh"},
+                growth_delta={"event": "refresh"},
             )
             self.db.add(snapshot)
             created += 1
@@ -250,12 +250,16 @@ class YouthAcademyService:
             season_id=season.id,
             season_day=day,
             ovr=player.ovr,
-            extra_data={"growth_budget": round(growth_budget, 2), "attrs_gained": attrs_gained},
+            growth_delta={"growth_budget": round(growth_budget, 2), "attrs_gained": attrs_gained},
         )
         self.db.add(snapshot)
         
         academy_player.last_trained_day = day
-        academy_player.growth_score = Decimal(str(float(academy_player.growth_score) + growth_budget))
+        # 避免 float 精度污染 Decimal，先 round 再转换，最后 quantize 到 2 位小数
+        growth_budget_decimal = Decimal(str(round(growth_budget, 4)))
+        new_score = academy_player.growth_score + growth_budget_decimal
+        new_score = new_score.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        academy_player.growth_score = min(new_score, Decimal("999.99"))
     
     async def _apply_growth(self, player: Player, growth_budget: float) -> Dict[str, int]:
         """应用属性增长，优先提升位置权重高的属性"""
@@ -506,7 +510,7 @@ class YouthAcademyService:
             {
                 "season_day": s.season_day,
                 "ovr": s.ovr,
-                "extra_data": s.extra_data,
+                "growth_delta": s.growth_delta,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
             }
             for s in snapshots

@@ -205,8 +205,9 @@ class SimulationRunner:
         }
 
     async def recent_results(self, limit: int = 10) -> list[dict[str, Any]]:
+        # 只选 MatchResult.resolution，避免拉取大 JSON 列导致 sort memory 不足
         rows = await self.db.execute(
-            select(Fixture, MatchResult)
+            select(Fixture, MatchResult.resolution)
             .join(MatchResult, MatchResult.fixture_id == Fixture.id)
             .order_by(desc(Fixture.finished_at))
             .limit(limit)
@@ -220,9 +221,9 @@ class SimulationRunner:
                 "home_score": fixture.home_score,
                 "away_score": fixture.away_score,
                 "type": fixture.fixture_type.value,
-                "resolution": match_result.resolution,
+                "resolution": resolution,
             }
-            for fixture, match_result in rows.all()
+            for fixture, resolution in rows.all()
         ]
 
     # ------------------------------------------------------------------

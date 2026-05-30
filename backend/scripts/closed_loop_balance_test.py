@@ -72,6 +72,16 @@ ACTIVE_ROSTER_STATUSES = [
     PlayerStatus.SUSPENDED,
 ]
 
+BATCH_CONFIG = {
+    "audit": {"seasons": 0, "stop_on_error": False, "debug_events": 0},
+    "smoke-event": {"seasons": 1, "stop_on_error": True, "debug_events": 1},
+    "smoke-season": {"seasons": 1, "stop_on_error": True, "debug_events": 0},
+    "balance-short": {"seasons": 5, "stop_on_error": False, "debug_events": 0},
+    "balance-mid": {"seasons": 10, "stop_on_error": False, "debug_events": 0},
+    "balance-long": {"seasons": 30, "stop_on_error": False, "debug_events": 0},
+}
+FULL_SUITE = ["audit", "smoke-event", "smoke-season", "balance-short", "balance-mid", "balance-long"]
+
 
 @dataclass
 class SeasonSummary:
@@ -610,42 +620,42 @@ def build_report(artifacts: RunArtifacts) -> str:
             total[key] += int(row.get(key) or 0)
 
     lines = [
-        "# Closed Loop Balance Test Report",
+        "# 闭环平衡性测试报告",
         "",
-        f"Generated at: `{datetime.utcnow().isoformat()}Z`",
+        f"生成时间: `{datetime.utcnow().isoformat()}Z`",
         "",
-        "## Run Summary",
+        "## 运行摘要",
         "",
-        f"- Seasons captured: {len(season_rows)}",
-        f"- Invariant errors: {len(errors)}",
-        f"- Invariant warnings: {len(warnings)}",
-        f"- Contracts created: {total['contracts_created']}",
-        f"- Renewals/recontracts: {total['renewals_or_recontracts']}",
-        f"- Retired players: {total['retired_players']}",
-        f"- Youth generated: {total['youth_generated']}",
-        f"- Youth signed: {total['youth_signed']}",
-        f"- Draft signed: {total['draft_selections_signed']}",
-        f"- Draft declined/expired: {total['draft_selections_declined'] + total['draft_selections_expired']}",
-        f"- Free-agent listings created: {total['free_agent_listings_created']}",
-        f"- Auto-fill players joined: {total['auto_fill_players_joined']}",
+        f"- 采集赛季数: {len(season_rows)}",
+        f"- 不变性错误: {len(errors)}",
+        f"- 不变性警告: {len(warnings)}",
+        f"- 合同创建总数: {total['contracts_created']}",
+        f"- 续约/重签总数: {total['renewals_or_recontracts']}",
+        f"- 退役球员总数: {total['retired_players']}",
+        f"- 青训生成总数: {total['youth_generated']}",
+        f"- 青训签约总数: {total['youth_signed']}",
+        f"- 选秀签约总数: {total['draft_selections_signed']}",
+        f"- 选秀拒绝/过期总数: {total['draft_selections_declined'] + total['draft_selections_expired']}",
+        f"- 自由市场挂牌总数: {total['free_agent_listings_created']}",
+        f"- 自动补员总数: {total['auto_fill_players_joined']}",
         "",
-        "## Correlations",
+        "## 相关性分析",
         "",
-        f"- Team top8 OVR vs points: {fmt_corr(corr_top8_points)}",
-        f"- Team wage bill vs points: {fmt_corr(corr_wage_points)}",
-        f"- Team max OVR vs points: {fmt_corr(corr_max_points)}",
-        f"- Player OVR vs average rating: {fmt_corr(corr_ovr_rating)}",
+        f"- 球队前8人OVR vs 积分: {fmt_corr(corr_top8_points)}",
+        f"- 球队工资总额 vs 积分: {fmt_corr(corr_wage_points)}",
+        f"- 球队最高OVR vs 积分: {fmt_corr(corr_max_points)}",
+        f"- 球员OVR vs 平均评分: {fmt_corr(corr_ovr_rating)}",
         "",
-        "## Long-Term Balance Signals",
+        "## 长期平衡信号",
         "",
-        f"- Latest balance Gini: {'n/a' if balance_gini is None else f'{balance_gini:.3f}'}",
-        f"- Latest top8 OVR Gini: {'n/a' if top8_gini is None else f'{top8_gini:.3f}'}",
-        f"- Champion relegations next season: {champion_relegations}",
-        f"- Repeat champions in same league: {repeat_champions}",
+        f"- 最新赛季余额基尼系数: {'n/a' if balance_gini is None else f'{balance_gini:.3f}'}",
+        f"- 最新赛季前8人OVR基尼系数: {'n/a' if top8_gini is None else f'{top8_gini:.3f}'}",
+        f"- 冠军次年降级次数: {champion_relegations}",
+        f"- 同一联赛连续夺冠次数: {repeat_champions}",
         "",
-        "## Season Table",
+        "## 赛季总览表",
         "",
-        "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Draft Signed | FA Listings | Auto Fill | Roster Min/Max | Wage Avg/Max | Errors |",
+        "| 赛季 | 合同 | 续约/重签 | 退役 | 青训生成 | 青训签约 | 选秀签约 | 自由市场 | 自动补员 | 阵容最小/最大 | 工资压力平均/最大 | 错误 |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |",
     ]
     for row in season_rows:
@@ -656,21 +666,22 @@ def build_report(artifacts: RunArtifacts) -> str:
         )
 
     if invariant_rows:
-        lines.extend(["", "## Invariants", ""])
+        lines.extend(["", "## 不变性检查", ""])
         for row in invariant_rows[:100]:
-            lines.append(f"- [{row['severity']}] S{row['season_number']} {row['name']}: {row['count']} ({row['detail']})")
+            severity_cn = "错误" if row['severity'] == "error" else "警告"
+            lines.append(f"- [{severity_cn}] 赛季{row['season_number']} {row['name']}: {row['count']} ({row['detail']})")
         if len(invariant_rows) > 100:
-            lines.append(f"- ... {len(invariant_rows) - 100} more")
+            lines.append(f"- ... 还有 {len(invariant_rows) - 100} 条")
 
     lines.extend([
         "",
-        "## Suggested Interpretation",
+        "## 解读建议",
         "",
-        "- If `Auto Fill` remains high after several seasons, contracts/youth/free market supply is not doing enough work.",
-        "- If roster errors appear, the closed-loop lifecycle is not enforcing hard squad bounds.",
-        "- If OVR-to-points correlation is near zero, strong players are not translating into team strength.",
-        "- If wage-to-points correlation is too high and balance Gini rises quickly, the economy may be enabling runaway strong teams.",
-        "- If champion relegations are frequent, promotion/relegation or match variance is too chaotic.",
+        "- 如果`自动补员`在多赛季后仍然很高，说明合同/青训/自由市场供给不足。",
+        "- 如果出现阵容错误（人数<8或>15），闭环生命周期没有严格执行阵容边界。",
+        "- 如果OVR与积分相关性接近0，说明强球员没有转化为球队实力。",
+        "- 如果工资与积分相关性过高且余额基尼系数快速上升，经济系统可能在让强队滚雪球。",
+        "- 如果冠军次年降级频繁，说明升降级或比赛随机性过于混乱。",
     ])
 
     return "\n".join(lines) + "\n"
@@ -700,7 +711,131 @@ def count_repeat_champions(team_rows: list[dict[str, Any]]) -> int:
     return repeat
 
 
-async def run(args: argparse.Namespace) -> int:
+def summarize_events(results: list[dict]) -> None:
+    """在控制台打印关键事件摘要"""
+    if not results:
+        print("  ⚪ 无事件处理", flush=True)
+        return
+
+    key_events = 0
+    for idx, item in enumerate(results, 1):
+        event = item.get("event")
+        if event == "match_day":
+            day = item.get("season_day", "?")
+            fixtures = item.get("fixtures_processed", 0)
+            match_list = item.get("results", [])
+            scores = " ".join(
+                f"{r['home_score']}-{r['away_score']}" for r in match_list[:3]
+            )
+            more = " ..." if len(match_list) > 3 else ""
+            print(f"  [{idx:>3}] 🏟 比赛日 D{day}: {fixtures}场 {scores}{more}", flush=True)
+            key_events += 1
+        elif event == "season_end":
+            lifecycle = item.get("roster_lifecycle", {})
+            print(
+                f"  [{idx:>3}] 🏁 赛季结束 S{item.get('season_number', '?')}: "
+                f"退役{lifecycle.get('retired_count', 0)} "
+                f"到期{lifecycle.get('expired_count', 0)} "
+                f"挂牌{lifecycle.get('listings_created', 0)} "
+                f"选秀{lifecycle.get('draft_selections', 0)} "
+                f"补员{lifecycle.get('auto_filled_count', 0)}",
+                flush=True,
+            )
+            key_events += 1
+        elif event == "youth_refresh":
+            print(f"  [{idx:>3}] 🌱 青训刷新", flush=True)
+            key_events += 1
+        elif event == "draft_run":
+            print(f"  [{idx:>3}] 🎯 选秀执行", flush=True)
+            key_events += 1
+        elif event == "promotion_relegation":
+            print(f"  [{idx:>3}] ⬆⬇ 升降级", flush=True)
+            key_events += 1
+        elif event == "wages_paid":
+            print(f"  [{idx:>3}] 💰 发放工资", flush=True)
+            key_events += 1
+        elif event == "budget_window_opened":
+            print(f"  [{idx:>3}] 📅 预算窗口开启", flush=True)
+            key_events += 1
+        elif event == "budget_window_closed":
+            print(f"  [{idx:>3}] 📅 预算窗口关闭", flush=True)
+            key_events += 1
+        elif event == "cup_progression":
+            print(f"  [{idx:>3}] 🏆 杯赛晋级", flush=True)
+            key_events += 1
+        else:
+            # 打印未知事件，让用户知道发生了什么
+            payload_keys = ", ".join(str(k) for k in list(item.keys())[:3])
+            print(f"  [{idx:>3}] 📋 {event} ({payload_keys})", flush=True)
+
+    print(f"  ───── 共 {len(results)} 个事件，关键事件 {key_events} 个 ─────", flush=True)
+
+
+def rebuild_dev_db() -> None:
+    """重建开发数据库并初始化首赛季。"""
+    env = os.environ.copy()
+    env["ENV"] = "dev"
+    env["INIT_SYSTEM_RESET_SCHEMA"] = "false"
+    steps = [
+        ("重建开发数据库", [sys.executable, "-m", "scripts.reset_dev_db"]),
+        ("运行数据库迁移", [sys.executable, "-m", "alembic", "upgrade", "head"]),
+        ("初始化基础数据", [sys.executable, "-m", "scripts.init_system"]),
+        ("创建首赛季", [sys.executable, "-m", "scripts.init_season"]),
+    ]
+    for title, cmd in steps:
+        print(f"[rebuild] {title} ...")
+        completed = subprocess.run(cmd, cwd=str(BACKEND_DIR), env=env)
+        if completed.returncode != 0:
+            raise RuntimeError(f"{title} failed: {' '.join(cmd)}")
+    print("[rebuild] dev db ready")
+
+
+_BATCH_NAME_CN = {
+    "audit": "状态审计",
+    "smoke-event": "单事件Smoke",
+    "smoke-season": "单赛季Smoke",
+    "balance-short": "短周期平衡(5季)",
+    "balance-mid": "中周期平衡(10季)",
+    "balance-long": "长周期平衡(30季)",
+}
+
+
+def generate_suite_report(base_out_dir: Path, reports: list[dict]) -> None:
+    lines = [
+        "# 闭环压测套件总览",
+        "",
+        f"生成时间: `{datetime.utcnow().isoformat()}Z`",
+        "",
+        "## 批次列表",
+        "",
+        "| 序号 | 批次 | 状态 | 输出目录 |",
+        "|------|------|------|----------|",
+    ]
+    for idx, r in enumerate(reports, 1):
+        status = "✅ 通过" if r["exit_code"] == 0 else "❌ 失败"
+        name_cn = _BATCH_NAME_CN.get(r["batch"], r["batch"])
+        lines.append(f"| {idx} | {name_cn} | {status} | `{r['out_dir']}` |")
+
+    lines.extend(["", "## 详细报告", ""])
+    for r in reports:
+        name_cn = _BATCH_NAME_CN.get(r["batch"], r["batch"])
+        lines.append(f"### {name_cn}")
+        lines.append("")
+        report_md = r["out_dir"] / "closed_loop_balance_report.md"
+        if report_md.exists():
+            content = report_md.read_text(encoding="utf-8").splitlines()
+            lines.extend(content[:80])
+            if len(content) > 80:
+                lines.append(f"... （还有 {len(content) - 80} 行）")
+        else:
+            lines.append("未生成报告。")
+        lines.append("")
+
+    (base_out_dir / "suite_report.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+async def _run_single(args: argparse.Namespace) -> int:
+    """执行单个批次（原有逻辑）。"""
     random.seed(args.seed)
     out_dir = Path(args.out) if args.out else REPO_ROOT / "reports" / "closed_loop" / datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     artifacts = RunArtifacts(out_dir=out_dir)
@@ -724,7 +859,9 @@ async def run(args: argparse.Namespace) -> int:
             artifacts.invariant_rows.extend(invariants)
         else:
             for index in range(1, args.seasons + 1):
-                print(f"[closed-loop] running season {index}/{args.seasons} ...", flush=True)
+                print(f"\n{'='*60}", flush=True)
+                print(f"[closed-loop] 第 {index}/{args.seasons} 赛季模拟开始", flush=True)
+                print(f"{'='*60}", flush=True)
                 event_status = "ok"
                 processed = 0
                 try:
@@ -734,6 +871,7 @@ async def run(args: argparse.Namespace) -> int:
                         result = await runner.run_seasons(count=1, max_events=args.max_events_per_season)
                     processed = result.processed
                     add_event_rows(artifacts, index, result.results)
+                    summarize_events(result.results)
                     if result.stopped_reason != "completed":
                         event_status = result.stopped_reason
                 except Exception as exc:
@@ -741,9 +879,15 @@ async def run(args: argparse.Namespace) -> int:
                     await db.rollback()
                     print(f"[closed-loop] season run failed: {event_status}", flush=True)
 
+                print(f"[closed-loop] 第 {index}/{args.seasons} 赛季模拟完成，状态={event_status}", flush=True)
+
                 season = await latest_finished_season(db)
                 if not season:
-                    print("[closed-loop] no finished season available after run", flush=True)
+                    # debug_events 模式（如 smoke-event）只推进了少量事件，
+                    # 赛季可能尚未结束，回退到当前赛季来收集状态。
+                    season = await current_or_latest_season(db)
+                if not season:
+                    print("[closed-loop] no season available after run", flush=True)
                     break
 
                 invariants = await collect_invariants(db, season)
@@ -773,7 +917,9 @@ async def run(args: argparse.Namespace) -> int:
                 )
                 print(message, flush=True)
 
-                if args.stop_on_error and (summary.invariants_failed or event_status != "ok"):
+                # max_events 在 debug_events 模式下是正常行为，不算错误
+                is_real_failure = event_status.startswith("exception:") or event_status in {"failed", "error"}
+                if args.stop_on_error and (summary.invariants_failed or is_real_failure):
                     print("[closed-loop] stopping because --stop-on-error is enabled", flush=True)
                     break
 
@@ -790,6 +936,49 @@ async def run(args: argparse.Namespace) -> int:
     return 0
 
 
+async def run(args: argparse.Namespace) -> int:
+    if args.rebuild:
+        rebuild_dev_db()
+
+    if args.suite:
+        batches = FULL_SUITE if args.suite == "full" else [args.suite]
+        base_out_dir = Path(args.out) if args.out else REPO_ROOT / "reports" / "closed_loop" / datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        suite_reports: list[dict] = []
+
+        for idx, batch_name in enumerate(batches):
+            config = BATCH_CONFIG.get(batch_name)
+            if not config:
+                print(f"[suite] unknown batch: {batch_name}")
+                return 1
+
+            batch_out_dir = base_out_dir / batch_name
+            batch_args = argparse.Namespace(
+                seasons=config["seasons"],
+                max_events_per_season=args.max_events_per_season,
+                debug_events=config["debug_events"],
+                seed=args.seed + idx,
+                out=str(batch_out_dir),
+                stop_on_error=config["stop_on_error"],
+            )
+
+            print(f"\n{'='*60}")
+            print(f"[suite] batch {idx+1}/{len(batches)}: {batch_name}")
+            print(f"{'='*60}")
+
+            exit_code = await _run_single(batch_args)
+            suite_reports.append({"batch": batch_name, "exit_code": exit_code, "out_dir": batch_out_dir})
+
+            if exit_code != 0 and config["stop_on_error"]:
+                print(f"[suite] stopping after failed batch: {batch_name}")
+                break
+
+        generate_suite_report(base_out_dir, suite_reports)
+        print(f"\n[suite] all reports written to: {base_out_dir}")
+        return 0
+
+    return await _run_single(args)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run closed-loop balance simulation and export metrics.")
     parser.add_argument("--seasons", type=int, default=1, help="Number of seasons to advance. Use 0 to only collect current DB state.")
@@ -798,6 +987,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=20260529)
     parser.add_argument("--out", type=str, default="")
     parser.add_argument("--stop-on-error", action="store_true")
+    parser.add_argument(
+        "--suite",
+        choices=["audit", "smoke-event", "smoke-season", "balance-short", "balance-mid", "balance-long", "full"],
+        help="Run a predefined batch or the full suite (audit → smoke-event → smoke-season → balance-short → balance-mid → balance-long).",
+    )
+    parser.add_argument("--rebuild", action="store_true", help="Reset dev DB and bootstrap before running.")
     return parser
 
 

@@ -31,6 +31,7 @@ from app.models import (
 from app.models.player_contract import PlayerContract, ContractStatus
 from app.models.draft_pool import (
     DraftPool,
+    DraftPoolStatus,
     DraftPoolPlayer,
     DraftPoolPlayerStatus,
     DraftPreference,

@@ -8,7 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, func
 
 from app.models.player import (
     Player,
@@ -17,8 +17,6 @@ from app.models.player import (
     PlayerStatus,
 )
 from app.models.player_state_snapshot import PlayerStateSnapshot
-from app.models.season import Fixture, FixtureStatus
-from app.models.match_result import MatchResult as MatchResultModel
 from app.core.logging import get_logger
 
 logger = get_logger("app.player_state")
@@ -134,9 +132,9 @@ class PlayerStateService:
         current_season_number = await self._get_current_season_number(player.team_id)
         
         contract_score = self._calc_contract_score(player, current_season_number)
-        recent_match_score = await self._calc_recent_match_score(player.id)
+        recent_match_score = self._calc_recent_match_score(player)
         fitness_score, stamina_modifier = self._calc_fitness_score(player.fitness)
-        match_load_score = await self._calc_match_load_score(player.id)
+        match_load_score = self._calc_match_load_score(player)
         match_rust_score = player.match_rust_score  # 持久化值，赛后维护
         training_load_score = 0  # 预留接口
         morale_score = 0  # 预留接口
@@ -192,28 +190,27 @@ class PlayerStateService:
         
         return max(-4, min(4, base_score + expiry_modifier))
     
-    async def _calc_recent_match_score(self, player_id: str) -> int:
-        """近期比赛来源分 (设计文档 6.1)"""
-        ratings = await self._get_recent_match_ratings(player_id, limit=3)
+    def _calc_recent_match_score(self, player: Player) -> int:
+        """近期比赛来源分 (设计文档 6.1) — 从球员滑动窗口读取"""
+        ratings = player.recent_ratings or []
         if not ratings:
             return 0
-        
         avg_rating = sum(ratings) / len(ratings)
         for threshold, score in _RATING_SCORE_MAP:
             if avg_rating >= threshold:
                 return score
         return -3
-    
+
     def _calc_fitness_score(self, fitness: int) -> tuple[int, int]:
         """体能来源分和 stamina 修正 (设计文档 6.1)"""
         for threshold, score, stamina_mod in _FITNESS_SCORE_MAP:
             if fitness >= threshold:
                 return score, stamina_mod
         return -5, -30
-    
-    async def _calc_match_load_score(self, player_id: str) -> int:
-        """连续比赛劳累来源分 (设计文档 6.1)"""
-        minutes = await self._get_recent_match_minutes(player_id, limit=3)
+
+    def _calc_match_load_score(self, player: Player) -> int:
+        """连续比赛劳累来源分 (设计文档 6.1) — 从球员滑动窗口读取"""
+        minutes = player.recent_minutes or []
         total_minutes = sum(minutes)
         for threshold, score in _MATCH_LOAD_MAP:
             if total_minutes >= threshold:
@@ -226,7 +223,10 @@ class PlayerStateService:
     
     async def build_match_player_setup(self, player: Player) -> dict:
         """为比赛引擎构建带状态修正的球员数据"""
-        components = await self.calculate_state_components(player)
+        # 构建 payload 时只读不算写，避免触发 autoflush 导致
+        # "Session is already flushing" 错误。
+        with self.db.no_autoflush:
+            components = await self.calculate_state_components(player)
         
         base_attributes = {
             "SHO": player.sho,
@@ -307,64 +307,6 @@ class PlayerStateService:
             select(Player).where(Player.id == player_id)
         )
         return result.scalar_one_or_none()
-    
-    async def _get_recent_match_ratings(
-        self, player_id: str, limit: int = 3
-    ) -> list[float]:
-        """从 MatchResult.player_stats 中提取最近比赛的评分"""
-        result = await self.db.execute(
-            select(MatchResultModel)
-            .join(Fixture, MatchResultModel.fixture_id == Fixture.id)
-            .where(Fixture.status == FixtureStatus.FINISHED)
-            .order_by(desc(Fixture.season_day))
-            .limit(limit * 2)  # 多取一些，过滤掉未出场的
-        )
-        match_results = result.scalars().all()
-        
-        ratings = []
-        for mr in match_results:
-            if not mr.player_stats:
-                continue
-            for ps in mr.player_stats:
-                if ps.get("player_id") == player_id:
-                    rating = ps.get("rating")
-                    if rating is not None:
-                        ratings.append(float(rating))
-                    break
-            if len(ratings) >= limit:
-                break
-        return ratings[:limit]
-    
-    async def _get_recent_match_minutes(
-        self, player_id: str, limit: int = 3
-    ) -> list[int]:
-        """从 MatchResult.player_stats 中提取最近比赛的出场分钟数"""
-        result = await self.db.execute(
-            select(MatchResultModel)
-            .join(Fixture, MatchResultModel.fixture_id == Fixture.id)
-            .where(Fixture.status == FixtureStatus.FINISHED)
-            .order_by(desc(Fixture.season_day))
-            .limit(limit * 2)
-        )
-        match_results = result.scalars().all()
-        
-        minutes = []
-        for mr in match_results:
-            if not mr.player_stats:
-                continue
-            for ps in mr.player_stats:
-                if ps.get("player_id") == player_id:
-                    # 出场即计入，默认 50 或 70 分钟（与 match_simulator 一致）
-                    # 如果 engine 返回了 minutes，使用实际值
-                    mins = ps.get("minutes_played")
-                    if mins is None:
-                        # 根据 resolution 推断：常规时间 50，加时/点球 70
-                        mins = 70 if mr.raw_result.get("resolution") in {"extra_time", "penalties"} else 50
-                    minutes.append(int(mins))
-                    break
-            if len(minutes) >= limit:
-                break
-        return minutes[:limit]
     
     @staticmethod
     def _map_to_visible_form(total_score: int) -> MatchForm:
