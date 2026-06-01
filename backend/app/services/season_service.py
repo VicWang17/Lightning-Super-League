@@ -25,14 +25,14 @@ from app.services.promotion_service import PromotionService
 
 class SeasonService:
     """赛季服务"""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
         self.scheduler = SeasonScheduler(db)
         self.simulator = MatchSimulator()
         self.cup_progression = CupProgressionService(db)
         self.promotion_service = PromotionService(db)
-    
+
     async def get_current_season(self, zone_id: int = 1) -> Optional[Season]:
         """获取当前赛季（优先进行中，其次待开始）"""
         result = await self.db.execute(
@@ -43,7 +43,7 @@ class SeasonService:
             .limit(1)
         )
         return result.scalar_one_or_none()
-    
+
     async def get_season_by_number(self, season_number: int, zone_id: int = 1) -> Optional[Season]:
         """根据赛季编号获取赛季"""
         result = await self.db.execute(
@@ -52,28 +52,28 @@ class SeasonService:
             .where(Season.zone_id == zone_id)
         )
         return result.scalar_one_or_none()
-    
+
     async def create_new_season(self, start_date: Optional[datetime] = None, zone_id: int = 1) -> Season:
         """创建新赛季
-        
+
         Args:
             start_date: 赛季开始日期，默认明天
             zone_id: 所属大区ID，默认1区
         """
         from sqlalchemy.orm import selectinload
-        
+
         # 获取上一个赛季编号
         result = await self.db.execute(
             select(Season).order_by(Season.season_number.desc()).limit(1)
         )
         last_season = result.scalar_one_or_none()
         next_season_number = (last_season.season_number + 1) if last_season else 1
-        
+
         # 默认明天开始
         if start_date is None:
             start_date = clock.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        
+
         # 获取指定大区的联赛
         result = await self.db.execute(
             select(League)
@@ -82,7 +82,7 @@ class SeasonService:
             .options(selectinload(League.system))
         )
         leagues = result.scalars().all()
-        
+
         # 获取每个联赛的球队
         teams_by_league: Dict[str, List[Team]] = {}
         for league in leagues:
@@ -91,7 +91,7 @@ class SeasonService:
             )
             teams = result.scalars().all()
             teams_by_league[league.id] = list(teams)
-        
+
         # 创建赛季和赛程
         season = await self.scheduler.create_season(
             season_number=next_season_number,
@@ -99,28 +99,28 @@ class SeasonService:
             leagues=list(leagues),
             teams_by_league=teams_by_league
         )
-        
+
         # 生成并写入 EventQueue 事件序列
         await self._seed_season_events(season, start_date)
-        
+
         return season
-    
+
     async def start_season(self, season: Season) -> None:
         """启动赛季"""
         if season.status != SeasonStatus.PENDING:
             raise ValueError(f"Cannot start season with status: {season.status}")
-        
+
         await self.scheduler.start_season(season)
-    
+
     # =================================================================
     # 事件驱动核心（Phase 3）
     # =================================================================
-    
+
     async def _seed_season_events(self, season: Season, start_date: datetime) -> None:
         """为赛季生成完整的 EventQueue 事件序列"""
         fmt = get_default_format()
         template = fmt.season
-        
+
         events = EventQueue.build_season_events(
             season_id=season.id,
             league_days=list(template.league_days),
@@ -131,10 +131,10 @@ class SeasonService:
             wage_days=list(template.wage_days),
         )
         await EventQueue.push_many(self.db, events)
-    
+
     async def process_next_event(self, now: Optional[datetime] = None) -> Optional[Dict]:
         """处理下一个事件（事件驱动核心入口）
-        
+
         1. 从 EventQueue pop 一个 PENDING 事件
         2. 根据 event_type 分发到对应处理器
         3. 处理完成后标记为 COMPLETED（或 FAILED）
@@ -142,7 +142,7 @@ class SeasonService:
         event = await EventQueue.pop(self.db, now=now or clock.now())
         if not event:
             return None
-        
+
         try:
             result = await self._dispatch_event(event)
             await EventQueue.complete(self.db, event.id)
@@ -153,7 +153,7 @@ class SeasonService:
             _logger.error(f"Event processing failed: event_id={event.id}, error={str(e)}", exc_info=True)
             await EventQueue.fail(self.db, event.id, str(e))
             raise
-    
+
     async def _dispatch_event(self, event: GameEvent) -> Dict:
         """根据事件类型分发处理"""
         if event.event_type == EventType.SEASON_START:
@@ -183,13 +183,12 @@ class SeasonService:
             return await self._handle_youth_refresh(event)
         elif event.event_type == EventType.YOUTH_TRAINING:
             return await self._handle_youth_training(event)
-        elif event.event_type == EventType.DRAFT_PREFERENCES_OPEN:
-            return await self._handle_draft_preferences_open(event)
-        elif event.event_type == EventType.DRAFT_RUN:
-            return await self._handle_draft_run(event)
+        # 选秀事件已移除（简化闭环设计）
+        elif event.event_type in (EventType.DRAFT_PREFERENCES_OPEN, EventType.DRAFT_RUN, EventType.DRAFT_SIGNING_EXPIRE):
+            return {"event": event.event_type.value, "status": "deprecated"}
         else:
             raise ValueError(f"Unknown event type: {event.event_type}")
-    
+
     async def _handle_budget_window_opened(self, event: GameEvent) -> Dict:
         """BUDGET_WINDOW_OPENED: 打开预算窗口"""
         season_id = event.payload.get("season_id")
@@ -211,7 +210,7 @@ class SeasonService:
     # =====================================================================
     # Phase 3: 青训事件
     # =====================================================================
-    
+
     async def _handle_youth_refresh(self, event: GameEvent) -> Dict:
         """YOUTH_REFRESH: 青训刷新 + AI 决策"""
         season_id = event.payload.get("season_id")
@@ -219,15 +218,15 @@ class SeasonService:
         from app.services.youth_academy_service import YouthAcademyService
         service = YouthAcademyService(self.db)
         result = await service.refresh_academy_players(season_id, day)
-        
+
         # AI 青训决策
         from app.services.ai_team_management_service import AITeamManagementService
         ai_service = AITeamManagementService(self.db)
         ai_result = await ai_service.run_midseason_academy_decisions(season_id, day)
-        
+
         await self.db.commit()
         return {"event": "youth_refresh", "refresh": result, "ai": ai_result}
-    
+
     async def _handle_youth_training(self, event: GameEvent) -> Dict:
         """YOUTH_TRAINING: 青训训练"""
         season_id = event.payload.get("season_id")
@@ -237,48 +236,12 @@ class SeasonService:
         result = await service.train_academy_players(season_id, day)
         await self.db.commit()
         return {"event": "youth_training", **result}
-    
+
     # =====================================================================
-    # Phase 4: 选秀事件
+    # Phase 4: 选秀事件（已移除）
     # =====================================================================
-    
-    async def _handle_draft_preferences_open(self, event: GameEvent) -> Dict:
-        """DRAFT_PREFERENCES_OPEN: 开放选秀志愿 + AI 生成志愿"""
-        season_id = event.payload.get("season_id")
-        from app.services.draft_service import DraftService
-        draft_service = DraftService(self.db)
-        
-        # 更新选秀池状态
-        result = await self.db.execute(
-            select(DraftPool).where(DraftPool.season_id == season_id)
-        )
-        pools = result.scalars().all()
-        for pool in pools:
-            pool.status = "preferences_open"
-        
-        # AI 生成志愿
-        from app.services.ai_team_management_service import AITeamManagementService
-        ai_service = AITeamManagementService(self.db)
-        ai_result = await ai_service.run_pre_draft_preferences(season_id)
-        
-        await self.db.commit()
-        return {"event": "draft_preferences_open", "pools": len(pools), "ai": ai_result}
-    
-    async def _handle_draft_run(self, event: GameEvent) -> Dict:
-        """DRAFT_RUN: 执行选秀 + AI 签约决策"""
-        season_id = event.payload.get("season_id")
-        from app.services.draft_service import DraftService
-        draft_service = DraftService(self.db)
-        draft_result = await draft_service.run_draft(season_id)
-        
-        # AI 选秀签约决策
-        from app.services.ai_team_management_service import AITeamManagementService
-        ai_service = AITeamManagementService(self.db)
-        ai_result = await ai_service.run_draft_selection_decisions(season_id)
-        
-        await self.db.commit()
-        return {"event": "draft_run", "draft": draft_result, "ai": ai_result}
-    
+    # 选秀系统已在简化闭环设计中被移除
+
     async def _handle_season_start(self, event: GameEvent) -> Dict:
         """SEASON_START: 无额外操作（赛季已在 create_new_season 中创建）"""
         return {"event": "season_start", "season_id": event.payload.get("season_id")}
@@ -286,15 +249,15 @@ class SeasonService:
     async def _handle_season_finance_initialized(self, event: GameEvent) -> Dict:
         """SEASON_FINANCE_INITIALIZED: 为所有球队初始化赛季财务"""
         season_id = event.payload.get("season_id")
-        
+
         result = await self.db.execute(select(Season).where(Season.id == season_id))
         season = result.scalar_one_or_none()
         if not season:
             raise ValueError(f"Season not found: {season_id}")
-        
+
         from app.services.finance_service import FinanceService
         finance_service = FinanceService(self.db)
-        
+
         # 获取本赛季所有参赛球队
         result = await self.db.execute(
             select(Fixture.home_team_id, Fixture.away_team_id)
@@ -305,7 +268,7 @@ class SeasonService:
         for row in result.all():
             team_ids.add(row[0])
             team_ids.add(row[1])
-        
+
         initialized = 0
         for team_id in team_ids:
             try:
@@ -313,7 +276,7 @@ class SeasonService:
                 initialized += 1
             except Exception as e:
                 logger.warning(f"赛季财务初始化失败: team={team_id}, error={e}")
-        
+
         await self.db.commit()
         return {"event": "season_finance_initialized", "season_id": season_id, "teams_initialized": initialized}
 
@@ -330,7 +293,7 @@ class SeasonService:
         """WAGES_PAID: 定期工资发放"""
         season_id = event.payload.get("season_id")
         period_key = event.payload.get("period_key", "default")
-        
+
         from app.services.finance_service import FinanceService
         finance_service = FinanceService(self.db)
         await finance_service.pay_wages(season_id, period_key)
@@ -340,30 +303,30 @@ class SeasonService:
     async def _handle_season_finance_closed(self, event: GameEvent) -> Dict:
         """SEASON_FINANCE_CLOSED: 赛季末财务结算"""
         season_id = event.payload.get("season_id")
-        
+
         result = await self.db.execute(select(Season).where(Season.id == season_id))
         season = result.scalar_one_or_none()
         if not season:
             raise ValueError(f"Season not found: {season_id}")
-        
+
         from app.services.finance_service import FinanceService
         finance_service = FinanceService(self.db)
         await finance_service.close_season_finance(season_id)
         await self.db.commit()
         return {"event": "season_finance_closed", "season_id": season_id}
-    
+
     async def _handle_match_day(self, event: GameEvent) -> Dict:
         """MATCH_DAY: 批量并发模拟当天所有比赛"""
         season_id = event.payload.get("season_id")
         day = event.payload.get("day", 0)
-        
+
         result = await self.db.execute(
             select(Season).where(Season.id == season_id)
         )
         season = result.scalar_one_or_none()
         if not season:
             raise ValueError(f"Season not found: {season_id}")
-        
+
         # 获取当天所有 SCHEDULED 比赛
         result = await self.db.execute(
             select(Fixture)
@@ -372,7 +335,7 @@ class SeasonService:
             .where(Fixture.status == FixtureStatus.SCHEDULED)
         )
         fixtures = list(result.scalars().all())
-        
+
         # Step 1: 将本日比赛显式分层为 ongoing -> finished。
         # TODO(real-time-engine): 这里未来应改为创建 Go engine match sessions，
         # 由引擎按 match_speed tick 推送事件，并接收临场战术/换人命令；
@@ -392,7 +355,7 @@ class SeasonService:
                     fixture.status = FixtureStatus.SCHEDULED
             await self.db.flush()
             raise
-        
+
         # Step 3: 串行 apply_result（避免 standings 共享状态竞争）
         match_results = []
         for fixture, sim_result in zip(fixtures, sim_results):
@@ -405,7 +368,7 @@ class SeasonService:
                 "home_score": sim_result.home_score,
                 "away_score": sim_result.away_score,
             })
-        
+
         # 更新赛季状态（复用 scheduler.process_matchday 的逻辑，但不重复 commit）
         season.current_day = day
         fmt = get_default_format()
@@ -416,7 +379,7 @@ class SeasonService:
         cup_days = list(template.lightning_cup_days)
         if day in cup_days:
             season.current_cup_round = cup_days.index(day) + 1
-        
+
         # Phase 2: 比赛财务结算
         from app.services.finance_service import FinanceService
         finance_service = FinanceService(self.db)
@@ -426,9 +389,9 @@ class SeasonService:
                     await finance_service.settle_match_finance(fixture.id)
                 except Exception as e:
                     logger.warning(f"比赛财务结算失败: fixture={fixture.id}, error={e}")
-        
+
         await self.db.commit()
-        
+
         return {
             "event": "match_day",
             "season_id": season_id,
@@ -467,19 +430,19 @@ class SeasonService:
             if settings.MATCH_ENGINE_FALLBACK_RANDOM:
                 return await self.simulator.simulate(fixture)
             raise
-    
+
     async def _handle_cup_progression(self, event: GameEvent) -> Dict:
         """CUP_PROGRESSION: 处理杯赛晋级"""
         season_id = event.payload.get("season_id")
         after_day = event.payload.get("after_day", 0)
-        
+
         result = await self.db.execute(
             select(Season).where(Season.id == season_id)
         )
         season = result.scalar_one_or_none()
         if not season:
             raise ValueError(f"Season not found: {season_id}")
-        
+
         progression = await self._process_cup_progression(season, after_day)
         await self.db.commit()
         return {
@@ -488,19 +451,19 @@ class SeasonService:
             "after_day": after_day,
             "results": progression,
         }
-    
+
     async def _handle_promotion_relegation(self, event: GameEvent) -> Dict:
         """PROMOTION_RELEGATION: 处理升降级"""
         season_id = event.payload.get("season_id")
         day = event.payload.get("day", 0)
-        
+
         result = await self.db.execute(
             select(Season).where(Season.id == season_id)
         )
         season = result.scalar_one_or_none()
         if not season:
             raise ValueError(f"Season not found: {season_id}")
-        
+
         promotion = await self._process_promotion_relegation(season, day)
         await self.db.commit()
         return {
@@ -509,34 +472,34 @@ class SeasonService:
             "day": day,
             "results": promotion,
         }
-    
+
     async def _handle_season_end(self, event: GameEvent) -> Dict:
         """SEASON_END: 赛季结算
-        
+
         处理顺序：
         1. 赛季末名单闭环（退役、合同到期、自动补员）
         2. 标记赛季结束
         3. 创建并启动下赛季
         """
         season_id = event.payload.get("season_id")
-        
+
         result = await self.db.execute(
             select(Season).where(Season.id == season_id)
         )
         season = result.scalar_one_or_none()
         if not season:
             raise ValueError(f"Season not found: {season_id}")
-        
+
         # Phase 5: AI 赛季末决策（续约、签青训、签自由市场）
         from app.services.ai_team_management_service import AITeamManagementService
         ai_service = AITeamManagementService(self.db)
         ai_result = await ai_service.run_season_end_roster_decisions(season_id)
-        
+
         # Phase 2: 赛季末名单闭环（退役、合同到期、选秀、自动补员）
         from app.services.roster_lifecycle_service import RosterLifecycleService
         roster_service = RosterLifecycleService(self.db)
         roster_result = await roster_service.close_season(season_id)
-        
+
         season.current_day = season.total_days
         end_date_raw = event.payload.get("end_date")
         end_date = datetime.fromisoformat(end_date_raw) if end_date_raw else event.scheduled_at
@@ -548,19 +511,20 @@ class SeasonService:
         next_start = (end_date + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         next_season = await self.create_new_season(start_date=next_start, zone_id=season.zone_id)
         await self.start_season(next_season)
-        
+
         return {
             "event": "season_end",
             "season_id": season_id,
             "season_number": season.season_number,
             "next_season_id": next_season.id,
             "next_season_number": next_season.season_number,
+            "ai_roster": ai_result,
             "roster_lifecycle": roster_result,
         }
-    
+
     async def process_next_day(self, season: Season) -> Dict:
         """处理下一天的比赛（兼容接口，内部使用事件驱动）
-        
+
         不断处理事件，直到遇到一个 MATCH_DAY 或 SEASON_END 为止。
         如果赛季已结束，自动创建并切换到新赛季。
         """
@@ -570,23 +534,23 @@ class SeasonService:
             await self.start_season(new_season)
             print(f"  ✅ 第{new_season.season_number}赛季已启动！\n")
             return await self.process_next_day(new_season)
-        
+
         if season.status != SeasonStatus.ONGOING:
             raise ValueError(f"Season is not ongoing: {season.status}")
-        
+
         # 处理事件直到遇到 MATCH_DAY 或 SEASON_END
         while True:
             result = await self.process_next_event()
             if result is None:
                 # 没有更多事件
                 return {"season_day": season.current_day, "fixtures_processed": 0, "results": [], "cup_progression": {}}
-            
+
             if result.get("event") in ("match_day", "season_end"):
                 return result
-    
+
     async def run_until_next_event(self, season: Season, max_events: int = 100) -> List[Dict]:
         """运行时钟直到下一个需要暂停的事件（用于 step/turbo 模式）
-        
+
         在 step 模式下：处理到下一个 MATCH_DAY 或 SEASON_END 停止
         在 turbo 模式下：连续处理所有到期事件直到队列为空
         """
@@ -599,10 +563,10 @@ class SeasonService:
             if result.get("event") in ("match_day", "season_end"):
                 break
         return results
-    
+
     async def fast_forward(self, target_day: int, season: Season) -> List[Dict]:
         """快进赛季到指定天数（用于测试/调试）
-        
+
         不断处理事件直到 season.current_day >= target_day。
         """
         results: List[Dict] = []
@@ -614,31 +578,31 @@ class SeasonService:
             # refresh season state
             await self.db.refresh(season)
         return results
-    
+
     async def _process_cup_progression(self, season: Season, day: int) -> Dict:
         """
         处理杯赛晋级逻辑
-        
+
         杯赛日期: Day 6,9,12,15,18,21,24,27
         - Day 12: 闪电杯小组赛结束，生成32强对阵
         - Day 15: 杰尼杯第1轮结束，生成第2轮（128进64）
         """
         from app.models.season import CupCompetition
-        
+
         fmt = get_default_format()
         cup_days = list(fmt.season.cup_progression_days)
-        
+
         if day not in cup_days:
             return {}
-        
+
         results = {}
-        
+
         # 获取所有杯赛
         result = await self.db.execute(
             select(CupCompetition).where(CupCompetition.season_id == season.id)
         )
         competitions = result.scalars().all()
-        
+
         for comp in competitions:
             if comp.code == "LIGHTNING_CUP":
                 # 闪电杯晋级处理
@@ -659,7 +623,7 @@ class SeasonService:
                     if winner:
                         comp.winner_team_id = winner
                         results["lightning_cup_winner"] = f"Winner set: {winner}"
-                    
+
             elif comp.code.startswith("JENNY_CUP_"):
                 # 杰尼杯晋级处理（JENNY_CUP_EAST, JENNY_CUP_NORTH, JENNY_CUP_SOUTH, JENNY_CUP_WEST）
                 jenny_cup_days = list(fmt.season.jenny_cup_days)
@@ -685,9 +649,9 @@ class SeasonService:
                     if winner:
                         comp.winner_team_id = winner
                         results[f"jenny_cup_{system_code.lower()}_winner"] = f"Winner set: {winner}"
-        
+
         return results
-    
+
     async def _get_cup_winner(self, competition: CupCompetition) -> Optional[str]:
         """
         获取杯赛冠军（决赛胜者）
@@ -705,7 +669,7 @@ class SeasonService:
             )
         )
         final = result.scalar_one_or_none()
-        
+
         if not final:
             return None
 
@@ -715,7 +679,7 @@ class SeasonService:
         persisted = engine_result.scalar_one_or_none()
         if persisted and persisted.winner_team_id:
             return persisted.winner_team_id
-        
+
         # 返回胜者
         if final.home_score > final.away_score:
             return final.home_team_id
@@ -724,14 +688,14 @@ class SeasonService:
         else:
             # 平局按主队晋级（或可以实现点球规则）
             return final.home_team_id
-    
+
     async def _get_jenny_cup_tier2_teams(self, system_code: str, season: Season) -> List[str]:
         """
         获取杰尼杯次级联赛种子球队（该体系Level 2联赛的8支球队）
         从该赛季的联赛赛程中获取，而不是依赖 Team.current_league_id
         """
         from app.models.league import LeagueSystem
-        
+
         # 获取该体系的次级联赛（Level 2）
         result = await self.db.execute(
             select(League).join(LeagueSystem).where(
@@ -742,10 +706,10 @@ class SeasonService:
             )
         )
         tier2_league = result.scalar_one_or_none()
-        
+
         if not tier2_league:
             return []
-        
+
         # 从该赛季的联赛赛程中获取球队（而不是依赖 current_league_id）
         # 查询该联赛在本赛季的所有联赛赛程（LEAGUE类型的比赛）
         result = await self.db.execute(
@@ -758,15 +722,15 @@ class SeasonService:
             )
         )
         fixtures = result.scalars().all()
-        
+
         # 从赛程中提取所有参与过的球队ID（去重）
         team_ids = set()
         for f in fixtures:
             team_ids.add(f.home_team_id)
             team_ids.add(f.away_team_id)
-        
+
         return list(team_ids)
-    
+
     async def get_today_fixtures(self, season: Season) -> List[Fixture]:
         """获取今天（当前天）的所有比赛"""
         result = await self.db.execute(
@@ -775,7 +739,7 @@ class SeasonService:
             .where(Fixture.season_day == season.current_day)
         )
         return list(result.scalars().all())
-    
+
     async def get_team_fixtures(
         self,
         season: Season,
@@ -789,14 +753,14 @@ class SeasonService:
                 (Fixture.home_team_id == team_id) | (Fixture.away_team_id == team_id)
             )
         )
-        
+
         if fixture_type:
             query = query.where(Fixture.fixture_type == fixture_type)
-        
+
         query = query.order_by(Fixture.season_day)
         result = await self.db.execute(query)
         return list(result.scalars().all())
-    
+
     async def get_season_calendar(
         self,
         season: Season,
@@ -805,29 +769,29 @@ class SeasonService:
         """获取赛季日历（按天组织的赛程）"""
         # 获取所有相关比赛
         query = select(Fixture).where(Fixture.season_id == season.id)
-        
+
         if team_id:
             query = query.where(
                 (Fixture.home_team_id == team_id) | (Fixture.away_team_id == team_id)
             )
-        
+
         query = query.order_by(Fixture.season_day, Fixture.scheduled_at)
         result = await self.db.execute(query)
         fixtures = result.scalars().all()
-        
+
         # 获取所有相关球队信息
         team_ids = set()
         for fixture in fixtures:
             team_ids.add(fixture.home_team_id)
             team_ids.add(fixture.away_team_id)
-        
+
         # 批量获取球队名称
         teams_map = {}
         if team_ids:
             result = await self.db.execute(select(Team).where(Team.id.in_(team_ids)))
             teams = result.scalars().all()
             teams_map = {t.id: t.name for t in teams}
-        
+
         # 按天分组
         calendar = {}
         for fixture in fixtures:
@@ -838,7 +802,7 @@ class SeasonService:
                     "date": fixture.scheduled_at.strftime("%Y-%m-%d"),
                     "fixtures": []
                 }
-            
+
             calendar[day]["fixtures"].append({
                 "id": fixture.id,
                 "type": fixture.fixture_type.value,
@@ -853,13 +817,13 @@ class SeasonService:
                 "cup_stage": fixture.cup_stage,
                 "cup_group": fixture.cup_group_name,
             })
-        
+
         return [calendar[day] for day in sorted(calendar.keys())]
-    
+
     async def _process_promotion_relegation(self, season: Season, day: int) -> Dict:
         """
         处理升降级和附加赛
-        
+
         Day 21: 闪电杯决赛结束，处理赛季结束，计算升降级并创建附加赛
         Day 22: 附加赛预选赛 (Day 1)
         Day 23: 附加赛决赛 (Day 2)，应用最终升降级
@@ -872,12 +836,12 @@ class SeasonService:
         preliminary_day = template.playoff_days[0] if template.playoff_days else 22
         final_playoff_day = template.playoff_days[1] if len(template.playoff_days) > 1 else preliminary_day + 1
         movement_day = template.promotion_day
-        
+
         if day == final_day:
             # 闪电杯决赛结束，赛季正式结束，计算升降级并创建附加赛
             print(f"\n  📊 闪电杯决赛结束，处理赛季结束，计算升降级...")
             promotion_data = await self.promotion_service.process_season_end(season)
-            
+
             # 创建附加赛赛程
             if promotion_data['playoff_teams']:
                 playoff_fixtures = await self.promotion_service.create_playoff_fixtures(
@@ -885,16 +849,16 @@ class SeasonService:
                 )
                 results['playoff_fixtures_created'] = len(playoff_fixtures)
                 print(f"  📝 创建附加赛: {len(playoff_fixtures)} 场")
-            
+
             # 保存升降级数据供后续使用
             season._promotion_data = promotion_data
-            
+
             # 显示直升/直降信息
             auto_up = len(promotion_data['auto_promotions'])
             auto_down = len(promotion_data['auto_relegations'])
             print(f"  ⬆️ 直升: {auto_up} 队")
             print(f"  ⬇️ 直降: {auto_down} 队")
-            
+
         elif day == preliminary_day:
             # 附加赛预选赛日，比赛由主循环模拟
             # 预选赛后创建Day 23的决赛对阵
@@ -902,52 +866,52 @@ class SeasonService:
             if playoff_fixtures:
                 results['playoff_finals_created'] = len(playoff_fixtures)
                 print(f"  📝 创建附加赛决赛: {len(playoff_fixtures)} 场")
-            
+
         elif day == movement_day:
             # Day 24 休赛期，统一处理所有升降级
             print(f"\n  📊 处理赛季升降级...")
-            
+
             # 获取之前保存的升降级数据
             promotion_data = getattr(season, '_promotion_data', {
                 'auto_promotions': [],
                 'auto_relegations': []
             })
-            
+
             # 处理附加赛结果，确定最终升降级名单
             final_results = await self._process_playoff_results(
                 season, promotion_data
             )
-            
+
             # 应用球队位置变更
             await self.promotion_service.apply_team_movements(
                 final_results['final_promotions'],
                 final_results['final_relegations']
             )
-            
+
             results['final_promotions'] = len(final_results['final_promotions'])
             results['final_relegations'] = len(final_results['final_relegations'])
             print(f"  ✅ 升降级完成: {results['final_promotions']} 升级, {results['final_relegations']} 降级")
-        
+
         return results
-    
+
     async def _create_playoff_finals(self, season: Season) -> List[Fixture]:
         """
         根据Day 22预选赛结果创建Day 23决赛
-        
+
         每个体系需要创建：
         1. L1第7 vs L2第2（1场）- 已在playoff_teams中
-        2. L2第6 vs L3预赛胜者（1场）  
+        2. L2第6 vs L3预赛胜者（1场）
         3. L3A第6 vs L4A-B预赛胜者（1场）
         4. L3B第6 vs L4C-D预赛胜者（1场）
         共4场/体系 × 4体系 = 16场
         """
         from app.models.league import LeagueSystem, LeagueStanding
-        
+
         fixtures = []
         template = get_default_format().season
         preliminary_day = template.playoff_days[0] if template.playoff_days else 22
         final_playoff_day = template.playoff_days[1] if len(template.playoff_days) > 1 else preliminary_day + 1
-        
+
         # 获取附加赛预选赛结果
         result = await self.db.execute(
             select(Fixture).where(
@@ -960,7 +924,7 @@ class SeasonService:
             )
         )
         day22_fixtures = result.scalars().all()
-        
+
         # 建立预选赛胜者映射 {体系名_类型: 胜者ID}
         winners = {}
         for f in day22_fixtures:
@@ -968,7 +932,7 @@ class SeasonService:
             winner_id = f.home_team_id if f.home_score > f.away_score else f.away_team_id
             if f.home_score == f.away_score:
                 winner_id = f.home_team_id
-            
+
             # 从 cup_stage 提取体系名（格式: P_L3亚军预赛-东区 或 P_L4A-L4B亚军预赛-东区）
             if "L3亚军预赛-" in stage:
                 system = stage.split("-")[-1]  # 取最后一部分（体系名）
@@ -979,14 +943,14 @@ class SeasonService:
             elif "L4C-L4D亚军预赛-" in stage:
                 system = stage.split("-")[-1]
                 winners[f"{system}_L4CD"] = winner_id
-        
+
         final_date = season.start_date + timedelta(days=final_playoff_day - 1)
         final_kickoff = final_date.replace(hour=template.kickoff_hour, minute=0, second=0)
-        
+
         # 获取升降级数据（包含L1-L2决赛对阵）
         promotion_data = getattr(season, '_promotion_data', {})
         playoff_teams = promotion_data.get('playoff_teams', {})
-        
+
         # 1. 创建L1-L2决赛（4场）
         for match_name, (home_id, away_id) in playoff_teams.items():
             if "-L3" not in match_name and "-L4" not in match_name and "亚军预赛" not in match_name:
@@ -1008,36 +972,36 @@ class SeasonService:
                     )
                     self.db.add(fixture)
                     fixtures.append(fixture)
-        
+
         # 2. 查询所有体系，创建L2-L3和L3-L4决赛
         systems_result = await self.db.execute(select(LeagueSystem))
         systems = systems_result.scalars().all()
-        
+
         for system in systems:
             # 获取该体系的所有联赛
             leagues_result = await self.db.execute(
                 select(League).where(League.system_id == system.id)
             )
             leagues = leagues_result.scalars().all()
-            
+
             l1 = next((l for l in leagues if l.level == 1), None)
             l2 = next((l for l in leagues if l.level == 2), None)
             l3_leagues = [l for l in leagues if l.level == 3]
             l4_leagues = [l for l in leagues if l.level == 4]
-            
+
             if not l1 or not l2 or len(l3_leagues) < 2 or len(l4_leagues) < 4:
                 continue
-            
+
             l3a, l3b = sorted(l3_leagues, key=lambda x: x.name)[:2]
             l4a, l4b, l4c, l4d = sorted(l4_leagues, key=lambda x: x.name)[:4]
-            
+
             # 获取积分榜
             l2_standings = await self._get_league_standings(l2.id, season.id)
             l3a_standings = await self._get_league_standings(l3a.id, season.id)
             l3b_standings = await self._get_league_standings(l3b.id, season.id)
-            
+
             sys_name = system.name  # 使用中文名（东区、西区等）
-            
+
             # 创建L2-L3决赛：L2倒数第(relegation_spots+1)名 vs L3预赛胜者
             l2_playoff_idx = -(l2.relegation_spots + 1) if l2.relegation_spots > 0 else None
             l3_key = f"{sys_name}_L3"
@@ -1059,7 +1023,7 @@ class SeasonService:
                     )
                     self.db.add(fixture)
                     fixtures.append(fixture)
-            
+
             # 创建L3-L4决赛1：L3A倒数第(relegation_spots+1)名 vs L4A-B预赛胜者
             l3a_playoff_idx = -(l3a.relegation_spots + 1) if l3a.relegation_spots > 0 else None
             l4ab_key = f"{sys_name}_L4AB"
@@ -1082,7 +1046,7 @@ class SeasonService:
                     )
                     self.db.add(fixture)
                     fixtures.append(fixture)
-            
+
             # 创建L3-L4决赛2：L3B倒数第(relegation_spots+1)名 vs L4C-D预赛胜者
             l3b_playoff_idx = -(l3b.relegation_spots + 1) if l3b.relegation_spots > 0 else None
             l4cd_key = f"{sys_name}_L4CD"
@@ -1105,10 +1069,10 @@ class SeasonService:
                     )
                     self.db.add(fixture)
                     fixtures.append(fixture)
-        
+
         await self.db.commit()
         return fixtures
-    
+
     async def _get_league_standings(self, league_id: str, season_id: str):
         """获取联赛积分榜"""
         from app.models.league import LeagueStanding
@@ -1121,7 +1085,7 @@ class SeasonService:
             ).order_by(LeagueStanding.position)
         )
         return list(result.scalars().all())
-    
+
     async def _process_playoff_results(
         self,
         season: Season,
@@ -1129,19 +1093,19 @@ class SeasonService:
     ) -> Dict[str, List]:
         """
         处理附加赛结果，确定最终升降级名单
-        
+
         附加赛规则：
         - L1-L2: L1第7 vs L2第2，胜者升级/保级，败者降级/留级
-        - L2-L3: L2第6 vs L3预赛胜者，胜者升级/保级，败者降级/留级  
+        - L2-L3: L2第6 vs L3预赛胜者，胜者升级/保级，败者降级/留级
         - L3-L4: L3第6 vs L4预赛胜者，胜者升级/保级，败者降级/留级
         """
         auto_promotions = list(promotion_data.get('auto_promotions', []))
         auto_relegations = list(promotion_data.get('auto_relegations', []))
-        
+
         #  playoff_promotions 和 playoff_relegations 用于存储附加赛产生的升降级
         playoff_promotions = []
         playoff_relegations = []
-        
+
         template = get_default_format().season
         final_playoff_day = template.playoff_days[1] if len(template.playoff_days) > 1 else 23
 
@@ -1157,21 +1121,21 @@ class SeasonService:
             )
         )
         day23_fixtures = result.scalars().all()
-        
+
         # 获取所有联赛信息
         from sqlalchemy.orm import selectinload
         result = await self.db.execute(
             select(League).options(selectinload(League.system))
         )
         leagues = {l.id: l for l in result.scalars().all()}
-        
+
         # 获取所有球队信息
         result = await self.db.execute(select(Team))
         teams = {t.id: t for t in result.scalars().all()}
-        
+
         # 建立联赛层级映射 {league_id: level}
         league_levels = {l.id: l.level for l in leagues.values()}
-        
+
         for fixture in day23_fixtures:
             # 确定胜者
             if fixture.home_score > fixture.away_score:
@@ -1184,19 +1148,19 @@ class SeasonService:
                 # 平局按主队获胜
                 winner_id = fixture.home_team_id
                 loser_id = fixture.away_team_id
-            
+
             winner_team = teams.get(winner_id)
             loser_team = teams.get(loser_id)
-            
+
             if not winner_team or not loser_team:
                 continue
-            
+
             # 根据球队当前所在联赛层级确定升降级
             winner_level = league_levels.get(winner_team.current_league_id, 0)
             loser_level = league_levels.get(loser_team.current_league_id, 0)
-            
+
             stage = fixture.cup_stage or ""
-            
+
             # L1-L2附加赛: L1第7(主队, level=1) vs L2第2(客队, level=2)
             # L2第2胜则升级, L1第7败则降级
             if "L1-L2" in stage or "超级-甲级" in stage or "超级联赛-甲级联赛" in stage:
@@ -1210,7 +1174,7 @@ class SeasonService:
                         playoff_relegations.append((loser_id, l1_league.id, l2_league.id))
                 else:  # L1球队获胜，保级成功，不需要额外处理
                     pass
-            
+
             # L2-L3附加赛: L2第6(主队, level=2) vs L3预赛胜者(客队, level=3)
             # L3球队获胜 -> 升级, L2第6败则降级
             elif "L2L3" in stage:
@@ -1220,7 +1184,7 @@ class SeasonService:
                     if l2_league and l3_league:
                         playoff_promotions.append((winner_id, l3_league.id, l2_league.id))
                         playoff_relegations.append((loser_id, l2_league.id, l3_league.id))
-            
+
             # L3-L4附加赛: L3第6(主队, level=3) vs L4预赛胜者(客队, level=4)
             # L4球队获胜 -> 升级, L3第6败则降级
             elif "L3AL4" in stage or "L3BL4" in stage:
@@ -1230,11 +1194,11 @@ class SeasonService:
                     if l3_league and l4_league:
                         playoff_promotions.append((winner_id, l4_league.id, l3_league.id))
                         playoff_relegations.append((loser_id, l3_league.id, l4_league.id))
-        
+
         # 合并所有升降级
         final_promotions = auto_promotions + playoff_promotions
         final_relegations = auto_relegations + playoff_relegations
-        
+
         return {
             'final_promotions': final_promotions,
             'final_relegations': final_relegations,

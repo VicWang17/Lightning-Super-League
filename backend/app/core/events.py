@@ -436,23 +436,8 @@ class EventQueue:
             )
         )
 
-        # Phase 4: 选秀事件
-        if template.draft_preferences_open_day <= total_days:
-            events.append(
-                GameEvent(
-                    event_type=EventType.DRAFT_PREFERENCES_OPEN,
-                    payload={"season_id": season_id, "day": template.draft_preferences_open_day},
-                    scheduled_at=at_day_hour(template.draft_preferences_open_day, template.draft_preferences_open_hour),
-                )
-            )
-        if template.draft_day <= total_days:
-            events.append(
-                GameEvent(
-                    event_type=EventType.DRAFT_RUN,
-                    payload={"season_id": season_id, "day": template.draft_day},
-                    scheduled_at=at_day_hour(template.draft_day, template.draft_run_hour),
-                )
-            )
+        # Phase 4: 选秀事件已移除（简化闭环设计文档）
+        # 保留 EventType 枚举值以避免数据库已有事件报错
 
         # 赛季结束 + 财务结算
         end_date = at_day_hour(total_days, template.season_end_hour)

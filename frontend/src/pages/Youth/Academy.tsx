@@ -160,7 +160,7 @@ export default function YouthAcademy() {
   }
 
   const handleRelease = async (academyPlayerId: string) => {
-    if (!confirm('确定要放弃这名青训球员吗？他将进入选秀池。')) return
+    if (!confirm('确定要放弃这名青训球员吗？他将进入自由市场。')) return
     try {
       const res = await api.releaseYouthPlayer(academyPlayerId)
       if (res.success) {
@@ -186,10 +186,9 @@ export default function YouthAcademy() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">青训营</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">观察年轻球员成长，赛季末签约潜力新星</p>
+          <p className="text-sm text-[#8B8BA7] mt-1">观察年轻球员成长，赛季末未签约会进入自由市场</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link to="/youth/draft" className="btn-secondary text-sm">选秀大会</Link>
           <Link to="/youth/young-players" className="btn-secondary text-sm">年轻球员</Link>
         </div>
       </div>

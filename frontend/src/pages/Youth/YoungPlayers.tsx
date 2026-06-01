@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 const mockYoungPlayers = [
   { id: '1', name: '张小明', position: 'ST', age: 18, ovr: 52, potential: 'A', source: '青训', season: 1, games: 8, goals: 3 },
-  { id: '2', name: '李小红', position: 'CMF', age: 19, ovr: 48, potential: 'B', source: '选秀', season: 1, games: 6, goals: 1 },
+  { id: '2', name: '李小红', position: 'CMF', age: 19, ovr: 48, potential: 'B', source: '自由市场', season: 1, games: 6, goals: 1 },
   { id: '3', name: '王小强', position: 'CB', age: 18, ovr: 45, potential: 'B', source: '青训', season: 1, games: 4, goals: 0 },
 ]
 
@@ -16,7 +16,7 @@ export default function YoungPlayers() {
         </div>
         <div className="flex items-center gap-3">
           <Link to="/youth/academy" className="btn-secondary text-sm">青训营</Link>
-          <Link to="/youth/draft" className="btn-secondary text-sm">选秀大会</Link>
+
         </div>
       </div>
 

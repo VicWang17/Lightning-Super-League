@@ -32,16 +32,16 @@ class TestFitnessScore:
         assert stamina == 0
         
         score, stamina = service._calc_fitness_score(60)
-        assert score == -1
-        assert stamina == -8
+        assert score == 0
+        assert stamina == -4
         
         score, stamina = service._calc_fitness_score(40)
-        assert score == -3
-        assert stamina == -18
+        assert score == -1
+        assert stamina == -10
         
         score, stamina = service._calc_fitness_score(20)
-        assert score == -5
-        assert stamina == -30
+        assert score == -2
+        assert stamina == -18
 
 
 class TestVisibleFormMapping:
@@ -117,8 +117,8 @@ class TestInitialStamina:
         
         player.fitness = 60
         stamina = service.calculate_initial_stamina(player)
-        # fitness 60 -> score -1, stamina_mod -8 -> initial = 52
-        assert stamina == 52.0
+        # fitness 60 -> score 0, stamina_mod -4 -> initial = 56
+        assert stamina == 56.0
         
         player.fitness = 95
         stamina = service.calculate_initial_stamina(player)

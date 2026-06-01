@@ -16,9 +16,10 @@ class FreeAgentOrigin(str, PyEnum):
     """自由球员来源"""
     CONTRACT_EXPIRED = "contract_expired"    # 合同到期
     RELEASED = "released"                    # 解约
-    DRAFT_UNSELECTED = "draft_unselected"    # 选秀未中/落选
-    DRAFT_DECLINED = "draft_declined"        # 选秀被放弃
+    DRAFT_UNSELECTED = "draft_unselected"    # 选秀未中/落选（已停用，保留兼容）
+    DRAFT_DECLINED = "draft_declined"        # 选秀被放弃（已停用，保留兼容）
     AUTO_GENERATED = "auto_generated"        # 系统兜底生成
+    ACADEMY_RELEASED = "academy_released"    # 青训流出新人
 
 
 class ListingStatus(str, PyEnum):

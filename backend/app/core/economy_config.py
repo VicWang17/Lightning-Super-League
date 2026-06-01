@@ -13,10 +13,10 @@ class BroadcastConfig:
     """转播收入配置"""
     # 联赛级别 -> 基础转播费
     base_by_level: Dict[int, Decimal] = field(default_factory=lambda: {
-        1: Decimal("350000"),
-        2: Decimal("280000"),
-        3: Decimal("220000"),
-        4: Decimal("180000"),
+        1: Decimal("650000"),
+        2: Decimal("520000"),
+        3: Decimal("420000"),
+        4: Decimal("340000"),
     })
     # 声望倍数范围
     reputation_min: Decimal = Decimal("0.8")
@@ -29,10 +29,10 @@ class SponsorConfig:
     """赞助商配置（Phase 2 仅实现 stable sponsor）"""
     # 联赛级别 -> 基础赞助费
     base_by_level: Dict[int, Decimal] = field(default_factory=lambda: {
-        1: Decimal("200000"),
-        2: Decimal("160000"),
-        3: Decimal("120000"),
-        4: Decimal("80000"),
+        1: Decimal("450000"),
+        2: Decimal("360000"),
+        3: Decimal("280000"),
+        4: Decimal("220000"),
     })
     # 健康评级对赞助的修正
     health_modifier: Dict[str, Decimal] = field(default_factory=lambda: {
@@ -53,14 +53,30 @@ class WageConfig:
 
 
 @dataclass(frozen=True)
+class SeasonTicketConfig:
+    """赛季套票收入配置"""
+    # 联赛级别 -> 赛季初稳定门票收入
+    base_by_level: Dict[int, Decimal] = field(default_factory=lambda: {
+        1: Decimal("1100000"),
+        2: Decimal("850000"),
+        3: Decimal("680000"),
+        4: Decimal("540000"),
+    })
+    # 声望倍数范围，和转播收入保持同样温和的强弱差异
+    reputation_min: Decimal = Decimal("0.85")
+    reputation_max: Decimal = Decimal("1.15")
+    reputation_default: Decimal = Decimal("1.0")
+
+
+@dataclass(frozen=True)
 class WageCapConfig:
     """工资帽配置"""
     # 联赛级别 -> 基础赛季工资帽。工资帽是联盟公平规则，不随现金储备线性膨胀。
     base_by_level: Dict[int, Decimal] = field(default_factory=lambda: {
-        1: Decimal("1600000"),
-        2: Decimal("1300000"),
-        3: Decimal("950000"),
-        4: Decimal("800000"),
+        1: Decimal("4200000"),
+        2: Decimal("3100000"),
+        3: Decimal("2250000"),
+        4: Decimal("1600000"),
     })
     # 财务健康只做小幅修正，避免健康状态本身制造强队滚雪球。
     modifier_by_health: Dict[str, Decimal] = field(default_factory=lambda: {
@@ -142,6 +158,7 @@ class EconomyConfig:
     """经济系统完整配置"""
     broadcast: BroadcastConfig = field(default_factory=BroadcastConfig)
     sponsor: SponsorConfig = field(default_factory=SponsorConfig)
+    season_ticket: SeasonTicketConfig = field(default_factory=SeasonTicketConfig)
     wage: WageConfig = field(default_factory=WageConfig)
     wage_cap: WageCapConfig = field(default_factory=WageCapConfig)
     league_prize: LeaguePrizeConfig = field(default_factory=LeaguePrizeConfig)

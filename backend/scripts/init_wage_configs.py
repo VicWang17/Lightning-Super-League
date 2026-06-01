@@ -88,10 +88,10 @@ async def init_wage_configs():
         ))
     
     # === 合同类型系数 (设计文档 5.3 / 闭环文档 5.2) ===
-    # ROOKIE 系数按闭环文档调整为 0.70（青训/选秀签约折扣）
+    # ROOKIE 系数压低到 0.55，鼓励青训/新人养成，但合同年限限制在 1-2 年。
     contract_factors = [
         ("NORMAL", Decimal("1.00")),
-        ("ROOKIE", Decimal("0.70")),
+        ("ROOKIE", Decimal("0.55")),
         ("FREE", Decimal("0.85")),
     ]
     for ctype, factor in contract_factors:

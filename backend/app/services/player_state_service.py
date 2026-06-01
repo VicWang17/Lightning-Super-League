@@ -38,9 +38,9 @@ _PERSONALITY_MONEY_SENSITIVITY = {
 _FITNESS_SCORE_MAP = [
     (90, 1, 3),
     (70, 0, 0),
-    (50, -1, -8),
-    (30, -3, -18),
-    (0, -5, -30),
+    (50, 0, -4),
+    (30, -1, -10),
+    (0, -2, -18),
 ]
 
 # 近期比赛评分映射 (设计文档 6.1)
@@ -54,8 +54,8 @@ _RATING_SCORE_MAP = [
 
 # 连续比赛劳累映射 (设计文档 6.1)
 _MATCH_LOAD_MAP = [
-    (160, -3),
-    (100, -2),
+    (180, -2),
+    (120, -1),
     (60, -1),
     (0, 0),
 ]
@@ -109,7 +109,7 @@ class PlayerStateService:
         
         # 写入快照
         snapshot = PlayerStateSnapshot(
-            player_id=player_id,
+            player_id=player.id,
             team_id=player.team_id,
             source_event=source_event,
             **components.to_dict(),
@@ -171,7 +171,7 @@ class PlayerStateService:
         fitness_score, stamina_modifier = self._calc_fitness_score(player.fitness)
         match_rust_score = player.match_rust_score  # 持久化值，赛后维护
         training_load_score = 0  # 预留接口
-        morale_score = 0  # 预留接口
+        morale_score = 1  # 基础士气，避免常规轮换和体能扣分长期压低全联盟状态
         
         total_score = (
             contract_score
@@ -267,10 +267,8 @@ class PlayerStateService:
         expiry_modifier = 0
         if current_season_number is not None and player.contract_end_season is not None:
             seasons_remaining = player.contract_end_season - current_season_number
-            if seasons_remaining == 1:
+            if seasons_remaining <= 0:
                 expiry_modifier = -1
-            elif seasons_remaining <= 0:
-                expiry_modifier = -2
         
         return max(-4, min(4, base_score + expiry_modifier))
     

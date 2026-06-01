@@ -125,10 +125,10 @@ async def release_youth_player(
     academy_player_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """放弃青训球员，使其进入选秀候选"""
+    """放弃青训球员，使其进入自由市场"""
     service = YouthAcademyService(db)
     try:
-        result = await service.release_to_draft(academy_player_id)
+        result = await service.release_to_market(academy_player_id)
         return ResponseSchema(success=True, data=result)
     except ValueError as e:
         return ResponseSchema(success=False, message=str(e), code=400)

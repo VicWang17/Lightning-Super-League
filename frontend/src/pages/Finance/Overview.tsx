@@ -192,7 +192,7 @@ export default function FinanceOverview() {
       {/* 工资帽 */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">工资帽监控</h3>
+          <h3 className="text-lg font-semibold">工资压力监控</h3>
           <span className={clsx(
             'text-xs px-2 py-0.5 border',
             cap.wage_pressure_pct > 90 ? 'text-red-400 border-red-400/30 bg-red-500/10' :
@@ -215,12 +215,12 @@ export default function FinanceOverview() {
         </div>
         <div className="flex items-center justify-between mt-2">
           <span className="text-xs text-[#4B4B6A]">当前: {formatWan(cap.wage_bill)}万</span>
-          <span className="text-xs text-[#4B4B6A]">上限: {formatWan(cap.wage_cap)}万</span>
+          <span className="text-xs text-[#4B4B6A]">参考线: {formatWan(cap.wage_cap)}万</span>
         </div>
         {cap.wage_pressure_pct > 90 && (
           <div className="flex items-center gap-2 mt-3 p-2 bg-red-500/10 border border-red-500/20">
             <WarningDiamond className="w-4 h-4 text-red-400" />
-            <span className="text-xs text-red-400">工资帽即将超限！请考虑出售高薪球员。</span>
+            <span className="text-xs text-red-400">工资压力偏高，会影响财务健康</span>
           </div>
         )}
       </div>

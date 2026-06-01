@@ -1,6 +1,6 @@
 // Free Market types - CONTRACT-YOUTH-CLOSED-LOOP-TECH-DESIGN.md
 
-export type FreeAgentOrigin = 'AUCTION_UNSOLD' | 'DRAFT_UNSELECTED' | 'RELEASED' | 'SYSTEM_GENERATED'
+export type FreeAgentOrigin = 'CONTRACT_EXPIRED' | 'RELEASED' | 'ACADEMY_RELEASED' | 'AUTO_GENERATED'
 
 export interface FreeMarketPlayer {
   listing_id: string
@@ -16,6 +16,8 @@ export interface FreeMarketPlayer {
   signing_fee: number
   recommended_wage: number
   listed_at_day: number
+  growth_speed?: string
+  is_rookie_protected?: boolean
 }
 
 export interface FreeMarketDetail {
@@ -36,6 +38,8 @@ export interface FreeMarketDetail {
   signing_fee: number
   recommended_wage: number
   listed_at_day: number
+  growth_speed?: string
+  is_rookie_protected?: boolean
 }
 
 export interface FreeMarketPreview {
@@ -68,15 +72,15 @@ export interface FreeMarketSignResult {
 
 // Origin display names
 export const ORIGIN_NAMES: Record<FreeAgentOrigin, string> = {
-  AUCTION_UNSOLD: '拍卖流拍',
-  DRAFT_UNSELECTED: '选秀落选',
+  CONTRACT_EXPIRED: '合同到期',
   RELEASED: '解约球员',
-  SYSTEM_GENERATED: '系统回收',
+  ACADEMY_RELEASED: '青训新人',
+  AUTO_GENERATED: '系统兜底',
 }
 
 export const ORIGIN_COLORS: Record<FreeAgentOrigin, string> = {
-  AUCTION_UNSOLD: 'text-blue-400',
-  DRAFT_UNSELECTED: 'text-purple-400',
+  CONTRACT_EXPIRED: 'text-blue-400',
   RELEASED: 'text-red-400',
-  SYSTEM_GENERATED: 'text-[#8B8BA7]',
+  ACADEMY_RELEASED: 'text-emerald-400',
+  AUTO_GENERATED: 'text-[#8B8BA7]',
 }

@@ -16,8 +16,10 @@ from app.models import (
     PlayerPosition,
     PlayerStatus,
     FreeAgentListing,
+    FreeAgentOrigin,
     ListingStatus,
     SquadRole,
+    ContractType,
 )
 from app.services.contract_service import ContractService
 from app.core.logging import get_logger
@@ -80,7 +82,8 @@ async def list_free_market(
     
     items = []
     for listing, player in rows:
-        items.append({
+        extra = listing.extra_data or {}
+        item = {
             "listing_id": listing.id,
             "player_id": player.id,
             "name": player.name,
@@ -94,7 +97,9 @@ async def list_free_market(
             "signing_fee": float(listing.signing_fee),
             "recommended_wage": float(listing.recommended_wage),
             "listed_at_day": listing.listed_at_day,
-        })
+            "is_rookie_protected": extra.get("rookie_protected", False),
+        }
+        items.append(item)
     
     return ResponseSchema(
         success=True,
@@ -194,10 +199,15 @@ async def preview_free_market_signing(
         return ResponseSchema(success=False, message="Listing 不存在或已失效", code=404)
     
     contract_service = ContractService(db)
+    contract_type = (
+        ContractType.ROOKIE
+        if listing.origin == FreeAgentOrigin.ACADEMY_RELEASED
+        else ContractType.NORMAL
+    )
     preview = await contract_service.preview_contract_offer(
         player_id=listing.player_id,
         team_id=req.team_id,
-        contract_type="NORMAL",
+        contract_type=contract_type,
         years=req.years,
         wage=req.wage,
         squad_role=req.squad_role,
@@ -242,6 +252,12 @@ async def sign_free_market_player(
         return ResponseSchema(success=False, message="Listing 不存在或已失效", code=404)
     
     contract_service = ContractService(db)
+    contract_type = (
+        ContractType.ROOKIE
+        if listing.origin == FreeAgentOrigin.ACADEMY_RELEASED
+        else ContractType.NORMAL
+    )
+    source = "rookie_market" if listing.origin == FreeAgentOrigin.ACADEMY_RELEASED else "free_market"
     
     try:
         contract = await contract_service.sign_free_agent(
@@ -251,6 +267,8 @@ async def sign_free_market_player(
             wage=req.wage,
             squad_role=req.squad_role,
             signing_fee=listing.signing_fee,
+            contract_type=contract_type,
+            source=source,
         )
         
         # 更新 listing
@@ -270,5 +288,4 @@ async def sign_free_market_player(
         )
     except ValueError as e:
         return ResponseSchema(success=False, message=str(e), code=400)
-
 

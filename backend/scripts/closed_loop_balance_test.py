@@ -38,14 +38,10 @@ sys.path.insert(0, str(BACKEND_DIR))
 from app.dependencies import AsyncSessionLocal, engine  # noqa: E402
 from app.models import (  # noqa: E402
     AcademyPlayerStatus,
-    DraftPool,
-    DraftPoolPlayer,
-    DraftPoolPlayerStatus,
-    DraftSelection,
-    DraftSelectionStatus,
     EventQueue,
     FinanceTransaction,
     FreeAgentListing,
+    FreeAgentOrigin,
     League,
     LeagueStanding,
     ListingStatus,
@@ -63,7 +59,7 @@ from app.models import (  # noqa: E402
 )
 from app.core.events import EventStatus  # noqa: E402
 from app.models.player_contract import ContractStatus  # noqa: E402
-from app.services.simulation_runner import SimulationRunner  # noqa: E402
+from app.services.simulation_runner import RunnerResult, SimulationRunner  # noqa: E402
 
 
 ACTIVE_ROSTER_STATUSES = [
@@ -71,6 +67,8 @@ ACTIVE_ROSTER_STATUSES = [
     PlayerStatus.INJURED,
     PlayerStatus.SUSPENDED,
 ]
+ROSTER_MIN = 8
+ROSTER_MAX = 18
 
 
 @dataclass
@@ -82,7 +80,7 @@ class SeasonSummary:
     failed_events_total: int = 0
     teams_total: int = 0
     teams_below_8: int = 0
-    teams_above_15: int = 0
+    teams_above_max: int = 0
     roster_min: int = 0
     roster_max: int = 0
     roster_avg: float = 0.0
@@ -97,19 +95,15 @@ class SeasonSummary:
     youth_generated: int = 0
     youth_in_academy: int = 0
     youth_signed: int = 0
-    youth_released_to_draft: int = 0
-    youth_drafted: int = 0
+    youth_released_to_rookie_market: int = 0
     youth_free_market: int = 0
-    draft_pools: int = 0
-    draft_pool_players: int = 0
-    draft_selections_pending: int = 0
-    draft_selections_signed: int = 0
-    draft_selections_declined: int = 0
-    draft_selections_expired: int = 0
-    draft_selections_skipped_roster_full: int = 0
+    rookie_market_listings: int = 0
+    rookie_market_active: int = 0
+    rookie_market_signed: int = 0
+    rookie_market_protected_active: int = 0
     auto_fill_players_joined: int = 0
     academy_players_joined: int = 0
-    draft_players_joined: int = 0
+    rookie_market_players_joined: int = 0
     free_market_players_joined: int = 0
     avg_wage_pressure_pct: float = 0.0
     max_wage_pressure_pct: float = 0.0
@@ -248,16 +242,37 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
             .group_by(PlayerContract.player_id)
         )
         previous_contract_counts.update({pid: int(count) for pid, count in previous.all()})
+    replaced_contract_player_ids = {
+        contract.player_id
+        for contract in contracts
+        if enum_value(contract.status) in ("expired", "terminated")
+    }
 
     youth_counts = await count_grouped(
         db, YouthAcademyPlayer.status, YouthAcademyPlayer, YouthAcademyPlayer.season_id == season.id
     )
-    selection_counts = await count_grouped(
-        db, DraftSelection.status, DraftSelection, DraftSelection.season_id == season.id
-    )
     listing_counts = await count_grouped(
         db, FreeAgentListing.status, FreeAgentListing, FreeAgentListing.season_id == season.id
     )
+    rookie_listing_counts = await count_grouped(
+        db,
+        FreeAgentListing.status,
+        FreeAgentListing,
+        FreeAgentListing.season_id == season.id,
+        FreeAgentListing.origin == FreeAgentOrigin.ACADEMY_RELEASED,
+    )
+    rookie_protected_active = 0
+    rookie_listings = (
+        await db.execute(
+            select(FreeAgentListing)
+            .where(FreeAgentListing.season_id == season.id)
+            .where(FreeAgentListing.origin == FreeAgentOrigin.ACADEMY_RELEASED)
+        )
+    ).scalars().all()
+    for listing in rookie_listings:
+        extra = listing.extra_data or {}
+        if listing.status == ListingStatus.ACTIVE and extra.get("rookie_protected"):
+            rookie_protected_active += 1
 
     joined_counts = await count_grouped(
         db,
@@ -302,15 +317,23 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         processed_events=processed_events,
         failed_events_total=failed_events,
         teams_total=len(roster_values),
-        teams_below_8=sum(1 for count in roster_values if count < 8),
-        teams_above_15=sum(1 for count in roster_values if count > 15),
+        teams_below_8=sum(1 for count in roster_values if count < ROSTER_MIN),
+        teams_above_max=sum(1 for count in roster_values if count > ROSTER_MAX),
         roster_min=min(roster_values) if roster_values else 0,
         roster_max=max(roster_values) if roster_values else 0,
         roster_avg=round(avg(roster_values), 2),
         contracts_created=len(contracts),
-        renewals_or_recontracts=sum(1 for contract in contracts if previous_contract_counts[contract.player_id] > 0),
-        rookie_contracts_created=sum(1 for contract in contracts if enum_value(contract.contract_type) == "ROOKIE"),
-        contracts_expired_active_now=sum(1 for contract in contracts if contract.status == ContractStatus.EXPIRED),
+        renewals_or_recontracts=sum(
+            1
+            for contract in contracts
+            if enum_value(contract.status) == "active"
+            and (
+                previous_contract_counts[contract.player_id] > 0
+                or contract.player_id in replaced_contract_player_ids
+            )
+        ),
+        rookie_contracts_created=sum(1 for contract in contracts if enum_value(contract.contract_type) == "rookie"),
+        contracts_expired_active_now=sum(1 for contract in contracts if enum_value(contract.status) == "expired"),
         retired_players=await count_rows(
             db, Player, Player.status == PlayerStatus.RETIRED, Player.retired_at_season == season.season_number
         ),
@@ -324,21 +347,15 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         ),
         youth_in_academy=youth_counts.get("in_academy", 0),
         youth_signed=youth_counts.get("signed", 0),
-        youth_released_to_draft=youth_counts.get("released_to_draft", 0),
-        youth_drafted=youth_counts.get("drafted", 0),
+        youth_released_to_rookie_market=youth_counts.get("free_market", 0),
         youth_free_market=youth_counts.get("free_market", 0),
-        draft_pools=await count_rows(db, DraftPool, DraftPool.season_id == season.id),
-        draft_pool_players=await count_rows(db, DraftPoolPlayer, DraftPoolPlayer.draft_pool_id.in_(
-            select(DraftPool.id).where(DraftPool.season_id == season.id)
-        )),
-        draft_selections_pending=selection_counts.get("pending", 0),
-        draft_selections_signed=selection_counts.get("signed", 0),
-        draft_selections_declined=selection_counts.get("declined", 0),
-        draft_selections_expired=selection_counts.get("expired", 0),
-        draft_selections_skipped_roster_full=selection_counts.get("skipped_roster_full", 0),
+        rookie_market_listings=len(rookie_listings),
+        rookie_market_active=rookie_listing_counts.get("active", 0),
+        rookie_market_signed=rookie_listing_counts.get("signed", 0),
+        rookie_market_protected_active=rookie_protected_active,
         auto_fill_players_joined=joined_counts.get("auto_fill", 0),
         academy_players_joined=joined_counts.get("academy", 0),
-        draft_players_joined=joined_counts.get("draft", 0),
+        rookie_market_players_joined=rookie_listing_counts.get("signed", 0),
         free_market_players_joined=joined_counts.get("free_market", 0),
         avg_wage_pressure_pct=round(avg(wage_pressures), 2),
         max_wage_pressure_pct=round(max(wage_pressures), 2) if wage_pressures else 0.0,
@@ -398,7 +415,15 @@ async def collect_team_rows(db, season: Season) -> list[dict[str, Any]]:
             )
         ).all()
         origin_counts = Counter(enum_value(player.origin_type) for _, player in contracts)
-        rookie_contracts = sum(1 for contract, _ in contracts if enum_value(contract.contract_type) == "ROOKIE")
+        rookie_contracts = sum(1 for contract, _ in contracts if enum_value(contract.contract_type) == "rookie")
+        rookie_market_signings = await count_rows(
+            db,
+            FreeAgentListing,
+            FreeAgentListing.season_id == season.id,
+            FreeAgentListing.origin == FreeAgentOrigin.ACADEMY_RELEASED,
+            FreeAgentListing.status == ListingStatus.SIGNED,
+            FreeAgentListing.signed_team_id == team.id,
+        )
 
         standing, league = standing_by_team.get(team.id, (None, None))
         finance = finance_by_team.get(team.id)
@@ -429,7 +454,7 @@ async def collect_team_rows(db, season: Season) -> list[dict[str, Any]]:
             "contracts_signed": len(contracts),
             "rookie_contracts": rookie_contracts,
             "academy_signings": origin_counts.get("academy", 0),
-            "draft_signings": origin_counts.get("draft", 0),
+            "rookie_market_signings": rookie_market_signings,
             "free_market_signings": origin_counts.get("free_market", 0),
             "auto_fill_signings": origin_counts.get("auto_fill", 0),
             "wage_cap": round(cap, 2),
@@ -512,8 +537,8 @@ async def collect_invariants(db, season: Season | None = None) -> list[dict[str,
             })
 
     roster_counts = await collect_roster_counts(db)
-    add("teams_below_8", "error", sum(1 for c in roster_counts.values() if c < 8), "team active roster below minimum")
-    add("teams_above_15", "error", sum(1 for c in roster_counts.values() if c > 15), "team active roster above maximum")
+    add("teams_below_8", "error", sum(1 for c in roster_counts.values() if c < ROSTER_MIN), "team active roster below minimum")
+    add("teams_above_max", "error", sum(1 for c in roster_counts.values() if c > ROSTER_MAX), "team active roster above maximum")
 
     failed = await count_rows(db, EventQueue, EventQueue.status == EventStatus.FAILED.value)
     add("failed_events", "error", failed, "event queue has failed events")
@@ -535,14 +560,23 @@ async def collect_invariants(db, season: Season | None = None) -> list[dict[str,
     )
     add("bad_active_free_agent_listing", "error", int(active_listing_bad_player.scalar_one() or 0), "active listing points to signed or retired player")
 
-    old_pending = await count_rows(
-        db,
-        DraftSelection,
-        DraftSelection.status == DraftSelectionStatus.PENDING,
-        DraftSelection.expires_at.isnot(None),
-        DraftSelection.expires_at < datetime.utcnow(),
+    active_rookie_listings = (
+        await db.execute(
+            select(FreeAgentListing)
+            .where(FreeAgentListing.status == ListingStatus.ACTIVE)
+            .where(FreeAgentListing.origin == FreeAgentOrigin.ACADEMY_RELEASED)
+        )
+    ).scalars().all()
+    protected_rookies = sum(
+        1 for listing in active_rookie_listings
+        if (listing.extra_data or {}).get("rookie_protected")
     )
-    add("expired_pending_draft_selections", "warning", old_pending, "draft selection pending after 24h window")
+    add(
+        "protected_rookies_still_active",
+        "warning",
+        int(protected_rookies),
+        "rookie market listings still active after protection processing",
+    )
 
     duplicate_active_contracts = await db.execute(
         select(PlayerContract.player_id, func.count())
@@ -602,6 +636,203 @@ def add_event_rows(artifacts: RunArtifacts, season_loop_index: int, event_result
         })
 
 
+async def run_one_season(
+    runner: SimulationRunner,
+    db,
+    args: argparse.Namespace,
+    artifacts: RunArtifacts,
+    season_loop_index: int,
+) -> RunnerResult:
+    total = RunnerResult()
+    team_name_cache: dict[str, str] = {}
+
+    while total.season_ends < 1 and total.processed < args.max_events_per_season:
+        batch = await runner.run_next_event_time(max_events_at_time=200)
+        total.processed += batch.processed
+        total.season_ends += batch.season_ends
+        total.results.extend(batch.results)
+        add_event_rows(artifacts, season_loop_index, batch.results)
+
+        if not args.quiet_events:
+            for item in batch.results:
+                for line in await format_event_log_lines(db, item, args.match_log_limit, team_name_cache):
+                    print(line, flush=True)
+
+        if batch.stopped_reason == "no_pending_events":
+            total.stopped_reason = batch.stopped_reason
+            return total
+        if batch.stopped_reason == "idle" and batch.processed == 0:
+            total.stopped_reason = batch.stopped_reason
+            return total
+        if batch.stopped_reason == "max_events_at_same_time":
+            total.stopped_reason = batch.stopped_reason
+            return total
+        if batch.stopped_reason == "max_events":
+            total.stopped_reason = "max_events_at_same_time"
+            return total
+
+    total.stopped_reason = "completed" if total.season_ends >= 1 else "max_events"
+    return total
+
+
+async def format_event_log_lines(
+    db,
+    item: dict[str, Any],
+    match_log_limit: int,
+    team_name_cache: dict[str, str],
+) -> list[str]:
+    event = item.get("event", "unknown")
+
+    if event == "match_day":
+        lines = [
+            f"[match] day={item.get('season_day')} fixtures={item.get('fixtures_processed', 0)}"
+        ]
+        results = item.get("results") or []
+        for match in results[:match_log_limit]:
+            home = await get_team_name(db, match.get("home_team"), team_name_cache)
+            away = await get_team_name(db, match.get("away_team"), team_name_cache)
+            lines.append(
+                "  {home} {hs}-{as_} {away} ({type})".format(
+                    home=home,
+                    hs=match.get("home_score"),
+                    as_=match.get("away_score"),
+                    away=away,
+                    type=match.get("type"),
+                )
+            )
+        remaining = len(results) - match_log_limit
+        if remaining > 0:
+            lines.append(f"  ... {remaining} more matches")
+        return lines
+
+    if event == "youth_refresh":
+        refresh = item.get("refresh") or {}
+        ai = item.get("ai") or {}
+        return [
+            "[youth] refresh={refresh} ai_signed={signed} ai_declined={declined} "
+            "candidates={candidates} full={full} low_score={low} failed={failed}".format(
+                refresh=refresh.get("refreshed", 0),
+                signed=ai.get("signed", 0),
+                declined=ai.get("declined", 0),
+                candidates=ai.get("candidates", 0),
+                full=ai.get("blocked_full", 0),
+                low=ai.get("below_threshold", 0),
+                failed=ai.get("sign_failed", 0),
+            )
+        ]
+
+    if event == "youth_training":
+        return [f"[youth] trained={item.get('trained', 0)}"]
+
+    if event == "draft_preferences_open":
+        ai = item.get("ai") or {}
+        return [
+            "[draft] preferences_open pools={pools} ai_processed={processed}".format(
+                pools=item.get("pools", 0),
+                processed=ai.get("processed", 0),
+            )
+        ]
+
+    if event == "draft_run":
+        draft = item.get("draft") or {}
+        ai = item.get("ai") or {}
+        return [
+            "[draft] selections={selections} ai_signed={signed} ai_declined={declined}".format(
+                selections=draft.get("selections", 0),
+                signed=ai.get("signed", 0),
+                declined=ai.get("declined", 0),
+            )
+        ]
+
+    if event == "draft_signing_expire":
+        return [f"[draft] signing_expire signed={item.get('signed', 0)} expired={item.get('expired', 0)}"]
+
+    if event == "season_end":
+        lifecycle = item.get("roster_lifecycle") or {}
+        ai = item.get("ai") or item.get("ai_roster") or {}
+        lines = [
+            "[season] end S{season} -> S{next_season}".format(
+                season=item.get("season_number"),
+                next_season=item.get("next_season_number"),
+            )
+        ]
+        if ai:
+            lines.append(
+                "  ai renew={renewed} academy={academy} free_market={free_market}".format(
+                    renewed=ai.get("renewed", 0),
+                    academy=ai.get("academy_signed", 0),
+                    free_market=ai.get("free_market_signed", 0),
+                )
+            )
+        if lifecycle:
+            ai_post = lifecycle.get("ai_post_expiration") or {}
+            if ai_post:
+                lines.append(
+                    "  post_expiration academy_signed={academy} free_market={free_market} "
+                    "academy_candidates={candidates} full={full} low_score={low} failed={failed}".format(
+                        academy=ai_post.get("academy_signed", 0),
+                        free_market=ai_post.get("free_market_signed", 0),
+                        candidates=ai_post.get("academy_candidates", 0),
+                        full=ai_post.get("academy_blocked_full", 0),
+                        low=ai_post.get("academy_below_threshold", 0),
+                        failed=ai_post.get("academy_sign_failed", 0),
+                    )
+                )
+            lines.append(f"  lifecycle={compact_dict(lifecycle)}")
+        return lines
+
+    if event == "season_finance_initialized":
+        return [f"[finance] season initialized teams={item.get('teams_initialized', 0)}"]
+
+    if event == "wages_paid":
+        return [f"[finance] wages_paid period={item.get('period_key')}"]
+
+    if event == "season_finance_closed":
+        return [f"[finance] season closed season_id={short_id(item.get('season_id'))}"]
+
+    if event == "budget_window_opened":
+        return [f"[budget] opened {compact_dict(item)}"]
+
+    if event == "budget_window_closed":
+        return [f"[budget] closed {compact_dict(item)}"]
+
+    if event == "cup_progression":
+        results = item.get("results") or {}
+        return [f"[cup] progression day={item.get('after_day')} {compact_dict(results)}"]
+
+    if event == "promotion_relegation":
+        results = item.get("results") or {}
+        return [f"[league] promotion_relegation day={item.get('day')} {compact_dict(results)}"]
+
+    if event == "season_start":
+        return [f"[season] start season_id={short_id(item.get('season_id'))}"]
+
+    return [f"[event] {event}: {compact_dict(item)}"]
+
+
+async def get_team_name(db, team_id: str | None, cache: dict[str, str]) -> str:
+    if not team_id:
+        return "unknown"
+    if team_id in cache:
+        return cache[team_id]
+    result = await db.execute(select(Team.name).where(Team.id == team_id))
+    name = result.scalar_one_or_none() or short_id(team_id)
+    cache[team_id] = name
+    return name
+
+
+def compact_dict(value: Any, limit: int = 220) -> str:
+    text = json.dumps(value, ensure_ascii=False, default=str)
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+def short_id(value: Any) -> str:
+    text = "" if value is None else str(value)
+    return text[:8]
+
+
 def build_report(artifacts: RunArtifacts) -> str:
     season_rows = artifacts.season_rows
     team_rows = artifacts.team_rows
@@ -655,9 +886,8 @@ def build_report(artifacts: RunArtifacts) -> str:
             "free_agent_listings_created",
             "youth_generated",
             "youth_signed",
-            "draft_selections_signed",
-            "draft_selections_declined",
-            "draft_selections_expired",
+            "rookie_market_listings",
+            "rookie_market_signed",
             "auto_fill_players_joined",
         ]:
             total[key] += int(row.get(key) or 0)
@@ -677,8 +907,8 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- Retired players: {total['retired_players']}",
         f"- Youth generated: {total['youth_generated']}",
         f"- Youth signed: {total['youth_signed']}",
-        f"- Draft signed: {total['draft_selections_signed']}",
-        f"- Draft declined/expired: {total['draft_selections_declined'] + total['draft_selections_expired']}",
+        f"- Rookie-market listings: {total['rookie_market_listings']}",
+        f"- Rookie-market signed: {total['rookie_market_signed']}",
         f"- Free-agent listings created: {total['free_agent_listings_created']}",
         f"- Auto-fill players joined: {total['auto_fill_players_joined']}",
         "",
@@ -714,13 +944,13 @@ def build_report(artifacts: RunArtifacts) -> str:
         "",
         "## Season Table",
         "",
-        "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Draft Signed | FA Listings | Auto Fill | Roster Min/Max | Wage Avg/Max | State Avg/Range | Errors |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |",
+        "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Rookie Listings | Rookie Signed | FA Listings | Auto Fill | Roster Min/Max | Wage Avg/Max | State Avg/Range | Errors |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |",
     ]
     for row in season_rows:
         lines.append(
             "| {season_number} | {contracts_created} | {renewals_or_recontracts} | {retired_players} | "
-            "{youth_generated} | {youth_signed} | {draft_selections_signed} | {free_agent_listings_created} | "
+            "{youth_generated} | {youth_signed} | {rookie_market_listings} | {rookie_market_signed} | {free_agent_listings_created} | "
             "{auto_fill_players_joined} | {roster_min}/{roster_max} | {avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | "
             "{avg_state_score:.1f}/{min_state_score}..{max_state_score} | {invariants_failed} |".format(**row)
         )
@@ -801,10 +1031,18 @@ async def run(args: argparse.Namespace) -> int:
                 try:
                     if args.debug_events > 0:
                         result = await runner.run_next_event_time(max_events_at_time=args.debug_events)
-                    else:
+                        add_event_rows(artifacts, index, result.results)
+                        if not args.quiet_events:
+                            team_name_cache: dict[str, str] = {}
+                            for item in result.results:
+                                for line in await format_event_log_lines(db, item, args.match_log_limit, team_name_cache):
+                                    print(line, flush=True)
+                    elif args.quiet_events:
                         result = await runner.run_seasons(count=1, max_events=args.max_events_per_season)
+                        add_event_rows(artifacts, index, result.results)
+                    else:
+                        result = await run_one_season(runner, db, args, artifacts, index)
                     processed = result.processed
-                    add_event_rows(artifacts, index, result.results)
                     if result.stopped_reason != "completed":
                         event_status = result.stopped_reason
                 except Exception as exc:
@@ -828,7 +1066,7 @@ async def run(args: argparse.Namespace) -> int:
 
                 message = (
                     "[closed-loop] S{season} events={events} roster={rmin}/{rmax} "
-                    "contracts={contracts} youth={youth} draft_signed={draft} "
+                    "contracts={contracts} youth={youth} rookie_signed={rookie} "
                     "auto_fill={auto_fill} errors={errors} status={status}"
                 ).format(
                     season=summary.season_number,
@@ -837,7 +1075,7 @@ async def run(args: argparse.Namespace) -> int:
                     rmax=summary.roster_max,
                     contracts=summary.contracts_created,
                     youth=summary.youth_signed,
-                    draft=summary.draft_selections_signed,
+                    rookie=summary.rookie_market_signed,
                     auto_fill=summary.auto_fill_players_joined,
                     errors=summary.invariants_failed,
                     status=event_status,
@@ -868,6 +1106,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--debug-events", type=int, default=0, help="Advance to the next event timestamp, process at most this many events, then collect.")
     parser.add_argument("--seed", type=int, default=20260529)
     parser.add_argument("--out", type=str, default="")
+    parser.add_argument("--quiet-events", action="store_true", help="Do not print per-event progress logs while simulating.")
+    parser.add_argument("--match-log-limit", type=int, default=8, help="Number of match results to print per match day.")
     parser.add_argument("--stop-on-error", action="store_true")
     return parser
 

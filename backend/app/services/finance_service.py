@@ -272,7 +272,8 @@ class FinanceService:
             sponsor_income = await self.get_effective_sponsor_base(team_id, season_id, base)
         
         broadcast_income = self._calculate_broadcast_income(league_level)
-        projected_income = broadcast_income + sponsor_income
+        season_ticket_income = self._calculate_season_ticket_income(league_level)
+        projected_income = broadcast_income + sponsor_income + season_ticket_income
         
         wage_bill = await self._calculate_team_wage_bill(team_id)
         projected_expense = wage_bill
@@ -325,12 +326,23 @@ class FinanceService:
             sponsor_income, "商业赞助收入",
             idempotency_key=f"sponsor_{season_id}"
         )
+        await self.apply_transaction(
+            team_id, season_id,
+            TransactionSourceType.MANUAL_ADJUSTMENT, TransactionDirection.INCOME,
+            season_ticket_income, "赛季套票收入",
+            extra_data={"income_type": "season_ticket"},
+            idempotency_key=f"season_ticket_{season_id}"
+        )
         
         # Phase 5: 扣除青训预算
         await self._deduct_youth_budget(team_id, season_id, season_finance.youth_budget)
         
         await self.db.flush()
-        logger.info(f"赛季财务已初始化: team={team_id}, season={season_id}, broadcast={broadcast_income}, sponsor={sponsor_income}, youth_deducted={season_finance.youth_budget}")
+        logger.info(
+            f"赛季财务已初始化: team={team_id}, season={season_id}, "
+            f"broadcast={broadcast_income}, sponsor={sponsor_income}, "
+            f"season_ticket={season_ticket_income}, youth_deducted={season_finance.youth_budget}"
+        )
         return season_finance
     
     async def settle_match_finance(self, fixture_id: str) -> None:
@@ -939,26 +951,44 @@ class FinanceService:
         level = result.scalar_one_or_none()
         return level or 4
     
-    async def can_sign_player(self, team_id: str, new_wage: Decimal) -> bool:
-        """检查球队是否可以签约球员（工资帽和余额校验）
+    async def can_sign_player(
+        self,
+        team_id: str,
+        new_wage: Decimal,
+        replaced_player_id: str | None = None,
+        season_id: str | None = None,
+    ) -> bool:
+        """检查球队是否可以签约球员（余额校验）
         
-        - 工资帽压力不能超过 120%（允许轻微超支）
+        设计文档简化后：不再因为工资参考线超限直接失败。
         - 球队余额不能为负（签约后至少保留少量资金）
+        - 续约/重签同队球员时，应扣除该球员旧工资，避免把续约当成新增球员
         """
-        season = await self._get_current_season_for_team(team_id)
+        season = None
+        if season_id:
+            result = await self.db.execute(select(Season).where(Season.id == season_id))
+            season = result.scalar_one_or_none()
+        if not season:
+            season = await self._get_current_season_for_team(team_id)
         if not season:
             return False
         
         season_finance = await self._get_or_create_team_season_finance(team_id, season.id)
-        wage_cap = season_finance.wage_cap if season_finance.wage_cap > 0 else Decimal("1")
         
-        # 计算加入新工资后的压力
+        # 计算加入新工资后的压力（保留计算供外部决策使用）
         current_wage_bill = await self._calculate_team_wage_bill(team_id)
-        projected_wage_bill = current_wage_bill + new_wage
-        wage_pressure_pct = (projected_wage_bill / wage_cap) * 100
-        
-        if wage_pressure_pct > Decimal("120"):
-            return False
+        replaced_wage = Decimal("0")
+        if replaced_player_id:
+            result = await self.db.execute(
+                select(Player.wage, Player.team_id).where(Player.id == replaced_player_id)
+            )
+            row = result.one_or_none()
+            if row and row[1] == team_id:
+                replaced_wage = Decimal(row[0] or 0)
+        projected_wage_bill = current_wage_bill - replaced_wage + new_wage
+        if projected_wage_bill < 0:
+            projected_wage_bill = Decimal("0")
+        season_finance.wage_bill = quantize_money(current_wage_bill)
         
         # 检查余额（至少保留 1 万）
         team_finance = await self._get_team_finance(team_id)
@@ -982,6 +1012,10 @@ class FinanceService:
     def _calculate_broadcast_income(self, league_level: int) -> Decimal:
         base = self.economy.broadcast.base_by_level.get(league_level, Decimal("100000"))
         return base * self.economy.broadcast.reputation_default
+
+    def _calculate_season_ticket_income(self, league_level: int) -> Decimal:
+        base = self.economy.season_ticket.base_by_level.get(league_level, Decimal("250000"))
+        return base * self.economy.season_ticket.reputation_default
     
     def _calculate_sponsor_income(self, league_level: int, health: FinancialHealth) -> Decimal:
         base = self.economy.sponsor.base_by_level.get(league_level, Decimal("50000"))
@@ -1124,11 +1158,13 @@ class FinanceService:
             return False, "球队处于危机状态，禁止签约新球员（最低合同除外）"
         
         # 工资帽检查
-        new_wage_bill = season_finance.wage_bill + wage
+        current_wage_bill = await self._calculate_team_wage_bill(team_id)
+        season_finance.wage_bill = quantize_money(current_wage_bill)
+        new_wage_bill = current_wage_bill + wage
         if new_wage_bill > season_finance.wage_cap:
             return False, (
                 f"签约后工资总额将超出工资帽"
-                f"（当前工资 {int(season_finance.wage_bill / 10000)} 万 + 新工资 {int(wage / 10000)} 万"
+                f"（当前工资 {int(current_wage_bill / 10000)} 万 + 新工资 {int(wage / 10000)} 万"
                 f" > 工资帽 {int(season_finance.wage_cap / 10000)} 万）"
             )
         

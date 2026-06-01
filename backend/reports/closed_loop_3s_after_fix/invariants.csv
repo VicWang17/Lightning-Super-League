@@ -1,0 +1,4 @@
+season_number,season_id,severity,name,count,detail
+5,be8362ec-6fa4-41a6-94b0-0e4c333e19b4,warning,protected_rookies_still_active,1274,rookie market listings still active after protection processing
+6,4d89c84a-491d-44fa-add9-6490a3766fb8,warning,protected_rookies_still_active,1991,rookie market listings still active after protection processing
+7,850e3214-548b-49ed-9de3-f334875632e4,warning,protected_rookies_still_active,2622,rookie market listings still active after protection processing

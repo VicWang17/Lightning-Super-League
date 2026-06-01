@@ -22,10 +22,10 @@ const positionOptions = [
 
 const originOptions = [
   { value: '', label: '全部来源' },
-  { value: 'AUCTION_UNSOLD', label: '拍卖流拍' },
-  { value: 'DRAFT_UNSELECTED', label: '选秀落选' },
+  { value: 'CONTRACT_EXPIRED', label: '合同到期' },
   { value: 'RELEASED', label: '解约球员' },
-  { value: 'SYSTEM_GENERATED', label: '系统回收' },
+  { value: 'ACADEMY_RELEASED', label: '青训新人' },
+  { value: 'AUTO_GENERATED', label: '系统兜底' },
 ]
 
 const positionColors: Record<string, string> = {
@@ -321,6 +321,11 @@ export default function FreeMarket() {
                   <span className={clsx('text-xs', ORIGIN_COLORS[p.origin as keyof typeof ORIGIN_COLORS] || 'text-[#8B8BA7]')}>
                     {ORIGIN_NAMES[p.origin as keyof typeof ORIGIN_NAMES] || p.origin}
                   </span>
+                  {p.is_rookie_protected && (
+                    <span className="text-xs px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      新人保护期
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-2 mb-4">

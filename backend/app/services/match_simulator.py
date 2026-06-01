@@ -617,7 +617,7 @@ class MatchSimulator:
             minutes = player_stats.get("minutes_played")
             if minutes is None:
                 minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
-            fitness_drop = 18 if minutes >= 70 else 12
+            fitness_drop = 10 if minutes >= 70 else 7
             player.fitness = max(0, player.fitness - fitness_drop)
             
             # match_rust_score 恢复（栈式弹出）
@@ -652,10 +652,10 @@ class MatchSimulator:
                 continue
             
             # fitness 恢复（设计文档 8.3 / 9.4）
-            player.fitness = min(100, player.fitness + 5)
+            player.fitness = min(100, player.fitness + 9)
             
             # match_rust_score 下降（栈式压入）
-            player.match_rust_score = max(player.match_rust_score - 1, -4)
+            player.match_rust_score = max(player.match_rust_score - 1, -2)
             
             # 触发状态重算
             if recalculate_state:

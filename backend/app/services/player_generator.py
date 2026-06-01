@@ -777,26 +777,26 @@ class PlayerGenerator:
             "low": {
                 "age_weights": [(17, 0.35), (18, 0.35), (16, 0.20), (15, 0.10)],
                 "potential_weights": [
-                    (PotentialLetter.S, 0.01), (PotentialLetter.A, 0.05),
-                    (PotentialLetter.B, 0.20), (PotentialLetter.C, 0.40), (PotentialLetter.D, 0.34)
+                    (PotentialLetter.S, 0.015), (PotentialLetter.A, 0.07),
+                    (PotentialLetter.B, 0.24), (PotentialLetter.C, 0.40), (PotentialLetter.D, 0.275)
                 ],
-                "ovr_range": (28, 42),
+                "ovr_range": (30, 44),
             },
             "medium": {
                 "age_weights": [(15, 0.20), (16, 0.25), (17, 0.30), (18, 0.25)],
                 "potential_weights": [
-                    (PotentialLetter.S, 0.02), (PotentialLetter.A, 0.10),
-                    (PotentialLetter.B, 0.35), (PotentialLetter.C, 0.38), (PotentialLetter.D, 0.15)
+                    (PotentialLetter.S, 0.03), (PotentialLetter.A, 0.13),
+                    (PotentialLetter.B, 0.38), (PotentialLetter.C, 0.35), (PotentialLetter.D, 0.11)
                 ],
-                "ovr_range": (30, 45),
+                "ovr_range": (32, 47),
             },
             "high": {
                 "age_weights": [(15, 0.35), (16, 0.30), (17, 0.25), (18, 0.10)],
                 "potential_weights": [
-                    (PotentialLetter.S, 0.05), (PotentialLetter.A, 0.18),
-                    (PotentialLetter.B, 0.40), (PotentialLetter.C, 0.30), (PotentialLetter.D, 0.07)
+                    (PotentialLetter.S, 0.07), (PotentialLetter.A, 0.21),
+                    (PotentialLetter.B, 0.42), (PotentialLetter.C, 0.25), (PotentialLetter.D, 0.05)
                 ],
-                "ovr_range": (32, 48),
+                "ovr_range": (34, 50),
             },
         }
         config = investment_config.get(investment_level, investment_config["medium"])
@@ -815,7 +815,7 @@ class PlayerGenerator:
         birth_offset = -actual_age
         
         # 年龄修正
-        age_ovr_modifier = {15: (-12, -8), 16: (-8, -5), 17: (-5, -2), 18: (0, 0)}.get(actual_age, (0, 0))
+        age_ovr_modifier = {15: (-10, -6), 16: (-6, -3), 17: (-3, -1), 18: (1, 2)}.get(actual_age, (0, 0))
         
         # 潜力（应用联赛修正）
         potential_weights = list(config["potential_weights"])
@@ -847,7 +847,7 @@ class PlayerGenerator:
         base_ovr = random.randint(ovr_min, ovr_max)
         base_ovr += random.randint(ovr_bonus_min, ovr_bonus_max)
         base_ovr += random.randint(age_ovr_min, age_ovr_max)
-        base_ovr = max(20, min(60, base_ovr))
+        base_ovr = max(20, min(62, base_ovr))
         
         # Race / Name / Avatar
         race_str = random.choice(["asian", "western"])
