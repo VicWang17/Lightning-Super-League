@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.clock import clock
 from sqlalchemy import select, and_
 
-from app.models.season import Fixture, FixtureStatus, FixtureType, CupGroup
+from app.models.season import Fixture, FixtureStatus, FixtureType, CupGroup, Season
 from app.models.player import Player, PlayerPosition, PlayerStatus
 from app.models.player_season_stats import PlayerSeasonStats
 from app.models.team import Team
@@ -590,30 +590,57 @@ class MatchSimulator:
             if player_id:
                 played_player_ids.add(player_id)
         
+        stats_by_player = {
+            ps.get("player_id"): ps
+            for ps in result.player_stats
+            if ps.get("player_id")
+        }
         state_service = PlayerStateService(db)
         recalculate_state = os.environ.get(
             "MATCH_ENGINE_RECALCULATE_PLAYER_STATE", "true"
         ).lower() not in {"0", "false", "no"}
+        season_number = None
+        if recalculate_state:
+            season_number = await db.scalar(
+                select(Season.season_number).where(Season.id == fixture.season_id)
+            )
         
         # 处理出场的球员
         for player_id in played_player_ids:
             player = all_players.get(player_id)
             if not player:
                 continue
-            
+
+            player_stats = stats_by_player.get(player_id, {})
+
             # fitness 下降（设计文档 8.3）
-            # 默认 50 分钟 -12，70 分钟 -18
-            minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
+            minutes = player_stats.get("minutes_played")
+            if minutes is None:
+                minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
             fitness_drop = 18 if minutes >= 70 else 12
             player.fitness = max(0, player.fitness - fitness_drop)
             
             # match_rust_score 恢复（栈式弹出）
             player.match_rust_score = min(player.match_rust_score + 1, 0)
+
+            rating = player_stats.get("rating")
+            if rating is not None:
+                ratings = list(player.recent_ratings or [])
+                ratings.append(float(rating))
+                player.recent_ratings = ratings[-3:]
+            minutes_window = list(player.recent_minutes or [])
+            minutes_window.append(int(minutes))
+            player.recent_minutes = minutes_window[-3:]
             
             # 触发状态重算
             if recalculate_state:
                 try:
-                    await state_service.recalculate_player_state(player_id, "match_finished")
+                    await state_service.recalculate_loaded_player_state(
+                        player,
+                        "match_finished",
+                        flush=False,
+                        current_season_number=season_number,
+                    )
                 except Exception as exc:
                     logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
         
@@ -633,7 +660,12 @@ class MatchSimulator:
             # 触发状态重算
             if recalculate_state:
                 try:
-                    await state_service.recalculate_player_state(player_id, "match_finished")
+                    await state_service.recalculate_loaded_player_state(
+                        player,
+                        "match_finished",
+                        flush=False,
+                        current_season_number=season_number,
+                    )
                 except Exception as exc:
                     logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
         

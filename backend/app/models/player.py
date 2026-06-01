@@ -206,6 +206,16 @@ class Player(Base):
     state_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     state_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     match_rust_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    recent_ratings: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    recent_minutes: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    state_contract_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_recent_match_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_fitness_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_match_load_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_training_load_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_morale_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    state_attribute_modifier_pct: Mapped[Decimal] = mapped_column(DECIMAL(6, 4), default=Decimal("0.0000"), nullable=False)
+    state_stamina_modifier: Mapped[Decimal] = mapped_column(DECIMAL(6, 2), default=Decimal("0.00"), nullable=False)
     
     # market_value / 生涯统计由服务实时计算，不持久化在 players。
     

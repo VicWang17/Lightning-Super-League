@@ -116,6 +116,18 @@ class SeasonSummary:
     teams_over_wage_cap: int = 0
     min_balance: float = 0.0
     avg_balance: float = 0.0
+    avg_state_score: float = 0.0
+    min_state_score: int = 0
+    max_state_score: int = 0
+    players_hot: int = 0
+    players_good: int = 0
+    players_neutral: int = 0
+    players_low: int = 0
+    avg_contract_score: float = 0.0
+    avg_recent_match_score: float = 0.0
+    avg_fitness_score: float = 0.0
+    avg_match_load_score: float = 0.0
+    avg_match_rust_score: float = 0.0
     invariants_failed: int = 0
     warnings: str = ""
 
@@ -273,6 +285,15 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
     failed_events = await count_rows(
         db, EventQueue, EventQueue.status == EventStatus.FAILED.value
     )
+    active_players = (
+        await db.execute(
+            select(Player)
+            .where(Player.status.in_(ACTIVE_ROSTER_STATUSES))
+            .where(Player.team_id.isnot(None))
+        )
+    ).scalars().all()
+    state_scores = [int(player.state_score or 0) for player in active_players]
+    form_counts = Counter(enum_value(player.match_form).lower() for player in active_players)
 
     summary = SeasonSummary(
         season_number=season.season_number,
@@ -324,6 +345,18 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         teams_over_wage_cap=over_cap,
         min_balance=round(min(balances), 2) if balances else 0.0,
         avg_balance=round(avg(balances), 2),
+        avg_state_score=round(avg(state_scores), 2),
+        min_state_score=min(state_scores) if state_scores else 0,
+        max_state_score=max(state_scores) if state_scores else 0,
+        players_hot=form_counts.get("hot", 0),
+        players_good=form_counts.get("good", 0),
+        players_neutral=form_counts.get("neutral", 0),
+        players_low=form_counts.get("low", 0),
+        avg_contract_score=round(avg([player.state_contract_score or 0 for player in active_players]), 2),
+        avg_recent_match_score=round(avg([player.state_recent_match_score or 0 for player in active_players]), 2),
+        avg_fitness_score=round(avg([player.state_fitness_score or 0 for player in active_players]), 2),
+        avg_match_load_score=round(avg([player.state_match_load_score or 0 for player in active_players]), 2),
+        avg_match_rust_score=round(avg([player.match_rust_score or 0 for player in active_players]), 2),
     )
     return summary
 
@@ -433,6 +466,17 @@ async def collect_player_rows(db, season: Season) -> list[dict[str, Any]]:
                 "potential": enum_value(player.potential_letter),
                 "origin_type": enum_value(player.origin_type),
                 "wage": decimal_float(player.wage),
+                "match_form": enum_value(player.match_form),
+                "state_score": player.state_score,
+                "contract_score": player.state_contract_score,
+                "recent_match_score": player.state_recent_match_score,
+                "fitness_score": player.state_fitness_score,
+                "match_load_score": player.state_match_load_score,
+                "match_rust_score": player.match_rust_score,
+                "attribute_modifier_pct": decimal_float(player.state_attribute_modifier_pct),
+                "stamina_modifier": decimal_float(player.state_stamina_modifier),
+                "recent_ratings": player.recent_ratings or [],
+                "recent_minutes": player.recent_minutes or [],
                 "matches": 0,
                 "goals": 0,
                 "assists": 0,
@@ -508,6 +552,15 @@ async def collect_invariants(db, season: Season | None = None) -> list[dict[str,
     )
     duplicate_count = len(duplicate_active_contracts.all())
     add("duplicate_active_contracts", "error", duplicate_count, "player has more than one active contract")
+
+    missing_state_cache = await count_rows(
+        db,
+        Player,
+        Player.team_id.isnot(None),
+        Player.status.in_(ACTIVE_ROSTER_STATUSES),
+        Player.state_updated_at.is_(None),
+    )
+    add("missing_player_state_cache", "warning", missing_state_cache, "active roster player has not been state-recalculated")
 
     return rows
 
@@ -629,6 +682,22 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- Free-agent listings created: {total['free_agent_listings_created']}",
         f"- Auto-fill players joined: {total['auto_fill_players_joined']}",
         "",
+        "## Player State Signals",
+        "",
+        f"- Latest avg state score: {season_rows[-1].get('avg_state_score', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest state score range: {season_rows[-1].get('min_state_score', 'n/a') if season_rows else 'n/a'} / {season_rows[-1].get('max_state_score', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest forms HOT/GOOD/NEUTRAL/LOW: "
+        f"{season_rows[-1].get('players_hot', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('players_good', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('players_neutral', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('players_low', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest component avg contract/recent/fitness/load/rust: "
+        f"{season_rows[-1].get('avg_contract_score', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('avg_recent_match_score', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('avg_fitness_score', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('avg_match_load_score', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('avg_match_rust_score', 'n/a') if season_rows else 'n/a'}",
+        "",
         "## Correlations",
         "",
         f"- Team top8 OVR vs points: {fmt_corr(corr_top8_points)}",
@@ -645,14 +714,15 @@ def build_report(artifacts: RunArtifacts) -> str:
         "",
         "## Season Table",
         "",
-        "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Draft Signed | FA Listings | Auto Fill | Roster Min/Max | Wage Avg/Max | Errors |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: |",
+        "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Draft Signed | FA Listings | Auto Fill | Roster Min/Max | Wage Avg/Max | State Avg/Range | Errors |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |",
     ]
     for row in season_rows:
         lines.append(
             "| {season_number} | {contracts_created} | {renewals_or_recontracts} | {retired_players} | "
             "{youth_generated} | {youth_signed} | {draft_selections_signed} | {free_agent_listings_created} | "
-            "{auto_fill_players_joined} | {roster_min}/{roster_max} | {avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | {invariants_failed} |".format(**row)
+            "{auto_fill_players_joined} | {roster_min}/{roster_max} | {avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | "
+            "{avg_state_score:.1f}/{min_state_score}..{max_state_score} | {invariants_failed} |".format(**row)
         )
 
     if invariant_rows:
@@ -671,6 +741,7 @@ def build_report(artifacts: RunArtifacts) -> str:
         "- If OVR-to-points correlation is near zero, strong players are not translating into team strength.",
         "- If wage-to-points correlation is too high and balance Gini rises quickly, the economy may be enabling runaway strong teams.",
         "- If champion relegations are frequent, promotion/relegation or match variance is too chaotic.",
+        "- If most players are LOW or HOT, inspect component averages to find the state factor dominating the system.",
     ])
 
     return "\n".join(lines) + "\n"

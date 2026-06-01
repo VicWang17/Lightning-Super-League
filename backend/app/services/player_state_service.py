@@ -75,13 +75,37 @@ class PlayerStateService:
         self,
         player_id: str,
         source_event: str,
+        use_cached_match_data: bool = True,
+        flush: bool = True,
+        current_season_number: int | None = None,
     ) -> PlayerStateSnapshot:
         """重新计算球员状态并写入快照"""
         player = await self._get_player(player_id)
         if not player:
             raise ValueError(f"Player not found: {player_id}")
-        
-        components = await self.calculate_state_components(player)
+
+        return await self.recalculate_loaded_player_state(
+            player,
+            source_event=source_event,
+            use_cached_match_data=use_cached_match_data,
+            flush=flush,
+            current_season_number=current_season_number,
+        )
+
+    async def recalculate_loaded_player_state(
+        self,
+        player: Player,
+        source_event: str,
+        use_cached_match_data: bool = True,
+        flush: bool = True,
+        current_season_number: int | None = None,
+    ) -> PlayerStateSnapshot:
+        """刷新已加载球员的状态缓存并写入快照，避免赛后批处理重复查询。"""
+        components = await self.calculate_state_components(
+            player,
+            use_cached_match_data=use_cached_match_data,
+            current_season_number=current_season_number,
+        )
         
         # 写入快照
         snapshot = PlayerStateSnapshot(
@@ -92,14 +116,12 @@ class PlayerStateService:
         )
         self.db.add(snapshot)
         
-        # 更新玩家可见状态
-        player.match_form = components.visible_form
-        player.state_score = components.total_score
-        player.state_updated_at = datetime.utcnow()
+        self.apply_components_to_player(player, components)
         
-        await self.db.flush()
+        if flush:
+            await self.db.flush()
         logger.info(
-            f"State recalculated: player={player_id}, "
+            f"State recalculated: player={player.id}, "
             f"total={components.total_score}, form={components.visible_form.value}"
         )
         return snapshot
@@ -128,15 +150,25 @@ class PlayerStateService:
     # 状态来源计算
     # =====================================================================
     
-    async def calculate_state_components(self, player: Player) -> "PlayerStateComponents":
+    async def calculate_state_components(
+        self,
+        player: Player,
+        use_cached_match_data: bool = True,
+        current_season_number: int | None = None,
+    ) -> "PlayerStateComponents":
         """计算所有状态来源分并聚合"""
         # 查询当前赛季号（用于合同到期压力计算）
-        current_season_number = await self._get_current_season_number(player.team_id)
+        if current_season_number is None:
+            current_season_number = await self._get_current_season_number(player.team_id)
         
         contract_score = self._calc_contract_score(player, current_season_number)
-        recent_match_score = await self._calc_recent_match_score(player.id, player.team_id)
+        if use_cached_match_data:
+            recent_match_score = self._calc_recent_match_score_from_ratings(player.recent_ratings or [])
+            match_load_score = self._calc_match_load_score_from_minutes(player.recent_minutes or [])
+        else:
+            recent_match_score = await self._calc_recent_match_score(player.id, player.team_id)
+            match_load_score = await self._calc_match_load_score(player.id, player.team_id)
         fitness_score, stamina_modifier = self._calc_fitness_score(player.fitness)
-        match_load_score = await self._calc_match_load_score(player.id, player.team_id)
         match_rust_score = player.match_rust_score  # 持久化值，赛后维护
         training_load_score = 0  # 预留接口
         morale_score = 0  # 预留接口
@@ -171,6 +203,56 @@ class PlayerStateService:
             stamina_modifier=Decimal(str(stamina_modifier)),
         )
     
+    def components_from_cache(self, player: Player) -> "PlayerStateComponents":
+        """从 players 表缓存读取状态，供赛前 payload 构建使用。"""
+        total_score = max(-10, min(10, int(player.state_score or 0)))
+        visible_form = player.match_form or self._map_to_visible_form(total_score)
+        attribute_modifier_pct = player.state_attribute_modifier_pct or Decimal("0.0000")
+        stamina_modifier = player.state_stamina_modifier or Decimal("0.00")
+        return PlayerStateComponents(
+            contract_score=player.state_contract_score or 0,
+            recent_match_score=player.state_recent_match_score or 0,
+            fitness_score=player.state_fitness_score or 0,
+            match_load_score=player.state_match_load_score or 0,
+            match_rust_score=player.match_rust_score or 0,
+            training_load_score=player.state_training_load_score or 0,
+            morale_score=player.state_morale_score or 0,
+            total_score=total_score,
+            visible_form=visible_form,
+            attribute_modifier_pct=attribute_modifier_pct,
+            stamina_modifier=stamina_modifier,
+        )
+
+    def apply_components_to_player(self, player: Player, components: "PlayerStateComponents") -> None:
+        """把状态分解值写入 players 缓存字段。"""
+        player.match_form = components.visible_form
+        player.state_score = components.total_score
+        player.state_contract_score = components.contract_score
+        player.state_recent_match_score = components.recent_match_score
+        player.state_fitness_score = components.fitness_score
+        player.state_match_load_score = components.match_load_score
+        player.state_training_load_score = components.training_load_score
+        player.state_morale_score = components.morale_score
+        player.state_attribute_modifier_pct = components.attribute_modifier_pct
+        player.state_stamina_modifier = components.stamina_modifier
+        player.state_updated_at = datetime.utcnow()
+
+    async def audit_player_state_cache(self, player_id: str) -> dict:
+        """完整历史重算并与缓存对比，用于压测/排错。"""
+        player = await self._get_player(player_id)
+        if not player:
+            raise ValueError(f"Player not found: {player_id}")
+        cached = self.components_from_cache(player)
+        recalculated = await self.calculate_state_components(player, use_cached_match_data=False)
+        return {
+            "player_id": player_id,
+            "cached": cached.to_dict(),
+            "recalculated": recalculated.to_dict(),
+            "total_score_delta": recalculated.total_score - cached.total_score,
+            "attribute_modifier_delta": float(recalculated.attribute_modifier_pct - cached.attribute_modifier_pct),
+            "stamina_modifier_delta": float(recalculated.stamina_modifier - cached.stamina_modifier),
+        }
+
     def _calc_contract_score(self, player: Player, current_season_number: int | None = None) -> int:
         """合同来源分 (设计文档 6.1 / 5.6)"""
         if player.wage_satisfaction is None:
@@ -192,17 +274,20 @@ class PlayerStateService:
         
         return max(-4, min(4, base_score + expiry_modifier))
     
-    async def _calc_recent_match_score(self, player_id: str, team_id: str | None = None) -> int:
+    def _calc_recent_match_score_from_ratings(self, ratings: list) -> int:
         """近期比赛来源分 (设计文档 6.1)"""
-        ratings = await self._get_recent_match_ratings(player_id, team_id, limit=3)
         if not ratings:
             return 0
         
-        avg_rating = sum(ratings) / len(ratings)
+        avg_rating = sum(float(r) for r in ratings) / len(ratings)
         for threshold, score in _RATING_SCORE_MAP:
             if avg_rating >= threshold:
                 return score
         return -3
+
+    async def _calc_recent_match_score(self, player_id: str, team_id: str | None = None) -> int:
+        ratings = await self._get_recent_match_ratings(player_id, team_id, limit=3)
+        return self._calc_recent_match_score_from_ratings(ratings)
     
     def _calc_fitness_score(self, fitness: int) -> tuple[int, int]:
         """体能来源分和 stamina 修正 (设计文档 6.1)"""
@@ -211,14 +296,17 @@ class PlayerStateService:
                 return score, stamina_mod
         return -5, -30
     
-    async def _calc_match_load_score(self, player_id: str, team_id: str | None = None) -> int:
+    def _calc_match_load_score_from_minutes(self, minutes: list) -> int:
         """连续比赛劳累来源分 (设计文档 6.1)"""
-        minutes = await self._get_recent_match_minutes(player_id, team_id, limit=3)
-        total_minutes = sum(minutes)
+        total_minutes = sum(int(m) for m in minutes)
         for threshold, score in _MATCH_LOAD_MAP:
             if total_minutes >= threshold:
                 return score
         return 0
+
+    async def _calc_match_load_score(self, player_id: str, team_id: str | None = None) -> int:
+        minutes = await self._get_recent_match_minutes(player_id, team_id, limit=3)
+        return self._calc_match_load_score_from_minutes(minutes)
     
     # =====================================================================
     # 比赛引擎集成
@@ -226,7 +314,7 @@ class PlayerStateService:
     
     async def build_match_player_setup(self, player: Player) -> dict:
         """为比赛引擎构建带状态修正的球员数据"""
-        components = await self.calculate_state_components(player)
+        components = self.components_from_cache(player)
         
         base_attributes = {
             "SHO": player.sho,
