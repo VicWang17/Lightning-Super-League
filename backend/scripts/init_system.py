@@ -36,6 +36,7 @@ from app.models import (
     Player, PlayerPosition, PlayerFoot, PlayerStatus, SquadRole
 )
 from app.services.player_generator import PlayerGenerator
+from scripts.init_wage_configs import init_wage_configs
 from data.teams_and_users import LEAGUE_SYSTEMS
 from app.core.formats import get_default_format
 
@@ -331,6 +332,7 @@ async def main():
                 print("✅ 使用现有 Alembic schema，仅初始化基础数据")
             systems = await init_league_systems(db)
             leagues = await init_leagues(db, systems)
+            await init_wage_configs()
             users, teams = await init_teams_and_users(db, leagues)
             players = await init_players(db, teams)
             await show_summary(db)

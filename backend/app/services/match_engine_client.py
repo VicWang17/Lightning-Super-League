@@ -45,7 +45,7 @@ class MatchEngineClient:
         if self.transport == "process":
             return self._engine_dir().exists()
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
+            async with httpx.AsyncClient(timeout=3.0, trust_env=False) as client:
                 response = await client.get(f"{self.base_url}/health")
             return response.status_code == 200
         except httpx.HTTPError:
@@ -67,7 +67,7 @@ class MatchEngineClient:
 
         url = f"{self.base_url}/api/v1/engine/matches/{fixture_id}/start"
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=60.0, trust_env=False) as client:
                 response = await client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
         except httpx.HTTPError as exc:
@@ -108,23 +108,32 @@ class MatchEngineClient:
         env = os.environ.copy()
         env.setdefault("GOCACHE", "/private/tmp/go-cache")
         engine_dir = self._engine_dir()
-        binary = engine_dir / "jsonsimulate"
-        command = [str(binary)] if binary.exists() else ["go", "run", "./cmd/jsonsimulate"]
-        try:
-            completed = subprocess.run(
-                command,
-                cwd=str(engine_dir),
-                env=env,
-                input=json.dumps(payload),
-                text=True,
-                capture_output=True,
-                timeout=60,
-            )
-        except (OSError, subprocess.SubprocessError) as exc:
-            raise MatchEngineUnavailableError(str(exc)) from exc
+        configured_binary = os.environ.get("MATCH_ENGINE_PROCESS_BINARY")
+        binary = Path(configured_binary) if configured_binary else engine_dir / "jsonsimulate"
+        commands = [[str(binary)], ["go", "run", "./cmd/jsonsimulate"]] if binary.exists() else [["go", "run", "./cmd/jsonsimulate"]]
+        last_error = ""
+        completed: subprocess.CompletedProcess[str] | None = None
+        for command in commands:
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=str(engine_dir),
+                    env=env,
+                    input=json.dumps(payload),
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                last_error = str(exc)
+                continue
+            if completed.returncode == 0:
+                break
+            last_error = completed.stderr.strip() or "process engine failed"
+            completed = None
+        if completed is None:
+            raise MatchEngineUnavailableError(last_error or "process engine failed")
 
-        if completed.returncode != 0:
-            raise MatchEngineUnavailableError(completed.stderr.strip() or "process engine failed")
         try:
             data = json.loads(completed.stdout)
         except json.JSONDecodeError as exc:
@@ -232,8 +241,10 @@ class MatchEngineClient:
         }
         stamina = float(player.fitness or 100)
         
-        # 应用状态修正（需要 db session）
-        if db is not None:
+        # 应用状态修正（需要 db session）。大规模闭环压测可关闭，避免为每个赛前 payload
+        # 重复查询近期比赛状态；赛后状态更新仍由 MatchSimulator 负责。
+        apply_player_state = os.environ.get("MATCH_ENGINE_APPLY_PLAYER_STATE", "true").lower()
+        if db is not None and apply_player_state not in {"0", "false", "no"}:
             try:
                 state_service = PlayerStateService(db)
                 setup = await state_service.build_match_player_setup(player)

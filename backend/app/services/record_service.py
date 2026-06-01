@@ -341,7 +341,7 @@ class RecordService:
                             Fixture.away_team_id == team_id,
                         ),
                     )
-                ).order_by(Fixture.scheduled_at.desc())
+                ).order_by(Fixture.scheduled_at.desc()).limit(100)
             )
             fixtures = list(result.scalars().all())
 

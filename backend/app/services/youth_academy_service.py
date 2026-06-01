@@ -33,6 +33,13 @@ from app.core.logging import get_logger
 
 logger = get_logger("app.youth_academy")
 
+_GROWTH_SCORE_MAX = Decimal("999.99")
+
+
+def _quantize_growth_score(value: Decimal | float) -> Decimal:
+    value = Decimal(str(value)).quantize(Decimal("0.01"))
+    return min(value, _GROWTH_SCORE_MAX)
+
 
 class YouthAcademyService:
     """青训营服务"""
@@ -117,7 +124,7 @@ class YouthAcademyService:
                 joined_day=day,
                 status=AcademyPlayerStatus.IN_ACADEMY,
                 growth_speed=self._determine_growth_speed(abs(player.birth_offset)),
-                growth_score=Decimal("1.00"),
+                growth_score=_quantize_growth_score(Decimal("1.00")),
                 last_trained_day=None,
             )
             self.db.add(academy_player)
@@ -255,7 +262,9 @@ class YouthAcademyService:
         self.db.add(snapshot)
         
         academy_player.last_trained_day = day
-        academy_player.growth_score = Decimal(str(float(academy_player.growth_score) + growth_budget))
+        academy_player.growth_score = _quantize_growth_score(
+            Decimal(str(academy_player.growth_score)) + Decimal(str(growth_budget))
+        )
     
     async def _apply_growth(self, player: Player, growth_budget: float) -> Dict[str, int]:
         """应用属性增长，优先提升位置权重高的属性"""

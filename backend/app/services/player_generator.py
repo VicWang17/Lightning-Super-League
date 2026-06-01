@@ -217,6 +217,50 @@ SKILL_QUALITY_WEIGHTS = [
 
 PERSONALITIES = list(PlayerPersonality)
 
+INITIAL_WAGE_TABLE = (
+    (30, Decimal("12000")),
+    (40, Decimal("15000")),
+    (50, Decimal("22000")),
+    (55, Decimal("32000")),
+    (60, Decimal("45000")),
+    (65, Decimal("65000")),
+    (70, Decimal("90000")),
+    (75, Decimal("125000")),
+    (80, Decimal("170000")),
+    (85, Decimal("230000")),
+    (90, Decimal("310000")),
+    (95, Decimal("420000")),
+)
+
+
+def estimate_initial_wage(ovr: int, potential_max: int, age: int) -> Decimal:
+    """Estimate season wage for generated players using the same scale as contracts."""
+    if ovr <= INITIAL_WAGE_TABLE[0][0]:
+        base = INITIAL_WAGE_TABLE[0][1]
+    elif ovr >= INITIAL_WAGE_TABLE[-1][0]:
+        base = INITIAL_WAGE_TABLE[-1][1]
+    else:
+        base = INITIAL_WAGE_TABLE[0][1]
+        for (low_ovr, low_wage), (high_ovr, high_wage) in zip(INITIAL_WAGE_TABLE, INITIAL_WAGE_TABLE[1:]):
+            if low_ovr <= ovr <= high_ovr:
+                ratio = Decimal(ovr - low_ovr) / Decimal(high_ovr - low_ovr)
+                base = low_wage + (high_wage - low_wage) * ratio
+                break
+
+    potential_gap = max(potential_max - ovr, 0)
+    potential_modifier = Decimal("1") + Decimal(min(potential_gap, 20)) * Decimal("0.006")
+    if age <= 20:
+        age_modifier = Decimal("0.70")
+    elif age <= 23:
+        age_modifier = Decimal("0.88")
+    elif age <= 30:
+        age_modifier = Decimal("1.00")
+    elif age <= 34:
+        age_modifier = Decimal("0.90")
+    else:
+        age_modifier = Decimal("0.75")
+    return (base * potential_modifier * age_modifier).quantize(Decimal("100"))
+
 # Squad 配比: 位置 -> 人数
 SQUAD_COMPOSITION = [
     (PlayerPosition.GK, 2),
@@ -578,7 +622,7 @@ class PlayerGenerator:
         
         # Contract
         contract_end = random.randint(1, 4)  # 1-4个赛季后到期
-        wage = Decimal(str(1000 + ovr * 800 + (potential_max - 50) * 50))
+        wage = estimate_initial_wage(ovr, potential_max, actual_age)
         release_clause = Decimal(str(wage * 20))
         
         # Squad role by age/OVR
@@ -682,8 +726,7 @@ class PlayerGenerator:
         # 性格
         personality = random.choice(PERSONALITIES)
         
-        # 工资：OVR 35 对应的基础工资
-        wage = Decimal(str(1000 + base_ovr * 800))
+        wage = estimate_initial_wage(base_ovr, potential_max, actual_age)
         
         return Player(
             name=name,

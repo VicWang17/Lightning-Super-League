@@ -7,6 +7,7 @@ Phase 2 后本文件职责：接收 Go 引擎结果，写入数据库（apply_re
 详见 services/match_engine_client.py 中的完整架构说明。
 """
 import random
+import os
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -23,6 +24,10 @@ from app.models.player_season_stats import PlayerSeasonStats
 from app.models.team import Team
 from app.services.standing_service import StandingService
 from app.services.player_state_service import PlayerStateService
+from app.core.logging import get_logger
+
+
+logger = get_logger("app.match_simulator")
 
 
 @dataclass
@@ -586,6 +591,9 @@ class MatchSimulator:
                 played_player_ids.add(player_id)
         
         state_service = PlayerStateService(db)
+        recalculate_state = os.environ.get(
+            "MATCH_ENGINE_RECALCULATE_PLAYER_STATE", "true"
+        ).lower() not in {"0", "false", "no"}
         
         # 处理出场的球员
         for player_id in played_player_ids:
@@ -603,10 +611,11 @@ class MatchSimulator:
             player.match_rust_score = min(player.match_rust_score + 1, 0)
             
             # 触发状态重算
-            try:
-                await state_service.recalculate_player_state(player_id, "match_finished")
-            except Exception as exc:
-                logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
+            if recalculate_state:
+                try:
+                    await state_service.recalculate_player_state(player_id, "match_finished")
+                except Exception as exc:
+                    logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
         
         # 处理未出场的球员（非伤停/停赛）
         for player_id, player in all_players.items():
@@ -622,9 +631,10 @@ class MatchSimulator:
             player.match_rust_score = max(player.match_rust_score - 1, -4)
             
             # 触发状态重算
-            try:
-                await state_service.recalculate_player_state(player_id, "match_finished")
-            except Exception as exc:
-                logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
+            if recalculate_state:
+                try:
+                    await state_service.recalculate_player_state(player_id, "match_finished")
+                except Exception as exc:
+                    logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
         
         await db.flush()

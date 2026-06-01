@@ -55,12 +55,19 @@ class WageConfig:
 @dataclass(frozen=True)
 class WageCapConfig:
     """工资帽配置"""
-    # 健康评级 -> 工资帽占预计收入比例
-    ratio_by_health: Dict[str, Decimal] = field(default_factory=lambda: {
-        "A": Decimal("0.70"),
-        "B": Decimal("0.65"),
-        "C": Decimal("0.58"),
-        "D": Decimal("0.50"),
+    # 联赛级别 -> 基础赛季工资帽。工资帽是联盟公平规则，不随现金储备线性膨胀。
+    base_by_level: Dict[int, Decimal] = field(default_factory=lambda: {
+        1: Decimal("1600000"),
+        2: Decimal("1300000"),
+        3: Decimal("950000"),
+        4: Decimal("800000"),
+    })
+    # 财务健康只做小幅修正，避免健康状态本身制造强队滚雪球。
+    modifier_by_health: Dict[str, Decimal] = field(default_factory=lambda: {
+        "A": Decimal("1.05"),
+        "B": Decimal("1.00"),
+        "C": Decimal("0.95"),
+        "D": Decimal("0.90"),
     })
 
 

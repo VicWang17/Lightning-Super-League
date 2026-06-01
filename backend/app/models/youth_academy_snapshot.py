@@ -43,6 +43,11 @@ class YouthAcademySnapshot(Base):
         nullable=True,
         default=dict,
     )
+    extra_data: Mapped[dict | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=dict,
+    )
     
     # 关联关系
     academy_player: Mapped["YouthAcademyPlayer"] = relationship(

@@ -307,8 +307,7 @@ class FinanceService:
         season_finance.reserve_budget = quantize_money(locked_total * Decimal(str(reserve_pct)) / Decimal("100"))
         
         health = season_finance.financial_health.value
-        cap_ratio = self.economy.wage_cap.ratio_by_health.get(health, Decimal("0.65"))
-        season_finance.wage_cap = quantize_money(projected_income * cap_ratio)
+        season_finance.wage_cap = self._calculate_wage_cap(league_level, health)
         season_finance.wage_bill = quantize_money(wage_bill)
         
         await self.db.flush()
@@ -988,6 +987,11 @@ class FinanceService:
         base = self.economy.sponsor.base_by_level.get(league_level, Decimal("50000"))
         modifier = self.economy.sponsor.health_modifier.get(health.value, Decimal("1.0"))
         return base * modifier
+
+    def _calculate_wage_cap(self, league_level: int, health: str) -> Decimal:
+        base = self.economy.wage_cap.base_by_level.get(league_level, Decimal("800000"))
+        modifier = self.economy.wage_cap.modifier_by_health.get(health, Decimal("1.0"))
+        return quantize_money(base * modifier)
     
     async def _calculate_league_prize(self, team_id: str, season_id: str) -> Decimal:
         result = await self.db.execute(select(Team).where(Team.id == team_id))

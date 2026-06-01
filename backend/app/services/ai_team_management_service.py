@@ -427,13 +427,10 @@ class AITeamManagementService:
         scored_players.sort(key=lambda x: -x[1])
         
         # 获取工资帽压力
-        finance_result = await self.db.execute(
-            select(func.sum(Player.wage)).where(Player.team_id == team.id)
-        )
-        total_wage = finance_result.scalar() or Decimal("0")
-        
-        # 简单工资帽：假设 50万
-        wage_cap = Decimal("500000")
+        finance_service = FinanceService(self.db)
+        season_finance = await finance_service._get_or_create_team_season_finance(team.id, season.id)
+        total_wage = await finance_service._calculate_team_wage_bill(team.id)
+        wage_cap = season_finance.wage_cap if season_finance.wage_cap > 0 else Decimal("1")
         pressure = float(total_wage / wage_cap) if wage_cap > 0 else 0.0
         
         renewed = 0

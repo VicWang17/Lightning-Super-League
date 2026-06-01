@@ -31,16 +31,18 @@ async def init_wage_configs():
     
     # === OVR 基础工资表 (设计文档 5.2) ===
     base_wages = [
-        (30, Decimal("15000")),
-        (40, Decimal("25000")),
-        (50, Decimal("30000")),
-        (55, Decimal("35000")),
-        (60, Decimal("40000")),
-        (65, Decimal("45000")),
-        (70, Decimal("60000")),
-        (80, Decimal("120000")),
-        (85, Decimal("180000")),
-        (90, Decimal("280000")),
+        (30, Decimal("12000")),
+        (40, Decimal("15000")),
+        (50, Decimal("22000")),
+        (55, Decimal("32000")),
+        (60, Decimal("45000")),
+        (65, Decimal("65000")),
+        (70, Decimal("90000")),
+        (75, Decimal("125000")),
+        (80, Decimal("170000")),
+        (85, Decimal("230000")),
+        (90, Decimal("310000")),
+        (95, Decimal("420000")),
     ]
     for ovr, wage in base_wages:
         configs.append(WageConfig(
@@ -53,10 +55,10 @@ async def init_wage_configs():
     
     # === 联赛系数 (设计文档 5.3) ===
     league_factors = [
-        ("1", Decimal("1.30")),
-        ("2", Decimal("1.10")),
+        ("1", Decimal("1.00")),
+        ("2", Decimal("0.95")),
         ("3", Decimal("1.00")),
-        ("4", Decimal("0.80")),
+        ("4", Decimal("0.90")),
     ]
     for level, factor in league_factors:
         configs.append(WageConfig(

@@ -37,6 +37,7 @@ from app.models.draft_pool import (
 )
 from app.core.formats import SeasonTimelineConfig
 from app.services.contract_service import ContractService
+from app.services.player_generator import estimate_initial_wage
 from app.core.logging import get_logger
 
 logger = get_logger("app.draft")
@@ -735,7 +736,7 @@ class DraftService:
             season_id=selection.season_id,
             origin=origin,
             signing_fee=Decimal("5000"),  # 选秀相关签字费较低
-            recommended_wage=Decimal(str(1000 + player.ovr * 500)),
+            recommended_wage=estimate_initial_wage(player.ovr, player.potential_max, abs(player.birth_offset)),
             status=ListingStatus.ACTIVE,
             listed_at_day=season_number,
         )
