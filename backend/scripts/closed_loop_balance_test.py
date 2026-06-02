@@ -55,6 +55,7 @@ from app.models import (  # noqa: E402
     Team,
     TeamSeasonFinance,
     User,
+    GrowthSpeed,
     YouthAcademyPlayer,
 )
 from app.core.events import EventStatus  # noqa: E402
@@ -132,6 +133,7 @@ class RunArtifacts:
     season_rows: list[dict[str, Any]] = field(default_factory=list)
     team_rows: list[dict[str, Any]] = field(default_factory=list)
     player_rows: list[dict[str, Any]] = field(default_factory=list)
+    youth_budget_rows: list[dict[str, Any]] = field(default_factory=list)
     event_rows: list[dict[str, Any]] = field(default_factory=list)
     invariant_rows: list[dict[str, Any]] = field(default_factory=list)
 
@@ -522,6 +524,142 @@ async def collect_player_rows(db, season: Season) -> list[dict[str, Any]]:
     return rows
 
 
+def youth_budget_tier(youth_pct: float) -> str:
+    if youth_pct <= 10:
+        return "low"
+    if youth_pct <= 17:
+        return "medium"
+    return "high"
+
+
+def academy_player_age(player: Player, season: Season) -> int:
+    return season.season_number + abs(player.birth_offset)
+
+
+def academy_prospect_score(player: Player, academy_player: YouthAcademyPlayer, season: Season) -> float:
+    """压测用青训价值分：综合即时 OVR、潜力、年龄和成长速度。"""
+    age = academy_player_age(player, season)
+    growth_bonus = {
+        GrowthSpeed.FAST: 6.0,
+        GrowthSpeed.NORMAL: 2.0,
+        GrowthSpeed.SLOW: -2.0,
+    }.get(academy_player.growth_speed, 0.0)
+    age_bonus = max(0, 18 - age) * 2.0
+    future_gap = max(0, int(player.potential_max or 0) - int(player.ovr or 0))
+    return round(float(player.ovr) + future_gap * 0.45 + growth_bonus + age_bonus, 2)
+
+
+def academy_player_is_useful(
+    player: Player,
+    academy_player: YouthAcademyPlayer,
+    season: Season,
+    roster_avg_ovr: float,
+    team_top8_ovr: float,
+) -> bool:
+    """判断该青训是否对本队有即时或未来价值。"""
+    score = academy_prospect_score(player, academy_player, season)
+    immediate_help = float(player.ovr) >= max(0.0, roster_avg_ovr - 1.0)
+    future_core = float(player.potential_max or 0) >= team_top8_ovr + 5.0
+    young_fast_upside = (
+        academy_player_age(player, season) <= 16
+        and academy_player.growth_speed == GrowthSpeed.FAST
+        and float(player.potential_max or 0) >= team_top8_ovr
+    )
+    score_help = score >= team_top8_ovr + 2.0
+    return immediate_help or future_core or young_fast_upside or score_help
+
+
+async def collect_youth_budget_rows(db, season: Season) -> list[dict[str, Any]]:
+    finance_rows = (
+        await db.execute(select(TeamSeasonFinance).where(TeamSeasonFinance.season_id == season.id))
+    ).scalars().all()
+    finance_by_team = {finance.team_id: finance for finance in finance_rows}
+
+    teams = (
+        await db.execute(select(Team, User).join(User, Team.user_id == User.id))
+    ).all()
+
+    rows: list[dict[str, Any]] = []
+    for team, user in teams:
+        roster_players = (
+            await db.execute(
+                select(Player)
+                .where(Player.team_id == team.id)
+                .where(Player.status.in_(ACTIVE_ROSTER_STATUSES))
+            )
+        ).scalars().all()
+        roster_ovrs = sorted([player.ovr for player in roster_players], reverse=True)
+        roster_avg_ovr = avg(roster_ovrs)
+        team_top8_ovr = avg(roster_ovrs[:8])
+
+        academy_rows = (
+            await db.execute(
+                select(YouthAcademyPlayer, Player)
+                .join(Player, YouthAcademyPlayer.player_id == Player.id)
+                .where(YouthAcademyPlayer.season_id == season.id)
+                .where(YouthAcademyPlayer.team_id == team.id)
+            )
+        ).all()
+
+        finance = finance_by_team.get(team.id)
+        youth_budget = decimal_float(finance.youth_budget) if finance else 0.0
+        locked_budget_total = decimal_float(finance.locked_budget_total) if finance else 0.0
+        youth_pct = youth_budget / locked_budget_total * 100 if locked_budget_total > 0 else 0.0
+
+        generated = len(academy_rows)
+        ages = [academy_player_age(player, season) for academy_player, player in academy_rows]
+        ovrs = [float(player.ovr) for academy_player, player in academy_rows]
+        potentials = [float(player.potential_max or 0) for academy_player, player in academy_rows]
+        prospect_scores = [
+            academy_prospect_score(player, academy_player, season)
+            for academy_player, player in academy_rows
+        ]
+        useful_flags = [
+            academy_player_is_useful(player, academy_player, season, roster_avg_ovr, team_top8_ovr)
+            for academy_player, player in academy_rows
+        ]
+        speed_counts = Counter(enum_value(academy_player.growth_speed) for academy_player, _ in academy_rows)
+        potential_letters = Counter(enum_value(player.potential_letter) for _, player in academy_rows)
+        status_counts = Counter(enum_value(academy_player.status) for academy_player, _ in academy_rows)
+
+        rows.append({
+            "season_number": season.season_number,
+            "season_id": season.id,
+            "team_id": team.id,
+            "team_name": team.name,
+            "is_ai": bool(user.is_ai),
+            "league_id": team.current_league_id,
+            "roster_count": len(roster_players),
+            "roster_avg_ovr": round(roster_avg_ovr, 2),
+            "team_top8_ovr": round(team_top8_ovr, 2),
+            "youth_budget": round(youth_budget, 2),
+            "locked_budget_total": round(locked_budget_total, 2),
+            "youth_budget_pct": round(youth_pct, 2),
+            "budget_tier": youth_budget_tier(youth_pct),
+            "academy_generated": generated,
+            "academy_signed": status_counts.get("signed", 0),
+            "academy_in_academy": status_counts.get("in_academy", 0),
+            "academy_free_market": status_counts.get("free_market", 0),
+            "avg_youth_age": round(avg(ages), 2),
+            "avg_youth_ovr": round(avg(ovrs), 2),
+            "max_youth_ovr": round(max(ovrs), 2) if ovrs else 0.0,
+            "avg_potential_max": round(avg(potentials), 2),
+            "max_potential_max": round(max(potentials), 2) if potentials else 0.0,
+            "avg_prospect_score": round(avg(prospect_scores), 2),
+            "best_prospect_score": round(max(prospect_scores), 2) if prospect_scores else 0.0,
+            "useful_prospect_count": sum(1 for flag in useful_flags if flag),
+            "useful_prospect_rate": round(sum(1 for flag in useful_flags if flag) / generated * 100, 2) if generated else 0.0,
+            "unusable_prospect_count": generated - sum(1 for flag in useful_flags if flag),
+            "fast_growth_count": speed_counts.get("fast", 0),
+            "normal_growth_count": speed_counts.get("normal", 0),
+            "slow_growth_count": speed_counts.get("slow", 0),
+            "potential_s_count": potential_letters.get("S", 0),
+            "potential_a_count": potential_letters.get("A", 0),
+            "potential_b_or_lower_count": generated - potential_letters.get("S", 0) - potential_letters.get("A", 0),
+        })
+    return rows
+
+
 async def collect_invariants(db, season: Season | None = None) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
 
@@ -837,6 +975,7 @@ def build_report(artifacts: RunArtifacts) -> str:
     season_rows = artifacts.season_rows
     team_rows = artifacts.team_rows
     player_rows = artifacts.player_rows
+    youth_budget_rows = artifacts.youth_budget_rows
     invariant_rows = artifacts.invariant_rows
 
     top_level_team_rows = [
@@ -861,6 +1000,19 @@ def build_report(artifacts: RunArtifacts) -> str:
     corr_ovr_rating = pearson(
         [float(row["ovr"]) for row in rated_players],
         [float(row["average_rating"]) for row in rated_players],
+    )
+    youth_rows_with_generated = [row for row in youth_budget_rows if int(row.get("academy_generated") or 0) > 0]
+    corr_youth_budget_best = pearson(
+        [float(row["youth_budget_pct"]) for row in youth_rows_with_generated],
+        [float(row["best_prospect_score"]) for row in youth_rows_with_generated],
+    )
+    corr_youth_budget_useful = pearson(
+        [float(row["youth_budget_pct"]) for row in youth_rows_with_generated],
+        [float(row["useful_prospect_rate"]) for row in youth_rows_with_generated],
+    )
+    corr_youth_budget_potential = pearson(
+        [float(row["youth_budget_pct"]) for row in youth_rows_with_generated],
+        [float(row["avg_potential_max"]) for row in youth_rows_with_generated],
     )
 
     latest_season_number = max((int(row["season_number"]) for row in season_rows), default=0)
@@ -934,6 +1086,37 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- Team wage bill vs points: {fmt_corr(corr_wage_points)}",
         f"- Team max OVR vs points: {fmt_corr(corr_max_points)}",
         f"- Player OVR vs average rating: {fmt_corr(corr_ovr_rating)}",
+        f"- Youth budget pct vs best prospect score: {fmt_corr(corr_youth_budget_best)}",
+        f"- Youth budget pct vs useful prospect rate: {fmt_corr(corr_youth_budget_useful)}",
+        f"- Youth budget pct vs avg potential max: {fmt_corr(corr_youth_budget_potential)}",
+        "",
+        "## Youth Budget Signals",
+        "",
+        "| Budget Tier | Teams | Avg Budget % | Avg Youth OVR | Avg Potential | Best Prospect | Useful Rate | Fast Growth/Team | A+S/Team |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+
+    tier_order = ["low", "medium", "high"]
+    rows_by_tier: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in youth_rows_with_generated:
+        rows_by_tier[str(row.get("budget_tier") or "")].append(row)
+    for tier in tier_order:
+        rows = rows_by_tier.get(tier, [])
+        lines.append(
+            "| {tier} | {teams} | {budget:.1f}% | {ovr:.1f} | {potential:.1f} | {best:.1f} | {useful:.1f}% | {fast:.2f} | {aplus:.2f} |".format(
+                tier=tier,
+                teams=len(rows),
+                budget=avg([float(row["youth_budget_pct"]) for row in rows]),
+                ovr=avg([float(row["avg_youth_ovr"]) for row in rows]),
+                potential=avg([float(row["avg_potential_max"]) for row in rows]),
+                best=avg([float(row["best_prospect_score"]) for row in rows]),
+                useful=avg([float(row["useful_prospect_rate"]) for row in rows]),
+                fast=avg([float(row["fast_growth_count"]) for row in rows]),
+                aplus=avg([float(row["potential_s_count"]) + float(row["potential_a_count"]) for row in rows]),
+            )
+        )
+
+    lines.extend([
         "",
         "## Long-Term Balance Signals",
         "",
@@ -946,7 +1129,7 @@ def build_report(artifacts: RunArtifacts) -> str:
         "",
         "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Rookie Listings | Rookie Signed | FA Listings | Auto Fill | Roster Min/Max | Wage Avg/Max | State Avg/Range | Errors |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |",
-    ]
+    ])
     for row in season_rows:
         lines.append(
             "| {season_number} | {contracts_created} | {renewals_or_recontracts} | {retired_players} | "
@@ -1022,6 +1205,7 @@ async def run(args: argparse.Namespace) -> int:
             artifacts.season_rows.append(asdict(summary))
             artifacts.team_rows.extend(await collect_team_rows(db, season))
             artifacts.player_rows.extend(await collect_player_rows(db, season))
+            artifacts.youth_budget_rows.extend(await collect_youth_budget_rows(db, season))
             artifacts.invariant_rows.extend(invariants)
         else:
             for index in range(1, args.seasons + 1):
@@ -1062,6 +1246,7 @@ async def run(args: argparse.Namespace) -> int:
                 artifacts.season_rows.append(asdict(summary))
                 artifacts.team_rows.extend(await collect_team_rows(db, season))
                 artifacts.player_rows.extend(await collect_player_rows(db, season))
+                artifacts.youth_budget_rows.extend(await collect_youth_budget_rows(db, season))
                 artifacts.invariant_rows.extend(invariants)
 
                 message = (
@@ -1090,6 +1275,7 @@ async def run(args: argparse.Namespace) -> int:
     write_csv(artifacts.out_dir / "season_summary.csv", artifacts.season_rows)
     write_csv(artifacts.out_dir / "team_season_metrics.csv", artifacts.team_rows)
     write_csv(artifacts.out_dir / "player_season_metrics.csv", artifacts.player_rows)
+    write_csv(artifacts.out_dir / "youth_budget_metrics.csv", artifacts.youth_budget_rows)
     write_jsonl(artifacts.out_dir / "event_results.jsonl", artifacts.event_rows)
     write_csv(artifacts.out_dir / "invariants.csv", artifacts.invariant_rows)
     (artifacts.out_dir / "closed_loop_balance_report.md").write_text(build_report(artifacts), encoding="utf-8")

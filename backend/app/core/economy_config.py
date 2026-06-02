@@ -26,13 +26,13 @@ class BroadcastConfig:
 
 @dataclass(frozen=True)
 class SponsorConfig:
-    """赞助商配置（Phase 2 仅实现 stable sponsor）"""
+    """赞助商配置"""
     # 联赛级别 -> 基础赞助费
     base_by_level: Dict[int, Decimal] = field(default_factory=lambda: {
-        1: Decimal("450000"),
-        2: Decimal("360000"),
-        3: Decimal("280000"),
-        4: Decimal("220000"),
+        1: Decimal("1550000"),
+        2: Decimal("1300000"),
+        3: Decimal("1100000"),
+        4: Decimal("950000"),
     })
     # 健康评级对赞助的修正
     health_modifier: Dict[str, Decimal] = field(default_factory=lambda: {
@@ -141,8 +141,8 @@ class BudgetConfig:
     """预算分配默认配置"""
     # 默认预算百分比
     default_transfer_pct: int = 25
-    default_youth_pct: int = 15
-    default_wage_pct: int = 50
+    default_youth_pct: int = 10
+    default_wage_pct: int = 55
     default_reserve_pct: int = 10
     # 极值限制
     youth_min_pct: int = 5

@@ -41,9 +41,10 @@ logger = get_logger("app.ai_team_management")
 class AITeamManagementService:
     """AI 球队自主运营服务"""
 
-    AI_TARGET_ROSTER = 15
-    AI_FREE_MARKET_MAX_SIGNINGS_PER_PASS = 5
-    AI_ACADEMY_MAX_SIGNINGS_PER_PASS = 4
+    AI_TARGET_ROSTER = 16
+    AI_SOFT_MAX_ROSTER = 17
+    AI_FREE_MARKET_MAX_SIGNINGS_PER_PASS = 3
+    AI_ACADEMY_MAX_SIGNINGS_PER_PASS = 2
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -416,11 +417,12 @@ class AITeamManagementService:
 
         roster_count = await self._get_team_roster_count(team.id)
 
-        if roster_count >= self.contract_service.ROSTER_MAX:
+        if roster_count >= self.AI_SOFT_MAX_ROSTER:
             result["blocked_full"] = len(academy_players)
             logger.info(
                 f"[ai-academy] team={team.name} roster={roster_count} "
-                f"candidates={len(academy_players)} signed=0 blocked_full={result['blocked_full']}"
+                f"soft_max={self.AI_SOFT_MAX_ROSTER} candidates={len(academy_players)} "
+                f"signed=0 blocked_full={result['blocked_full']}"
             )
             return result
 
@@ -435,11 +437,12 @@ class AITeamManagementService:
         signed = 0
         max_sign = min(
             self.AI_ACADEMY_MAX_SIGNINGS_PER_PASS,
-            self.contract_service.ROSTER_MAX - roster_count,
+            self.AI_SOFT_MAX_ROSTER - roster_count,
         )
 
         for academy_player, player, score in scored[:max_sign]:
-            if score < 30:
+            threshold = 30 if roster_count < self.AI_TARGET_ROSTER else 38
+            if score < threshold:
                 result["below_threshold"] += 1
                 continue
             try:
@@ -471,6 +474,7 @@ class AITeamManagementService:
 
         logger.info(
             f"[ai-academy] team={team.name} roster={roster_count} "
+            f"target={self.AI_TARGET_ROSTER} soft_max={self.AI_SOFT_MAX_ROSTER} "
             f"candidates={result['candidates']} signed={result['signed']} "
             f"below_threshold={result['below_threshold']} failed={result['sign_failed']}"
         )
@@ -492,7 +496,9 @@ class AITeamManagementService:
         score += float(player.ovr) * 0.3
 
         # roster 压力惩罚
-        if roster_count >= 16:
+        if roster_count >= self.AI_SOFT_MAX_ROSTER:
+            score -= 30
+        elif roster_count >= self.AI_TARGET_ROSTER:
             score -= 15
         elif roster_count >= 14:
             score -= 5
@@ -524,7 +530,7 @@ class AITeamManagementService:
         signed = 0
         max_needed = min(
             self.AI_TARGET_ROSTER - roster_count,
-            self.contract_service.ROSTER_MAX - roster_count,
+            self.AI_SOFT_MAX_ROSTER - roster_count,
             self.AI_FREE_MARKET_MAX_SIGNINGS_PER_PASS,
         )
 
@@ -557,7 +563,8 @@ class AITeamManagementService:
         if signed or roster_count < self.AI_TARGET_ROSTER:
             logger.info(
                 f"[ai-free-market] team={team.name} roster={roster_count} "
-                f"target={self.AI_TARGET_ROSTER} candidates={len(listings)} signed={signed}"
+                f"target={self.AI_TARGET_ROSTER} soft_max={self.AI_SOFT_MAX_ROSTER} "
+                f"candidates={len(listings)} signed={signed}"
             )
         return signed
 
@@ -668,7 +675,7 @@ class AITeamManagementService:
             for standing, team in ai_teams:
                 total_teams += 1
                 roster_count = await self._get_team_roster_count(team.id)
-                if roster_count >= self.contract_service.ROSTER_MAX:
+                if roster_count >= self.AI_SOFT_MAX_ROSTER:
                     skipped_full += 1
                     continue
 
@@ -757,6 +764,7 @@ class AITeamManagementService:
 
         logger.info(
             f"[rookie-market] protected candidates={len(protected)} "
+            f"target={self.AI_TARGET_ROSTER} soft_max={self.AI_SOFT_MAX_ROSTER} "
             f"signed={total_signed} full={skipped_full} low_score={skipped_low_score} "
             f"finance={skipped_finance} released={len(protected) - total_signed}"
         )
@@ -808,10 +816,12 @@ class AITeamManagementService:
         score += position_need.get(pos, 0) * 3
 
         # 阵容缺口
-        if roster_count < 12:
+        if roster_count < 13:
             score += 10
-        elif roster_count < 15:
+        elif roster_count < self.AI_TARGET_ROSTER:
             score += 5
+        elif roster_count >= self.AI_SOFT_MAX_ROSTER:
+            score -= 12
 
         # 工资压力惩罚
         if wage_pressure > 1.0:
@@ -843,11 +853,12 @@ async def _ai_academy_decisions_for_team(db: AsyncSession, team: Team, season: S
 
     roster_count = await service._get_team_roster_count(team.id)
 
-    if roster_count >= service.contract_service.ROSTER_MAX:
+    if roster_count >= service.AI_SOFT_MAX_ROSTER:
         result["blocked_full"] = len(academy_players)
         logger.info(
             f"[ai-academy-midseason] team={team.name} roster={roster_count} "
-            f"candidates={len(academy_players)} signed=0 blocked_full={result['blocked_full']}"
+            f"soft_max={service.AI_SOFT_MAX_ROSTER} candidates={len(academy_players)} "
+            f"signed=0 blocked_full={result['blocked_full']}"
         )
         return result
 
@@ -862,13 +873,13 @@ async def _ai_academy_decisions_for_team(db: AsyncSession, team: Team, season: S
     declined = 0
     max_sign = min(
         service.AI_ACADEMY_MAX_SIGNINGS_PER_PASS,
-        service.contract_service.ROSTER_MAX - roster_count,
+        service.AI_SOFT_MAX_ROSTER - roster_count,
     )
 
     for academy_player, player, score in scored:
         if signed >= max_sign:
             break
-        threshold = 30 if roster_count < service.AI_TARGET_ROSTER else 35
+        threshold = 30 if roster_count < service.AI_TARGET_ROSTER else 38
         if score >= threshold:
             try:
                 contract_service = ContractService(db)
@@ -905,6 +916,7 @@ async def _ai_academy_decisions_for_team(db: AsyncSession, team: Team, season: S
 
     logger.info(
         f"[ai-academy-midseason] team={team.name} roster={roster_count} "
+        f"target={service.AI_TARGET_ROSTER} soft_max={service.AI_SOFT_MAX_ROSTER} "
         f"candidates={result['candidates']} signed={result['signed']} "
         f"declined={result['declined']} below_threshold={result['below_threshold']} "
         f"failed={result['sign_failed']}"

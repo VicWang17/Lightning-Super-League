@@ -24,7 +24,7 @@ from app.models.finance import (
 from app.models.team import TeamFinance, Team
 from app.models.season import Season, Fixture, FixtureType, FixtureStatus
 from app.models.league import League, LeagueStanding
-from app.models.player import Player
+from app.models.player import Player, PlayerStatus
 from app.models.mail import Mail, MailCategory, MailPriority
 from app.models.user import User
 from app.core.logging import get_logger
@@ -34,6 +34,11 @@ import random
 logger = get_logger("app.finance")
 
 MONEY_QUANT = Decimal("0.01")
+PERFORMANCE_SPONSOR_BASE_RATE = Decimal("0.60")
+PERFORMANCE_SPONSOR_WIN_RATE = Decimal("0.09")
+PERFORMANCE_SPONSOR_DRAW_RATE = Decimal("0.03")
+PERFORMANCE_SPONSOR_MAX_BONUS_RATE = Decimal("1.25")
+SEASON_BUDGET_CASH_RESERVE_ACCESS_RATE = Decimal("0.10")
 
 
 def quantize_money(value: Decimal | int | float | str) -> Decimal:
@@ -43,10 +48,10 @@ def quantize_money(value: Decimal | int | float | str) -> Decimal:
 
 # 预算策略预设
 BUDGET_PRESETS: Dict[BudgetPolicy, Dict[str, int]] = {
-    BudgetPolicy.BALANCED: {"transfer": 25, "youth": 15, "wage": 50, "reserve": 10},
-    BudgetPolicy.YOUTH_FOCUS: {"transfer": 20, "youth": 25, "wage": 45, "reserve": 10},
-    BudgetPolicy.TRANSFER_PUSH: {"transfer": 40, "youth": 10, "wage": 45, "reserve": 5},
-    BudgetPolicy.WAGE_CONTROL: {"transfer": 20, "youth": 15, "wage": 55, "reserve": 10},
+    BudgetPolicy.BALANCED: {"transfer": 25, "youth": 10, "wage": 55, "reserve": 10},
+    BudgetPolicy.YOUTH_FOCUS: {"transfer": 18, "youth": 22, "wage": 47, "reserve": 13},
+    BudgetPolicy.TRANSFER_PUSH: {"transfer": 35, "youth": 8, "wage": 52, "reserve": 5},
+    BudgetPolicy.WAGE_CONTROL: {"transfer": 18, "youth": 8, "wage": 62, "reserve": 12},
 }
 
 
@@ -179,8 +184,8 @@ class FinanceService:
                 "target_season_id": target_season_id,
                 "policy": budget_plan.policy.value if budget_plan else "balanced",
                 "transfer_pct": budget_plan.transfer_pct if budget_plan else 25,
-                "youth_pct": budget_plan.youth_pct if budget_plan else 15,
-                "wage_pct": budget_plan.wage_pct if budget_plan else 50,
+                "youth_pct": budget_plan.youth_pct if budget_plan else 10,
+                "wage_pct": budget_plan.wage_pct if budget_plan else 55,
                 "reserve_pct": budget_plan.reserve_pct if budget_plan else 10,
                 "is_player_confirmed": budget_plan.is_player_confirmed if budget_plan else False,
                 "locked_at": budget_plan.locked_at if budget_plan else None,
@@ -260,6 +265,8 @@ class FinanceService:
         opening_balance = team_finance.balance if team_finance else Decimal("10000000")
         
         league_level = await self._get_team_league_level(team_id)
+
+        await self._ensure_budget_and_sponsor_before_finance_init(team_id, season_id, league_level)
         
         # Phase 5: 使用有效赞助基础金额（应用 health modifier + crisis penalty）
         sponsor_contract = await self._get_active_sponsor_contract(team_id, season_id)
@@ -278,8 +285,9 @@ class FinanceService:
         wage_bill = await self._calculate_team_wage_bill(team_id)
         projected_expense = wage_bill
         
-        # Phase 3: 优先使用已锁定的预算计划
-        locked_total = opening_balance + projected_income
+        # Phase 3: 预算总额使用赛季经营收入 + 少量现金储备。
+        # 青训预算会真实扣款，如果直接按全部现金余额分配，会导致球队越有钱每季烧钱越多。
+        locked_total = projected_income + opening_balance * SEASON_BUDGET_CASH_RESERVE_ACCESS_RATE
         budget_plan = await self._get_budget_plan(team_id, season_id)
         if budget_plan and budget_plan.locked_at:
             transfer_pct = budget_plan.transfer_pct
@@ -294,8 +302,7 @@ class FinanceService:
         
         # Phase 5: crisis 球队强制 youth 预算为 5%
         if season_finance.overspend_level == OverspendLevel.CRISIS:
-            youth_pct = max(youth_pct, self.economy.budget.youth_min_pct)
-            youth_pct = min(youth_pct, self.economy.budget.youth_min_pct)
+            youth_pct = self.economy.budget.youth_min_pct
         
         season_finance.opening_balance = quantize_money(opening_balance)
         season_finance.current_balance = quantize_money(opening_balance)
@@ -542,9 +549,9 @@ class FinanceService:
             # Phase 5: crisis 球队强制 youth 预算为最小值 5%
             season_finance = await self._get_or_create_team_season_finance(team_id, season_id)
             if season_finance.overspend_level == OverspendLevel.CRISIS:
+                excess = max(0, budget_plan.youth_pct - self.economy.budget.youth_min_pct)
                 budget_plan.youth_pct = self.economy.budget.youth_min_pct
                 # 重新平衡：从 transfer 和 reserve 中扣除，保持总和 100
-                excess = preset["youth"] - self.economy.budget.youth_min_pct
                 budget_plan.transfer_pct = max(0, budget_plan.transfer_pct - excess // 2)
                 budget_plan.reserve_pct = max(0, budget_plan.reserve_pct - excess + excess // 2)
                 # 最终确保 wage 吸收余量，保证总和为 100
@@ -580,7 +587,7 @@ class FinanceService:
                     priority=MailPriority.HIGH,
                     subject="【重要】下赛季预算规划窗口已开启",
                     body="董事会已开启下赛季预算规划窗口，请尽快前往财务中心制定预算分配方案。\n\n"
-                         "默认方案为「均衡发展」：转会25% / 青训15% / 工资50% / 储备10%。\n\n"
+                         "默认方案为「均衡发展」：转会25% / 青训10% / 工资55% / 储备10%。\n\n"
                          "同时请确认下赛季赞助商策略：稳定型赞助商收入固定，绩效型赞助商根据比赛结果浮动。\n\n"
                          "窗口将在几天后关闭，逾期未设置将自动应用推荐方案。",
                     related_url=f"/finance/budget?target_season_id={season_id}",
@@ -658,7 +665,7 @@ class FinanceService:
                     priority=MailPriority.NORMAL,
                     subject="下赛季预算计划已自动锁定",
                     body="预算规划窗口已关闭。由于您未在截止前确认方案，系统已自动为您应用推荐方案：\n\n"
-                         "预算策略：均衡发展（转会25% / 青训15% / 工资50% / 储备10%）\n"
+                         "预算策略：均衡发展（转会25% / 青训10% / 工资55% / 储备10%）\n"
                          "赞助商：稳定型赞助商\n\n"
                          "新赛季开始后，您可以在财务中心查看详细预算分配。",
                     related_url="/finance",
@@ -722,10 +729,10 @@ class FinanceService:
         stable_amount = base
         
         # Performance
-        perf_base = base * Decimal("0.65")
-        perf_win = base * Decimal("0.045")
-        perf_draw = base * Decimal("0.015")
-        perf_max = base * Decimal("0.55")
+        perf_base = base * PERFORMANCE_SPONSOR_BASE_RATE
+        perf_win = base * PERFORMANCE_SPONSOR_WIN_RATE
+        perf_draw = base * PERFORMANCE_SPONSOR_DRAW_RATE
+        perf_max = base * PERFORMANCE_SPONSOR_MAX_BONUS_RATE
         
         # 估算 performance 的期望收入（假设 50% 胜率，14 场联赛 + 杯赛）
         expected_matches = 20
@@ -783,10 +790,10 @@ class FinanceService:
                 team_id=team_id,
                 season_id=season_id,
                 policy=SponsorPolicy.PERFORMANCE,
-                base_amount=base * Decimal("0.65"),
-                win_bonus=base * Decimal("0.045"),
-                draw_bonus=base * Decimal("0.015"),
-                max_bonus=base * Decimal("0.55"),
+                base_amount=base * PERFORMANCE_SPONSOR_BASE_RATE,
+                win_bonus=base * PERFORMANCE_SPONSOR_WIN_RATE,
+                draw_bonus=base * PERFORMANCE_SPONSOR_DRAW_RATE,
+                max_bonus=base * PERFORMANCE_SPONSOR_MAX_BONUS_RATE,
                 status=SponsorContractStatus.ACTIVE,
             )
         
@@ -1270,24 +1277,64 @@ class FinanceService:
         )
         is_ai = result.scalar_one_or_none()
         return bool(is_ai)
+
+    async def _ensure_budget_and_sponsor_before_finance_init(
+        self,
+        team_id: str,
+        season_id: str,
+        league_level: int,
+    ) -> None:
+        """赛季财务初始化前确保预算和赞助合同存在。
+
+        当前事件顺序是财务初始化早于预算窗口。为了让当季青训预算生效，
+        AI 球队在这里提前完成预算/赞助决策；人类球队保留默认待确认方案。
+        """
+        budget_plan = await self._get_or_create_budget_plan(team_id, season_id)
+        sponsor = await self._get_active_sponsor_contract(team_id, season_id)
+        if not sponsor:
+            base = self.economy.sponsor.base_by_level.get(league_level, Decimal("50000"))
+            sponsor = SponsorContract(
+                team_id=team_id,
+                season_id=season_id,
+                policy=SponsorPolicy.STABLE,
+                base_amount=base,
+                status=SponsorContractStatus.PENDING,
+            )
+            self.db.add(sponsor)
+            await self.db.flush()
+
+        if await self._is_ai_team(team_id):
+            await self._auto_ai_budget_decision(team_id, season_id)
+            return
+
+        if not budget_plan.locked_at and not budget_plan.is_player_confirmed:
+            preset = BUDGET_PRESETS[BudgetPolicy.BALANCED]
+            budget_plan.policy = BudgetPolicy.BALANCED
+            budget_plan.transfer_pct = preset["transfer"]
+            budget_plan.youth_pct = preset["youth"]
+            budget_plan.wage_pct = preset["wage"]
+            budget_plan.reserve_pct = preset["reserve"]
     
     async def _auto_ai_budget_decision(self, team_id: str, season_id: str) -> None:
         """AI 自动决策预算和赞助商
         
         基础算法：
-        - 财务状况良好 (A/B) 时，有 30% 概率选择绩效型赞助商
-        - 财务状况一般 (C/D) 时，稳妥选择稳定型赞助商 + 均衡发展预算
+        - 根据财务健康、球队相对联赛实力、工资压力选择赞助商。
+        - 有竞争力的健康球队更容易选择绩效赞助，弱队和财务差球队倾向稳定赞助。
         - 预算策略：根据球队年龄结构微调（当前简化：一律 balanced）
         """
         # 获取上赛季的财务健康评级（如果有）
         season_finance = await self._get_or_create_team_season_finance(team_id, season_id)
         health = season_finance.financial_health
         
-        # 确认预算计划（balanced）
+        # 确认预算计划：AI 根据球队处境动态选择。
         budget_plan = await self._get_or_create_budget_plan(team_id, season_id)
+        budget_detail = {}
         if not budget_plan.is_player_confirmed and not budget_plan.locked_at:
-            preset = BUDGET_PRESETS[BudgetPolicy.BALANCED]
-            budget_plan.policy = BudgetPolicy.BALANCED
+            policy, preset, budget_detail = await self._choose_ai_budget_policy(
+                team_id, season_id, health, season_finance
+            )
+            budget_plan.policy = policy
             budget_plan.transfer_pct = preset["transfer"]
             budget_plan.youth_pct = preset["youth"]
             budget_plan.wage_pct = preset["wage"]
@@ -1297,26 +1344,217 @@ class FinanceService:
         
         # 赞助商决策
         sponsor = await self._get_active_sponsor_contract(team_id, season_id)
+        decision_detail = {}
         if sponsor and sponsor.status == SponsorContractStatus.PENDING:
-            # 基础算法：A/B 健康有 30% 概率选 performance，否则 stable
-            choose_performance = False
-            if health in (FinancialHealth.A, FinancialHealth.B):
-                choose_performance = random.random() < 0.30
+            choose_performance, decision_detail = await self._should_ai_choose_performance_sponsor(
+                team_id, season_id, health, season_finance
+            )
             
             if choose_performance:
                 league_level = await self._get_team_league_level(team_id)
                 base = self.economy.sponsor.base_by_level.get(league_level, Decimal("50000"))
                 sponsor.policy = SponsorPolicy.PERFORMANCE
-                sponsor.base_amount = base * Decimal("0.65")
-                sponsor.win_bonus = base * Decimal("0.045")
-                sponsor.draw_bonus = base * Decimal("0.015")
-                sponsor.max_bonus = base * Decimal("0.55")
+                sponsor.base_amount = base * PERFORMANCE_SPONSOR_BASE_RATE
+                sponsor.win_bonus = base * PERFORMANCE_SPONSOR_WIN_RATE
+                sponsor.draw_bonus = base * PERFORMANCE_SPONSOR_DRAW_RATE
+                sponsor.max_bonus = base * PERFORMANCE_SPONSOR_MAX_BONUS_RATE
                 sponsor.status = SponsorContractStatus.ACTIVE
             else:
                 sponsor.status = SponsorContractStatus.ACTIVE
         
         await self.db.flush()
-        logger.info(f"AI 自动决策完成: team={team_id}, health={health.value}, sponsor={sponsor.policy.value if sponsor else 'none'}")
+        logger.info(
+            f"AI 自动决策完成: team={team_id}, health={health.value}, "
+            f"budget={budget_plan.policy.value if budget_plan else 'none'}, budget_detail={budget_detail}, "
+            f"sponsor={sponsor.policy.value if sponsor else 'none'}, sponsor_detail={decision_detail if sponsor else {}}"
+        )
+
+    async def _choose_ai_budget_policy(
+        self,
+        team_id: str,
+        season_id: str,
+        health: FinancialHealth,
+        season_finance: TeamSeasonFinance,
+    ) -> tuple[BudgetPolicy, Dict[str, int], Dict]:
+        team_result = await self.db.execute(select(Team).where(Team.id == team_id))
+        team = team_result.scalar_one_or_none()
+
+        league_level = await self._get_team_league_level(team_id)
+        team_top8 = await self._calculate_team_top8_ovr(team_id)
+        league_top8 = await self._calculate_league_average_top8_ovr(team.current_league_id) if team and team.current_league_id else None
+        strength_edge = team_top8 - league_top8 if league_top8 is not None else Decimal("0")
+
+        wage_bill = await self._calculate_team_wage_bill(team_id)
+        wage_cap = season_finance.wage_cap
+        if wage_cap <= 0:
+            wage_cap = self._calculate_wage_cap(league_level, health.value)
+        wage_pressure = wage_bill / wage_cap if wage_cap > 0 else Decimal("0")
+
+        previous_standing = await self._get_latest_team_standing_before(team_id, season_id)
+        position_ratio = None
+        if previous_standing:
+            position, league_size, points = previous_standing
+            if league_size > 0:
+                position_ratio = Decimal(position) / Decimal(league_size)
+
+        low_hope = strength_edge <= Decimal("-3")
+        high_hope = strength_edge >= Decimal("3")
+        if position_ratio is not None:
+            low_hope = low_hope or position_ratio >= Decimal("0.65")
+            high_hope = high_hope or position_ratio <= Decimal("0.30")
+
+        policy = BudgetPolicy.BALANCED
+        reason = "balanced_default"
+        roll = Decimal(str(random.random()))
+
+        if health in (FinancialHealth.C, FinancialHealth.D) or wage_pressure >= Decimal("0.88"):
+            policy = BudgetPolicy.WAGE_CONTROL
+            reason = "finance_or_wage_pressure"
+        elif low_hope:
+            if roll < Decimal("0.75"):
+                policy = BudgetPolicy.YOUTH_FOCUS
+                reason = "low_season_hope_youth_rebuild"
+            elif roll < Decimal("0.90"):
+                policy = BudgetPolicy.BALANCED
+                reason = "low_season_hope_balanced"
+            else:
+                policy = BudgetPolicy.WAGE_CONTROL
+                reason = "low_season_hope_cost_control"
+        elif high_hope:
+            if roll < Decimal("0.70"):
+                policy = BudgetPolicy.TRANSFER_PUSH
+                reason = "high_season_hope_push"
+            elif roll < Decimal("0.85"):
+                policy = BudgetPolicy.BALANCED
+                reason = "high_season_hope_balanced"
+            else:
+                policy = BudgetPolicy.YOUTH_FOCUS
+                reason = "high_season_hope_future_depth"
+        elif roll < Decimal("0.20"):
+            policy = BudgetPolicy.YOUTH_FOCUS
+            reason = "mid_table_youth_bet"
+
+        preset = dict(BUDGET_PRESETS[policy])
+        detail = {
+            "reason": reason,
+            "roll": float(roll),
+            "league_level": league_level,
+            "team_top8": float(team_top8),
+            "league_top8": float(league_top8) if league_top8 is not None else None,
+            "strength_edge": float(strength_edge),
+            "position_ratio": float(position_ratio) if position_ratio is not None else None,
+            "wage_pressure": float(wage_pressure),
+            "preset": preset,
+        }
+        return policy, preset, detail
+
+    async def _get_latest_team_standing_before(self, team_id: str, season_id: str) -> Optional[tuple[int, int, int]]:
+        season_result = await self.db.execute(select(Season).where(Season.id == season_id))
+        season = season_result.scalar_one_or_none()
+        if not season:
+            return None
+
+        result = await self.db.execute(
+            select(LeagueStanding, Season)
+            .join(Season, LeagueStanding.season_id == Season.id)
+            .where(LeagueStanding.team_id == team_id)
+            .where(Season.season_number < season.season_number)
+            .order_by(desc(Season.season_number))
+            .limit(1)
+        )
+        row = result.one_or_none()
+        if not row:
+            return None
+        standing, _ = row
+
+        size_result = await self.db.execute(
+            select(func.count())
+            .select_from(LeagueStanding)
+            .where(LeagueStanding.season_id == standing.season_id)
+            .where(LeagueStanding.league_id == standing.league_id)
+        )
+        league_size = int(size_result.scalar_one() or 0)
+        return int(standing.position or 0), league_size, int(standing.points or 0)
+
+    async def _should_ai_choose_performance_sponsor(
+        self,
+        team_id: str,
+        season_id: str,
+        health: FinancialHealth,
+        season_finance: TeamSeasonFinance,
+    ) -> tuple[bool, Dict]:
+        """AI 赞助商选择：让强队有上涨空间，但弱队/差财务优先保底。"""
+        team_result = await self.db.execute(select(Team).where(Team.id == team_id))
+        team = team_result.scalar_one_or_none()
+
+        team_top8 = await self._calculate_team_top8_ovr(team_id)
+        league_top8 = await self._calculate_league_average_top8_ovr(team.current_league_id) if team and team.current_league_id else None
+        strength_edge = team_top8 - league_top8 if league_top8 is not None else Decimal("0")
+
+        if health == FinancialHealth.D:
+            chance = Decimal("0.00")
+        elif health == FinancialHealth.C:
+            chance = Decimal("0.08")
+        elif strength_edge >= Decimal("3"):
+            chance = Decimal("0.65")
+        elif strength_edge >= Decimal("0"):
+            chance = Decimal("0.45")
+        elif strength_edge >= Decimal("-2"):
+            chance = Decimal("0.25")
+        else:
+            chance = Decimal("0.12")
+
+        if health == FinancialHealth.A:
+            chance += Decimal("0.05")
+
+        wage_pressure = Decimal("0")
+        if season_finance.wage_cap > 0:
+            wage_pressure = season_finance.wage_bill / season_finance.wage_cap
+        if wage_pressure > Decimal("0.95"):
+            chance -= Decimal("0.10")
+        elif wage_pressure > Decimal("0.75") and health in (FinancialHealth.A, FinancialHealth.B):
+            chance += Decimal("0.05")
+
+        chance = max(Decimal("0"), min(Decimal("0.75"), chance))
+        roll = Decimal(str(random.random()))
+
+        detail = {
+            "chance": float(chance),
+            "roll": float(roll),
+            "team_top8": float(team_top8),
+            "league_top8": float(league_top8) if league_top8 is not None else None,
+            "strength_edge": float(strength_edge),
+            "wage_pressure": float(wage_pressure),
+        }
+        return roll < chance, detail
+
+    async def _calculate_team_top8_ovr(self, team_id: str) -> Decimal:
+        result = await self.db.execute(
+            select(Player.ovr)
+            .where(Player.team_id == team_id)
+            .where(Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]))
+            .order_by(desc(Player.ovr))
+            .limit(8)
+        )
+        values = list(result.scalars().all())
+        if not values:
+            return Decimal("0")
+        return Decimal(sum(values)) / Decimal(len(values))
+
+    async def _calculate_league_average_top8_ovr(self, league_id: str) -> Optional[Decimal]:
+        result = await self.db.execute(select(Team.id).where(Team.current_league_id == league_id))
+        team_ids = list(result.scalars().all())
+        if not team_ids:
+            return None
+
+        totals = []
+        for league_team_id in team_ids:
+            top8 = await self._calculate_team_top8_ovr(league_team_id)
+            if top8 > 0:
+                totals.append(top8)
+        if not totals:
+            return None
+        return sum(totals, Decimal("0")) / Decimal(len(totals))
     
     async def _check_overspend_and_notify(self, team_id: str, season_id: str) -> None:
         """检查超支状态并向人类玩家发送警告邮件"""

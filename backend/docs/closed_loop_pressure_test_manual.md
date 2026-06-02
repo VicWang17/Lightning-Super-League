@@ -138,6 +138,7 @@ reports/<run_name>/
   season_summary.csv
   team_season_metrics.csv
   player_season_metrics.csv
+  youth_budget_metrics.csv
   event_results.jsonl
   invariants.csv
 ```
@@ -149,6 +150,7 @@ reports/<run_name>/
 - `season_summary.csv`：每季总览。看闭环、财政、状态、警告。
 - `team_season_metrics.csv`：每队每季数据。看强弱队、财政差异、排名波动、滚雪球。
 - `player_season_metrics.csv`：球员赛季数据。看 OVR、评分、状态分布。
+- `youth_budget_metrics.csv`：每队每季青训预算和青训质量数据。看高青训预算是否真的产出更有用的新人。
 - `event_results.jsonl`：每个事件的结构化结果。排查某类事件失败时使用。
 - `invariants.csv`：系统不变量检查。任何 `error` 都优先处理。
 
@@ -188,6 +190,7 @@ reports/<run_name>/closed_loop_balance_report.md
 reports/<run_name>/season_summary.csv
 reports/<run_name>/team_season_metrics.csv
 reports/<run_name>/player_season_metrics.csv
+reports/<run_name>/youth_budget_metrics.csv
 reports/<run_name>/invariants.csv
 reports/<run_name>/run.log
 ```
@@ -259,7 +262,35 @@ reports/<run_name>/run.log
 - 平均余额上升且 Gini 快速上升：可能强队滚雪球。
 - 很多 AI 签不起人：财政过紧或签约策略过激。
 
-### 8.4 强弱队和滚雪球
+### 8.4 青训预算质量
+
+检查 `closed_loop_balance_report.md` 里的 `Youth Budget Signals`，以及 `youth_budget_metrics.csv`。
+
+关键字段：
+
+- `youth_budget_pct`：青训预算占锁定预算总额的比例。
+- `budget_tier`：按预算比例分为 `low`、`medium`、`high`。
+- `avg_youth_ovr` / `max_youth_ovr`：本季该队青训即时能力。
+- `avg_potential_max` / `max_potential_max`：本季该队青训潜力。
+- `avg_prospect_score` / `best_prospect_score`：压测用青训价值分，综合 OVR、潜力、年龄、成长速度。
+- `useful_prospect_rate`：对本队有即时或未来价值的新人比例。
+- `fast_growth_count`：快速成长青训人数。
+- `potential_s_count` / `potential_a_count`：高潜力青训人数。
+
+健康预期：
+
+- `high` 档的 `best_prospect_score`、`avg_potential_max`、`useful_prospect_rate` 应该明显高于 `low` 档。
+- `low` 档可以偶尔刷出好球员，但多数应落在 `unusable_prospect_count`，不能稳定补强球队。
+- `medium` 档应介于两者之间，不应和 `high` 完全一样。
+- 报告里的 `Youth budget pct vs best prospect score` 和 `Youth budget pct vs avg potential max` 应该为正；单次 1-3 季样本可能波动，但长期不应接近 0 或负数。
+
+判断：
+
+- 高预算和低预算指标几乎一样：青训生成参数没有真正吃到预算。
+- 高预算只提高数量、不提高 `best_prospect_score` 或潜力：预算影响太浅，玩家投入缺少反馈。
+- 低预算也经常高 `useful_prospect_rate`：青训过于慷慨，会削弱预算选择。
+
+### 8.5 强弱队和滚雪球
 
 用 `team_season_metrics.csv` 分析：
 
@@ -279,7 +310,7 @@ reports/<run_name>/run.log
 - 冠军次年掉到倒数可以偶发，但不应常态化。
 - `top8 OVR Gini` 不应持续上升。
 
-### 8.5 球员状态
+### 8.6 球员状态
 
 检查：
 
@@ -310,6 +341,57 @@ reports/<run_name>/run.log
 - `avg_match_load_score` 太低：负荷惩罚过重。
 - `avg_match_rust_score` 太低：未出场惩罚过重或轮换不足。
 
+### 8.7 训练与疲劳
+
+训练系统上线后，闭环报告需要新增训练与疲劳指标。建议输出到 `training_metrics.csv` 和 `player_fatigue_metrics.csv`。
+
+训练检查：
+
+- `training_sessions_total`
+- `training_sessions_by_category`
+- `high_intensity_sessions_pct`
+- `recovery_sessions_pct`
+- `avg_attribute_gain_per_session`
+- `avg_main_attribute_gain_per_season`
+- `breakthroughs_per_season`
+- `players_at_attribute_cap`
+- `avg_growth_by_age_band`
+- `avg_growth_by_potential_letter`
+
+疲劳检查：
+
+- `avg_fitness`
+- `min_fitness`
+- `avg_fatigue`
+- `max_fatigue`
+- `players_fatigue_75_plus`
+- `players_fatigue_91_plus`
+- `avg_initial_stamina`
+- `avg_initial_stamina_by_position`
+- `gk_fatigue_stamina_penalty_avg`
+- `outfield_fatigue_stamina_penalty_avg`
+
+健康预期：
+
+- `fitness` 和 `fatigue` 都必须始终在 `0-100`。
+- 高疲劳球员的 `initial_stamina` 应明显低于低疲劳球员。
+- 同疲劳下，门将的体力折扣应小于外场球员。
+- 高强度训练不能长期占比过高，否则 AI 会把球队练崩。
+- 恢复训练占比不能过低，否则疲劳会长期堆满。
+- 普通球员单赛季关键属性平均成长不应超过 `2.0`。
+- 高潜年轻球员单赛季关键属性平均成长不应超过 `3.5`。
+- 老将单赛季关键属性平均成长不应超过 `1.0`。
+- 连续 3 个赛季后，不应出现大量球员快速练满多个属性。
+
+判断：
+
+- `avg_fatigue` 持续上升：比赛/训练疲劳过重，或恢复不足。
+- `avg_initial_stamina` 长期偏低：疲劳折扣过强，比赛质量会被系统性压低。
+- `avg_attribute_gain_per_session` 接近 0：训练无效，玩家缺少反馈。
+- `avg_attribute_gain_per_session` 过高：训练过强，潜力和年龄曲线失去意义。
+- `players_at_attribute_cap` 快速上升：属性上限或成长衰减没有有效限制。
+- AI 高强度训练占比过高：AI 训练规划需要更强的疲劳约束。
+
 ## 9. 建议 AI 输出格式
 
 分析完成后，AI 应按这个结构汇报：
@@ -326,6 +408,7 @@ reports/<run_name>/run.log
 - avg/min balance
 - wage pressure
 - state score
+- training growth / fatigue signals
 - OVR/points correlation
 - champion relegation/repeat champion
 
