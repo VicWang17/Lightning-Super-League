@@ -217,6 +217,22 @@ class Player(Base):
     state_attribute_modifier_pct: Mapped[Decimal] = mapped_column(DECIMAL(6, 4), default=Decimal("0.0000"), nullable=False)
     state_stamina_modifier: Mapped[Decimal] = mapped_column(DECIMAL(6, 2), default=Decimal("0.00"), nullable=False)
     
+    # ===== 训练系统 (v1 新增) =====
+    # 疲劳系统
+    fatigue: Mapped[int] = mapped_column(Integer, default=0, nullable=False)   # 长期疲劳 0-100
+    fatigue_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
+    # 属性成长系统
+    attribute_caps: Mapped[dict | None] = mapped_column(JSON, nullable=True)   # 各属性隐藏上限 {sho: 17.4, ...}
+    attribute_progress: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)  # 各属性小数进度 {sho: 0.62, ...}
+    
+    # 成长曲线
+    growth_peak_age: Mapped[int | None] = mapped_column(Integer, nullable=True)   # 巅峰年龄
+    growth_curve_type: Mapped[str | None] = mapped_column(String(20), nullable=True)  # early_bloomer/steady/late_bloomer/explosive/plateau
+    growth_speed: Mapped[Decimal] = mapped_column(DECIMAL(5, 2), default=Decimal("1.00"), nullable=False)  # 成长速度系数
+    growth_stability: Mapped[Decimal] = mapped_column(DECIMAL(5, 2), default=Decimal("1.00"), nullable=False)  # 成长稳定性
+    late_bloom_factor: Mapped[Decimal] = mapped_column(DECIMAL(5, 2), default=Decimal("1.00"), nullable=False)  # 晚熟系数
+    
     # market_value / 生涯统计由服务实时计算，不持久化在 players。
     
     # ===== 外键 =====

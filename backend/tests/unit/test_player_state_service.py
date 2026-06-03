@@ -100,44 +100,55 @@ class TestAttributeModifier:
 
 
 class TestInitialStamina:
-    """Test initial stamina calculation"""
+    """Test initial stamina calculation with fatigue system (设计文档 5.2)"""
     
     def test_calculate_initial_stamina(self):
-        """Test stamina calculation with fitness and modifier"""
+        """Test stamina calculation with fitness and fatigue"""
         service = PlayerStateService.__new__(PlayerStateService)
         
-        # Create a mock player
+        # 无疲劳时，stamina 约等于 fitness
         player = Player(
             fitness=80,
+            sta=10,
+            fatigue=0,
         )
         
         stamina = service.calculate_initial_stamina(player)
-        # fitness 80 -> score 0, stamina_mod 0 -> initial = 80
         assert stamina == 80.0
         
-        player.fitness = 60
+        # 有疲劳时，stamina 被打折
+        player.fitness = 80
+        player.fatigue = 50
         stamina = service.calculate_initial_stamina(player)
-        # fitness 60 -> score 0, stamina_mod -4 -> initial = 56
-        assert stamina == 56.0
+        # multiplier = 1 - 50 * 0.0023 = 0.885, 80 * 0.885 = 70.8
+        assert stamina == 70.8
         
+        # 高 fitness 低 fatigue
         player.fitness = 95
+        player.fatigue = 10
         stamina = service.calculate_initial_stamina(player)
-        # fitness 95 -> score 1, stamina_mod 3 -> initial = 98
-        assert stamina == 98.0
+        # multiplier = 1 - 10 * 0.0023 = 0.977, 95 * 0.977 = 92.8
+        assert stamina == 92.8
     
     def test_stamina_clamping(self):
-        """Test stamina is clamped to 30-100"""
+        """Test stamina is clamped to 35-100"""
         service = PlayerStateService.__new__(PlayerStateService)
         
-        player = Player(fitness=20)
+        player = Player(fitness=20, sta=10, fatigue=0)
         stamina = service.calculate_initial_stamina(player)
-        # fitness 20 -> score -5, stamina_mod -30 -> initial = -10 -> clamped to 30
-        assert stamina == 30.0
+        # 20 * 1 = 20, clamped to 35
+        assert stamina == 35.0
         
-        player = Player(fitness=100)
+        player = Player(fitness=100, sta=10, fatigue=0)
         stamina = service.calculate_initial_stamina(player)
-        # fitness 100 -> score 1, stamina_mod 3 -> initial = 103 -> clamped to 100
         assert stamina == 100.0
+        
+        # 高 fitness + 高 fatigue 也可能被 clamp
+        player.fitness = 100
+        player.fatigue = 100
+        stamina = service.calculate_initial_stamina(player)
+        # multiplier = 1 - 100 * 0.0023 = 0.77, 100 * 0.77 = 77
+        assert stamina == 77.0
 
 
 class TestContractScore:

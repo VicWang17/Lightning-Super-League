@@ -19,6 +19,7 @@ from app.models.player import (
     PotentialLetter, PlayerPersonality, ContractType, MatchForm, SquadRole,
     OriginType,
 )
+from app.services.training_growth_service import TrainingGrowthService
 
 
 # ==================== 配置 ====================
@@ -637,6 +638,11 @@ class PlayerGenerator:
         else:
             role = SquadRole.BACKUP
         
+        # 生成成长曲线和属性上限
+        growth_profile = TrainingGrowthService.generate_player_growth_profile(
+            potential_max, position, actual_age
+        )
+        
         return Player(
             name=name,
             race=race,
@@ -663,6 +669,15 @@ class PlayerGenerator:
             status=PlayerStatus.ACTIVE,
             match_form=MatchForm.NEUTRAL,
             fitness=100,
+            fatigue=0,
+            # growth
+            attribute_caps=growth_profile["attribute_caps"],
+            attribute_progress={},
+            growth_peak_age=growth_profile["growth_peak_age"],
+            growth_curve_type=growth_profile["growth_curve_type"],
+            growth_speed=growth_profile["growth_speed"],
+            growth_stability=growth_profile["growth_stability"],
+            late_bloom_factor=growth_profile["late_bloom_factor"],
             # contract
             contract_type=ContractType.NORMAL,
             contract_end_season=contract_end,
@@ -884,6 +899,11 @@ class PlayerGenerator:
         # Personality
         personality = random.choice(PERSONALITIES)
         
+        # 生成成长曲线和属性上限
+        growth_profile = TrainingGrowthService.generate_player_growth_profile(
+            potential_max, position, actual_age
+        )
+        
         return Player(
             name=name,
             race=race,
@@ -907,6 +927,14 @@ class PlayerGenerator:
             status=PlayerStatus.ACTIVE,
             match_form=MatchForm.NEUTRAL,
             fitness=100,
+            fatigue=0,
+            attribute_caps=growth_profile["attribute_caps"],
+            attribute_progress={},
+            growth_peak_age=growth_profile["growth_peak_age"],
+            growth_curve_type=growth_profile["growth_curve_type"],
+            growth_speed=growth_profile["growth_speed"],
+            growth_stability=growth_profile["growth_stability"],
+            late_bloom_factor=growth_profile["late_bloom_factor"],
             contract_type=ContractType.FREE,
             contract_end_season=None,
             wage=Decimal("0"),

@@ -24,6 +24,7 @@ from app.models.player_season_stats import PlayerSeasonStats
 from app.models.team import Team
 from app.services.standing_service import StandingService
 from app.services.player_state_service import PlayerStateService
+from app.services.player_fatigue_service import PlayerFatigueService
 from app.core.logging import get_logger
 
 
@@ -613,12 +614,18 @@ class MatchSimulator:
 
             player_stats = stats_by_player.get(player_id, {})
 
-            # fitness 下降（设计文档 8.3）
+            # 使用疲劳服务处理比赛负荷（设计文档 5.5）
             minutes = player_stats.get("minutes_played")
             if minutes is None:
                 minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
-            fitness_drop = 10 if minutes >= 70 else 7
-            player.fitness = max(0, player.fitness - fitness_drop)
+            
+            fatigue_service = PlayerFatigueService()
+            fatigue_service.apply_match_load(
+                player,
+                minutes=minutes,
+                fixture_type=fixture.fixture_type,
+                resolution=result.resolution,
+            )
             
             # match_rust_score 恢复（栈式弹出）
             player.match_rust_score = min(player.match_rust_score + 1, 0)
@@ -651,8 +658,14 @@ class MatchSimulator:
             if player.status in (PlayerStatus.INJURED, PlayerStatus.SUSPENDED):
                 continue
             
-            # fitness 恢复（设计文档 8.3 / 9.4）
-            player.fitness = min(100, player.fitness + 9)
+            # 使用疲劳服务处理未出场恢复（设计文档 5.5）
+            fatigue_service = PlayerFatigueService()
+            fatigue_service.apply_match_load(
+                player,
+                minutes=0,
+                fixture_type=fixture.fixture_type,
+                resolution=result.resolution,
+            )
             
             # match_rust_score 下降（栈式压入）
             player.match_rust_score = max(player.match_rust_score - 1, -2)

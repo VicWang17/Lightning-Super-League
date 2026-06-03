@@ -21,6 +21,9 @@ from app.services.match_engine_client import (
 )
 from app.services.cup_progression import CupProgressionService
 from app.services.promotion_service import PromotionService
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class SeasonService:
@@ -178,6 +181,9 @@ class SeasonService:
             return await self._handle_budget_window_opened(event)
         elif event.event_type == EventType.BUDGET_WINDOW_CLOSED:
             return await self._handle_budget_window_closed(event)
+        # Training day
+        elif event.event_type == EventType.TRAINING_DAY:
+            return await self._handle_training_day(event)
         # Phase 3/4/5: 青训、选秀、AI 管理事件
         elif event.event_type == EventType.YOUTH_REFRESH:
             return await self._handle_youth_refresh(event)
@@ -236,6 +242,72 @@ class SeasonService:
         result = await service.train_academy_players(season_id, day)
         await self.db.commit()
         return {"event": "youth_training", **result}
+
+    async def _handle_training_day(self, event: GameEvent) -> Dict:
+        """TRAINING_DAY: 为所有球队生成并结算当天训练"""
+        season_id = event.payload.get("season_id")
+        day = event.payload.get("day", 0)
+
+        result = await self.db.execute(select(Season).where(Season.id == season_id))
+        season = result.scalar_one_or_none()
+        if not season:
+            raise ValueError(f"Season not found: {season_id}")
+
+        from app.models.team import Team, TeamStatus
+        from app.models.user import User
+        from app.models.training import TrainingCreatedBy
+        from app.services.ai_training_planner import AITrainingPlanner
+        from app.services.training_service import TrainingService
+
+        teams_result = await self.db.execute(
+            select(Team, User)
+            .join(User, Team.user_id == User.id)
+            .where(Team.status == TeamStatus.ACTIVE)
+        )
+        teams = list(teams_result.all())
+
+        planner = AITrainingPlanner(self.db)
+        training_service = TrainingService(self.db)
+
+        # 1. 为所有球队生成当天训练计划（AI / 人类默认）
+        team_ids = []
+        for team, user in teams:
+            is_ai = user.is_ai if user else False
+            try:
+                if is_ai:
+                    plan_items = await planner.generate_daily_plan(team.id, season_id, day)
+                else:
+                    plan_items = await planner.generate_default_plan(team.id, season_id, day)
+                await training_service.save_training_plan(
+                    team.id, season_id, plan_items, TrainingCreatedBy.DEFAULT
+                )
+                team_ids.append(team.id)
+            except Exception as e:
+                logger.warning(f"训练计划生成失败: team={team.id}, day={day}, error={e}")
+
+        # 2. 批量结算（一次性加载所有数据，避免 N×M 次查询）
+        total_sessions = 0
+        total_breakthroughs = 0
+        if team_ids:
+            try:
+                summary = await training_service.bulk_complete_training_day(
+                    season_id, day, season.season_number, team_ids
+                )
+                total_sessions = summary.get("sessions_completed", 0)
+                total_breakthroughs = summary.get("total_breakthroughs", 0)
+            except Exception as e:
+                logger.warning(f"批量训练结算失败: day={day}, error={e}")
+
+        await self.db.commit()
+
+        return {
+            "event": "training_day",
+            "season_id": season_id,
+            "season_day": day,
+            "teams_processed": len(team_ids),
+            "sessions_completed": total_sessions,
+            "total_breakthroughs": total_breakthroughs,
+        }
 
     # =====================================================================
     # Phase 4: 选秀事件（已移除）

@@ -57,6 +57,7 @@ from app.models import (  # noqa: E402
     User,
     GrowthSpeed,
     YouthAcademyPlayer,
+    TrainingResult,
 )
 from app.core.events import EventStatus  # noqa: E402
 from app.models.player_contract import ContractStatus  # noqa: E402
@@ -123,6 +124,13 @@ class SeasonSummary:
     avg_fitness_score: float = 0.0
     avg_match_load_score: float = 0.0
     avg_match_rust_score: float = 0.0
+    training_sessions: int = 0
+    training_breakthroughs: int = 0
+    avg_fatigue: float = 0.0
+    avg_fitness: float = 0.0
+    players_fatigue_over_75: int = 0
+    players_fitness_below_50: int = 0
+    avg_attr_progress_total: float = 0.0
     invariants_failed: int = 0
     warnings: str = ""
 
@@ -136,6 +144,8 @@ class RunArtifacts:
     youth_budget_rows: list[dict[str, Any]] = field(default_factory=list)
     event_rows: list[dict[str, Any]] = field(default_factory=list)
     invariant_rows: list[dict[str, Any]] = field(default_factory=list)
+    training_rows: list[dict[str, Any]] = field(default_factory=list)
+    fatigue_rows: list[dict[str, Any]] = field(default_factory=list)
 
 
 def enum_value(value: Any) -> str:
@@ -312,6 +322,22 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
     state_scores = [int(player.state_score or 0) for player in active_players]
     form_counts = Counter(enum_value(player.match_form).lower() for player in active_players)
 
+    # 训练指标
+    training_results = (
+        await db.execute(select(TrainingResult).where(TrainingResult.season_id == season.id))
+    ).scalars().all()
+    training_sessions = len(training_results)
+    training_breakthroughs = sum(
+        len(r.breakthroughs or []) for r in training_results
+    )
+
+    # 疲劳与成长指标
+    player_fatigues = [p.fatigue or 0 for p in active_players]
+    player_fitnesses = [p.fitness or 100 for p in active_players]
+    attr_progress_totals = [
+        sum((p.attribute_progress or {}).values()) for p in active_players
+    ]
+
     summary = SeasonSummary(
         season_number=season.season_number,
         season_id=season.id,
@@ -376,6 +402,13 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         avg_fitness_score=round(avg([player.state_fitness_score or 0 for player in active_players]), 2),
         avg_match_load_score=round(avg([player.state_match_load_score or 0 for player in active_players]), 2),
         avg_match_rust_score=round(avg([player.match_rust_score or 0 for player in active_players]), 2),
+        training_sessions=training_sessions,
+        training_breakthroughs=training_breakthroughs,
+        avg_fatigue=round(avg(player_fatigues), 2),
+        avg_fitness=round(avg(player_fitnesses), 2),
+        players_fatigue_over_75=sum(1 for f in player_fatigues if f > 75),
+        players_fitness_below_50=sum(1 for f in player_fitnesses if f < 50),
+        avg_attr_progress_total=round(avg(attr_progress_totals), 2),
     )
     return summary
 
@@ -502,6 +535,9 @@ async def collect_player_rows(db, season: Season) -> list[dict[str, Any]]:
                 "match_rust_score": player.match_rust_score,
                 "attribute_modifier_pct": decimal_float(player.state_attribute_modifier_pct),
                 "stamina_modifier": decimal_float(player.state_stamina_modifier),
+                "fitness": player.fitness or 100,
+                "fatigue": player.fatigue or 0,
+                "attribute_progress_total": round(sum((player.attribute_progress or {}).values()), 2),
                 "recent_ratings": player.recent_ratings or [],
                 "recent_minutes": player.recent_minutes or [],
                 "matches": 0,
@@ -656,6 +692,90 @@ async def collect_youth_budget_rows(db, season: Season) -> list[dict[str, Any]]:
             "potential_s_count": potential_letters.get("S", 0),
             "potential_a_count": potential_letters.get("A", 0),
             "potential_b_or_lower_count": generated - potential_letters.get("S", 0) - potential_letters.get("A", 0),
+        })
+    return rows
+
+
+async def collect_training_rows(db, season: Season) -> list[dict[str, Any]]:
+    """按球队汇总训练结算数据"""
+    teams = (
+        await db.execute(select(Team, User).join(User, Team.user_id == User.id))
+    ).all()
+
+    rows: list[dict[str, Any]] = []
+    for team, user in teams:
+        results = (
+            await db.execute(
+                select(TrainingResult)
+                .where(TrainingResult.season_id == season.id)
+                .where(TrainingResult.team_id == team.id)
+            )
+        ).scalars().all()
+
+        if not results:
+            continue
+
+        efficiencies = [decimal_float(r.efficiency) for r in results if r.efficiency is not None]
+        load_points = [r.load_points or 0 for r in results]
+        breakthroughs = sum(len(r.breakthroughs or []) for r in results)
+
+        rows.append({
+            "season_number": season.season_number,
+            "season_id": season.id,
+            "team_id": team.id,
+            "team_name": team.name,
+            "is_ai": bool(user.is_ai),
+            "total_sessions": len(results),
+            "total_breakthroughs": breakthroughs,
+            "avg_efficiency": round(avg(efficiencies), 2) if efficiencies else 0.0,
+            "total_load_points": sum(load_points),
+        })
+    return rows
+
+
+async def collect_fatigue_rows(db, season: Season) -> list[dict[str, Any]]:
+    """按球队汇总球员疲劳与成长数据"""
+    teams = (
+        await db.execute(select(Team, User).join(User, Team.user_id == User.id))
+    ).all()
+
+    rows: list[dict[str, Any]] = []
+    for team, user in teams:
+        players = (
+            await db.execute(
+                select(Player)
+                .where(Player.team_id == team.id)
+                .where(Player.status.in_(ACTIVE_ROSTER_STATUSES))
+            )
+        ).scalars().all()
+
+        if not players:
+            continue
+
+        fatigues = [p.fatigue or 0 for p in players]
+        fitnesses = [p.fitness or 100 for p in players]
+        attr_progress = [sum((p.attribute_progress or {}).values()) for p in players]
+        ages = [season.season_number + abs(p.birth_offset) for p in players]
+        young = [p for p in players if season.season_number + abs(p.birth_offset) <= 21]
+        old = [p for p in players if season.season_number + abs(p.birth_offset) >= 30]
+
+        rows.append({
+            "season_number": season.season_number,
+            "season_id": season.id,
+            "team_id": team.id,
+            "team_name": team.name,
+            "is_ai": bool(user.is_ai),
+            "roster_count": len(players),
+            "avg_fatigue": round(avg(fatigues), 2),
+            "avg_fitness": round(avg(fitnesses), 2),
+            "players_fatigue_over_75": sum(1 for f in fatigues if f > 75),
+            "players_fitness_below_50": sum(1 for f in fitnesses if f < 50),
+            "avg_attr_progress_total": round(avg(attr_progress), 2),
+            "avg_age": round(avg(ages), 2),
+            "young_players_count": len(young),
+            "old_players_count": len(old),
+            "young_avg_attr_progress": round(avg([sum((p.attribute_progress or {}).values()) for p in young]), 2) if young else 0.0,
+            "old_avg_attr_progress": round(avg([sum((p.attribute_progress or {}).values()) for p in old]), 2) if old else 0.0,
         })
     return rows
 
@@ -862,6 +982,16 @@ async def format_event_log_lines(
     if event == "youth_training":
         return [f"[youth] trained={item.get('trained', 0)}"]
 
+    if event == "training_day":
+        return [
+            "[training] day={day} teams={teams} sessions={sessions} breakthroughs={bt}".format(
+                day=item.get("season_day"),
+                teams=item.get("teams_processed", 0),
+                sessions=item.get("sessions_completed", 0),
+                bt=item.get("total_breakthroughs", 0),
+            )
+        ]
+
     if event == "draft_preferences_open":
         ai = item.get("ai") or {}
         return [
@@ -1041,6 +1171,8 @@ def build_report(artifacts: RunArtifacts) -> str:
             "rookie_market_listings",
             "rookie_market_signed",
             "auto_fill_players_joined",
+            "training_sessions",
+            "training_breakthroughs",
         ]:
             total[key] += int(row.get(key) or 0)
 
@@ -1063,6 +1195,8 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- Rookie-market signed: {total['rookie_market_signed']}",
         f"- Free-agent listings created: {total['free_agent_listings_created']}",
         f"- Auto-fill players joined: {total['auto_fill_players_joined']}",
+        f"- Training sessions: {total['training_sessions']}",
+        f"- Training breakthroughs: {total['training_breakthroughs']}",
         "",
         "## Player State Signals",
         "",
@@ -1079,6 +1213,14 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"{season_rows[-1].get('avg_fitness_score', 'n/a') if season_rows else 'n/a'} / "
         f"{season_rows[-1].get('avg_match_load_score', 'n/a') if season_rows else 'n/a'} / "
         f"{season_rows[-1].get('avg_match_rust_score', 'n/a') if season_rows else 'n/a'}",
+        "",
+        "## Training & Fatigue Signals",
+        "",
+        f"- Latest avg fatigue / fitness: {season_rows[-1].get('avg_fatigue', 'n/a') if season_rows else 'n/a'} / {season_rows[-1].get('avg_fitness', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest players fatigue>75 / fitness<50: {season_rows[-1].get('players_fatigue_over_75', 'n/a') if season_rows else 'n/a'} / {season_rows[-1].get('players_fitness_below_50', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest avg attr progress total: {season_rows[-1].get('avg_attr_progress_total', 'n/a') if season_rows else 'n/a'}",
+        f"- Training sessions S1..Sn: {' / '.join(str(row.get('training_sessions', 0)) for row in season_rows)}",
+        f"- Breakthroughs S1..Sn: {' / '.join(str(row.get('training_breakthroughs', 0)) for row in season_rows)}",
         "",
         "## Correlations",
         "",
@@ -1127,15 +1269,16 @@ def build_report(artifacts: RunArtifacts) -> str:
         "",
         "## Season Table",
         "",
-        "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Rookie Listings | Rookie Signed | FA Listings | Auto Fill | Roster Min/Max | Wage Avg/Max | State Avg/Range | Errors |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |",
+        "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Rookie Listings | Rookie Signed | FA Listings | Auto Fill | Training | Breakthroughs | Roster Min/Max | Wage Avg/Max | State Avg/Range | Fatigue | Fitness | Errors |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: | ---: | ---: |",
     ])
     for row in season_rows:
         lines.append(
             "| {season_number} | {contracts_created} | {renewals_or_recontracts} | {retired_players} | "
             "{youth_generated} | {youth_signed} | {rookie_market_listings} | {rookie_market_signed} | {free_agent_listings_created} | "
-            "{auto_fill_players_joined} | {roster_min}/{roster_max} | {avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | "
-            "{avg_state_score:.1f}/{min_state_score}..{max_state_score} | {invariants_failed} |".format(**row)
+            "{auto_fill_players_joined} | {training_sessions} | {training_breakthroughs} | {roster_min}/{roster_max} | "
+            "{avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | {avg_state_score:.1f}/{min_state_score}..{max_state_score} | "
+            "{avg_fatigue:.1f} | {avg_fitness:.1f} | {invariants_failed} |".format(**row)
         )
 
     if invariant_rows:
@@ -1155,6 +1298,9 @@ def build_report(artifacts: RunArtifacts) -> str:
         "- If wage-to-points correlation is too high and balance Gini rises quickly, the economy may be enabling runaway strong teams.",
         "- If champion relegations are frequent, promotion/relegation or match variance is too chaotic.",
         "- If most players are LOW or HOT, inspect component averages to find the state factor dominating the system.",
+        "- If avg fatigue stays >70 or fitness <60, training load or match recovery may be too harsh.",
+        "- If young_avg_attr_progress >3.5/season or old_avg_attr_progress >1.0/season, growth speed is unhealthy.",
+        "- If training breakthroughs are near zero, check whether training plans are being generated and completed.",
     ])
 
     return "\n".join(lines) + "\n"
@@ -1206,6 +1352,8 @@ async def run(args: argparse.Namespace) -> int:
             artifacts.team_rows.extend(await collect_team_rows(db, season))
             artifacts.player_rows.extend(await collect_player_rows(db, season))
             artifacts.youth_budget_rows.extend(await collect_youth_budget_rows(db, season))
+            artifacts.training_rows.extend(await collect_training_rows(db, season))
+            artifacts.fatigue_rows.extend(await collect_fatigue_rows(db, season))
             artifacts.invariant_rows.extend(invariants)
         else:
             for index in range(1, args.seasons + 1):
@@ -1247,11 +1395,14 @@ async def run(args: argparse.Namespace) -> int:
                 artifacts.team_rows.extend(await collect_team_rows(db, season))
                 artifacts.player_rows.extend(await collect_player_rows(db, season))
                 artifacts.youth_budget_rows.extend(await collect_youth_budget_rows(db, season))
+                artifacts.training_rows.extend(await collect_training_rows(db, season))
+                artifacts.fatigue_rows.extend(await collect_fatigue_rows(db, season))
                 artifacts.invariant_rows.extend(invariants)
 
                 message = (
                     "[closed-loop] S{season} events={events} roster={rmin}/{rmax} "
                     "contracts={contracts} youth={youth} rookie_signed={rookie} "
+                    "training={training}/{breakthroughs} fatigue={avg_fatigue} fitness={avg_fitness} "
                     "auto_fill={auto_fill} errors={errors} status={status}"
                 ).format(
                     season=summary.season_number,
@@ -1261,6 +1412,10 @@ async def run(args: argparse.Namespace) -> int:
                     contracts=summary.contracts_created,
                     youth=summary.youth_signed,
                     rookie=summary.rookie_market_signed,
+                    training=summary.training_sessions,
+                    breakthroughs=summary.training_breakthroughs,
+                    avg_fatigue=summary.avg_fatigue,
+                    avg_fitness=summary.avg_fitness,
                     auto_fill=summary.auto_fill_players_joined,
                     errors=summary.invariants_failed,
                     status=event_status,
@@ -1276,6 +1431,8 @@ async def run(args: argparse.Namespace) -> int:
     write_csv(artifacts.out_dir / "team_season_metrics.csv", artifacts.team_rows)
     write_csv(artifacts.out_dir / "player_season_metrics.csv", artifacts.player_rows)
     write_csv(artifacts.out_dir / "youth_budget_metrics.csv", artifacts.youth_budget_rows)
+    write_csv(artifacts.out_dir / "training_metrics.csv", artifacts.training_rows)
+    write_csv(artifacts.out_dir / "player_fatigue_metrics.csv", artifacts.fatigue_rows)
     write_jsonl(artifacts.out_dir / "event_results.jsonl", artifacts.event_rows)
     write_csv(artifacts.out_dir / "invariants.csv", artifacts.invariant_rows)
     (artifacts.out_dir / "closed_loop_balance_report.md").write_text(build_report(artifacts), encoding="utf-8")

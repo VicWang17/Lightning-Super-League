@@ -85,6 +85,15 @@ from app.models.finance import (
     TeamBudgetPlan,
     SponsorContract,
 )
+from app.models.training import (
+    TrainingSlot,
+    TrainingMode,
+    TrainingPlanStatus,
+    TrainingCreatedBy,
+    TeamTrainingPlan,
+    TrainingResult,
+    TeamTrainingAIProfile,
+)
 
 __all__ = [
     # Base
@@ -166,4 +175,12 @@ __all__ = [
     "SponsorContractStatus",
     "TeamBudgetPlan",
     "SponsorContract",
+    # Training
+    "TrainingSlot",
+    "TrainingMode",
+    "TrainingPlanStatus",
+    "TrainingCreatedBy",
+    "TeamTrainingPlan",
+    "TrainingResult",
+    "TeamTrainingAIProfile",
 ]

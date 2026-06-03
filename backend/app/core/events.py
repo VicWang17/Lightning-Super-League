@@ -44,6 +44,8 @@ class EventType(str, Enum):
     # Youth Academy events (Phase 3)
     YOUTH_REFRESH = "youth_refresh"
     YOUTH_TRAINING = "youth_training"
+    # Training events
+    TRAINING_DAY = "training_day"
     # Draft events (Phase 4)
     DRAFT_PREFERENCES_OPEN = "draft_preferences_open"
     DRAFT_RUN = "draft_run"
@@ -347,7 +349,7 @@ class EventQueue:
             )
         )
 
-        # 每天一个 MATCH_DAY 事件
+        # 每天一个 MATCH_DAY 事件 + TRAINING_DAY（赛后训练结算）
         for day in range(1, total_days + 1):
             payload: Dict[str, Any] = {"season_id": season_id, "day": day}
             if day in league_days:
@@ -359,6 +361,14 @@ class EventQueue:
                     event_type=EventType.MATCH_DAY,
                     payload=payload,
                     scheduled_at=at_day_hour(day, template.kickoff_hour),
+                )
+            )
+            # 训练安排在比赛后 2 小时
+            events.append(
+                GameEvent(
+                    event_type=EventType.TRAINING_DAY,
+                    payload={"season_id": season_id, "day": day},
+                    scheduled_at=at_day_hour(day, template.kickoff_hour + 2),
                 )
             )
 

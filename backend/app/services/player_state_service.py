@@ -19,6 +19,7 @@ from app.models.player import (
 from app.models.player_state_snapshot import PlayerStateSnapshot
 from app.models.season import Fixture, FixtureStatus
 from app.models.match_result import MatchResult as MatchResultModel
+from app.services.player_fatigue_service import PlayerFatigueService
 from app.core.logging import get_logger
 
 logger = get_logger("app.player_state")
@@ -341,10 +342,8 @@ class PlayerStateService:
         effective_attributes = self.apply_state_to_attributes(
             base_attributes, components.attribute_modifier_pct
         )
-        initial_stamina = max(
-            30.0,
-            min(100.0, player.fitness + float(components.stamina_modifier)),
-        )
+        # 使用疲劳服务计算赛前 stamina（设计文档 5.2）
+        initial_stamina = PlayerFatigueService.calculate_initial_stamina(player)
         
         return {
             "player_id": player.id,
@@ -375,14 +374,9 @@ class PlayerStateService:
         player: Player,
         snapshot: Optional[PlayerStateSnapshot] = None,
     ) -> float:
-        """计算初始 stamina (设计文档 6.5)"""
-        if snapshot is None:
-            _, stamina_mod = self._calc_fitness_score(player.fitness)
-        else:
-            stamina_mod = float(snapshot.stamina_modifier)
-        
-        initial = player.fitness + stamina_mod
-        return max(30.0, min(100.0, initial))
+        """计算初始 stamina (设计文档 5.2 / 6.5)"""
+        # 优先使用疲劳服务的计算，接入 fatigue 折扣
+        return PlayerFatigueService.calculate_initial_stamina(player)
     
     # =====================================================================
     # 内部辅助
