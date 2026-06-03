@@ -26,6 +26,62 @@ from app.services.player_state_service import PlayerStateService
 settings = get_settings()
 logger = get_logger("app.match_engine")
 
+FORMATION_REQUIREMENTS: dict[str, dict[PlayerPosition, int]] = {
+    "F01": {PlayerPosition.DF: 2, PlayerPosition.MF: 3, PlayerPosition.FW: 2},  # Standard Balance
+    "F02": {PlayerPosition.DF: 2, PlayerPosition.MF: 2, PlayerPosition.FW: 3},  # Front Press
+    "F03": {PlayerPosition.DF: 1, PlayerPosition.MF: 3, PlayerPosition.FW: 3},  # Attack Storm
+    "F04": {PlayerPosition.DF: 3, PlayerPosition.MF: 2, PlayerPosition.FW: 2},  # Iron Wall
+    "F05": {PlayerPosition.DF: 1, PlayerPosition.MF: 2, PlayerPosition.FW: 4},  # All Out
+    "F06": {PlayerPosition.DF: 3, PlayerPosition.MF: 3, PlayerPosition.FW: 1},  # Deep Defense
+    "F07": {PlayerPosition.DF: 2, PlayerPosition.MF: 4, PlayerPosition.FW: 1},  # Diamond Control
+    "F08": {PlayerPosition.DF: 1, PlayerPosition.MF: 4, PlayerPosition.FW: 2},  # Dual Wing
+}
+
+TACTIC_PRESETS: dict[str, dict[str, int]] = {
+    "balanced": {
+        "passing_style": 2, "attack_width": 2, "attack_tempo": 2,
+        "defensive_line_height": 2, "crossing_strategy": 2, "shooting_mentality": 2,
+        "playmaker_focus": 0, "pressing_intensity": 2, "defensive_compactness": 1,
+        "marking_strategy": 0, "offside_trap": 0, "tackling_aggression": 1,
+    },
+    "high_press": {
+        "passing_style": 2, "attack_width": 2, "attack_tempo": 3,
+        "defensive_line_height": 4, "crossing_strategy": 2, "shooting_mentality": 3,
+        "playmaker_focus": 0, "pressing_intensity": 4, "defensive_compactness": 1,
+        "marking_strategy": 2, "offside_trap": 2, "tackling_aggression": 3,
+    },
+    "possession": {
+        "passing_style": 4, "attack_width": 2, "attack_tempo": 1,
+        "defensive_line_height": 3, "crossing_strategy": 1, "shooting_mentality": 1,
+        "playmaker_focus": 2, "pressing_intensity": 2, "defensive_compactness": 2,
+        "marking_strategy": 1, "offside_trap": 1, "tackling_aggression": 1,
+    },
+    "counter": {
+        "passing_style": 1, "attack_width": 2, "attack_tempo": 4,
+        "defensive_line_height": 1, "crossing_strategy": 2, "shooting_mentality": 2,
+        "playmaker_focus": 0, "pressing_intensity": 1, "defensive_compactness": 2,
+        "marking_strategy": 0, "offside_trap": 0, "tackling_aggression": 1,
+    },
+    "deep_defense": {
+        "passing_style": 1, "attack_width": 1, "attack_tempo": 2,
+        "defensive_line_height": 0, "crossing_strategy": 2, "shooting_mentality": 2,
+        "playmaker_focus": 0, "pressing_intensity": 0, "defensive_compactness": 2,
+        "marking_strategy": 0, "offside_trap": 0, "tackling_aggression": 0,
+    },
+    "wide_attack": {
+        "passing_style": 2, "attack_width": 4, "attack_tempo": 2,
+        "defensive_line_height": 2, "crossing_strategy": 4, "shooting_mentality": 2,
+        "playmaker_focus": 0, "pressing_intensity": 2, "defensive_compactness": 1,
+        "marking_strategy": 0, "offside_trap": 0, "tackling_aggression": 1,
+    },
+    "all_out": {
+        "passing_style": 3, "attack_width": 4, "attack_tempo": 4,
+        "defensive_line_height": 3, "crossing_strategy": 3, "shooting_mentality": 4,
+        "playmaker_focus": 1, "pressing_intensity": 3, "defensive_compactness": 0,
+        "marking_strategy": 1, "offside_trap": 1, "tackling_aggression": 2,
+    },
+}
+
 
 class MatchEngineUnavailableError(RuntimeError):
     """Raised when the Go match engine cannot be reached."""
@@ -160,8 +216,8 @@ class MatchEngineClient:
 
         return {
             "match_id": fixture.id,
-            "home_team": await self._build_team_setup(home_team, home_players, "F01", db),
-            "away_team": await self._build_team_setup(away_team, away_players, "F01", db),
+            "home_team": await self._build_team_setup(home_team, home_players, db),
+            "away_team": await self._build_team_setup(away_team, away_players, db),
             "home_advantage": True,
             "requires_winner": requires_winner,
             "mode": self.mode,
@@ -183,8 +239,9 @@ class MatchEngineClient:
             raise ValueError(f"Team {team_id} has fewer than 8 players")
         return players
 
-    async def _build_team_setup(self, team: Team, players: list[Player], formation_id: str, db=None) -> dict[str, Any]:
-        starters, bench = self._select_lineup(players)
+    async def _build_team_setup(self, team: Team, players: list[Player], db=None) -> dict[str, Any]:
+        formation_id = self._choose_formation(players)
+        starters, bench = self._select_lineup(players, formation_id)
         starter_setups = await asyncio.gather(*[self._player_setup(p, db) for p in starters])
         bench_setups = await asyncio.gather(*[self._player_setup(p, db) for p in bench])
         return {
@@ -193,26 +250,114 @@ class MatchEngineClient:
             "formation_id": formation_id,
             "players": list(starter_setups),
             "bench": list(bench_setups),
-            "tactics": self._default_tactics(),
+            "tactics": self._choose_tactics(formation_id, starters),
         }
 
-    def _select_lineup(self, players: list[Player]) -> tuple[list[Player], list[Player]]:
+    def _select_lineup(self, players: list[Player], formation_id: str) -> tuple[list[Player], list[Player]]:
         active = [p for p in players if getattr(p.status, "value", p.status) == "ACTIVE"]
-        pool = active or players
-        gks = sorted([p for p in pool if p.position == PlayerPosition.GK], key=lambda p: p.ovr, reverse=True)
-        outfield = sorted([p for p in pool if p.position != PlayerPosition.GK], key=lambda p: p.ovr, reverse=True)
+        pool = active if len(active) >= 8 else players
+        gks = sorted([p for p in pool if p.position == PlayerPosition.GK], key=self._lineup_score, reverse=True)
+        outfield = [p for p in pool if p.position != PlayerPosition.GK]
 
         starters: list[Player] = []
         if gks:
             starters.append(gks[0])
-        starters.extend(outfield[: 8 - len(starters)])
+
+        requirements = FORMATION_REQUIREMENTS.get(formation_id, FORMATION_REQUIREMENTS["F01"])
+        for position, required_count in requirements.items():
+            candidates = sorted(
+                [p for p in outfield if p.position == position and p not in starters],
+                key=self._lineup_score,
+                reverse=True,
+            )
+            starters.extend(candidates[:required_count])
 
         if len(starters) < 8:
             remaining = [p for p in pool if p not in starters]
-            starters.extend(sorted(remaining, key=lambda p: p.ovr, reverse=True)[: 8 - len(starters)])
+            starters.extend(sorted(remaining, key=self._lineup_score, reverse=True)[: 8 - len(starters)])
 
-        bench = [p for p in sorted(pool, key=lambda p: p.ovr, reverse=True) if p not in starters][:5]
+        bench = [p for p in sorted(pool, key=self._lineup_score, reverse=True) if p not in starters][:5]
         return starters[:8], bench
+
+    def _choose_formation(self, players: list[Player]) -> str:
+        active = [p for p in players if getattr(p.status, "value", p.status) == "ACTIVE"]
+        pool = active if len(active) >= 8 else players
+        outfield = [p for p in pool if p.position != PlayerPosition.GK]
+        if len(outfield) < 7:
+            return "F01"
+
+        best_formation = "F01"
+        best_score = float("-inf")
+        for formation_id, requirements in FORMATION_REQUIREMENTS.items():
+            selected: list[Player] = []
+            score = 0.0
+            missing = 0
+            for position, required_count in requirements.items():
+                candidates = sorted(
+                    [p for p in outfield if p.position == position and p not in selected],
+                    key=self._lineup_score,
+                    reverse=True,
+                )
+                picked = candidates[:required_count]
+                selected.extend(picked)
+                score += sum(self._lineup_score(p) for p in picked)
+                missing += max(0, required_count - len(picked))
+
+            if len(selected) < 7:
+                remaining = [p for p in outfield if p not in selected]
+                fill = sorted(remaining, key=self._lineup_score, reverse=True)[: 7 - len(selected)]
+                selected.extend(fill)
+                score += sum(self._lineup_score(p) * 0.92 for p in fill)
+
+            avg_fitness = self._avg([float(p.fitness or 100) for p in selected])
+            avg_state = self._avg([float(p.state_score or 0) for p in selected])
+            score -= missing * 18.0
+            score += self._formation_style_bonus(formation_id, selected, avg_fitness, avg_state)
+
+            if score > best_score:
+                best_score = score
+                best_formation = formation_id
+        return best_formation
+
+    def _formation_style_bonus(
+        self,
+        formation_id: str,
+        players: list[Player],
+        avg_fitness: float,
+        avg_state: float,
+    ) -> float:
+        counts = {
+            PlayerPosition.FW: sum(1 for p in players if p.position == PlayerPosition.FW),
+            PlayerPosition.MF: sum(1 for p in players if p.position == PlayerPosition.MF),
+            PlayerPosition.DF: sum(1 for p in players if p.position == PlayerPosition.DF),
+        }
+        bonus = 0.0
+        if formation_id in {"F02", "F03", "F05", "F08"}:
+            bonus += counts[PlayerPosition.FW] * 2.5 + max(avg_state, 0) * 1.5
+        if formation_id in {"F04", "F06"}:
+            bonus += counts[PlayerPosition.DF] * 2.5
+            if avg_fitness < 76:
+                bonus += 5.0
+        if formation_id == "F07":
+            bonus += counts[PlayerPosition.MF] * 2.7
+        if formation_id == "F02" and avg_fitness >= 82:
+            bonus += 5.0
+        if formation_id in {"F03", "F05"} and avg_fitness < 78:
+            bonus -= 8.0
+        return bonus
+
+    def _lineup_score(self, player: Player) -> float:
+        form_bonus = {
+            "HOT": 4.0,
+            "GOOD": 2.0,
+            "NEUTRAL": 0.0,
+            "LOW": -4.0,
+        }.get(str(getattr(player.match_form, "value", player.match_form)), 0.0)
+        fitness = float(player.fitness or 100)
+        fitness_bonus = max(-8.0, min(3.0, (fitness - 82.0) * 0.18))
+        state_bonus = float(player.state_score or 0) * 1.15
+        rust_penalty = float(player.match_rust_score or 0) * 0.25
+        return float(player.ovr) + form_bonus + fitness_bonus + state_bonus - rust_penalty
 
     async def _player_setup(self, player: Player, db=None) -> dict[str, Any]:
         # 基础属性
@@ -283,21 +428,39 @@ class MatchEngineClient:
         mapping = {"LEFT": "left", "RIGHT": "right", "BOTH": "both"}
         return mapping.get(value, "right")
 
-    def _default_tactics(self) -> dict[str, int]:
-        return {
-            "passing_style": 2,
-            "attack_width": 2,
-            "attack_tempo": 2,
-            "defensive_line_height": 2,
-            "crossing_strategy": 2,
-            "shooting_mentality": 2,
-            "playmaker_focus": 1,
-            "pressing_intensity": 2,
-            "defensive_compactness": 1,
-            "marking_strategy": 0,
-            "offside_trap": 0,
-            "tackling_aggression": 1,
-        }
+    def _choose_tactics(self, formation_id: str, starters: list[Player]) -> dict[str, int]:
+        avg_fitness = self._avg([float(p.fitness or 100) for p in starters])
+        avg_state = self._avg([float(p.state_score or 0) for p in starters])
+
+        if formation_id == "F02" and avg_fitness >= 80:
+            preset = "high_press"
+        elif formation_id in {"F03", "F05"} and avg_state >= -1:
+            preset = "all_out" if formation_id == "F05" else "high_press"
+        elif formation_id in {"F04", "F06"}:
+            preset = "deep_defense" if avg_fitness < 80 else "counter"
+        elif formation_id == "F07":
+            preset = "possession"
+        elif formation_id == "F08":
+            preset = "wide_attack"
+        else:
+            preset = "balanced"
+
+        tactics = dict(TACTIC_PRESETS[preset])
+        if avg_fitness < 72:
+            tactics["pressing_intensity"] = min(tactics["pressing_intensity"], 1)
+            tactics["defensive_line_height"] = min(tactics["defensive_line_height"], 1)
+            tactics["attack_tempo"] = min(tactics["attack_tempo"], 2)
+            tactics["defensive_compactness"] = 2
+        elif avg_state >= 3:
+            tactics["shooting_mentality"] = min(4, tactics["shooting_mentality"] + 1)
+            tactics["pressing_intensity"] = min(4, tactics["pressing_intensity"] + 1)
+        elif avg_state <= -3:
+            tactics["shooting_mentality"] = max(1, tactics["shooting_mentality"] - 1)
+            tactics["defensive_compactness"] = min(2, tactics["defensive_compactness"] + 1)
+        return tactics
+
+    def _avg(self, values: list[float]) -> float:
+        return sum(values) / len(values) if values else 0.0
 
     def _seed_for_fixture(self, fixture_id: str) -> int:
         digest = hashlib.sha256(fixture_id.encode("utf-8")).hexdigest()

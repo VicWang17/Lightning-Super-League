@@ -984,11 +984,12 @@ async def format_event_log_lines(
 
     if event == "training_day":
         return [
-            "[training] day={day} teams={teams} sessions={sessions} breakthroughs={bt}".format(
+            "[training] day={day} teams={teams} sessions={sessions} bt={bt} decline={dc}".format(
                 day=item.get("season_day"),
                 teams=item.get("teams_processed", 0),
                 sessions=item.get("sessions_completed", 0),
                 bt=item.get("total_breakthroughs", 0),
+                dc=item.get("total_declines", 0),
             )
         ]
 

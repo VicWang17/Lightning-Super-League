@@ -167,6 +167,50 @@ class TrainingGrowthService:
             if lo <= fatigue <= hi:
                 return factor
         return 0.40
+
+    @staticmethod
+    def calculate_decline_factor(age: int, curve_type: str, peak_age: int = 27) -> float:
+        """年龄退步/进步偏移量。
+
+        直接加到 gain 上的偏移值：
+        - 年轻为正，促进成长
+        - 巅峰期为 0
+        - 年老为负，导致属性衰退
+        """
+        if not curve_type or curve_type not in GROWTH_CURVE_TYPES:
+            curve_type = "steady"
+
+        if age <= 18:
+            base = 0.04
+        elif age <= 21:
+            base = 0.02
+        elif age <= 24:
+            base = 0.01
+        elif age <= 27:
+            base = 0.0
+        elif age <= 30:
+            base = -0.02
+        elif age <= 32:
+            base = -0.04
+        else:
+            base = -0.06
+
+        # 晚熟型在巅峰后期衰退更慢
+        if curve_type == "late_bloomer" and (peak_age or 0) >= 30:
+            if age <= 32:
+                base = max(base, -0.01)
+            else:
+                base = max(base, -0.03)
+
+        # 早发型衰退更早
+        if curve_type == "early_bloomer" and age >= 26:
+            base -= 0.02
+
+        # 爆发型巅峰短，衰退更早更猛
+        if curve_type == "explosive" and age >= 25:
+            base -= 0.02
+
+        return round(base, 2)
     
     @staticmethod
     def calculate_group_fit(mode: str) -> float:
@@ -255,10 +299,18 @@ class TrainingGrowthService:
             * random_factor
         )
         
-        # 恢复训练的成长很小
-        if training_item.is_recovery and gain > 0.02:
+        # 11. decline_factor：年龄退步/进步偏移
+        decline_factor = TrainingGrowthService.calculate_decline_factor(age, curve_type, peak_age)
+        gain += decline_factor
+
+        # 恢复训练不衰退，但上限很小
+        if training_item.is_recovery:
+            gain = max(gain, 0.0)
             gain = min(gain, 0.02)
-        
+
+        # 单次训练成长/衰退上限保护
+        gain = max(gain, -0.15)
+
         return round(gain, 4)
     
     @staticmethod
@@ -371,36 +423,45 @@ class TrainingGrowthService:
     
     @staticmethod
     def apply_attribute_progress(player: Player, gains: dict[str, float]) -> list[dict]:
-        """应用属性成长，处理小数进位，返回整数突破记录"""
+        """应用属性成长/衰退，处理小数进位，返回整数突破/衰退记录"""
         breakthroughs = []
         progress = dict(player.attribute_progress or {})
-        
+
         for attr, gain in gains.items():
-            if gain <= 0:
+            if gain == 0:
                 continue
-            
+
             current_progress = float(progress.get(attr, 0.0))
             new_progress = current_progress + gain
-            
-            # 处理整数进位
+
+            # 处理整数进位（正数为突破，负数为衰退）
             int_gain = int(new_progress)
-            if int_gain > 0:
+            if int_gain != 0:
                 current_val = getattr(player, attr, 10)
                 before_val = current_val
-                after_val = min(20, current_val + int_gain)
-                actual_gain = after_val - before_val
-                
-                if actual_gain > 0:
+                after_val = max(1, min(20, current_val + int_gain))
+                actual_change = after_val - before_val
+
+                if actual_change != 0:
                     setattr(player, attr, after_val)
-                    breakthroughs.append({
-                        "attribute": attr,
-                        "before": before_val,
-                        "after": after_val,
-                    })
-                
+                    if actual_change > 0:
+                        breakthroughs.append({
+                            "attribute": attr,
+                            "before": before_val,
+                            "after": after_val,
+                            "type": "breakthrough",
+                        })
+                    else:
+                        breakthroughs.append({
+                            "attribute": attr,
+                            "before": before_val,
+                            "after": after_val,
+                            "type": "decline",
+                        })
+
                 new_progress -= int_gain
-            
+
             progress[attr] = round(new_progress, 4)
-        
+
         player.attribute_progress = progress
         return breakthroughs

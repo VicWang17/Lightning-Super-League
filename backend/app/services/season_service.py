@@ -288,6 +288,7 @@ class SeasonService:
         # 2. 批量结算（一次性加载所有数据，避免 N×M 次查询）
         total_sessions = 0
         total_breakthroughs = 0
+        total_declines = 0
         if team_ids:
             try:
                 summary = await training_service.bulk_complete_training_day(
@@ -295,6 +296,7 @@ class SeasonService:
                 )
                 total_sessions = summary.get("sessions_completed", 0)
                 total_breakthroughs = summary.get("total_breakthroughs", 0)
+                total_declines = summary.get("total_declines", 0)
             except Exception as e:
                 logger.warning(f"批量训练结算失败: day={day}, error={e}")
 
@@ -307,6 +309,7 @@ class SeasonService:
             "teams_processed": len(team_ids),
             "sessions_completed": total_sessions,
             "total_breakthroughs": total_breakthroughs,
+            "total_declines": total_declines,
         }
 
     # =====================================================================

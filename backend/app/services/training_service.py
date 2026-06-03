@@ -332,6 +332,7 @@ class TrainingService:
     ) -> dict:
         """执行训练结算"""
         total_breakthroughs = 0
+        total_declines = 0
         breakthrough_players = []
         
         # 获取最近7天该球队的所有训练计划（用于计算重复训练递减）
@@ -348,13 +349,13 @@ class TrainingService:
             if training_item.intensity == "hard" and not self.fatigue_service.can_do_high_intensity_training(player):
                 continue
             
-            # 计算各属性成长
+            # 计算各属性成长（包含退步因子，可能为负）
             gains = {}
             for attr, weight in training_item.attribute_weights.items():
                 gain = self.growth_service.calculate_single_attribute_gain(
                     player, training_item, attr, weight, age, recent_count, mode
                 )
-                if gain > 0:
+                if gain != 0:
                     gains[attr] = gain
             
             # 应用疲劳影响
@@ -362,10 +363,16 @@ class TrainingService:
             fatigue_before = player.fatigue
             self.fatigue_service.apply_training_load(player, training_item)
             
-            # 应用属性成长
+            # 应用属性成长/衰退
             before_snapshot = self._snapshot_attributes(player)
             breakthroughs = self.growth_service.apply_attribute_progress(player, gains)
             after_snapshot = self._snapshot_attributes(player)
+            
+            # 区分统计突破与衰退
+            bt_count = sum(1 for b in breakthroughs if b.get("type") == "breakthrough")
+            dc_count = sum(1 for b in breakthroughs if b.get("type") == "decline")
+            total_breakthroughs += bt_count
+            total_declines += dc_count
             
             # 记录结果
             efficiency = self._calculate_efficiency(gains, training_item)
@@ -392,7 +399,6 @@ class TrainingService:
             self.db.add(result)
             
             if breakthroughs:
-                total_breakthroughs += len(breakthroughs)
                 breakthrough_players.append({
                     "player_id": player.id,
                     "player_name": player.name,
@@ -404,6 +410,7 @@ class TrainingService:
         return {
             "total_players": len(players),
             "total_breakthroughs": total_breakthroughs,
+            "total_declines": total_declines,
             "breakthrough_players": breakthrough_players,
         }
     
@@ -629,6 +636,7 @@ class TrainingService:
 
         total_sessions = 0
         total_breakthroughs = 0
+        total_declines = 0
         results_to_add: list[TrainingResult] = []
 
         for team_id in team_ids:
@@ -658,7 +666,7 @@ class TrainingService:
                         gain = self.growth_service.calculate_single_attribute_gain(
                             player, training_item, attr, weight, age, recent_count, TrainingMode.TEAM.value,
                         )
-                        if gain > 0:
+                        if gain != 0:
                             gains[attr] = gain
 
                     fitness_before = player.fitness
@@ -668,6 +676,11 @@ class TrainingService:
                     before_snapshot = self._snapshot_attributes(player)
                     breakthroughs = self.growth_service.apply_attribute_progress(player, gains)
                     after_snapshot = self._snapshot_attributes(player)
+
+                    bt_count = sum(1 for b in breakthroughs if b.get("type") == "breakthrough")
+                    dc_count = sum(1 for b in breakthroughs if b.get("type") == "decline")
+                    total_breakthroughs += bt_count
+                    total_declines += dc_count
 
                     efficiency = self._calculate_efficiency(gains, training_item)
 
@@ -692,9 +705,6 @@ class TrainingService:
                     )
                     results_to_add.append(result)
 
-                    if breakthroughs:
-                        total_breakthroughs += len(breakthroughs)
-
                 plan.status = TrainingPlanStatus.COMPLETED.value
                 total_sessions += 1
 
@@ -706,4 +716,5 @@ class TrainingService:
             "teams_processed": len(team_ids),
             "sessions_completed": total_sessions,
             "total_breakthroughs": total_breakthroughs,
+            "total_declines": total_declines,
         }
