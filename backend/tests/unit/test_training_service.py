@@ -45,6 +45,13 @@ class TestTrainingGrowthService:
         assert young_factor > prime_factor
         assert old_factor < 0.15
         assert late_old_factor > old_factor
+
+    def test_decline_factor_accelerates_for_very_old_players(self):
+        service = TrainingGrowthService()
+        assert service.calculate_decline_factor(20, "steady", 27) > 0
+        assert service.calculate_decline_factor(31, "steady", 27) < 0
+        assert service.calculate_decline_factor(35, "steady", 27) <= -0.20
+        assert service.calculate_decline_factor(35, "late_bloomer", 31) > service.calculate_decline_factor(35, "steady", 27)
     
     def test_diminishing_factor(self):
         service = TrainingGrowthService()
@@ -310,8 +317,8 @@ class TestSingleAttributeGain:
         )
         
         # 年轻球员适配训练应该有明显成长
-        assert gain > 0.08
-        assert gain < 0.20
+        assert gain > 0.18
+        assert gain < 0.35
     
     def test_old_player_low_gain(self):
         service = TrainingGrowthService()
@@ -336,7 +343,31 @@ class TestSingleAttributeGain:
         )
         
         # 老将接近上限成长应该很小或为零
-        assert gain < 0.01
+        assert gain < -0.05
+
+    def test_very_old_elite_player_declines_quickly(self):
+        service = TrainingGrowthService()
+        player = Player(
+            sho=18, pas=16, sta=15, acc=17, bal=15,
+            position=PlayerPosition.FW,
+            status=PlayerStatus.ACTIVE,
+            match_form=MatchForm.NEUTRAL,
+            fatigue=40,
+            potential_max=90,
+            attribute_caps={"sho": 19.0},
+            attribute_progress={},
+            growth_curve_type="steady",
+            growth_peak_age=27,
+            growth_speed=Decimal("1.00"),
+            growth_stability=Decimal("0.00"),
+        )
+
+        item = get_training_item("box_finish_one_touch")
+        gain = service.calculate_single_attribute_gain(
+            player, item, "sho", 1.0, age=35, recent_count=0, mode="team"
+        )
+
+        assert gain <= -0.18
 
     def test_young_high_potential_player_outgrows_regular_old_player(self):
         service = TrainingGrowthService()

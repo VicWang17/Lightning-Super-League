@@ -146,6 +146,7 @@ class RunArtifacts:
     invariant_rows: list[dict[str, Any]] = field(default_factory=list)
     training_rows: list[dict[str, Any]] = field(default_factory=list)
     fatigue_rows: list[dict[str, Any]] = field(default_factory=list)
+    match_tactics_rows: list[dict[str, Any]] = field(default_factory=list)
 
 
 def enum_value(value: Any) -> str:
@@ -892,6 +893,65 @@ def add_event_rows(artifacts: RunArtifacts, season_loop_index: int, event_result
             "season_id": item.get("season_id"),
             "payload": item,
         })
+        add_match_tactics_rows(artifacts, season_loop_index, item)
+
+
+def add_match_tactics_rows(artifacts: RunArtifacts, season_loop_index: int, item: dict[str, Any]) -> None:
+    if item.get("event") != "match_day":
+        return
+
+    season_id = item.get("season_id")
+    season_day = item.get("season_day")
+    for match in item.get("results") or []:
+        setup = match.get("match_setup") or {}
+        for side in ("home", "away"):
+            team_setup = setup.get(side) or {}
+            lineup = team_setup.get("lineup_metrics") or {}
+            starters = lineup.get("starters") or {}
+            bench = lineup.get("bench") or {}
+            tactics = team_setup.get("tactics") or {}
+            position_counts = starters.get("position_counts") or {}
+            artifacts.match_tactics_rows.append({
+                "loop_index": season_loop_index,
+                "season_id": season_id,
+                "season_day": season_day,
+                "fixture_id": match.get("fixture_id"),
+                "fixture_type": match.get("type"),
+                "side": side,
+                "team_id": team_setup.get("team_id") or match.get(f"{side}_team"),
+                "opponent_team_id": match.get("away_team") if side == "home" else match.get("home_team"),
+                "formation_id": team_setup.get("formation_id"),
+                "passing_style": tactics.get("passing_style"),
+                "attack_width": tactics.get("attack_width"),
+                "attack_tempo": tactics.get("attack_tempo"),
+                "defensive_line_height": tactics.get("defensive_line_height"),
+                "crossing_strategy": tactics.get("crossing_strategy"),
+                "shooting_mentality": tactics.get("shooting_mentality"),
+                "playmaker_focus": tactics.get("playmaker_focus"),
+                "pressing_intensity": tactics.get("pressing_intensity"),
+                "defensive_compactness": tactics.get("defensive_compactness"),
+                "marking_strategy": tactics.get("marking_strategy"),
+                "offside_trap": tactics.get("offside_trap"),
+                "tackling_aggression": tactics.get("tackling_aggression"),
+                "starter_count": starters.get("count", 0),
+                "starter_avg_ovr": starters.get("avg_ovr", 0),
+                "starter_avg_lineup_score": starters.get("avg_lineup_score", 0),
+                "starter_avg_state": starters.get("avg_state", 0),
+                "starter_avg_fitness": starters.get("avg_fitness", 0),
+                "starter_low_form_count": starters.get("low_form_count", 0),
+                "starter_gk": position_counts.get("GK", 0),
+                "starter_df": position_counts.get("DF", 0),
+                "starter_mf": position_counts.get("MF", 0),
+                "starter_fw": position_counts.get("FW", 0),
+                "bench_count": bench.get("count", 0),
+                "bench_avg_ovr": bench.get("avg_ovr", 0),
+                "bench_avg_lineup_score": bench.get("avg_lineup_score", 0),
+                "bench_avg_state": bench.get("avg_state", 0),
+                "bench_avg_fitness": bench.get("avg_fitness", 0),
+                "starter_bench_lineup_score_gap": lineup.get("starter_bench_lineup_score_gap", 0),
+                "starter_bench_state_gap": lineup.get("starter_bench_state_gap", 0),
+                "starter_bench_fitness_gap": lineup.get("starter_bench_fitness_gap", 0),
+            })
 
 
 async def run_one_season(
@@ -1107,6 +1167,7 @@ def build_report(artifacts: RunArtifacts) -> str:
     team_rows = artifacts.team_rows
     player_rows = artifacts.player_rows
     youth_budget_rows = artifacts.youth_budget_rows
+    match_tactics_rows = artifacts.match_tactics_rows
     invariant_rows = artifacts.invariant_rows
 
     top_level_team_rows = [
@@ -1153,6 +1214,12 @@ def build_report(artifacts: RunArtifacts) -> str:
 
     champion_relegations = count_champion_relegations(team_rows)
     repeat_champions = count_repeat_champions(team_rows)
+    formation_counts = Counter(row.get("formation_id") for row in match_tactics_rows if row.get("formation_id"))
+    total_tactical_setups = sum(formation_counts.values())
+    f01_share = (formation_counts.get("F01", 0) / total_tactical_setups * 100) if total_tactical_setups else 0.0
+    avg_lineup_gap = avg([float(row.get("starter_bench_lineup_score_gap") or 0) for row in match_tactics_rows])
+    avg_state_gap = avg([float(row.get("starter_bench_state_gap") or 0) for row in match_tactics_rows])
+    avg_fitness_gap = avg([float(row.get("starter_bench_fitness_gap") or 0) for row in match_tactics_rows])
 
     errors = [row for row in invariant_rows if row.get("severity") == "error"]
     warnings = [row for row in invariant_rows if row.get("severity") == "warning"]
@@ -1222,6 +1289,13 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- Latest avg attr progress total: {season_rows[-1].get('avg_attr_progress_total', 'n/a') if season_rows else 'n/a'}",
         f"- Training sessions S1..Sn: {' / '.join(str(row.get('training_sessions', 0)) for row in season_rows)}",
         f"- Breakthroughs S1..Sn: {' / '.join(str(row.get('training_breakthroughs', 0)) for row in season_rows)}",
+        "",
+        "## Match Tactics Signals",
+        "",
+        f"- Tactical setups captured: {total_tactical_setups}",
+        f"- F01 share: {f01_share:.1f}%",
+        f"- Formation usage: {', '.join(f'{formation}={count}' for formation, count in sorted(formation_counts.items())) or 'n/a'}",
+        f"- Avg starter-bench lineup/state/fitness gap: {avg_lineup_gap:.2f} / {avg_state_gap:.2f} / {avg_fitness_gap:.2f}",
         "",
         "## Correlations",
         "",
@@ -1434,6 +1508,7 @@ async def run(args: argparse.Namespace) -> int:
     write_csv(artifacts.out_dir / "youth_budget_metrics.csv", artifacts.youth_budget_rows)
     write_csv(artifacts.out_dir / "training_metrics.csv", artifacts.training_rows)
     write_csv(artifacts.out_dir / "player_fatigue_metrics.csv", artifacts.fatigue_rows)
+    write_csv(artifacts.out_dir / "match_tactics_metrics.csv", artifacts.match_tactics_rows)
     write_jsonl(artifacts.out_dir / "event_results.jsonl", artifacts.event_rows)
     write_csv(artifacts.out_dir / "invariants.csv", artifacts.invariant_rows)
     (artifacts.out_dir / "closed_loop_balance_report.md").write_text(build_report(artifacts), encoding="utf-8")

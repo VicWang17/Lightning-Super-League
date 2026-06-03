@@ -115,7 +115,9 @@ class MatchEngineClient:
     async def simulate_payload(self, fixture_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Call the configured engine with an already built immutable payload."""
         if self.transport == "process":
-            return self._simulate_with_process(payload)
+            result = self._simulate_with_process(payload)
+            result["match_setup"] = self._match_setup_summary(payload)
+            return result
 
         headers = {}
         if self.api_key:
@@ -133,6 +135,7 @@ class MatchEngineClient:
         result = data.get("result")
         if not isinstance(result, dict):
             raise MatchEngineUnavailableError("match engine response missing result")
+        result["match_setup"] = self._match_setup_summary(payload)
         return result
 
     async def simulate_fixtures(
@@ -199,6 +202,20 @@ class MatchEngineClient:
             raise MatchEngineUnavailableError("process engine response missing result")
         return result
 
+    def _match_setup_summary(self, payload: dict[str, Any]) -> dict[str, Any]:
+        def side_summary(team: dict[str, Any]) -> dict[str, Any]:
+            return {
+                "team_id": team.get("team_id"),
+                "formation_id": team.get("formation_id"),
+                "tactics": team.get("tactics") or {},
+                "lineup_metrics": team.get("lineup_metrics") or {},
+            }
+
+        return {
+            "home": side_summary(payload.get("home_team") or {}),
+            "away": side_summary(payload.get("away_team") or {}),
+        }
+
     def _engine_dir(self) -> Path:
         return Path(__file__).resolve().parents[3] / "match-engine"
 
@@ -251,6 +268,7 @@ class MatchEngineClient:
             "players": list(starter_setups),
             "bench": list(bench_setups),
             "tactics": self._choose_tactics(formation_id, starters),
+            "lineup_metrics": self._lineup_metrics(starters, bench),
         }
 
     def _select_lineup(self, players: list[Player], formation_id: str) -> tuple[list[Player], list[Player]]:
@@ -358,6 +376,43 @@ class MatchEngineClient:
         state_bonus = float(player.state_score or 0) * 1.15
         rust_penalty = float(player.match_rust_score or 0) * 0.25
         return float(player.ovr) + form_bonus + fitness_bonus + state_bonus - rust_penalty
+
+    def _lineup_metrics(self, starters: list[Player], bench: list[Player]) -> dict[str, Any]:
+        def metrics(players: list[Player]) -> dict[str, Any]:
+            return {
+                "count": len(players),
+                "avg_ovr": round(self._avg([float(p.ovr) for p in players]), 2),
+                "avg_lineup_score": round(self._avg([self._lineup_score(p) for p in players]), 2),
+                "avg_state": round(self._avg([float(p.state_score or 0) for p in players]), 2),
+                "avg_fitness": round(self._avg([float(p.fitness or 100) for p in players]), 2),
+                "low_form_count": sum(
+                    1 for p in players
+                    if str(getattr(p.match_form, "value", p.match_form)) == "LOW"
+                ),
+                "position_counts": {
+                    "GK": sum(1 for p in players if p.position == PlayerPosition.GK),
+                    "DF": sum(1 for p in players if p.position == PlayerPosition.DF),
+                    "MF": sum(1 for p in players if p.position == PlayerPosition.MF),
+                    "FW": sum(1 for p in players if p.position == PlayerPosition.FW),
+                },
+                "player_ids": [p.id for p in players],
+            }
+
+        starter_metrics = metrics(starters)
+        bench_metrics = metrics(bench)
+        return {
+            "starters": starter_metrics,
+            "bench": bench_metrics,
+            "starter_bench_lineup_score_gap": round(
+                starter_metrics["avg_lineup_score"] - bench_metrics["avg_lineup_score"], 2
+            ),
+            "starter_bench_state_gap": round(
+                starter_metrics["avg_state"] - bench_metrics["avg_state"], 2
+            ),
+            "starter_bench_fitness_gap": round(
+                starter_metrics["avg_fitness"] - bench_metrics["avg_fitness"], 2
+            ),
+        }
 
     async def _player_setup(self, player: Player, db=None) -> dict[str, Any]:
         # 基础属性

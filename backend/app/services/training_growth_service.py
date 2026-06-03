@@ -38,10 +38,10 @@ _AGE_FACTOR_TABLE = {
 }
 
 _DEVELOPMENT_STAGE_FACTOR = [
-    (16, 18, 0.85),
-    (19, 21, 0.80),
-    (22, 24, 0.95),
-    (25, 27, 0.85),
+    (16, 18, 1.40),
+    (19, 21, 1.45),
+    (22, 24, 1.25),
+    (25, 27, 0.95),
     (28, 28, 0.55),
     (29, 29, 0.35),
     (30, 30, 0.25),
@@ -181,26 +181,36 @@ class TrainingGrowthService:
             curve_type = "steady"
 
         if age <= 18:
-            base = 0.04
+            base = 0.10
         elif age <= 21:
-            base = 0.02
+            base = 0.08
         elif age <= 24:
-            base = 0.01
+            base = 0.04
         elif age <= 27:
             base = 0.0
         elif age <= 30:
-            base = -0.02
+            base = -0.03
         elif age <= 32:
-            base = -0.04
+            base = -0.07
+        elif age == 33:
+            base = -0.11
+        elif age == 34:
+            base = -0.16
+        elif age == 35:
+            base = -0.22
         else:
-            base = -0.06
+            base = -0.25
 
         # 晚熟型在巅峰后期衰退更慢
         if curve_type == "late_bloomer" and (peak_age or 0) >= 30:
             if age <= 32:
                 base = max(base, -0.01)
+            elif age == 33:
+                base = max(base, -0.08)
+            elif age == 34:
+                base = max(base, -0.12)
             else:
-                base = max(base, -0.03)
+                base = max(base, -0.18)
 
         # 早发型衰退更早
         if curve_type == "early_bloomer" and age >= 26:
@@ -309,7 +319,7 @@ class TrainingGrowthService:
             gain = min(gain, 0.02)
 
         # 单次训练成长/衰退上限保护
-        gain = max(gain, -0.15)
+        gain = max(gain, -0.25)
 
         return round(gain, 4)
     

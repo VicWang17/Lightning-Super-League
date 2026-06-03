@@ -442,6 +442,7 @@ class SeasonService:
                 "away_team": fixture.away_team_id,
                 "home_score": sim_result.home_score,
                 "away_score": sim_result.away_score,
+                "match_setup": (sim_result.engine_raw or {}).get("match_setup") if sim_result.engine_raw else None,
             })
 
         # 更新赛季状态（复用 scheduler.process_matchday 的逻辑，但不重复 commit）

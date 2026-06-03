@@ -1,71 +1,71 @@
 # Closed Loop Balance Test Report
 
-Generated at: `2026-06-03T07:41:43.047170Z`
+Generated at: `2026-06-03T13:18:24.221663Z`
 
 ## Run Summary
 
 - Seasons captured: 3
 - Invariant errors: 0
 - Invariant warnings: 0
-- Contracts created: 6037
-- Renewals/recontracts: 2089
-- Retired players: 139
-- Youth generated: 6552
-- Youth signed: 1274
-- Rookie-market listings: 5278
-- Rookie-market signed: 506
-- Free-agent listings created: 5486
+- Contracts created: 6007
+- Renewals/recontracts: 2085
+- Retired players: 122
+- Youth generated: 6535
+- Youth signed: 1229
+- Rookie-market listings: 5306
+- Rookie-market signed: 509
+- Free-agent listings created: 5497
 - Auto-fill players joined: 0
-- Training sessions: 955371
-- Training breakthroughs: 2713
+- Training sessions: 949764
+- Training breakthroughs: 20165
 
 ## Player State Signals
 
-- Latest avg state score: 0.4
-- Latest state score range: -6 / 5
-- Latest forms HOT/GOOD/NEUTRAL/LOW: 0 / 1677 / 1943 / 732
-- Latest component avg contract/recent/fitness/load/rust: -0.37 / 0.89 / 0.18 / -0.62 / -0.68
+- Latest avg state score: 0.3
+- Latest state score range: -7 / 5
+- Latest forms HOT/GOOD/NEUTRAL/LOW: 0 / 1792 / 1401 / 1156
+- Latest component avg contract/recent/fitness/load/rust: -0.37 / 0.84 / 0.28 / -0.78 / -0.67
 
 ## Training & Fatigue Signals
 
-- Latest avg fatigue / fitness: 44.82 / 74.6
-- Latest players fatigue>75 / fitness<50: 1353 / 940
-- Latest avg attr progress total: 3.62
-- Training sessions S1..Sn: 311452 / 321583 / 322336
-- Breakthroughs S1..Sn: 26 / 1102 / 1585
+- Latest avg fatigue / fitness: 50.74 / 79.8
+- Latest players fatigue>75 / fitness<50: 1581 / 546
+- Latest avg attr progress total: 0.95
+- Training sessions S1..Sn: 310099 / 319270 / 320395
+- Breakthroughs S1..Sn: 2023 / 8358 / 9784
 
 ## Correlations
 
-- Team top8 OVR vs points: 0.240
-- Team wage bill vs points: 0.223
-- Team max OVR vs points: 0.270
-- Player OVR vs average rating: 0.630
-- Youth budget pct vs best prospect score: 0.530
-- Youth budget pct vs useful prospect rate: 0.612
-- Youth budget pct vs avg potential max: 0.713
+- Team top8 OVR vs points: 0.174
+- Team wage bill vs points: 0.159
+- Team max OVR vs points: 0.160
+- Player OVR vs average rating: 0.448
+- Youth budget pct vs best prospect score: 0.564
+- Youth budget pct vs useful prospect rate: 0.600
+- Youth budget pct vs avg potential max: 0.708
 
 ## Youth Budget Signals
 
 | Budget Tier | Teams | Avg Budget % | Avg Youth OVR | Avg Potential | Best Prospect | Useful Rate | Fast Growth/Team | A+S/Team |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| low | 413 | 9.2% | 38.0 | 70.4 | 65.5 | 24.0% | 1.76 | 7.12 |
-| medium | 65 | 10.0% | 39.8 | 75.2 | 67.6 | 40.2% | 2.22 | 7.42 |
-| high | 290 | 22.0% | 41.4 | 79.1 | 72.1 | 59.6% | 2.98 | 8.17 |
+| low | 408 | 9.3% | 38.0 | 70.0 | 65.0 | 22.4% | 1.72 | 7.00 |
+| medium | 75 | 10.0% | 39.6 | 74.7 | 67.4 | 40.8% | 2.17 | 7.44 |
+| high | 285 | 22.0% | 41.1 | 78.9 | 72.5 | 58.4% | 3.09 | 8.17 |
 
 ## Long-Term Balance Signals
 
-- Latest balance Gini: 0.170
-- Latest top8 OVR Gini: 0.045
+- Latest balance Gini: 0.169
+- Latest top8 OVR Gini: 0.049
 - Champion relegations next season: 0
-- Repeat champions in same league: 24
+- Repeat champions in same league: 22
 
 ## Season Table
 
 | Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Rookie Listings | Rookie Signed | FA Listings | Auto Fill | Training | Breakthroughs | Roster Min/Max | Wage Avg/Max | State Avg/Range | Fatigue | Fitness | Errors |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 1565 | 58 | 36 | 2453 | 421 | 2032 | 112 | 2063 | 0 | 311452 | 26 | 15/17 | 57.0%/93.4% | 0.3/-6..5 | 49.5 | 73.4 | 0 |
-| 2 | 1864 | 753 | 42 | 2051 | 414 | 1637 | 165 | 1680 | 0 | 321583 | 1102 | 16/17 | 55.3%/92.8% | 0.4/-6..5 | 46.5 | 74.0 | 0 |
-| 3 | 2608 | 1278 | 61 | 2048 | 439 | 1609 | 229 | 1743 | 0 | 322336 | 1585 | 17/17 | 53.2%/93.8% | 0.4/-6..5 | 44.8 | 74.6 | 0 |
+| 1 | 1543 | 39 | 22 | 2439 | 397 | 2042 | 120 | 2064 | 0 | 310099 | 2023 | 15/17 | 57.2%/83.1% | 0.3/-6..5 | 53.5 | 80.7 | 0 |
+| 2 | 1890 | 756 | 39 | 2048 | 397 | 1651 | 165 | 1687 | 0 | 319270 | 8358 | 16/17 | 55.7%/92.0% | 0.3/-6..5 | 52.3 | 79.6 | 0 |
+| 3 | 2574 | 1290 | 61 | 2048 | 435 | 1613 | 224 | 1746 | 0 | 320395 | 9784 | 16/17 | 53.4%/81.3% | 0.3/-7..5 | 50.7 | 79.8 | 0 |
 
 ## Suggested Interpretation
 
