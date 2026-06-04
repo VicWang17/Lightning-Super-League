@@ -146,15 +146,17 @@ class SeasonService:
         if not event:
             return None
 
+        event_id = event.id
         try:
             result = await self._dispatch_event(event)
-            await EventQueue.complete(self.db, event.id)
+            await EventQueue.complete(self.db, event_id)
             return result
         except Exception as e:
             from app.core.logging import get_logger
             _logger = get_logger(__name__)
-            _logger.error(f"Event processing failed: event_id={event.id}, error={str(e)}", exc_info=True)
-            await EventQueue.fail(self.db, event.id, str(e))
+            _logger.error(f"Event processing failed: event_id={event_id}, error={str(e)}", exc_info=True)
+            await self.db.rollback()
+            await EventQueue.fail(self.db, event_id, str(e))
             raise
 
     async def _dispatch_event(self, event: GameEvent) -> Dict:

@@ -15,6 +15,7 @@ from app.models import (
     PlayerStatus,
     ContractType,
     Team,
+    User,
     TeamFinance,
     Season,
     SeasonStatus,
@@ -43,6 +44,12 @@ logger = get_logger("app.ai_transfer")
 # AI 球队画像常量
 AI_TARGET_ROSTER = 16
 AI_SOFT_MAX_ROSTER = 17
+AI_MAX_LISTINGS_PER_SCAN = 1
+AI_TEAMS_PER_DAILY_SCAN = 32
+AI_DAILY_LISTING_LIMIT = 24
+AI_DAILY_OFFER_LIMIT = 8
+AI_LISTING_CHANCE = Decimal("0.35")
+AI_OFFER_CHANCE = Decimal("0.20")
 
 
 class AITransferService:
@@ -65,27 +72,42 @@ class AITransferService:
             return {"skipped": True, "reason": "no_season"}
 
         ai_teams = await self._get_ai_teams()
-        stats = {"offers_handled": 0, "players_listed": 0, "offers_sent": 0, "releases": 0}
+        if len(ai_teams) > AI_TEAMS_PER_DAILY_SCAN:
+            ai_teams = random.sample(ai_teams, AI_TEAMS_PER_DAILY_SCAN)
+
+        stats = {
+            "teams_scanned": len(ai_teams),
+            "offers_handled": 0,
+            "players_listed": 0,
+            "offers_sent": 0,
+            "releases": 0,
+        }
 
         for team in ai_teams:
+            team_id = team.id
             try:
                 # 1. 处理收到的报价
-                handled = await self._handle_received_offers(team.id)
+                handled = await self._handle_received_offers(team_id)
                 stats["offers_handled"] += handled
 
                 # 2. 挂牌冗余球员
-                listed = await self._list_surplus_players(team.id)
-                stats["players_listed"] += listed
+                if stats["players_listed"] < AI_DAILY_LISTING_LIMIT:
+                    listed = await self._list_surplus_players(team_id)
+                    remaining_listings = AI_DAILY_LISTING_LIMIT - stats["players_listed"]
+                    stats["players_listed"] += min(listed, remaining_listings)
 
                 # 3. 主动报价（限制每天最多1次）
-                sent = await self._scan_market_for_targets(team.id)
-                stats["offers_sent"] += sent
+                if stats["offers_sent"] < AI_DAILY_OFFER_LIMIT:
+                    sent = await self._scan_market_for_targets(team_id)
+                    remaining_offers = AI_DAILY_OFFER_LIMIT - stats["offers_sent"]
+                    stats["offers_sent"] += min(sent, remaining_offers)
 
                 # 4. 极端情况解约
-                released = await self._consider_release(team.id)
+                released = await self._consider_release(team_id)
                 stats["releases"] += released
             except Exception as e:
-                logger.error(f"AI transfer scan failed for team {team.id}: {e}")
+                logger.error(f"AI transfer scan failed for team {team_id}: {e}", exc_info=True)
+                raise
 
         return stats
 
@@ -102,7 +124,11 @@ class AITransferService:
     # =====================================================================
 
     async def _get_ai_teams(self) -> List[Team]:
-        result = await self.db.execute(select(Team).where(Team.is_ai == True))
+        result = await self.db.execute(
+            select(Team)
+            .join(User, Team.user_id == User.id)
+            .where(User.is_ai == True)
+        )
         return result.scalars().all()
 
     async def _get_team_finance_health(self, team_id: str) -> tuple[FinancialHealth, OverspendLevel]:
@@ -242,15 +268,11 @@ class AITransferService:
 
     async def _evaluate_and_respond(self, negotiation: TransferNegotiation) -> None:
         """AI 评估单个报价链并做出决策"""
-        team_id = negotiation.seller_team_id
         player_id = negotiation.player_id
-
-        ai_value = await self._evaluate_player_for_ai(team_id, player_id, is_selling=True)
         current_offer = await self.transfer_service._get_offer(negotiation.current_offer_id)
         if not current_offer:
             return
 
-        amount = current_offer.amount
         offer_kind = current_offer.offer_kind
 
         # 是否是挂牌球员
@@ -258,9 +280,42 @@ class AITransferService:
         is_listed = listing is not None and listing.status == TransferListingStatus.ACTIVE
 
         if offer_kind == OfferKind.INITIAL:
+            team_id = negotiation.seller_team_id
+            ai_value = await self._evaluate_player_for_ai(team_id, player_id, is_selling=True)
             await self._respond_to_initial(team_id, negotiation, current_offer, ai_value, is_listed)
+        elif offer_kind == OfferKind.COUNTER:
+            team_id = negotiation.buyer_team_id
+            ai_value = await self._evaluate_player_for_ai(team_id, player_id, is_selling=False)
+            await self._respond_to_counter(team_id, negotiation, current_offer, ai_value)
         elif offer_kind == OfferKind.FINAL:
+            team_id = negotiation.seller_team_id
+            ai_value = await self._evaluate_player_for_ai(team_id, player_id, is_selling=True)
             await self._respond_to_final(team_id, negotiation, current_offer, ai_value, is_listed)
+
+    async def _can_settle_offer(self, negotiation: TransferNegotiation, offer: TransferOffer) -> bool:
+        """AI 接受前的轻量成交预检，避免把事件推进到结算阶段才失败。"""
+        player = await self.transfer_service._get_player(negotiation.player_id)
+        if not player or player.team_id != negotiation.seller_team_id:
+            return False
+        if player.status == PlayerStatus.RETIRED:
+            return False
+
+        result = await self.db.execute(
+            select(TeamFinance).where(TeamFinance.team_id == negotiation.buyer_team_id)
+        )
+        buyer_finance = result.scalar_one_or_none()
+        if not buyer_finance or buyer_finance.balance < offer.amount:
+            return False
+
+        buyer_roster = await self.transfer_service._get_team_roster_count(negotiation.buyer_team_id)
+        if buyer_roster >= ContractService.ROSTER_MAX:
+            return False
+
+        seller_roster = await self.transfer_service._get_team_roster_count(negotiation.seller_team_id)
+        if seller_roster - 1 < ContractService.ROSTER_MIN:
+            return False
+
+        return True
 
     async def _respond_to_initial(
         self,
@@ -284,7 +339,10 @@ class AITransferService:
 
         # 如果报价 >= 阈值：接受
         if amount >= accept_threshold:
-            await self.transfer_service.accept_offer(offer.id, team_id)
+            if await self._can_settle_offer(negotiation, offer):
+                await self.transfer_service.accept_offer(offer.id, team_id)
+            else:
+                await self.transfer_service.reject_offer(offer.id, team_id)
             return
 
         # 如果报价过低且未使用反报价：反报价
@@ -300,6 +358,41 @@ class AITransferService:
             return
 
         # 否则拒绝
+        await self.transfer_service.reject_offer(offer.id, team_id)
+
+    async def _respond_to_counter(
+        self,
+        team_id: str,
+        negotiation: TransferNegotiation,
+        offer: TransferOffer,
+        ai_value: Decimal,
+    ) -> None:
+        """AI 买方对反报价的决策"""
+        amount = offer.amount
+
+        # 反报价仍在 AI 估值附近：直接接受，减少无意义拉扯。
+        if amount <= ai_value * Decimal("1.03"):
+            if await self._can_settle_offer(negotiation, offer):
+                await self.transfer_service.accept_offer(offer.id, team_id)
+            else:
+                await self.transfer_service.reject_offer(offer.id, team_id)
+            return
+
+        initial = await self.transfer_service._get_offer(negotiation.initial_offer_id) if negotiation.initial_offer_id else None
+        if initial and not negotiation.final_used:
+            final_amount = min(amount, ai_value)
+            floor = initial.amount * Decimal("1.03")
+            if final_amount > floor:
+                try:
+                    await self.transfer_service.create_final_offer(
+                        negotiation.id,
+                        team_id,
+                        _quantize(final_amount),
+                    )
+                    return
+                except ValueError:
+                    pass
+
         await self.transfer_service.reject_offer(offer.id, team_id)
 
     async def _respond_to_final(
@@ -320,7 +413,10 @@ class AITransferService:
             accept_threshold = accept_threshold * Decimal("0.90")
 
         if amount >= accept_threshold:
-            await self.transfer_service.accept_offer(offer.id, team_id)
+            if await self._can_settle_offer(negotiation, offer):
+                await self.transfer_service.accept_offer(offer.id, team_id)
+            else:
+                await self.transfer_service.reject_offer(offer.id, team_id)
         else:
             await self.transfer_service.reject_offer(offer.id, team_id)
 
@@ -336,6 +432,9 @@ class AITransferService:
         count = 0
 
         for player in players:
+            if _random_decimal("0", "1") > AI_LISTING_CHANCE:
+                continue
+
             pos = player.position.value
             # 冗余判断
             is_redundant = position_counts.get(pos, 0) > target.get(pos, 2) + 1
@@ -363,13 +462,15 @@ class AITransferService:
 
                 market_value = await self.transfer_service.calculate_market_value(player.id, team_id)
                 if is_expiring:
-                    list_price = _quantize(market_value * Decimal(random.uniform("0.90", "1.00")))
+                    list_price = _quantize(market_value * _random_decimal("0.90", "1.00"))
                 else:
-                    list_price = _quantize(market_value * Decimal(random.uniform("1.00", "1.20")))
+                    list_price = _quantize(market_value * _random_decimal("1.00", "1.20"))
 
                 try:
                     await self.transfer_service.list_player(player.id, team_id, list_price)
                     count += 1
+                    if count >= AI_MAX_LISTINGS_PER_SCAN:
+                        break
                 except ValueError:
                     pass
 
@@ -381,6 +482,9 @@ class AITransferService:
 
     async def _scan_market_for_targets(self, team_id: str) -> int:
         """AI 扫描市场并主动报价 (PRD 11.4)"""
+        if _random_decimal("0", "1") > AI_OFFER_CHANCE:
+            return 0
+
         # 检查额度
         can_send, _ = await self.transfer_service._can_send_offer(team_id, is_ai=True)
         if not can_send:
@@ -408,10 +512,10 @@ class AITransferService:
                 continue
 
             ai_value = await self._evaluate_player_for_ai(team_id, player.id, is_selling=False)
-            if listing.list_price <= ai_value * Decimal("1.05"):
+            if listing.list_price <= ai_value * Decimal("0.92"):
                 score = ai_value - listing.list_price
                 if shortages.get(player.position.value, 0) > 0:
-                    score += Decimal("5000000")
+                    score += Decimal("1500000")
                 candidates.append((listing, player, score))
 
         if not candidates:
@@ -475,3 +579,9 @@ class AITransferService:
 def _quantize(value: Decimal | int | float | str) -> Decimal:
     from decimal import ROUND_HALF_UP
     return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _random_decimal(low: str, high: str) -> Decimal:
+    low_dec = Decimal(low)
+    high_dec = Decimal(high)
+    return low_dec + (high_dec - low_dec) * Decimal(str(random.random()))

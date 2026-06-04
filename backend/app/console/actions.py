@@ -25,13 +25,13 @@ def bootstrap(yes: bool = False) -> None:
 
     env = base_env()
     env["ENV"] = "dev"
-    env["INIT_SYSTEM_RESET_SCHEMA"] = "false"
+    env["INIT_SYSTEM_RESET_SCHEMA"] = "true"
 
     steps = [
         ("启动 MySQL + Redis", ["make", "infra-up"], REPO_ROOT, os.environ.copy()),
         ("重建开发数据库", [PYTHON, "-m", "scripts.reset_dev_db"], BACKEND_DIR, env),
-        ("运行数据库迁移", [PYTHON, "-m", "alembic", "upgrade", "head"], BACKEND_DIR, env),
         ("初始化基础数据", [PYTHON, "-m", "scripts.init_system"], BACKEND_DIR, env),
+        ("标记数据库迁移版本", [PYTHON, "-m", "alembic", "stamp", "head"], BACKEND_DIR, env),
         ("创建首赛季", [PYTHON, "-m", "scripts.init_season"], BACKEND_DIR, env),
     ]
 

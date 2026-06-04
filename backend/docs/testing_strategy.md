@@ -92,11 +92,14 @@ GameClock
 - 杯赛晋级。
 - 升降级处理。
 - 转会挂牌到期。
+- 转会报价过期。
+- AI 每日转会市场扫描。
+- AI 转会报价响应。
 - 玩家操作产生的延迟任务。
 
 不建议用于：
 
-- 高频 AI 决策。
+- 高频 AI 决策。低频且需要可审计的 AI 日常任务，例如每日转会扫描，可以作为 persisted event。
 - 每小时随机交互。
 - 普通训练、疲劳、状态波动。
 - 新闻生成等可按周期批处理的系统。
@@ -312,6 +315,26 @@ python backend/scripts/dev_console.py check
 - 高疲劳球队恢复训练占比应高于低疲劳球队。
 - 年轻队技术专项占比应高于老年队。
 - 不同 AI 风格之间训练选择应有可见差异。
+
+### 转会市场是否形成流动
+
+长期压测应记录 `transfer_metrics.csv`：
+
+- AI 是否产生 `initial_offers_sent`。
+- AI 是否产生 `listings_created`。
+- 是否出现 `counter_offers_sent` 和 `final_offers_sent`。
+- 挂牌球员是否能成交，`club_transfers_bought` / `club_transfers_sold` 是否长期为 0。
+- 解约球员是否通过 `players_released` 进入自由市场。
+- 拒绝、过期、落选报价是否有合理分布。
+
+健康预期：
+
+- AI 至少能主动挂牌和主动报价。
+- 有诚意但不足的报价应能触发反报价。
+- 挂牌等待期结束应自动接受最高有效报价。
+- 非挂牌报价超时应自动拒绝。
+- 成交后 roster 和资金不变量不应被破坏。
+- 解约应扣违约金，并创建 `FreeAgentListing(origin=RELEASED)`。
 
 ## Console 要求
 

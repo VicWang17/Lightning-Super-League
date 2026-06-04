@@ -71,6 +71,7 @@ app = FastAPI(
         {"name": "邮件", "description": "游戏内邮件与通知中心"},
         {"name": "财务", "description": "球队财务管理、交易流水、预算规划"},
         {"name": "训练", "description": "训练计划、成长结算、疲劳管理"},
+        {"name": "转会市场", "description": "队间转会报价、挂牌、反报价、解约与历史"},
     ],
 )
 
@@ -108,6 +109,7 @@ app.include_router(finance_router, prefix="/api/v1")
 app.include_router(free_market_router, prefix="/api/v1")
 app.include_router(youth_academy_router, prefix="/api/v1")
 app.include_router(training_router, prefix="/api/v1")
+app.include_router(transfers_router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -134,6 +136,7 @@ async def api_info():
             "players": "/api/v1/players",
             "leagues": "/api/v1/leagues",
             "matches": "/api/v1/matches",
+            "transfers": "/api/v1/transfers",
         },
     }
 

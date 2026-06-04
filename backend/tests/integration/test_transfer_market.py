@@ -3,6 +3,7 @@ Integration tests for transfer market
 """
 import pytest
 import pytest_asyncio
+import uuid
 from decimal import Decimal
 from datetime import datetime, timedelta
 
@@ -47,8 +48,11 @@ from app.core.events import EventQueue, EventType
 @pytest_asyncio.fixture
 async def transfer_setup(db):
     """创建测试所需的球队、球员、赛季"""
+    suffix = uuid.uuid4().hex[:4]
+    zone_id = int(uuid.uuid4().int % 1_000_000_000)
+
     # 创建联赛系统
-    league_system = LeagueSystem(name="测试联赛", code="TEST", description="测试")
+    league_system = LeagueSystem(name=f"测试联赛{suffix}", code=f"T{suffix}", description="测试")
     db.add(league_system)
     await db.flush()
 
@@ -59,7 +63,7 @@ async def transfer_setup(db):
     # 创建赛季
     season = Season(
         season_number=1,
-        zone_id=1,
+        zone_id=zone_id,
         start_date=datetime.utcnow(),
         status=SeasonStatus.ONGOING,
         current_day=10,
@@ -69,8 +73,8 @@ async def transfer_setup(db):
     await db.flush()
 
     # 创建用户和球队
-    user_a = User(username="a", email="a@test.com", hashed_password="x", nickname="TeamA")
-    user_b = User(username="b", email="b@test.com", hashed_password="x", nickname="TeamB")
+    user_a = User(username=f"a_{suffix}", email=f"a_{suffix}@test.com", hashed_password="x", nickname="TeamA")
+    user_b = User(username=f"b_{suffix}", email=f"b_{suffix}@test.com", hashed_password="x", nickname="TeamB")
     db.add_all([user_a, user_b])
     await db.flush()
 

@@ -19,6 +19,7 @@ from app.models import (
     ContractStatus,
     Team,
     TeamFinance,
+    User,
     Season,
     SeasonStatus,
     FreeAgentListing,
@@ -167,7 +168,8 @@ class TransferService:
         return result.scalar_one_or_none()
 
     async def _get_team(self, team_id: str) -> Optional[Team]:
-        result = await self.db.execute(select(Team).where(Team.id == team_id))
+        with self.db.no_autoflush:
+            result = await self.db.execute(select(Team).where(Team.id == team_id))
         return result.scalar_one_or_none()
 
     async def _get_listing(self, listing_id: str) -> Optional[TransferListing]:
@@ -206,6 +208,31 @@ class TransferService:
         result = await self.db.execute(select(League.level).where(League.id == team.current_league_id))
         level = result.scalar_one_or_none()
         return level or 3
+
+    async def _is_ai_team(self, team_id: str) -> bool:
+        with self.db.no_autoflush:
+            result = await self.db.execute(
+                select(User.is_ai)
+                .join(Team, Team.user_id == User.id)
+                .where(Team.id == team_id)
+            )
+        return bool(result.scalar_one_or_none())
+
+    async def _schedule_ai_offer_response(
+        self,
+        receiver_team_id: str,
+        negotiation_id: str,
+        season_id: str,
+        now: datetime,
+    ) -> None:
+        if not await self._is_ai_team(receiver_team_id):
+            return
+        EventQueue.add_pending(
+            self.db,
+            EventType.AI_TRANSFER_OFFER_RESPONSE,
+            {"negotiation_id": negotiation_id, "season_id": season_id},
+            scheduled_at=now + timedelta(minutes=30),
+        )
 
     # =====================================================================
     # 市场估价
@@ -346,10 +373,10 @@ class TransferService:
             decision_deadline_at=deadline,
         )
         self.db.add(listing)
-        await self.db.flush()
+        await self.db.flush([listing])
 
         # 推送挂牌截止事件
-        await EventQueue.push(
+        EventQueue.add_pending(
             self.db,
             EventType.TRANSFER_LISTING_DEADLINE,
             {"listing_id": listing.id, "season_id": season.id, "day": season.current_day},
@@ -531,7 +558,7 @@ class TransferService:
         if is_listed and listing:
             listing.last_offer_at = now
             listing.decision_deadline_at = now + timedelta(days=LISTING_INITIAL_DAYS)
-            await EventQueue.push(
+            EventQueue.add_pending(
                 self.db,
                 EventType.TRANSFER_LISTING_DEADLINE,
                 {"listing_id": listing.id, "season_id": season.id, "day": season.current_day},
@@ -539,12 +566,13 @@ class TransferService:
             )
 
         # 推送报价过期事件
-        await EventQueue.push(
+        EventQueue.add_pending(
             self.db,
             EventType.TRANSFER_OFFER_EXPIRES,
             {"offer_id": offer.id, "negotiation_id": negotiation.id, "season_id": season.id},
             scheduled_at=expires,
         )
+        await self._schedule_ai_offer_response(seller_team_id, negotiation.id, season.id, now)
 
         # 通知
         await self._notify_team(
@@ -587,6 +615,8 @@ class TransferService:
         season = await self._get_current_season()
         now = await self.clock_service.now()
         expires = now + timedelta(days=OFFER_EXPIRE_DAYS)
+        player = await self._get_player(initial_offer.player_id)
+        player_name = player.name if player else "某球员"
 
         # 原报价标记为 superseded
         initial_offer.status = OfferStatus.SUPERSEDED
@@ -620,18 +650,19 @@ class TransferService:
         await self.db.flush()
 
         # 推送事件
-        await EventQueue.push(
+        EventQueue.add_pending(
             self.db,
             EventType.TRANSFER_OFFER_EXPIRES,
             {"offer_id": counter.id, "negotiation_id": negotiation.id, "season_id": initial_offer.season_id},
             scheduled_at=expires,
         )
+        await self._schedule_ai_offer_response(initial_offer.buyer_team_id, negotiation.id, initial_offer.season_id, now)
 
         await self._notify_team(
             initial_offer.buyer_team_id,
             initial_offer.season_id,
             "收到反报价",
-            f"你对 {initial_offer.player.name if initial_offer.player else '某球员'} 的报价收到反报价 {float(amount):.0f} 万。",
+            f"你对 {player_name} 的报价收到反报价 {float(amount):.0f} 万。",
             MailPriority.NORMAL,
         )
 
@@ -672,6 +703,8 @@ class TransferService:
         season = await self._get_current_season()
         now = await self.clock_service.now()
         expires = now + timedelta(days=OFFER_EXPIRE_DAYS)
+        player = await self._get_player(counter_offer.player_id)
+        player_name = player.name if player else "某球员"
 
         # counter 标记为 superseded
         counter_offer.status = OfferStatus.SUPERSEDED
@@ -706,18 +739,19 @@ class TransferService:
         # 消耗额度
         await self._consume_offer_quota(buyer_team_id)
 
-        await EventQueue.push(
+        EventQueue.add_pending(
             self.db,
             EventType.TRANSFER_OFFER_EXPIRES,
             {"offer_id": final.id, "negotiation_id": negotiation.id, "season_id": counter_offer.season_id},
             scheduled_at=expires,
         )
+        await self._schedule_ai_offer_response(counter_offer.seller_team_id, negotiation.id, counter_offer.season_id, now)
 
         await self._notify_team(
             counter_offer.seller_team_id,
             counter_offer.season_id,
             "收到最终报价",
-            f"某球队对 {counter_offer.player.name if counter_offer.player else '某球员'} 提交最终报价 {float(amount):.0f} 万。",
+            f"某球队对 {player_name} 提交最终报价 {float(amount):.0f} 万。",
             MailPriority.NORMAL,
         )
 
@@ -1214,4 +1248,3 @@ class TransferService:
             related_type=related_type,
         )
         self.db.add(mail)
-        await self.db.flush()

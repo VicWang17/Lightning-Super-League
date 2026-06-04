@@ -29,7 +29,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable
 
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, desc, func, inspect, select
+from sqlalchemy.exc import SQLAlchemyError
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = BACKEND_DIR.parent
@@ -58,6 +59,13 @@ from app.models import (  # noqa: E402
     GrowthSpeed,
     YouthAcademyPlayer,
     TrainingResult,
+    TransferListing,
+    TransferListingStatus,
+    TransferOffer,
+    OfferKind,
+    OfferStatus,
+    TransferRecord,
+    TransferType,
 )
 from app.core.events import EventStatus  # noqa: E402
 from app.models.player_contract import ContractStatus  # noqa: E402
@@ -126,6 +134,13 @@ class SeasonSummary:
     avg_match_rust_score: float = 0.0
     training_sessions: int = 0
     training_breakthroughs: int = 0
+    transfer_listings_created: int = 0
+    transfer_offers_sent: int = 0
+    transfer_counter_offers: int = 0
+    transfer_final_offers: int = 0
+    transfer_completed: int = 0
+    transfer_releases: int = 0
+    transfer_auto_or_expired: int = 0
     avg_fatigue: float = 0.0
     avg_fitness: float = 0.0
     players_fatigue_over_75: int = 0
@@ -146,6 +161,7 @@ class RunArtifacts:
     invariant_rows: list[dict[str, Any]] = field(default_factory=list)
     training_rows: list[dict[str, Any]] = field(default_factory=list)
     fatigue_rows: list[dict[str, Any]] = field(default_factory=list)
+    transfer_rows: list[dict[str, Any]] = field(default_factory=list)
     match_tactics_rows: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -216,6 +232,38 @@ async def current_or_latest_season(db) -> Season | None:
 async def count_rows(db, model, *criteria) -> int:
     result = await db.execute(select(func.count()).select_from(model).where(*criteria))
     return int(result.scalar_one() or 0)
+
+
+async def has_table(db, table_name: str) -> bool:
+    connection = await db.connection()
+    return await connection.run_sync(lambda sync_conn: inspect(sync_conn).has_table(table_name))
+
+
+async def validate_database_ready(db) -> bool:
+    required_tables = ("leagues", "teams", "players", "seasons", "event_queues")
+    try:
+        missing = [table for table in required_tables if not await has_table(db, table)]
+    except SQLAlchemyError as exc:
+        print(f"[closed-loop] database is not reachable or not initialized: {exc}", flush=True)
+        return False
+
+    if not missing:
+        return True
+
+    print(
+        "[closed-loop] database schema is not initialized; missing tables: "
+        + ", ".join(missing),
+        flush=True,
+    )
+    print(
+        "[closed-loop] run from backend: "
+        "ENV=dev PYTHONPATH=. .venv/bin/python -m scripts.reset_dev_db && "
+        "ENV=dev PYTHONPATH=. .venv/bin/python -m scripts.init_system && "
+        "PYTHONPATH=. .venv/bin/alembic stamp head && "
+        "PYTHONPATH=. .venv/bin/python -m scripts.init_season",
+        flush=True,
+    )
+    return False
 
 
 async def count_grouped(db, field, model, *criteria) -> dict[str, int]:
@@ -332,6 +380,51 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         len(r.breakthroughs or []) for r in training_results
     )
 
+    transfer_listings_created = 0
+    transfer_offers_sent = 0
+    transfer_counter_offers = 0
+    transfer_final_offers = 0
+    transfer_completed = 0
+    transfer_releases = 0
+    transfer_auto_or_expired = 0
+    if await has_table(db, "transfer_listings"):
+        transfer_listings_created = await count_rows(
+            db, TransferListing, TransferListing.season_id == season.id
+        )
+        transfer_offers_sent = await count_rows(
+            db, TransferOffer, TransferOffer.season_id == season.id
+        )
+        transfer_counter_offers = await count_rows(
+            db,
+            TransferOffer,
+            TransferOffer.season_id == season.id,
+            TransferOffer.offer_kind == OfferKind.COUNTER,
+        )
+        transfer_final_offers = await count_rows(
+            db,
+            TransferOffer,
+            TransferOffer.season_id == season.id,
+            TransferOffer.offer_kind == OfferKind.FINAL,
+        )
+        transfer_completed = await count_rows(
+            db,
+            TransferRecord,
+            TransferRecord.season_id == season.id,
+            TransferRecord.transfer_type == TransferType.CLUB_TRANSFER,
+        )
+        transfer_releases = await count_rows(
+            db,
+            TransferRecord,
+            TransferRecord.season_id == season.id,
+            TransferRecord.transfer_type == TransferType.RELEASE,
+        )
+        transfer_auto_or_expired = await count_rows(
+            db,
+            TransferOffer,
+            TransferOffer.season_id == season.id,
+            TransferOffer.status.in_([OfferStatus.EXPIRED, OfferStatus.OUTBID_CLOSED]),
+        )
+
     # 疲劳与成长指标
     player_fatigues = [p.fatigue or 0 for p in active_players]
     player_fitnesses = [p.fitness or 100 for p in active_players]
@@ -405,6 +498,13 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         avg_match_rust_score=round(avg([player.match_rust_score or 0 for player in active_players]), 2),
         training_sessions=training_sessions,
         training_breakthroughs=training_breakthroughs,
+        transfer_listings_created=transfer_listings_created,
+        transfer_offers_sent=transfer_offers_sent,
+        transfer_counter_offers=transfer_counter_offers,
+        transfer_final_offers=transfer_final_offers,
+        transfer_completed=transfer_completed,
+        transfer_releases=transfer_releases,
+        transfer_auto_or_expired=transfer_auto_or_expired,
         avg_fatigue=round(avg(player_fatigues), 2),
         avg_fitness=round(avg(player_fitnesses), 2),
         players_fatigue_over_75=sum(1 for f in player_fatigues if f > 75),
@@ -781,6 +881,100 @@ async def collect_fatigue_rows(db, season: Season) -> list[dict[str, Any]]:
     return rows
 
 
+async def collect_transfer_rows(db, season: Season) -> list[dict[str, Any]]:
+    """按球队汇总转会市场行为，用于验证 AI 是否主动买卖、反报价、挂牌和解约。"""
+    if not await has_table(db, "transfer_listings"):
+        return []
+
+    teams = (
+        await db.execute(select(Team, User).join(User, Team.user_id == User.id))
+    ).all()
+
+    rows: list[dict[str, Any]] = []
+    for team, user in teams:
+        listings = (
+            await db.execute(
+                select(TransferListing).where(
+                    TransferListing.season_id == season.id,
+                    TransferListing.seller_team_id == team.id,
+                )
+            )
+        ).scalars().all()
+        sent_offers = (
+            await db.execute(
+                select(TransferOffer).where(
+                    TransferOffer.season_id == season.id,
+                    TransferOffer.sender_team_id == team.id,
+                )
+            )
+        ).scalars().all()
+        received_offers = (
+            await db.execute(
+                select(TransferOffer).where(
+                    TransferOffer.season_id == season.id,
+                    TransferOffer.receiver_team_id == team.id,
+                )
+            )
+        ).scalars().all()
+        records_from = (
+            await db.execute(
+                select(TransferRecord).where(
+                    TransferRecord.season_id == season.id,
+                    TransferRecord.from_team_id == team.id,
+                )
+            )
+        ).scalars().all()
+        records_to = (
+            await db.execute(
+                select(TransferRecord).where(
+                    TransferRecord.season_id == season.id,
+                    TransferRecord.to_team_id == team.id,
+                )
+            )
+        ).scalars().all()
+
+        def count_status(items, status) -> int:
+            return sum(1 for item in items if item.status == status)
+
+        def count_kind(items, kind) -> int:
+            return sum(1 for item in items if item.offer_kind == kind)
+
+        club_buys = [r for r in records_to if r.transfer_type == TransferType.CLUB_TRANSFER]
+        club_sales = [r for r in records_from if r.transfer_type == TransferType.CLUB_TRANSFER]
+        releases = [r for r in records_from if r.transfer_type == TransferType.RELEASE]
+
+        rows.append({
+            "season_number": season.season_number,
+            "season_id": season.id,
+            "team_id": team.id,
+            "team_name": team.name,
+            "is_ai": bool(user.is_ai),
+            "listings_created": len(listings),
+            "listings_active": count_status(listings, TransferListingStatus.ACTIVE),
+            "listings_completed": count_status(listings, TransferListingStatus.COMPLETED),
+            "listings_cancelled": count_status(listings, TransferListingStatus.CANCELLED),
+            "listings_expired": count_status(listings, TransferListingStatus.EXPIRED),
+            "offers_sent": len(sent_offers),
+            "initial_offers_sent": count_kind(sent_offers, OfferKind.INITIAL),
+            "counter_offers_sent": count_kind(sent_offers, OfferKind.COUNTER),
+            "final_offers_sent": count_kind(sent_offers, OfferKind.FINAL),
+            "offers_received": len(received_offers),
+            "counter_offers_received": count_kind(received_offers, OfferKind.COUNTER),
+            "final_offers_received": count_kind(received_offers, OfferKind.FINAL),
+            "offers_completed": count_status(sent_offers + received_offers, OfferStatus.COMPLETED),
+            "offers_rejected": count_status(sent_offers + received_offers, OfferStatus.REJECTED),
+            "offers_expired": count_status(sent_offers + received_offers, OfferStatus.EXPIRED),
+            "offers_outbid_closed": count_status(sent_offers + received_offers, OfferStatus.OUTBID_CLOSED),
+            "club_transfers_bought": len(club_buys),
+            "club_transfers_sold": len(club_sales),
+            "transfer_spend": round(sum(decimal_float(r.amount) for r in club_buys), 2),
+            "transfer_sales_gross": round(sum(decimal_float(r.amount) for r in club_sales), 2),
+            "players_released": len(releases),
+            "release_penalties": round(sum(decimal_float(r.amount) for r in releases), 2),
+        })
+    return rows
+
+
 async def collect_invariants(db, season: Season | None = None) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
 
@@ -1053,6 +1247,37 @@ async def format_event_log_lines(
             )
         ]
 
+    if event == "ai_transfer_market_scan":
+        stats = item.get("stats") or {}
+        return [
+            "[transfer-ai] handled={handled} listed={listed} sent={sent} releases={releases}".format(
+                handled=stats.get("offers_handled", 0),
+                listed=stats.get("players_listed", 0),
+                sent=stats.get("offers_sent", 0),
+                releases=stats.get("releases", 0),
+            )
+        ]
+
+    if event == "transfer_offer_expires":
+        stats = item.get("stats") or {}
+        return [
+            "[transfer-expire] auto_accept={accepted} auto_reject={rejected} failed={failed}".format(
+                accepted=stats.get("auto_accepted", 0),
+                rejected=stats.get("auto_rejected", 0),
+                failed=stats.get("settlement_failed", 0),
+            )
+        ]
+
+    if event == "transfer_listing_deadline":
+        stats = item.get("stats") or {}
+        return [
+            "[transfer-listing] auto_accept={accepted} expired={expired} failed={failed}".format(
+                accepted=stats.get("auto_accepted", 0),
+                expired=stats.get("expired", 0),
+                failed=stats.get("settlement_failed", 0),
+            )
+        ]
+
     if event == "draft_preferences_open":
         ai = item.get("ai") or {}
         return [
@@ -1168,6 +1393,7 @@ def build_report(artifacts: RunArtifacts) -> str:
     player_rows = artifacts.player_rows
     youth_budget_rows = artifacts.youth_budget_rows
     match_tactics_rows = artifacts.match_tactics_rows
+    transfer_rows = artifacts.transfer_rows
     invariant_rows = artifacts.invariant_rows
 
     top_level_team_rows = [
@@ -1241,8 +1467,29 @@ def build_report(artifacts: RunArtifacts) -> str:
             "auto_fill_players_joined",
             "training_sessions",
             "training_breakthroughs",
+            "transfer_listings_created",
+            "transfer_offers_sent",
+            "transfer_counter_offers",
+            "transfer_final_offers",
+            "transfer_completed",
+            "transfer_releases",
+            "transfer_auto_or_expired",
         ]:
             total[key] += int(row.get(key) or 0)
+
+    ai_transfer_rows = [row for row in transfer_rows if row.get("is_ai")]
+    ai_transfer_totals = Counter()
+    for row in ai_transfer_rows:
+        for key in [
+            "listings_created",
+            "initial_offers_sent",
+            "counter_offers_sent",
+            "final_offers_sent",
+            "club_transfers_bought",
+            "club_transfers_sold",
+            "players_released",
+        ]:
+            ai_transfer_totals[key] += int(row.get(key) or 0)
 
     lines = [
         "# Closed Loop Balance Test Report",
@@ -1265,6 +1512,10 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- Auto-fill players joined: {total['auto_fill_players_joined']}",
         f"- Training sessions: {total['training_sessions']}",
         f"- Training breakthroughs: {total['training_breakthroughs']}",
+        f"- Transfer listings: {total['transfer_listings_created']}",
+        f"- Transfer offers/counters/finals: {total['transfer_offers_sent']} / {total['transfer_counter_offers']} / {total['transfer_final_offers']}",
+        f"- Club transfers completed: {total['transfer_completed']}",
+        f"- Player releases to free market: {total['transfer_releases']}",
         "",
         "## Player State Signals",
         "",
@@ -1296,6 +1547,21 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- F01 share: {f01_share:.1f}%",
         f"- Formation usage: {', '.join(f'{formation}={count}' for formation, count in sorted(formation_counts.items())) or 'n/a'}",
         f"- Avg starter-bench lineup/state/fitness gap: {avg_lineup_gap:.2f} / {avg_state_gap:.2f} / {avg_fitness_gap:.2f}",
+        "",
+        "## Transfer Market Signals",
+        "",
+        f"- Listings S1..Sn: {' / '.join(str(row.get('transfer_listings_created', 0)) for row in season_rows)}",
+        f"- Offers S1..Sn: {' / '.join(str(row.get('transfer_offers_sent', 0)) for row in season_rows)}",
+        f"- Counter offers S1..Sn: {' / '.join(str(row.get('transfer_counter_offers', 0)) for row in season_rows)}",
+        f"- Final offers S1..Sn: {' / '.join(str(row.get('transfer_final_offers', 0)) for row in season_rows)}",
+        f"- Completed club transfers S1..Sn: {' / '.join(str(row.get('transfer_completed', 0)) for row in season_rows)}",
+        f"- Releases to free market S1..Sn: {' / '.join(str(row.get('transfer_releases', 0)) for row in season_rows)}",
+        f"- AI listings / initial offers / counters / finals: "
+        f"{ai_transfer_totals['listings_created']} / {ai_transfer_totals['initial_offers_sent']} / "
+        f"{ai_transfer_totals['counter_offers_sent']} / {ai_transfer_totals['final_offers_sent']}",
+        f"- AI bought / sold / released: "
+        f"{ai_transfer_totals['club_transfers_bought']} / {ai_transfer_totals['club_transfers_sold']} / "
+        f"{ai_transfer_totals['players_released']}",
         "",
         "## Correlations",
         "",
@@ -1344,15 +1610,15 @@ def build_report(artifacts: RunArtifacts) -> str:
         "",
         "## Season Table",
         "",
-        "| Season | Contracts | Renew/Recontract | Retired | Youth Gen | Youth Signed | Rookie Listings | Rookie Signed | FA Listings | Auto Fill | Training | Breakthroughs | Roster Min/Max | Wage Avg/Max | State Avg/Range | Fatigue | Fitness | Errors |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | ---: | ---: | ---: |",
+        "| Season | Contracts | Renew/Recontract | Retired | Youth Signed | Rookie Signed | FA Listings | Training | Breakthroughs | Transfer Offers | Transfers | Releases | Roster Min/Max | Wage Avg/Max | Fatigue | Fitness | Errors |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |",
     ])
     for row in season_rows:
         lines.append(
             "| {season_number} | {contracts_created} | {renewals_or_recontracts} | {retired_players} | "
-            "{youth_generated} | {youth_signed} | {rookie_market_listings} | {rookie_market_signed} | {free_agent_listings_created} | "
-            "{auto_fill_players_joined} | {training_sessions} | {training_breakthroughs} | {roster_min}/{roster_max} | "
-            "{avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | {avg_state_score:.1f}/{min_state_score}..{max_state_score} | "
+            "{youth_signed} | {rookie_market_signed} | {free_agent_listings_created} | "
+            "{training_sessions} | {training_breakthroughs} | {transfer_offers_sent} | {transfer_completed} | {transfer_releases} | "
+            "{roster_min}/{roster_max} | {avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | "
             "{avg_fatigue:.1f} | {avg_fitness:.1f} | {invariants_failed} |".format(**row)
         )
 
@@ -1411,6 +1677,9 @@ async def run(args: argparse.Namespace) -> int:
     artifacts = RunArtifacts(out_dir=out_dir)
 
     async with AsyncSessionLocal() as db:
+        if not await validate_database_ready(db):
+            return 1
+
         runner = SimulationRunner(db)
         if not runner.shared_clock:
             runner.clock.set_mode("step")
@@ -1472,13 +1741,14 @@ async def run(args: argparse.Namespace) -> int:
                 artifacts.youth_budget_rows.extend(await collect_youth_budget_rows(db, season))
                 artifacts.training_rows.extend(await collect_training_rows(db, season))
                 artifacts.fatigue_rows.extend(await collect_fatigue_rows(db, season))
+                artifacts.transfer_rows.extend(await collect_transfer_rows(db, season))
                 artifacts.invariant_rows.extend(invariants)
 
                 message = (
                     "[closed-loop] S{season} events={events} roster={rmin}/{rmax} "
                     "contracts={contracts} youth={youth} rookie_signed={rookie} "
                     "training={training}/{breakthroughs} fatigue={avg_fatigue} fitness={avg_fitness} "
-                    "auto_fill={auto_fill} errors={errors} status={status}"
+                    "transfers={transfers}/{offers} releases={releases} auto_fill={auto_fill} errors={errors} status={status}"
                 ).format(
                     season=summary.season_number,
                     events=processed,
@@ -1491,6 +1761,9 @@ async def run(args: argparse.Namespace) -> int:
                     breakthroughs=summary.training_breakthroughs,
                     avg_fatigue=summary.avg_fatigue,
                     avg_fitness=summary.avg_fitness,
+                    transfers=summary.transfer_completed,
+                    offers=summary.transfer_offers_sent,
+                    releases=summary.transfer_releases,
                     auto_fill=summary.auto_fill_players_joined,
                     errors=summary.invariants_failed,
                     status=event_status,
@@ -1508,6 +1781,7 @@ async def run(args: argparse.Namespace) -> int:
     write_csv(artifacts.out_dir / "youth_budget_metrics.csv", artifacts.youth_budget_rows)
     write_csv(artifacts.out_dir / "training_metrics.csv", artifacts.training_rows)
     write_csv(artifacts.out_dir / "player_fatigue_metrics.csv", artifacts.fatigue_rows)
+    write_csv(artifacts.out_dir / "transfer_metrics.csv", artifacts.transfer_rows)
     write_csv(artifacts.out_dir / "match_tactics_metrics.csv", artifacts.match_tactics_rows)
     write_jsonl(artifacts.out_dir / "event_results.jsonl", artifacts.event_rows)
     write_csv(artifacts.out_dir / "invariants.csv", artifacts.invariant_rows)

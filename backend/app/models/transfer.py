@@ -144,7 +144,6 @@ class TransferNegotiation(Base):
         Enum(NegotiationStatus),
         default=NegotiationStatus.OPEN,
         nullable=False,
-        index=True,
     )
     current_offer_id: Mapped[str | None] = mapped_column(
         ForeignKey("transfer_offers.id", ondelete="SET NULL"),

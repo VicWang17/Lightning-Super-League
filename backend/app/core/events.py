@@ -138,9 +138,32 @@ class EventQueue:
         )
         db.add(evt)
         await db.flush()
-        await db.refresh(evt)
         logger.info(f"Event pushed: type={event_type.value}, id={evt.id}, scheduled={evt.scheduled_at}")
         return GameEvent.from_orm(evt)
+
+    @staticmethod
+    def add_pending(
+        db: AsyncSession,
+        event_type: EventType,
+        payload: Dict[str, Any],
+        scheduled_at: Optional[datetime] = None,
+    ) -> None:
+        """添加待处理事件，但不立即 flush。
+
+        用于业务流程内批量附带创建事件，避免每插入一个事件都刷新
+        event_queues，降低长事务里的锁竞争。
+        """
+        from app.models.events import EventQueue as EventQueueModel
+
+        db.add(
+            EventQueueModel(
+                event_type=event_type.value,
+                payload=payload,
+                scheduled_at=scheduled_at or datetime.utcnow(),
+                status=EventStatus.PENDING.value,
+                retry_count=0,
+            )
+        )
 
     @staticmethod
     async def push_many(
@@ -374,6 +397,14 @@ class EventQueue:
                     event_type=EventType.TRAINING_DAY,
                     payload={"season_id": season_id, "day": day},
                     scheduled_at=at_day_hour(day, template.kickoff_hour + 2),
+                )
+            )
+            # AI 转会扫描安排在每日训练结算之后，确保最新状态/疲劳/成长已写入。
+            events.append(
+                GameEvent(
+                    event_type=EventType.AI_TRANSFER_MARKET_SCAN,
+                    payload={"season_id": season_id, "day": day},
+                    scheduled_at=at_day_hour(day, template.kickoff_hour + 3),
                 )
             )
 

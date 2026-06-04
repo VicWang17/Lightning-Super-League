@@ -15,6 +15,8 @@ from app.models import (
     Player,
     PlayerPosition,
     PlayerStatus,
+    Season,
+    SeasonStatus,
     Team,
     PotentialLetter,
 )

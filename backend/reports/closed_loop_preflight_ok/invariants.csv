@@ -1,0 +1,2 @@
+season_number,season_id,severity,name,count,detail
+1,127cb4f0-913e-4b59-a6ee-cde1054b9ff0,warning,missing_player_state_cache,3840,active roster player has not been state-recalculated

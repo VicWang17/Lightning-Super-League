@@ -46,9 +46,8 @@ export MATCH_ENGINE_MODE=instant
 cd /Users/bilibili/Code/Lightning-Super-League/backend
 
 ENV=dev PYTHONPATH=. .venv/bin/python -m scripts.reset_dev_db
-PYTHONPATH=. .venv/bin/alembic upgrade head
-PYTHONPATH=. .venv/bin/python -m scripts.init_system
-PYTHONPATH=. .venv/bin/python -m scripts.init_wage_configs
+ENV=dev PYTHONPATH=. .venv/bin/python -m scripts.init_system
+PYTHONPATH=. .venv/bin/alembic stamp head
 PYTHONPATH=. .venv/bin/python -m scripts.init_season
 ```
 
@@ -394,6 +393,47 @@ reports/<run_name>/run.log
 - `players_at_attribute_cap` 快速上升：属性上限或成长衰减没有有效限制。
 - AI 高强度训练占比过高：AI 训练规划需要更强的疲劳约束。
 
+### 8.8 转会市场
+
+转会系统上线后，闭环报告需要新增 `transfer_metrics.csv`，并在 `closed_loop_balance_report.md` 中输出 `Transfer Market Signals`。
+
+必须记录：
+
+- `listings_created`：球队主动挂牌人数。
+- `initial_offers_sent`：主动初始报价数，用于判断 AI 是否会自己发起转会。
+- `counter_offers_sent`：反报价数，用于判断讨价还价是否发生。
+- `final_offers_sent`：最终报价数，用于判断买方是否会回应反报价。
+- `club_transfers_bought` / `club_transfers_sold`：队间成交买入/卖出。
+- `transfer_spend` / `transfer_sales_gross`：转会支出与卖出总额。
+- `players_released`：解约人数。
+- `release_penalties`：解约违约金支出。
+- `offers_rejected` / `offers_expired` / `offers_outbid_closed`：拒绝、过期和多报价落选情况。
+
+事件日志应记录：
+
+- `[transfer-ai] handled=... listed=... sent=... releases=...`
+- `[transfer-expire] auto_accept=... auto_reject=... failed=...`
+- `[transfer-listing] auto_accept=... expired=... failed=...`
+
+健康预期：
+
+- AI 每赛季应出现非零 `initial_offers_sent`，否则 AI 没有主动买人。
+- AI 每赛季应出现一定 `listings_created`，否则冗余/到期球员不会进入市场。
+- 至少部分有诚意报价会产生 `counter_offers_sent` 或成交；如果全是拒绝，AI 卖方阈值可能过高。
+- 挂牌球员有报价时，等待期结束应能自动接受最高有效报价。
+- 非挂牌报价超时应自动拒绝，不应悄悄成交。
+- 解约球员应创建 `FreeAgentListing(origin=RELEASED)`，并在 `transfer_records` 中记录 `RELEASE`。
+- 成交后买方 roster 不应超过上限，卖方 roster 不应低于下限。
+- 转会资金流应体现为买方 `TRANSFER/EXPENSE`、卖方 `TRANSFER/INCOME`，卖方收入应扣除 5% 交易税。
+
+判断：
+
+- `initial_offers_sent = 0`：检查 `AI_TRANSFER_MARKET_SCAN` 是否排入赛季事件、AI 球队识别是否正确、挂牌市场是否过少。
+- `counter_offers_sent = 0`：检查 AI 估值阈值是否过于极端，或报价区间是否只触发接受/拒绝。
+- `club_transfers_bought = 0` 且报价很多：检查成交前 roster/余额/工资压力校验是否过严。
+- `players_released = 0`：可能正常，只有 `CRISIS` 财政下 AI 才会解约；若手动制造危机仍为 0，需要检查 AI 解约条件。
+- `offers_expired` 很高：检查 AI 快速响应事件是否正常触发。
+
 ## 9. 建议 AI 输出格式
 
 分析完成后，AI 应按这个结构汇报：
@@ -411,6 +451,7 @@ reports/<run_name>/run.log
 - wage pressure
 - state score
 - training growth / fatigue signals
+- transfer listings / offers / counters / completed / releases
 - OVR/points correlation
 - champion relegation/repeat champion
 

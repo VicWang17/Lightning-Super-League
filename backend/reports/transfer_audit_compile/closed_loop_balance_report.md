@@ -1,10 +1,10 @@
 # Closed Loop Balance Test Report
 
-Generated at: `2026-06-04T07:59:52.963225Z`
+Generated at: `2026-06-04T05:46:30.576923Z`
 
 ## Run Summary
 
-- Seasons captured: 0
+- Seasons captured: 1
 - Invariant errors: 0
 - Invariant warnings: 0
 - Contracts created: 0
@@ -25,18 +25,18 @@ Generated at: `2026-06-04T07:59:52.963225Z`
 
 ## Player State Signals
 
-- Latest avg state score: n/a
-- Latest state score range: n/a / n/a
-- Latest forms HOT/GOOD/NEUTRAL/LOW: n/a / n/a / n/a / n/a
-- Latest component avg contract/recent/fitness/load/rust: n/a / n/a / n/a / n/a / n/a
+- Latest avg state score: 0.3
+- Latest state score range: -7 / 5
+- Latest forms HOT/GOOD/NEUTRAL/LOW: 0 / 1792 / 1401 / 1156
+- Latest component avg contract/recent/fitness/load/rust: -0.37 / 0.84 / 0.28 / -0.78 / -0.67
 
 ## Training & Fatigue Signals
 
-- Latest avg fatigue / fitness: n/a / n/a
-- Latest players fatigue>75 / fitness<50: n/a / n/a
-- Latest avg attr progress total: n/a
-- Training sessions S1..Sn: 
-- Breakthroughs S1..Sn: 
+- Latest avg fatigue / fitness: 50.74 / 79.8
+- Latest players fatigue>75 / fitness<50: 1581 / 546
+- Latest avg attr progress total: 0.95
+- Training sessions S1..Sn: 0
+- Breakthroughs S1..Sn: 0
 
 ## Match Tactics Signals
 
@@ -47,12 +47,12 @@ Generated at: `2026-06-04T07:59:52.963225Z`
 
 ## Transfer Market Signals
 
-- Listings S1..Sn: 
-- Offers S1..Sn: 
-- Counter offers S1..Sn: 
-- Final offers S1..Sn: 
-- Completed club transfers S1..Sn: 
-- Releases to free market S1..Sn: 
+- Listings S1..Sn: 0
+- Offers S1..Sn: 0
+- Counter offers S1..Sn: 0
+- Final offers S1..Sn: 0
+- Completed club transfers S1..Sn: 0
+- Releases to free market S1..Sn: 0
 - AI listings / initial offers / counters / finals: 0 / 0 / 0 / 0
 - AI bought / sold / released: 0 / 0 / 0
 
@@ -76,8 +76,8 @@ Generated at: `2026-06-04T07:59:52.963225Z`
 
 ## Long-Term Balance Signals
 
-- Latest balance Gini: n/a
-- Latest top8 OVR Gini: n/a
+- Latest balance Gini: 0.000
+- Latest top8 OVR Gini: 0.049
 - Champion relegations next season: 0
 - Repeat champions in same league: 0
 
@@ -85,6 +85,7 @@ Generated at: `2026-06-04T07:59:52.963225Z`
 
 | Season | Contracts | Renew/Recontract | Retired | Youth Signed | Rookie Signed | FA Listings | Training | Breakthroughs | Transfer Offers | Transfers | Releases | Roster Min/Max | Wage Avg/Max | Fatigue | Fitness | Errors |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |
+| 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 16/17 | 0.0%/0.0% | 50.7 | 79.8 | 0 |
 
 ## Suggested Interpretation
 
