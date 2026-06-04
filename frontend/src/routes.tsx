@@ -38,6 +38,8 @@ import TransferMarket from './pages/Transfer/Market'
 import FreeMarket from './pages/Transfer/FreeMarket'
 import Watchlist from './pages/Transfer/Watchlist'
 import MyListings from './pages/Transfer/MyListings'
+import PublicOffers from './pages/Transfer/PublicOffers'
+import MyOffers from './pages/Transfer/MyOffers'
 import TransferHistory from './pages/Transfer/History'
 
 // Youth Pages
@@ -284,6 +286,14 @@ export const router = createBrowserRouter([
               {
                 path: 'my-listings',
                 element: <MyListings />,
+              },
+              {
+                path: 'public-offers',
+                element: <PublicOffers />,
+              },
+              {
+                path: 'my-offers',
+                element: <MyOffers />,
               },
               {
                 path: 'history',

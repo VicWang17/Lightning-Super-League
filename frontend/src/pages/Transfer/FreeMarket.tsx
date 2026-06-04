@@ -202,10 +202,12 @@ export default function FreeMarket() {
       {/* 子导航 */}
       <div className="flex gap-2 border-b-2 border-[#2D2D44]">
         {[
-          { id: 'auction', label: '拍卖市场', to: '/transfer/market' },
+          { id: 'market', label: '拍卖市场', to: '/transfer/market' },
           { id: 'free', label: '自由市场', to: '/transfer/free-market' },
           { id: 'watchlist', label: '我的关注', to: '/transfer/watchlist' },
           { id: 'my-listings', label: '我的挂牌', to: '/transfer/my-listings' },
+          { id: 'public-offers', label: '公开报价', to: '/transfer/public-offers' },
+          { id: 'my-offers', label: '我的报价', to: '/transfer/my-offers' },
           { id: 'history', label: '转会历史', to: '/transfer/history' },
         ].map((tab) => (
           <Link

@@ -94,6 +94,18 @@ from app.models.training import (
     TrainingResult,
     TeamTrainingAIProfile,
 )
+from app.models.transfer import (
+    TransferListing,
+    TransferListingStatus,
+    TransferNegotiation,
+    NegotiationStatus,
+    TransferOffer,
+    OfferKind,
+    OfferStatus,
+    TransferDailyQuota,
+    TransferRecord,
+    TransferType,
+)
 
 __all__ = [
     # Base
@@ -183,4 +195,15 @@ __all__ = [
     "TeamTrainingPlan",
     "TrainingResult",
     "TeamTrainingAIProfile",
+    # Transfer
+    "TransferListing",
+    "TransferListingStatus",
+    "TransferNegotiation",
+    "NegotiationStatus",
+    "TransferOffer",
+    "OfferKind",
+    "OfferStatus",
+    "TransferDailyQuota",
+    "TransferRecord",
+    "TransferType",
 ]

@@ -50,6 +50,11 @@ class EventType(str, Enum):
     DRAFT_PREFERENCES_OPEN = "draft_preferences_open"
     DRAFT_RUN = "draft_run"
     DRAFT_SIGNING_EXPIRE = "draft_signing_expire"
+    # Transfer market events (Phase 6)
+    TRANSFER_OFFER_EXPIRES = "transfer_offer_expires"
+    TRANSFER_LISTING_DEADLINE = "transfer_listing_deadline"
+    AI_TRANSFER_MARKET_SCAN = "ai_transfer_market_scan"
+    AI_TRANSFER_OFFER_RESPONSE = "ai_transfer_offer_response"
 
 
 class EventStatus(str, Enum):

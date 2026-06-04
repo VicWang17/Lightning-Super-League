@@ -1,40 +1,86 @@
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { 
+import { AlertTriangle } from 'lucide-react'
+import {
   Transfer,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Loader,
+  ChevronLeft,
+  ChevronRight,
 } from '../../components/ui/pixel-icons'
+import api from '../../api/client'
+import type { TransferRecordItem } from '../../types/transfer'
+import { TRANSFER_TYPE_NAMES } from '../../types/transfer'
 
-const mockTransfers = [
-  { id: '1', player: '王磊', position: 'ST', type: 'in' as const, price: 920, from: '北方狼队', date: '2026-04-25', ovr: 74 },
-  { id: '2', player: '钱北', position: 'GK', type: 'out' as const, price: 180, to: '西部雄鹰', date: '2026-04-20', ovr: 60 },
-  { id: '3', player: '李华', position: 'CMF', type: 'in' as const, price: 1100, from: '东方明珠', date: '2026-04-15', ovr: 68 },
-  { id: '4', player: '吴东', position: 'SB', type: 'out' as const, price: 320, to: '南方猛虎', date: '2026-04-10', ovr: 64 },
-  { id: '5', player: '周伟', position: 'DMF', type: 'in' as const, price: 180, from: '自由市场', date: '2026-04-05', ovr: 62 },
+const navTabs = [
+  { id: 'market', label: '拍卖市场', to: '/transfer/market' },
+  { id: 'free', label: '自由市场', to: '/transfer/free-market' },
+  { id: 'watchlist', label: '我的关注', to: '/transfer/watchlist' },
+  { id: 'my-listings', label: '我的挂牌', to: '/transfer/my-listings' },
+  { id: 'public-offers', label: '公开报价', to: '/transfer/public-offers' },
+  { id: 'my-offers', label: '我的报价', to: '/transfer/my-offers' },
+  { id: 'history', label: '转会历史', to: '/transfer/history' },
 ]
 
 export default function TransferHistory() {
-  const totalIn = mockTransfers.filter(t => t.type === 'in').reduce((s, t) => s + t.price, 0)
-  const totalOut = mockTransfers.filter(t => t.type === 'out').reduce((s, t) => s + t.price, 0)
+  const [records, setRecords] = useState<TransferRecordItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [teamId, setTeamId] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.get<{ id: string }>('/teams/my-team').then(res => {
+      if (res.success && res.data) setTeamId(res.data.id)
+    })
+  }, [])
+
+  const fetchHistory = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const params: { team_id?: string; page: number; page_size: number } = { page, page_size: 20 }
+      if (teamId) params.team_id = teamId
+      const res = await api.getTransferHistory(params)
+      if (res.success && res.data) {
+        setRecords(res.data.items)
+        setTotalPages(res.data.total_pages)
+      } else {
+        setRecords([])
+        setTotalPages(1)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '获取数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [teamId, page])
+
+  useEffect(() => {
+    fetchHistory()
+  }, [fetchHistory])
+
+  // Stats - filter by my team
+  const myRecords = teamId
+    ? records.filter(r => r.from_team_id === teamId || r.to_team_id === teamId)
+    : records
+
+  const totalIn = myRecords.filter(r => r.to_team_id === teamId).reduce((s, r) => s + r.amount, 0)
+  const totalOut = myRecords.filter(r => r.from_team_id === teamId).reduce((s, r) => s + r.amount, 0)
 
   return (
     <div className="space-y-6 max-w-[1400px]">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">转会市场</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">本赛季转会记录</p>
+          <p className="text-sm text-[#8B8BA7] mt-1">转会历史记录</p>
         </div>
       </div>
 
-      {/* 子导航 */}
-      <div className="flex gap-2 border-b-2 border-[#2D2D44]">
-        {[
-          { id: 'auction', label: '拍卖市场', to: '/transfer/market' },
-          { id: 'free', label: '自由市场', to: '/transfer/free-market' },
-          { id: 'watchlist', label: '我的关注', to: '/transfer/watchlist' },
-          { id: 'my-listings', label: '我的挂牌', to: '/transfer/my-listings' },
-          { id: 'history', label: '转会历史', to: '/transfer/history' },
-        ].map((tab) => (
+      <div className="flex flex-wrap gap-2 border-b-2 border-[#2D2D44]">
+        {navTabs.map((tab) => (
           <Link
             key={tab.id}
             to={tab.to}
@@ -50,7 +96,7 @@ export default function TransferHistory() {
         ))}
       </div>
 
-      {/* 统计卡片 */}
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
           <div className="flex items-center gap-2 mb-2">
@@ -77,36 +123,88 @@ export default function TransferHistory() {
         </div>
       </div>
 
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">转会记录</h3>
-        <div className="space-y-3">
-          {mockTransfers.map((t) => (
-            <div key={t.id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
-              <div className={clsx(
-                'w-8 h-8 flex items-center justify-center border-2',
-                t.type === 'in' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-red-500/20 border-red-500/30 text-red-400'
-              )}>
-                {t.type === 'in' ? '入' : '出'}
-              </div>
-              <div className="w-10 h-10 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center">
-                <span className="text-xs font-bold text-[#8B8BA7]">{t.position}</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-white">{t.player}</p>
-                <p className="text-xs text-[#4B4B6A]">
-                  {t.type === 'in' ? `从 ${t.from}` : `至 ${t.to}`} · OVR {t.ovr}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className={clsx('text-sm font-bold', t.type === 'in' ? 'text-red-400' : 'text-emerald-400')}>
-                  {t.type === 'in' ? '-' : '+'}{t.price}万
-                </p>
-                <p className="text-xs text-[#4B4B6A]">{t.date}</p>
-              </div>
-            </div>
-          ))}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader className="w-6 h-6 text-[#0D7377] animate-spin" />
+          <span className="ml-2 text-sm text-[#8B8BA7]">加载中...</span>
         </div>
-      </div>
+      )}
+      {error && (
+        <div className="flex items-center gap-2 p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
+          <AlertTriangle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          <div className="card">
+            <h3 className="text-lg font-semibold mb-4">转会记录</h3>
+            <div className="space-y-3">
+              {records.map((r) => {
+                const isIn = r.to_team_id === teamId
+                const isOut = r.from_team_id === teamId
+                return (
+                  <div key={r.record_id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
+                    <div className={clsx(
+                      'w-8 h-8 flex items-center justify-center border-2 text-xs font-bold',
+                      isIn ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' :
+                      isOut ? 'bg-red-500/20 border-red-500/30 text-red-400' :
+                      'bg-[#2D2D44] text-[#8B8BA7]'
+                    )}>
+                      {isIn ? '入' : isOut ? '出' : '—'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">
+                        <Link to={`/players/${r.player_id}`} className="hover:text-[#0D7377] transition-colors">
+                          {r.player_name}
+                        </Link>
+                      </p>
+                      <p className="text-xs text-[#4B4B6A]">
+                        {TRANSFER_TYPE_NAMES[r.transfer_type]}
+                        {r.from_team_id && r.to_team_id && ` · ${r.from_team_id.slice(0, 6)} → ${r.to_team_id.slice(0, 6)}`}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={clsx('text-sm font-bold', isIn ? 'text-red-400' : isOut ? 'text-emerald-400' : 'text-[#8B8BA7]')}>
+                        {isIn ? '-' : isOut ? '+' : ''}{r.amount}万
+                      </p>
+                      <p className="text-xs text-[#4B4B6A]">
+                        {new Date(r.completed_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+              {records.length === 0 && (
+                <div className="text-center py-12 text-[#8B8BA7]">
+                  <p className="text-sm">暂无转会记录</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-2 bg-[#12121A] border-2 border-[#2D2D44] text-[#8B8BA7] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm text-[#8B8BA7]">第 {page} / {totalPages} 页</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-2 bg-[#12121A] border-2 border-[#2D2D44] text-[#8B8BA7] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

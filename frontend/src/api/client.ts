@@ -1,6 +1,23 @@
 import { useAuthStore } from '../stores/auth'
 import type { Season, SeasonDetail, TodayFixturesResponse, SeasonCalendarResponse } from '../types/season'
 import type { PlayerContract, ContractPreview, ContractOffer, PlayerState, TeamPlayerStates } from '../types/player'
+import type {
+  MarketPlayer,
+  TransferListingItem,
+  TransferOfferItem,
+  PublicOfferItem,
+  TransferRecordItem,
+  ValuationResponse,
+  ListPlayerRequest,
+  ListPlayerResponse,
+  CreateOfferRequest,
+  CounterOfferRequest,
+  FinalOfferRequest,
+  OfferResponse,
+  ReleasePreviewResponse,
+  ReleaseResponse,
+  AcceptOfferResponse,
+} from '../types/transfer'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
@@ -674,6 +691,172 @@ class ApiClient {
         speed: number
       }
     }
+  }
+
+  // ==================== 转会市场 API ====================
+
+  async getTransferMarket(params?: {
+    position?: string
+    min_ovr?: number
+    max_ovr?: number
+    min_age?: number
+    max_age?: number
+    is_listed?: boolean
+    page?: number
+    page_size?: number
+  }) {
+    const query = new URLSearchParams()
+    if (params?.position) query.append('position', params.position)
+    if (params?.min_ovr !== undefined) query.append('min_ovr', String(params.min_ovr))
+    if (params?.max_ovr !== undefined) query.append('max_ovr', String(params.max_ovr))
+    if (params?.min_age !== undefined) query.append('min_age', String(params.min_age))
+    if (params?.max_age !== undefined) query.append('max_age', String(params.max_age))
+    if (params?.is_listed !== undefined) query.append('is_listed', String(params.is_listed))
+    if (params?.page) query.append('page', String(params.page))
+    if (params?.page_size) query.append('page_size', String(params.page_size))
+    return this.requestWithAuth<{
+      items: MarketPlayer[]
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }>(`/transfers/market?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getTransferListings(params?: {
+    seller_team_id?: string
+    page?: number
+    page_size?: number
+  }) {
+    const query = new URLSearchParams()
+    if (params?.seller_team_id) query.append('seller_team_id', params.seller_team_id)
+    if (params?.page) query.append('page', String(params.page))
+    if (params?.page_size) query.append('page_size', String(params.page_size))
+    return this.requestWithAuth<{
+      items: TransferListingItem[]
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }>(`/transfers/listings?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getPublicOffers(params?: { page?: number; page_size?: number }) {
+    const query = new URLSearchParams()
+    if (params?.page) query.append('page', String(params.page))
+    if (params?.page_size) query.append('page_size', String(params.page_size))
+    return this.requestWithAuth<{
+      items: PublicOfferItem[]
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }>(`/transfers/offers/public?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getReceivedOffers(params: {
+    team_id: string
+    status?: string
+    page?: number
+    page_size?: number
+  }) {
+    const query = new URLSearchParams()
+    query.append('team_id', params.team_id)
+    if (params.status) query.append('status', params.status)
+    if (params.page) query.append('page', String(params.page))
+    if (params.page_size) query.append('page_size', String(params.page_size))
+    return this.requestWithAuth<{
+      items: TransferOfferItem[]
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }>(`/transfers/offers/received?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getSentOffers(params: {
+    team_id: string
+    status?: string
+    page?: number
+    page_size?: number
+  }) {
+    const query = new URLSearchParams()
+    query.append('team_id', params.team_id)
+    if (params.status) query.append('status', params.status)
+    if (params.page) query.append('page', String(params.page))
+    if (params.page_size) query.append('page_size', String(params.page_size))
+    return this.requestWithAuth<{
+      items: TransferOfferItem[]
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }>(`/transfers/offers/sent?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getTransferHistory(params?: {
+    team_id?: string
+    player_id?: string
+    page?: number
+    page_size?: number
+  }) {
+    const query = new URLSearchParams()
+    if (params?.team_id) query.append('team_id', params.team_id)
+    if (params?.player_id) query.append('player_id', params.player_id)
+    if (params?.page) query.append('page', String(params.page))
+    if (params?.page_size) query.append('page_size', String(params.page_size))
+    return this.requestWithAuth<{
+      items: TransferRecordItem[]
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }>(`/transfers/history?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getPlayerValuation(playerId: string, teamId?: string) {
+    const query = teamId ? `?team_id=${teamId}` : ''
+    return this.requestWithAuth<ValuationResponse>(`/transfers/players/${playerId}/valuation${query}`, { method: 'POST' })
+  }
+
+  async listPlayer(playerId: string, data: ListPlayerRequest) {
+    return this.post<ListPlayerResponse>(`/transfers/players/${playerId}/list`, data)
+  }
+
+  async cancelListing(listingId: string, teamId: string) {
+    return this.post<{ listing_id: string; status: string }>(`/transfers/listings/${listingId}/cancel?team_id=${teamId}`, {})
+  }
+
+  async createTransferOffer(data: CreateOfferRequest) {
+    return this.post<OfferResponse>('/transfers/offers', data)
+  }
+
+  async acceptTransferOffer(offerId: string, actorTeamId: string) {
+    return this.post<AcceptOfferResponse>(`/transfers/offers/${offerId}/accept?actor_team_id=${actorTeamId}`, {})
+  }
+
+  async rejectTransferOffer(offerId: string, actorTeamId: string) {
+    return this.post<{ offer_id: string; status: string }>(`/transfers/offers/${offerId}/reject?actor_team_id=${actorTeamId}`, {})
+  }
+
+  async counterTransferOffer(offerId: string, data: CounterOfferRequest) {
+    return this.post<OfferResponse>(`/transfers/offers/${offerId}/counter`, data)
+  }
+
+  async createFinalOffer(negotiationId: string, data: FinalOfferRequest) {
+    return this.post<OfferResponse>(`/transfers/negotiations/${negotiationId}/final-offer`, data)
+  }
+
+  async previewRelease(playerId: string, teamId: string) {
+    return this.requestWithAuth<ReleasePreviewResponse>(`/transfers/players/${playerId}/release/preview?team_id=${teamId}`, { method: 'POST' })
+  }
+
+  async transferReleasePlayer(playerId: string, teamId: string) {
+    return this.post<ReleaseResponse>(`/transfers/players/${playerId}/release?team_id=${teamId}`, {})
+  }
+
+  async triggerAITransferScan() {
+    return this.post<{ scanned: number; responded: number; listed: number; offered: number }>('/transfers/admin/ai-scan', {})
   }
 }
 

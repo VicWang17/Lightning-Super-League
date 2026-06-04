@@ -192,6 +192,15 @@ class SeasonService:
         # 选秀事件已移除（简化闭环设计）
         elif event.event_type in (EventType.DRAFT_PREFERENCES_OPEN, EventType.DRAFT_RUN, EventType.DRAFT_SIGNING_EXPIRE):
             return {"event": event.event_type.value, "status": "deprecated"}
+        # Transfer market events
+        elif event.event_type == EventType.TRANSFER_OFFER_EXPIRES:
+            return await self._handle_transfer_offer_expires(event)
+        elif event.event_type == EventType.TRANSFER_LISTING_DEADLINE:
+            return await self._handle_transfer_listing_deadline(event)
+        elif event.event_type == EventType.AI_TRANSFER_MARKET_SCAN:
+            return await self._handle_ai_transfer_market_scan(event)
+        elif event.event_type == EventType.AI_TRANSFER_OFFER_RESPONSE:
+            return await self._handle_ai_transfer_offer_response(event)
         else:
             raise ValueError(f"Unknown event type: {event.event_type}")
 
@@ -1281,3 +1290,36 @@ class SeasonService:
             'playoff_promotions': playoff_promotions,
             'playoff_relegations': playoff_relegations
         }
+
+    # =====================================================================
+    # Transfer market event handlers
+    # =====================================================================
+
+    async def _handle_transfer_offer_expires(self, event: GameEvent) -> Dict:
+        """TRANSFER_OFFER_EXPIRES: 处理过期报价"""
+        from app.services.transfer_service import TransferService
+        transfer_service = TransferService(self.db)
+        stats = await transfer_service.process_expired_offers()
+        return {"event": "transfer_offer_expires", "stats": stats}
+
+    async def _handle_transfer_listing_deadline(self, event: GameEvent) -> Dict:
+        """TRANSFER_LISTING_DEADLINE: 处理挂牌等待期截止"""
+        from app.services.transfer_service import TransferService
+        transfer_service = TransferService(self.db)
+        stats = await transfer_service.process_listing_deadlines()
+        return {"event": "transfer_listing_deadline", "stats": stats}
+
+    async def _handle_ai_transfer_market_scan(self, event: GameEvent) -> Dict:
+        """AI_TRANSFER_MARKET_SCAN: AI 每日转会市场扫描"""
+        from app.services.ai_transfer_service import AITransferService
+        ai_service = AITransferService(self.db)
+        stats = await ai_service.run_ai_transfer_market_scan()
+        return {"event": "ai_transfer_market_scan", "stats": stats}
+
+    async def _handle_ai_transfer_offer_response(self, event: GameEvent) -> Dict:
+        """AI_TRANSFER_OFFER_RESPONSE: AI 快速响应报价"""
+        negotiation_id = event.payload.get("negotiation_id")
+        from app.services.ai_transfer_service import AITransferService
+        ai_service = AITransferService(self.db)
+        await ai_service.run_ai_offer_response(negotiation_id)
+        return {"event": "ai_transfer_offer_response", "negotiation_id": negotiation_id}

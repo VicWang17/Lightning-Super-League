@@ -28,6 +28,7 @@ from app.routers.finance import router as finance_router
 from app.routers.free_market import router as free_market_router
 from app.routers.youth_academy import router as youth_academy_router
 from app.routers.training import router as training_router
+from app.routers.transfers import router as transfers_router
 
 settings = get_settings()
 
