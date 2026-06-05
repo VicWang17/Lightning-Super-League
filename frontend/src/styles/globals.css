@@ -20,6 +20,29 @@
     background-size: 4px 4px;
   }
 
+  .game-shell {
+    background-color: #080A08;
+    background-image:
+      linear-gradient(rgba(198, 241, 53, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(198, 241, 53, 0.018) 1px, transparent 1px),
+      radial-gradient(circle at 70% 0%, rgba(74, 95, 32, 0.18), transparent 34%);
+    background-size: 4px 4px, 4px 4px, 100% 100%;
+  }
+
+  .game-sidebar {
+    background:
+      linear-gradient(180deg, #0B0E0A 0%, #0D100E 48%, #090B08 100%);
+    border-right: 2px solid #2D3326;
+    box-shadow: 4px 0 0 rgba(0, 0, 0, 0.46);
+  }
+
+  .game-header {
+    background:
+      linear-gradient(180deg, rgba(13, 16, 14, 0.98), rgba(8, 10, 8, 0.96));
+    border-bottom: 2px solid #2D3326;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.36);
+  }
+
   /* 像素草地纹理背景（足球主题） */
   .pixel-grass-bg {
     background-color: #0A0A0F;
@@ -65,6 +88,290 @@
   .card-hover:hover {
     box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.6);
     transform: translate(-2px, -2px);
+  }
+
+  /* 游戏化首屏面板 */
+  .dashboard-home {
+    color: #F1F4DF;
+  }
+
+  .pixel-panel {
+    border-width: 2px;
+    position: relative;
+    box-shadow:
+      4px 4px 0 rgba(0, 0, 0, 0.55),
+      inset 2px 2px 0 rgba(255, 255, 255, 0.035),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.24);
+  }
+
+  .club-board,
+  .match-office {
+    position: relative;
+    box-shadow:
+      4px 4px 0 rgba(0, 0, 0, 0.55),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.025);
+  }
+
+  .coach-clipboard,
+  .bulletin-board,
+  .status-board,
+  .result-board,
+  .quick-dock {
+    position: relative;
+    border: 2px solid #3F4A2E;
+    box-shadow:
+      4px 4px 0 rgba(0, 0, 0, 0.55),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.025);
+  }
+
+  .coach-clipboard {
+    padding: 28px 20px 20px;
+    background:
+      linear-gradient(#D8C98D, #B7AA72);
+    border-color: #70643D;
+    color: #15170E;
+  }
+
+  .coach-clipboard::before {
+    content: '';
+    position: absolute;
+    inset: 10px;
+    border: 2px solid rgba(88, 80, 45, 0.45);
+    pointer-events: none;
+  }
+
+  .clipboard-clip {
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    width: 112px;
+    height: 24px;
+    transform: translateX(-50%);
+    border: 2px solid #1B1D18;
+    background: #5E6472;
+    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.28);
+  }
+
+  .clipboard-clip::after {
+    content: '';
+    position: absolute;
+    left: 34px;
+    right: 34px;
+    top: 6px;
+    height: 8px;
+    border: 2px solid #2D3326;
+    background: #B8C0A0;
+  }
+
+  .training-slip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 86px;
+    padding: 12px;
+    border: 2px solid #8A7B4A;
+    background:
+      linear-gradient(90deg, #C6F135 0 8px, transparent 8px),
+      #EFE2A6;
+    box-shadow: 3px 3px 0 rgba(58, 50, 28, 0.42);
+  }
+
+  .bulletin-board {
+    padding: 20px;
+    border-color: #644C2B;
+    background:
+      linear-gradient(rgba(0,0,0,0.10), rgba(0,0,0,0.10)),
+      repeating-linear-gradient(90deg, #3A2615 0 18px, #432B17 18px 36px);
+  }
+
+  .bulletin-board::before,
+  .bulletin-board::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    width: 10px;
+    height: 10px;
+    background: #D75A4A;
+    border: 2px solid #1B130C;
+  }
+
+  .bulletin-board::before {
+    left: 12px;
+  }
+
+  .bulletin-board::after {
+    right: 12px;
+  }
+
+  .board-title-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    border: 2px solid #1B130C;
+    background: #202A17;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  .task-note {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 76px;
+    padding: 14px 12px;
+    border: 2px solid #8A7B4A;
+    background: #E8D989;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.32);
+    transition: transform 120ms steps(1), box-shadow 120ms steps(1);
+  }
+
+  .task-note::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    width: 42px;
+    height: 14px;
+    transform: translateX(-50%);
+    border: 2px solid #4A3B20;
+    background: #BFA56B;
+  }
+
+  .task-note:nth-child(even) {
+    background: #DCD7B5;
+  }
+
+  .task-note-urgent {
+    background: #F0C86A;
+    border-color: #6B4C25;
+  }
+
+  .task-note:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.4);
+  }
+
+  .status-board,
+  .result-board,
+  .quick-dock {
+    padding: 20px;
+    background:
+      linear-gradient(rgba(198, 241, 53, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(198, 241, 53, 0.025) 1px, transparent 1px),
+      #10150D;
+    background-size: 8px 8px, 8px 8px, auto;
+  }
+
+  .status-meter {
+    padding: 10px 12px;
+    border: 2px solid #2D3326;
+    background: #0A0D09;
+  }
+
+  .match-office {
+    overflow: hidden;
+  }
+
+  .ticket-serial {
+    border: 2px solid #6B4C25;
+    background: #120E09;
+    padding: 4px 8px;
+    color: #BFA56B;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+  }
+
+  .club-board {
+    background-image:
+      linear-gradient(rgba(198, 241, 53, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(198, 241, 53, 0.022) 1px, transparent 1px);
+    background-size: 8px 8px;
+  }
+
+  .match-office {
+    background-image:
+      linear-gradient(90deg, rgba(255, 226, 161, 0.05) 1px, transparent 1px),
+      linear-gradient(rgba(255, 226, 161, 0.04) 1px, transparent 1px);
+    background-size: 12px 12px;
+  }
+
+  .manager-hero {
+    background-size: cover;
+    background-position: center;
+    image-rendering: pixelated;
+  }
+
+  .manager-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.08;
+    background-image: linear-gradient(rgba(255,255,255,0.45) 1px, transparent 1px);
+    background-size: 100% 4px;
+  }
+
+  .match-ticket {
+    position: relative;
+    overflow: hidden;
+    border: 2px solid #6B4C25;
+    background-color: #251909;
+    background-image:
+      linear-gradient(90deg, rgba(255, 226, 161, 0.06) 1px, transparent 1px),
+      linear-gradient(rgba(255, 226, 161, 0.04) 1px, transparent 1px);
+    background-size: 12px 12px;
+  }
+
+  .match-ticket::before,
+  .match-ticket::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    bottom: -6px;
+    width: 14px;
+    background:
+      radial-gradient(circle, #1A130B 0 5px, transparent 6px) 0 0 / 14px 22px repeat-y;
+  }
+
+  .match-ticket::before {
+    left: -7px;
+  }
+
+  .match-ticket::after {
+    right: -7px;
+  }
+
+  .match-stub {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 2px solid #2D3326;
+    background: #0A0D09;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  .quick-dock-key {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 2px solid #323A28;
+    background: #0C100B;
+    padding: 12px;
+    color: #D1D6B8;
+    font-size: 14px;
+    font-weight: 800;
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  .quick-dock-key:hover {
+    border-color: #8FD14F;
+    background: #202A17;
+    color: #FFFFFF;
   }
 
   /* 像素主按钮 */

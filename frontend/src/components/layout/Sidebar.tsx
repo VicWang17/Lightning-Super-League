@@ -17,17 +17,17 @@ import {
 import { useAuthStore } from '../../stores/auth'
 
 const menuItems = [
-  { path: '/dashboard', label: '总览', icon: LayoutDashboard },
-  { path: '/mail', label: '邮件', icon: Mailbox },
-  { path: '/team', label: '球队', icon: Users },
-  { path: '/match/schedule', label: '赛程', icon: CalendarDays },
-  { path: '/training', label: '训练', icon: Zap },
-  { path: '/leagues', label: '联赛', icon: Trophy },
+  { path: '/dashboard', label: '办公室', icon: LayoutDashboard },
+  { path: '/mail', label: '收件箱', icon: Mailbox },
+  { path: '/team', label: '更衣室', icon: Users },
+  { path: '/match/schedule', label: '赛程表', icon: CalendarDays },
+  { path: '/training', label: '训练场', icon: Zap },
+  { path: '/leagues', label: '联赛大厅', icon: Trophy },
   { path: '/cups', label: '杯赛', icon: Swords },
-  { path: '/transfer', label: '转会', icon: ArrowLeftRight },
-  { path: '/youth', label: '青训', icon: Sprout },
-  { path: '/finance', label: '财务', icon: Wallet },
-  { path: '/records', label: '纪录', icon: Crown },
+  { path: '/transfer', label: '转会市场', icon: ArrowLeftRight },
+  { path: '/youth', label: '青训营', icon: Sprout },
+  { path: '/finance', label: '董事会', icon: Wallet },
+  { path: '/records', label: '荣誉室', icon: Crown },
 ]
 
 function Sidebar() {
@@ -56,9 +56,9 @@ function Sidebar() {
   const userLevel = user?.level || 1
 
   return (
-    <aside className="w-60 bg-[#12121A] border-r-2 border-[#2D2D44] flex flex-col h-screen sticky top-0">
+    <aside className="game-sidebar w-60 flex flex-col h-screen sticky top-0">
       {/* Logo */}
-      <div className="h-16 flex items-center px-4 border-b-2 border-[#2D2D44]">
+      <div className="h-20 flex items-center px-4 border-b-2 border-[#2D3326] bg-[#0B0E0A]">
         <Link to="/" className="block group">
           <img 
             src="/logo.png" 
@@ -69,40 +69,40 @@ function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 overflow-y-auto">
-        <ul className="space-y-1">
+      <nav className="flex-1 py-5 px-3 overflow-y-auto">
+        <ul className="space-y-2">
           {menuItems.map((item) => (
             <li key={item.path}>
               <Link
                 to={item.path}
                 className={clsx(
-                  'flex items-center gap-3 px-4 py-2.5 transition-all duration-200',
+                  'flex items-center gap-3 px-4 py-3 transition-all duration-200 border-2',
                   isActive(item)
-                    ? 'bg-[#C6F135] text-[#0A0A0F] font-bold border-2 border-[#14532D] shadow-pixel-green'
-                    : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D] border-2 border-transparent'
+                    ? 'bg-[#C6F135] text-[#0A0A0F] font-black border-[#14532D] shadow-pixel-green'
+                    : 'text-[#8D947B] bg-[#0D100E] hover:text-[#F1F4DF] hover:bg-[#171D12] border-[#171D22]'
                 )}
               >
                 {isActive(item) && (
                   <span className="text-[#14532D] text-xs leading-none">▶</span>
                 )}
                 <item.icon className="w-4 h-4" />
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className="text-sm font-bold">{item.label}</span>
               </Link>
             </li>
           ))}
         </ul>
         
         {/* 次级导航 - 查看所有比赛 */}
-        <div className="mt-4 pt-4 border-t-2 border-[#2D2D44]">
-          <p className="px-4 text-xs text-[#4B4B6A] mb-2 font-medium uppercase tracking-wider">所有比赛</p>
+        <div className="mt-5 pt-5 border-t-2 border-[#2D3326]">
+          <p className="px-4 text-xs text-[#596146] mb-2 font-bold uppercase tracking-wider">赛事入口</p>
           <div className="space-y-1">
             <Link
               to="/leagues/all"
               className={clsx(
-                'flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200',
+                'flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 border-2',
                 location.pathname === '/leagues' || location.pathname === '/leagues/all'
-                  ? 'text-[#C6F135] bg-[#1E1E2D] border-2 border-transparent'
-                  : 'text-[#4B4B6A] hover:text-[#8B8BA7] hover:bg-[#1E1E2D]/50 border-2 border-transparent'
+                  ? 'text-[#C6F135] bg-[#171D12] border-[#3F4A2E]'
+                  : 'text-[#697157] hover:text-[#D1D6B8] hover:bg-[#171D12] border-transparent'
               )}
             >
               <span className="w-1.5 h-1.5 rounded-none bg-[#C6F135]" />
@@ -111,10 +111,10 @@ function Sidebar() {
             <Link
               to="/cups/all"
               className={clsx(
-                'flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200',
+                'flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 border-2',
                 location.pathname === '/cups' || location.pathname === '/cups/all'
-                  ? 'text-[#C6F135] bg-[#1E1E2D] border-2 border-transparent'
-                  : 'text-[#4B4B6A] hover:text-[#8B8BA7] hover:bg-[#1E1E2D]/50 border-2 border-transparent'
+                  ? 'text-[#C6F135] bg-[#171D12] border-[#3F4A2E]'
+                  : 'text-[#697157] hover:text-[#D1D6B8] hover:bg-[#171D12] border-transparent'
               )}
             >
               <span className="w-1.5 h-1.5 rounded-none bg-[#C6F135]" />
@@ -125,14 +125,14 @@ function Sidebar() {
       </nav>
 
       {/* User Info */}
-      <div className="p-4 border-t-2 border-[#2D2D44]">
+      <div className="p-4 border-t-2 border-[#2D3326] bg-[#0B0E0A]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#14532D] border-2 border-[#C6F135]/30 flex items-center justify-center">
+          <div className="w-9 h-9 bg-[#14532D] border-2 border-[#C6F135] flex items-center justify-center">
             <span className="text-sm font-medium text-white">{firstLetter}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{displayName}</p>
-            <p className="text-xs text-[#4B4B6A]">Lv.{userLevel}</p>
+            <p className="text-sm font-bold text-[#F1F4DF] truncate">{displayName}</p>
+            <p className="text-xs text-[#697157]">Lv.{userLevel}</p>
           </div>
           <button 
             onClick={handleLogout}

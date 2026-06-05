@@ -3,6 +3,7 @@ Training system unit tests
 """
 import pytest
 from decimal import Decimal
+from datetime import datetime
 
 from app.models.player import Player, PlayerPosition, PlayerStatus, MatchForm
 from app.services.training_growth_service import TrainingGrowthService
@@ -463,3 +464,160 @@ class TestSingleAttributeGain:
         )
         
         assert gain_repeated < gain_first
+
+
+class TestMatchExperience:
+    """Test match experience training item"""
+    
+    def test_match_experience_item_exists(self):
+        item = get_training_item("match_experience")
+        assert item is not None
+        assert item.category == "match"
+        assert item.base_gain > 0
+        assert len(item.attribute_weights) > 0
+    
+    def test_match_experience_gives_small_gain(self):
+        service = TrainingGrowthService()
+        player = Player(
+            sho=10, pas=10, sta=10, acc=10, bal=10,
+            position=PlayerPosition.FW,
+            status=PlayerStatus.ACTIVE,
+            match_form=MatchForm.NEUTRAL,
+            fatigue=30,
+            potential_max=70,
+            attribute_caps={"sho": 16.0},
+            attribute_progress={},
+            growth_curve_type="steady",
+            growth_peak_age=27,
+            growth_speed=Decimal("1.00"),
+            growth_stability=Decimal("0.00"),
+        )
+        
+        item = get_training_item("match_experience")
+        gain = service.calculate_single_attribute_gain(
+            player, item, "sho", item.attribute_weights["sho"], age=22, recent_count=0, mode="team"
+        )
+        
+        # 比赛经验成长应比正常训练小
+        assert gain > 0
+        assert gain < 0.10
+
+
+class TestMatchDayTraining:
+    """Test training behavior on match days"""
+    
+    @pytest.mark.asyncio
+    async def test_apply_template_skips_evening_on_match_day(self, db):
+        from app.services.training_service import TrainingService
+        from app.models.season import Fixture, FixtureType, FixtureStatus
+        from app.models.team import Team
+        from app.models.user import User
+        
+        training_service = TrainingService(db)
+        
+        # 创建用户和球队
+        user = User(username="test_user", email="test@test.com", is_ai=False, hashed_password="fake")
+        db.add(user)
+        await db.flush()
+        
+        team = Team(name="Test Team", user_id=user.id)
+        db.add(team)
+        await db.flush()
+        
+        # 创建赛季
+        from app.models.season import Season, SeasonStatus
+        import random
+        season = Season(
+            season_number=random.randint(1000, 9999),
+            zone_id=1,
+            start_date=datetime.utcnow(),
+            status=SeasonStatus.ONGOING,
+            current_day=1,
+        )
+        db.add(season)
+        await db.flush()
+        
+        # 创建比赛（第1天有比赛）
+        fixture = Fixture(
+            season_id=season.id,
+            fixture_type=FixtureType.LEAGUE,
+            season_day=1,
+            scheduled_at=datetime.utcnow(),
+            round_number=1,
+            home_team_id=team.id,
+            away_team_id=team.id,
+            status=FixtureStatus.SCHEDULED,
+        )
+        db.add(fixture)
+        await db.flush()
+        
+        # 套用标准微周期套餐（从第1天开始）
+        plans = await training_service.apply_template(team.id, season.id, "standard_microcycle", 1)
+        
+        # 比赛日（第1天）应该只有2个计划（morning + afternoon）
+        day1_plans = [p for p in plans if p.season_day == 1]
+        assert len(day1_plans) == 2
+        slots = {p.slot for p in day1_plans}
+        assert "morning" in slots
+        assert "afternoon" in slots
+        assert "evening" not in slots
+        
+        # 第2天没有比赛，应该有3个计划
+        day2_plans = [p for p in plans if p.season_day == 2]
+        assert len(day2_plans) == 3
+    
+    @pytest.mark.asyncio
+    async def test_save_training_plan_skips_evening_on_match_day(self, db):
+        from app.services.training_service import TrainingService
+        from app.models.season import Fixture, FixtureType, FixtureStatus
+        from app.models.team import Team
+        from app.models.user import User
+        from app.models.training import TrainingSlot
+        
+        training_service = TrainingService(db)
+        
+        user = User(username="test_user2", email="test2@test.com", is_ai=False, hashed_password="fake")
+        db.add(user)
+        await db.flush()
+        
+        team = Team(name="Test Team 2", user_id=user.id)
+        db.add(team)
+        await db.flush()
+        
+        from app.models.season import Season, SeasonStatus
+        import random
+        season = Season(
+            season_number=random.randint(1000, 9999),
+            zone_id=1,
+            start_date=datetime.utcnow(),
+            status=SeasonStatus.ONGOING,
+            current_day=1,
+        )
+        db.add(season)
+        await db.flush()
+        
+        fixture = Fixture(
+            season_id=season.id,
+            fixture_type=FixtureType.LEAGUE,
+            season_day=1,
+            scheduled_at=datetime.utcnow(),
+            round_number=1,
+            home_team_id=team.id,
+            away_team_id=team.id,
+            status=FixtureStatus.SCHEDULED,
+        )
+        db.add(fixture)
+        await db.flush()
+        
+        # 尝试保存3个slot（包括evening）
+        items = [
+            {"season_day": 1, "slot": TrainingSlot.MORNING.value, "training_item_id": "rondo_4v2"},
+            {"season_day": 1, "slot": TrainingSlot.AFTERNOON.value, "training_item_id": "first_touch_escape"},
+            {"season_day": 1, "slot": TrainingSlot.EVENING.value, "training_item_id": "mobility_session"},
+        ]
+        plans = await training_service.save_training_plan(team.id, season.id, items)
+        
+        # evening 应该被跳过
+        assert len(plans) == 2
+        slots = {p.slot for p in plans}
+        assert "evening" not in slots

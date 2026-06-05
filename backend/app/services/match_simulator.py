@@ -26,6 +26,9 @@ from app.services.standing_service import StandingService
 from app.services.player_state_service import PlayerStateService
 from app.services.player_fatigue_service import PlayerFatigueService
 from app.services.injury_service import InjuryService
+from app.services.training_growth_service import TrainingGrowthService
+from app.core.training_config import get_training_item
+from app.models.training import TrainingResult, TrainingSlot
 from app.core.logging import get_logger
 
 
@@ -607,6 +610,16 @@ class MatchSimulator:
                 select(Season.season_number).where(Season.id == fixture.season_id)
             )
         
+        # 比赛经验成长准备
+        match_exp_item = get_training_item("match_experience")
+        growth_service = TrainingGrowthService()
+        match_results_to_add: list[TrainingResult] = []
+        _ATTRS = [
+            "sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal",
+            "defe", "tkl", "vis", "cro", "con", "fin",
+            "com", "sav", "ref", "pos", "rus", "dec", "fk", "pk"
+        ]
+
         # 处理出场的球员
         for player_id in played_player_ids:
             player = all_players.get(player_id)
@@ -657,6 +670,46 @@ class MatchSimulator:
             minutes_window = list(player.recent_minutes or [])
             minutes_window.append(int(minutes))
             player.recent_minutes = minutes_window[-3:]
+
+            # === 比赛经验成长：上赛球员获得小幅能力提升 ===
+            if match_exp_item:
+                age = season_number + abs(player.birth_offset) if season_number is not None else 25
+                gains = {}
+                for attr, weight in match_exp_item.attribute_weights.items():
+                    gain = growth_service.calculate_single_attribute_gain(
+                        player, match_exp_item, attr, weight, age, recent_count=0, mode="team"
+                    )
+                    if gain != 0:
+                        gains[attr] = gain
+
+                if gains:
+                    before_snapshot = {attr: getattr(player, attr, 10) for attr in _ATTRS}
+                    breakthroughs = growth_service.apply_attribute_progress(player, gains)
+                    after_snapshot = {attr: getattr(player, attr, 10) for attr in _ATTRS}
+
+                    total_gain = sum(gains.values())
+                    expected_gain = match_exp_item.base_gain * len(gains)
+                    efficiency = round(min(total_gain / expected_gain, 2.00), 2) if expected_gain > 0 else 1.00
+
+                    match_results_to_add.append(TrainingResult(
+                        plan_id=None,
+                        team_id=player.team_id,
+                        player_id=player.id,
+                        season_id=fixture.season_id,
+                        season_day=fixture.season_day,
+                        slot=TrainingSlot.EVENING,
+                        training_item_id=match_exp_item.id,
+                        attribute_gains=gains,
+                        before_attributes=before_snapshot,
+                        after_attributes=after_snapshot,
+                        fitness_before=player.fitness,
+                        fitness_after=player.fitness,
+                        fatigue_before=player.fatigue,
+                        fatigue_after=player.fatigue,
+                        load_points=match_exp_item.load_points,
+                        breakthroughs=breakthroughs,
+                        efficiency=Decimal(str(efficiency)),
+                    ))
             
             # 触发状态重算
             if recalculate_state:
@@ -705,5 +758,9 @@ class MatchSimulator:
                     )
                 except Exception as exc:
                     logger.warning(f"Failed to recalculate state for player {player_id}: {exc}")
+        
+        # 保存比赛经验成长记录
+        if match_results_to_add:
+            db.add_all(match_results_to_add)
         
         await db.flush()

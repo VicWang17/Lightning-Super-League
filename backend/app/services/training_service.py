@@ -11,12 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc
 
 from app.models.player import Player, PlayerPosition, PlayerStatus
-from app.models.season import Season
+from app.models.season import Season, Fixture, FixtureStatus
 from app.models.training import (
     TeamTrainingPlan, TrainingResult, TrainingSlot, TrainingMode,
     TrainingPlanStatus, TrainingCreatedBy,
 )
 from app.models.team import Team
+from sqlalchemy import or_
 from app.core.training_config import (
     TrainingItem, get_training_item, list_training_items,
     get_template, list_templates, INTENSITY_LOAD_POINTS,
@@ -116,10 +117,37 @@ class TrainingService:
         
         items: [{season_day, slot, mode, training_item_id, groups}]
         """
+        # 收集需要检查比赛日的日期
+        days_to_check = set()
+        for item in items:
+            slot = item.get("slot")
+            if slot == TrainingSlot.EVENING.value:
+                days_to_check.add(item["season_day"])
+        
+        match_days = set()
+        if days_to_check:
+            result = await self.db.execute(
+                select(Fixture.season_day).where(
+                    and_(
+                        Fixture.season_id == season_id,
+                        Fixture.season_day.in_(list(days_to_check)),
+                        or_(
+                            Fixture.home_team_id == team_id,
+                            Fixture.away_team_id == team_id,
+                        ),
+                    )
+                ).distinct()
+            )
+            match_days = {row[0] for row in result.all()}
+        
         saved = []
         for item in items:
             season_day = item["season_day"]
             slot = item["slot"]
+            
+            # 比赛日跳过 evening slot
+            if season_day in match_days and slot == TrainingSlot.EVENING.value:
+                continue
             
             # 查找是否已存在
             result = await self.db.execute(
@@ -163,6 +191,29 @@ class TrainingService:
         await self.db.flush()
         return saved
     
+    async def get_team_match_days(
+        self,
+        team_id: str,
+        season_id: str,
+        start_day: int,
+        days: int = 7,
+    ) -> set[int]:
+        """查询球队在某段时间内的比赛日"""
+        result = await self.db.execute(
+            select(Fixture.season_day).where(
+                and_(
+                    Fixture.season_id == season_id,
+                    Fixture.season_day >= start_day,
+                    Fixture.season_day < start_day + days,
+                    or_(
+                        Fixture.home_team_id == team_id,
+                        Fixture.away_team_id == team_id,
+                    ),
+                )
+            ).distinct()
+        )
+        return {row[0] for row in result.all()}
+
     async def apply_template(
         self,
         team_id: str,
@@ -170,17 +221,30 @@ class TrainingService:
         template_id: str,
         start_day: int,
     ) -> list[TeamTrainingPlan]:
-        """套用训练套餐"""
+        """套用训练套餐
+        
+        比赛日只有两个训练时段（上午/下午），晚上是比赛，
+        因此套餐中的 evening 训练项在比赛日会被自动跳过。
+        """
         template = get_template(template_id)
         if not template:
             raise ValueError(f"Template not found: {template_id}")
+        
+        # 查询该时间段内的比赛日
+        match_days = await self.get_team_match_days(
+            team_id, season_id, start_day, len(template.schedule)
+        )
         
         slots = [TrainingSlot.MORNING.value, TrainingSlot.AFTERNOON.value, TrainingSlot.EVENING.value]
         items = []
         
         for day_offset, day_schedule in enumerate(template.schedule):
             season_day = start_day + day_offset
+            is_match_day = season_day in match_days
             for slot_idx, training_item_id in enumerate(day_schedule):
+                # 比赛日跳过 evening slot（第3个时段）
+                if is_match_day and slot_idx >= 2:
+                    continue
                 items.append({
                     "season_day": season_day,
                     "slot": slots[slot_idx],
@@ -616,6 +680,24 @@ class TrainingService:
 
         slots = [TrainingSlot.MORNING.value, TrainingSlot.AFTERNOON.value, TrainingSlot.EVENING.value]
 
+        # 0. 查询当天有比赛的球队
+        match_teams_result = await self.db.execute(
+            select(Fixture.home_team_id, Fixture.away_team_id).where(
+                and_(
+                    Fixture.season_id == season_id,
+                    Fixture.season_day == season_day,
+                    or_(
+                        Fixture.home_team_id.in_(team_ids),
+                        Fixture.away_team_id.in_(team_ids),
+                    ),
+                )
+            )
+        )
+        teams_with_match = set()
+        for home_id, away_id in match_teams_result.all():
+            teams_with_match.add(home_id)
+            teams_with_match.add(away_id)
+
         # 1. 加载当天所有球队的训练计划
         plans_result = await self.db.execute(
             select(TeamTrainingPlan).where(
@@ -671,6 +753,9 @@ class TrainingService:
 
         for team_id in team_ids:
             for slot in slots:
+                # 比赛日跳过 evening slot
+                if team_id in teams_with_match and slot == TrainingSlot.EVENING.value:
+                    continue
                 plan = plan_map.get((team_id, slot))
                 if not plan or plan.status == TrainingPlanStatus.COMPLETED.value:
                     continue

@@ -110,7 +110,10 @@ class AITrainingPlanner:
         season_id: str,
         season_day: int,
     ) -> list[dict]:
-        """为 AI 球队生成单日训练计划"""
+        """为 AI 球队生成单日训练计划
+        
+        比赛日只有两个训练时段（上午/下午），晚上是比赛。
+        """
         
         # 获取 AI 偏好
         profile = await self._get_or_create_ai_profile(team_id)
@@ -128,6 +131,8 @@ class AITrainingPlanner:
         
         # 检查未来赛程
         has_match_soon = await self._has_match_within_days(team_id, season_id, season_day, days=2)
+        # 检查当天是否有比赛
+        has_match_today = await self._has_match_on_day(team_id, season_id, season_day)
         
         # 获取风格权重
         category_weights = self._STYLE_CATEGORY_WEIGHTS.get(style, self._STYLE_CATEGORY_WEIGHTS["balanced"])
@@ -135,7 +140,9 @@ class AITrainingPlanner:
         # 判断是否需要恢复
         needs_recovery = avg_fitness < 70 or avg_fatigue > 55
         
-        slots = [TrainingSlot.MORNING.value, TrainingSlot.AFTERNOON.value, TrainingSlot.EVENING.value]
+        slots = [TrainingSlot.MORNING.value, TrainingSlot.AFTERNOON.value]
+        if not has_match_today:
+            slots.append(TrainingSlot.EVENING.value)
         plan_items = []
         
         for slot in slots:
@@ -164,7 +171,14 @@ class AITrainingPlanner:
         season_id: str,
         season_day: int,
     ) -> list[dict]:
-        """为未规划的人类玩家生成默认训练计划"""
+        """为未规划的人类玩家生成默认训练计划
+        
+        比赛日只有两个训练时段（上午/下午），晚上是比赛。
+        """
+        # 检查当天是否有比赛
+        has_match_today = await self._has_match_on_day(team_id, season_id, season_day)
+        max_slots = 2 if has_match_today else 3
+        
         # 使用标准微周期模板
         template = get_template("standard_microcycle")
         if not template:
@@ -179,7 +193,7 @@ class AITrainingPlanner:
                     "training_item_id": default_items[i],
                     "groups": None,
                 }
-                for i in range(3)
+                for i in range(max_slots)
             ]
         
         day_offset = (season_day - 1) % 7
@@ -197,7 +211,7 @@ class AITrainingPlanner:
                 "training_item_id": day_schedule[i],
                 "groups": None,
             }
-            for i in range(min(3, len(day_schedule)))
+            for i in range(min(max_slots, len(day_schedule)))
         ]
     
     async def auto_fill_missing_plans(
@@ -287,6 +301,24 @@ class AITrainingPlanner:
                     Fixture.season_day > current_day,
                     Fixture.season_day <= current_day + days,
                     Fixture.status == FixtureStatus.SCHEDULED,
+                    or_(
+                        Fixture.home_team_id == team_id,
+                        Fixture.away_team_id == team_id,
+                    ),
+                )
+            ).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def _has_match_on_day(
+        self, team_id: str, season_id: str, day: int
+    ) -> bool:
+        """检查当天是否有比赛"""
+        result = await self.db.execute(
+            select(Fixture).where(
+                and_(
+                    Fixture.season_id == season_id,
+                    Fixture.season_day == day,
                     or_(
                         Fixture.home_team_id == team_id,
                         Fixture.away_team_id == team_id,
