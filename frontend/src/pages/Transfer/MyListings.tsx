@@ -189,7 +189,7 @@ export default function MyListings() {
       const res = await api.getPlayerValuation(player.id, teamId || undefined)
       if (res.success && res.data) {
         setValuation(res.data.market_value)
-        setListPrice(String(Math.round(res.data.market_value)))
+        setListPrice(String(Math.round(res.data.market_value / 10000)))
       }
     } catch {
       setValuation(null)
@@ -206,7 +206,7 @@ export default function MyListings() {
     try {
       const res = await api.listPlayer(selectedPlayer.id, {
         team_id: teamId,
-        list_price: Number(listPrice),
+        list_price: Number(listPrice) * 10000,
       })
       if (res.success && res.data) {
         setListSuccess(true)
@@ -243,7 +243,7 @@ export default function MyListings() {
     try {
       const res = await api.counterTransferOffer(counterOffer.offer_id, {
         seller_team_id: teamId,
-        amount: Number(counterAmount),
+        amount: Number(counterAmount) * 10000,
       })
       if (res.success && res.data) {
         setCounterSuccess(true)
@@ -353,10 +353,10 @@ export default function MyListings() {
                     <Link to={`/players/${l.player_id}`} className="text-sm font-medium text-white hover:text-[#0D7377] transition-colors">
                       {l.name}
                     </Link>
-                    <p className="text-xs text-[#4B4B6A]">{l.age}岁 · OVR {l.ovr} · 估值 {l.market_value}万</p>
+                    <p className="text-xs text-[#4B4B6A]">{l.age}岁 · OVR {l.ovr} · 估值 {(l.market_value / 10000).toFixed(1)}万</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-[#0D7377]">{l.list_price}万</p>
+                    <p className="text-sm font-bold text-[#0D7377]">{(l.list_price / 10000).toFixed(1)}万</p>
                     <p className="text-xs text-[#4B4B6A]">挂牌价</p>
                   </div>
                   <div className="text-right">
@@ -414,7 +414,7 @@ export default function MyListings() {
                         </Link>
                       </p>
                       <p className="text-xs text-[#4B4B6A]">
-                        {OFFER_KIND_NAMES[o.offer_kind]} · {o.amount}万
+                        {OFFER_KIND_NAMES[o.offer_kind]} · {(o.amount / 10000).toFixed(1)}万
                       </p>
                     </div>
                     <div className="text-right min-w-[80px]">
@@ -577,12 +577,12 @@ export default function MyListings() {
                           <div className="flex justify-between text-sm">
                             <span className="text-[#8B8BA7]">系统估值</span>
                             <span className="text-[#0D7377] font-bold">
-                              {valuationLoading ? '计算中...' : valuation !== null ? `${valuation}万` : '未知'}
+                              {valuationLoading ? '计算中...' : valuation !== null ? `${(valuation / 10000).toFixed(1)}万` : '未知'}
                             </span>
                           </div>
                           {valuation !== null && (
                             <p className="text-xs text-[#4B4B6A]">
-                              最低挂牌价: {Math.round(valuation * 0.8)}万（估值的80%）
+                              最低挂牌价: {Math.round(valuation * 0.8 / 10000)}万（估值的80%）
                             </p>
                           )}
                           <div>
@@ -607,7 +607,7 @@ export default function MyListings() {
                         </button>
                         <button
                           onClick={submitListing}
-                          disabled={listLoading || !selectedPlayer || !listPrice || (valuation !== null && Number(listPrice) < valuation * 0.8)}
+                          disabled={listLoading || !selectedPlayer || !listPrice || (valuation !== null && Number(listPrice) < valuation * 0.8 / 10000)}
                           className="flex-1 py-2 bg-[#0D7377] hover:bg-[#0A5A5D] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold border-2 border-[#0A5A5D] transition-colors"
                         >
                           {listLoading ? '处理中...' : '确认挂牌'}
@@ -657,7 +657,7 @@ export default function MyListings() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#8B8BA7]">对方报价</span>
-                      <span className="text-[#0D7377] font-bold">{counterOffer.amount}万</span>
+                      <span className="text-[#0D7377] font-bold">{(counterOffer.amount / 10000).toFixed(1)}万</span>
                     </div>
                   </div>
                   <div>

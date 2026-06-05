@@ -117,8 +117,8 @@ export default function PublicOffers() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-[#0D7377]">{o.amount}万</p>
-                    <p className="text-xs text-[#8B8BA7]">估值 {o.market_value}万</p>
+                    <p className="text-sm font-bold text-[#0D7377]">{(o.amount / 10000).toFixed(1)}万</p>
+                    <p className="text-xs text-[#8B8BA7]">估值 {(o.market_value / 10000).toFixed(1)}万</p>
                   </div>
                   <div className="text-right min-w-[80px]">
                     <span className={clsx(

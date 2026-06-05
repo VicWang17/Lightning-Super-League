@@ -103,14 +103,14 @@ export default function TransferHistory() {
             <TrendingDown className="w-4 h-4 text-red-400" />
             <span className="text-sm text-[#8B8BA7]">总支出</span>
           </div>
-          <p className="text-2xl font-bold text-red-400 stat-number">{totalIn}万</p>
+          <p className="text-2xl font-bold text-red-400 stat-number">{(totalIn / 10000).toFixed(1)}万</p>
         </div>
         <div className="card">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-4 h-4 text-emerald-400" />
             <span className="text-sm text-[#8B8BA7]">总收入</span>
           </div>
-          <p className="text-2xl font-bold text-emerald-400 stat-number">{totalOut}万</p>
+          <p className="text-2xl font-bold text-emerald-400 stat-number">{(totalOut / 10000).toFixed(1)}万</p>
         </div>
         <div className="card">
           <div className="flex items-center gap-2 mb-2">
@@ -118,7 +118,7 @@ export default function TransferHistory() {
             <span className="text-sm text-[#8B8BA7]">净投入</span>
           </div>
           <p className={clsx('text-2xl font-bold stat-number', totalIn - totalOut > 0 ? 'text-red-400' : 'text-emerald-400')}>
-            {totalIn - totalOut > 0 ? '+' : ''}{totalIn - totalOut}万
+            {totalIn - totalOut > 0 ? '+' : ''}{((totalIn - totalOut) / 10000).toFixed(1)}万
           </p>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function TransferHistory() {
                     </div>
                     <div className="text-right">
                       <p className={clsx('text-sm font-bold', isIn ? 'text-red-400' : isOut ? 'text-emerald-400' : 'text-[#8B8BA7]')}>
-                        {isIn ? '-' : isOut ? '+' : ''}{r.amount}万
+                        {isIn ? '-' : isOut ? '+' : ''}{(r.amount / 10000).toFixed(1)}万
                       </p>
                       <p className="text-xs text-[#4B4B6A]">
                         {new Date(r.completed_at).toLocaleDateString()}

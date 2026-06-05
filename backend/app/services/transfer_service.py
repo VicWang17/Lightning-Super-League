@@ -356,7 +356,7 @@ class TransferService:
         market_value = await self.calculate_market_value(player_id, seller_team_id)
         min_price = _quantize(market_value * Decimal("0.80"))
         if list_price < min_price:
-            raise ValueError(f"挂牌价不能低于市场估价的 80% ({float(min_price):.0f})")
+            raise ValueError(f"挂牌价不能低于市场估价的 80% ({float(min_price) / 10000:.1f}万)")
 
         now = await self.clock_service.now()
         deadline = now + timedelta(days=LISTING_INITIAL_DAYS)
@@ -387,7 +387,7 @@ class TransferService:
             seller_team_id,
             season.id,
             "球员挂牌",
-            f"你已将 {player.name} 挂牌出售，挂牌价 {float(list_price):.0f} 万。",
+            f"你已将 {player.name} 挂牌出售，挂牌价 {float(list_price) / 10000:.1f}万。",
             MailPriority.NORMAL,
         )
         return listing
@@ -500,12 +500,12 @@ class TransferService:
             if listing and listing.status == TransferListingStatus.ACTIVE and listing.player_id == player_id:
                 is_listed = True
                 if amount < listing.list_price:
-                    raise ValueError(f"报价不能低于挂牌价 {float(listing.list_price):.0f}")
+                    raise ValueError(f"报价不能低于挂牌价 {float(listing.list_price) / 10000:.1f}万")
         else:
             # 非挂牌报价不得低于估价 80%
             min_offer = _quantize(market_value * Decimal("0.80"))
             if amount < min_offer:
-                raise ValueError(f"非挂牌报价不得低于市场估价的 80% ({float(min_offer):.0f})")
+                raise ValueError(f"非挂牌报价不得低于市场估价的 80% ({float(min_offer) / 10000:.1f}万)")
 
         now = await self.clock_service.now()
         expires = now + timedelta(days=OFFER_EXPIRE_DAYS)
@@ -579,7 +579,7 @@ class TransferService:
             seller_team_id,
             season.id,
             "收到转会报价",
-            f"{player.name} 收到来自某球队的报价 {float(amount):.0f} 万。",
+            f"{player.name} 收到来自某球队的报价 {float(amount) / 10000:.1f}万。",
             MailPriority.NORMAL,
         )
 
@@ -662,7 +662,7 @@ class TransferService:
             initial_offer.buyer_team_id,
             initial_offer.season_id,
             "收到反报价",
-            f"你对 {player_name} 的报价收到反报价 {float(amount):.0f} 万。",
+            f"你对 {player_name} 的报价收到反报价 {float(amount) / 10000:.1f}万。",
             MailPriority.NORMAL,
         )
 
@@ -751,7 +751,7 @@ class TransferService:
             counter_offer.seller_team_id,
             counter_offer.season_id,
             "收到最终报价",
-            f"某球队对 {player_name} 提交最终报价 {float(amount):.0f} 万。",
+            f"某球队对 {player_name} 提交最终报价 {float(amount) / 10000:.1f}万。",
             MailPriority.NORMAL,
         )
 
@@ -876,7 +876,7 @@ class TransferService:
             source_type=TransactionSourceType.TRANSFER,
             direction=TransactionDirection.INCOME,
             amount=seller_income,
-            description=f"转会收入：出售 {player.name} (扣税 {float(tax):.0f})",
+            description=f"转会收入：出售 {player.name} (扣税 {float(tax) / 10000:.1f}万)",
             extra_data={"player_id": player_id, "negotiation_id": negotiation.id},
         )
 
@@ -950,14 +950,14 @@ class TransferService:
             buyer_team_id,
             season.id,
             "转会成交",
-            f"你已成功签下 {player.name}，支出 {float(amount):.0f} 万。",
+            f"你已成功签下 {player.name}，支出 {float(amount) / 10000:.1f}万。",
             MailPriority.HIGH,
         )
         await self._notify_team(
             seller_team_id,
             season.id,
             "转会成交",
-            f"{player.name} 已出售，收入 {float(seller_income):.0f} 万 (扣税 {float(tax):.0f})。",
+            f"{player.name} 已出售，收入 {float(seller_income) / 10000:.1f}万 (扣税 {float(tax) / 10000:.1f}万)。",
             MailPriority.HIGH,
         )
 
@@ -1101,7 +1101,7 @@ class TransferService:
             team_id,
             season.id,
             "球员解约",
-            f"{player.name} 已解约，支付违约金 {float(penalty):.0f} 万。球员进入自由市场。",
+            f"{player.name} 已解约，支付违约金 {float(penalty) / 10000:.1f}万。球员进入自由市场。",
             MailPriority.NORMAL,
         )
 

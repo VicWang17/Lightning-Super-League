@@ -118,7 +118,7 @@ export default function TransferMarket() {
 
   const openOfferModal = (player: MarketPlayer) => {
     setOfferPlayer(player)
-    setOfferAmount(player.list_price ? String(Math.round(player.list_price)) : String(Math.round(player.market_value)))
+    setOfferAmount(player.list_price ? String(Math.round(player.list_price / 10000)) : String(Math.round(player.market_value / 10000)))
     setOfferError(null)
     setOfferSuccess(false)
   }
@@ -144,7 +144,7 @@ export default function TransferMarket() {
       const res = await api.createTransferOffer({
         player_id: offerPlayer.player_id,
         buyer_team_id: teamRes.data.id,
-        amount: Number(offerAmount),
+        amount: Number(offerAmount) * 10000,
         listing_id: offerPlayer.listing_id || undefined,
       })
       if (res.success && res.data) {
@@ -302,9 +302,9 @@ export default function TransferMarket() {
                         </span>
                       </td>
                       <td className="text-sm text-[#8B8BA7]">{p.team_name}</td>
-                      <td className="text-right text-sm text-[#8B8BA7]">{p.market_value}万</td>
+                      <td className="text-right text-sm text-[#8B8BA7]">{(p.market_value / 10000).toFixed(1)}万</td>
                       <td className="text-right text-sm font-bold text-[#0D7377]">
-                        {p.list_price ? `${p.list_price}万` : '-'}
+                        {p.list_price ? `${(p.list_price / 10000).toFixed(1)}万` : '-'}
                       </td>
                       <td className="text-center">
                         {p.is_listed ? (
@@ -408,12 +408,12 @@ export default function TransferMarket() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#8B8BA7]">系统估值</span>
-                      <span className="text-[#0D7377] font-bold">{offerPlayer.market_value}万</span>
+                      <span className="text-[#0D7377] font-bold">{(offerPlayer.market_value / 10000).toFixed(1)}万</span>
                     </div>
                     {offerPlayer.list_price && (
                       <div className="flex justify-between">
                         <span className="text-[#8B8BA7]">挂牌价</span>
-                        <span className="text-emerald-400 font-bold">{offerPlayer.list_price}万</span>
+                        <span className="text-emerald-400 font-bold">{(offerPlayer.list_price / 10000).toFixed(1)}万</span>
                       </div>
                     )}
                   </div>

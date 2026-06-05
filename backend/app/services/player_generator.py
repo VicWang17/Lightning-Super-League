@@ -72,9 +72,9 @@ ARCHETYPE_CONFIG = {
 
 # Style 分布
 STYLE_DISTRIBUTION = [
-    ("标准型", 0.70),
-    ("天才型", 0.15),
-    ("平均型", 0.15),
+    ("标准型", 0.72),
+    ("天才型", 0.16),
+    ("平均型", 0.12),
 ]
 
 # 潜力分布 -> (letter, min_potential, max_potential, weight)
@@ -151,6 +151,84 @@ OVR_WEIGHTS = {
         "sho": 0, "dri": 0, "spd": 0, "str_": 0, "sta": 0, "defe": 0, "hea": 0,
         "vis": 0, "tkl": 0, "acc": 0, "cro": 0, "con": 0, "fin": 0, "bal": 0,
         "fk": 0, "pk": 0,
+    },
+}
+
+PLAYER_ATTRIBUTES = [
+    "sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal",
+    "defe", "tkl", "vis", "cro", "con", "fin", "com", "sav", "ref",
+    "pos", "rus", "dec", "fk", "pk",
+]
+
+# Archetype-specific weaknesses create recognizable tradeoffs instead of
+# simply boosting every relevant attribute together.
+ARCHETYPE_WEAKNESS_BIAS = {
+    "射手型": {"spd": 1.35, "acc": 1.25, "dri": 1.15, "sta": 1.10},
+    "速度型": {"str_": 1.35, "hea": 1.20, "pas": 1.10, "dec": 1.10},
+    "支点型": {"spd": 1.45, "acc": 1.35, "dri": 1.15},
+    "边锋型": {"str_": 1.25, "hea": 1.20, "defe": 1.10},
+    "工兵型": {"sho": 1.25, "fin": 1.20, "vis": 1.10, "fk": 1.10},
+    "组织型": {"spd": 1.25, "str_": 1.20, "sho": 1.10, "hea": 1.10},
+    "攻击型": {"defe": 1.30, "tkl": 1.25, "str_": 1.10},
+    "全能型": {},
+    "边翼型": {"str_": 1.20, "hea": 1.15, "defe": 1.10},
+    "中卫型": {"spd": 1.25, "acc": 1.20, "dri": 1.15, "sho": 1.10},
+    "边卫型": {"str_": 1.25, "hea": 1.20, "sho": 1.10},
+    "清道夫型": {"sho": 1.25, "fin": 1.20, "acc": 1.10},
+    "传统型": {"pas": 1.25, "spd": 1.15, "rus": 1.10},
+    "出击型": {"pos": 1.20, "pas": 1.15, "pk": 1.10},
+    "出球型": {"str_": 1.20, "rus": 1.15, "pk": 1.10},
+}
+
+ATTRIBUTE_PROFILE_DISTRIBUTION = {
+    "标准型": [
+        ("specialist", 0.36),
+        ("flawed_starter", 0.28),
+        ("balanced", 0.22),
+        ("volatile", 0.10),
+        ("all_rounder", 0.04),
+    ],
+    "天才型": [
+        ("specialist", 0.40),
+        ("volatile", 0.28),
+        ("flawed_starter", 0.18),
+        ("balanced", 0.09),
+        ("all_rounder", 0.05),
+    ],
+    "平均型": [
+        ("balanced", 0.52),
+        ("flawed_starter", 0.22),
+        ("specialist", 0.16),
+        ("all_rounder", 0.08),
+        ("volatile", 0.02),
+    ],
+}
+
+ATTRIBUTE_PROFILE_CONFIG = {
+    "specialist": {
+        "strengths": (2, 3), "weaknesses": (2, 4),
+        "strong_bonus": (2.4, 4.8), "weak_penalty": (2.2, 4.4),
+        "variance": 1.4,
+    },
+    "flawed_starter": {
+        "strengths": (1, 2), "weaknesses": (3, 5),
+        "strong_bonus": (1.8, 3.6), "weak_penalty": (2.6, 5.0),
+        "variance": 1.2,
+    },
+    "balanced": {
+        "strengths": (1, 2), "weaknesses": (1, 2),
+        "strong_bonus": (1.2, 2.6), "weak_penalty": (1.0, 2.4),
+        "variance": 0.9,
+    },
+    "volatile": {
+        "strengths": (3, 4), "weaknesses": (3, 5),
+        "strong_bonus": (2.8, 5.2), "weak_penalty": (2.8, 5.4),
+        "variance": 1.8,
+    },
+    "all_rounder": {
+        "strengths": (3, 5), "weaknesses": (0, 1),
+        "strong_bonus": (1.0, 2.2), "weak_penalty": (0.8, 1.6),
+        "variance": 0.7,
     },
 }
 
@@ -390,6 +468,70 @@ class AttributeGenerator:
         weights = OVR_WEIGHTS[position]
         total = sum((attrs.get(k, 10) / 20.0) * w for k, w in weights.items())
         return int(round(total))
+
+    @staticmethod
+    def _pick_attribute_profile(style: str, base_ovr: int) -> str:
+        distribution = list(ATTRIBUTE_PROFILE_DISTRIBUTION.get(style, ATTRIBUTE_PROFILE_DISTRIBUTION["标准型"]))
+        if base_ovr < 72:
+            distribution = [
+                (name, weight * 0.35 if name == "all_rounder" else weight)
+                for name, weight in distribution
+            ]
+        elif base_ovr >= 82:
+            distribution = [
+                (name, weight * 1.8 if name == "all_rounder" else weight)
+                for name, weight in distribution
+            ]
+        return _weighted_choice(distribution)
+
+    @staticmethod
+    def _weighted_sample_attrs(candidates: list[str], weights: dict[str, float], count: int) -> set[str]:
+        picked: set[str] = set()
+        pool = list(dict.fromkeys(candidates))
+        while pool and len(picked) < count:
+            choice = random.choices(pool, weights=[weights.get(attr, 1.0) for attr in pool], k=1)[0]
+            picked.add(choice)
+            pool.remove(choice)
+        return picked
+
+    @staticmethod
+    def _calibrate_ovr(
+        position: PlayerPosition,
+        attrs: dict,
+        target_ovr: int,
+        strengths: set[str],
+        weaknesses: set[str],
+    ) -> dict:
+        weights = OVR_WEIGHTS[position]
+        relevant_attrs = [attr for attr, weight in weights.items() if weight > 0]
+
+        for _ in range(90):
+            current_ovr = AttributeGenerator.calculate_ovr(position, attrs)
+            diff = target_ovr - current_ovr
+            if abs(diff) <= 1:
+                break
+
+            if diff > 0:
+                candidates = [attr for attr in relevant_attrs if attrs.get(attr, 10) < 20]
+                if not candidates:
+                    break
+                step_weights = {
+                    attr: weights[attr] * (1.8 if attr in strengths else 0.55 if attr in weaknesses else 1.0)
+                    for attr in candidates
+                }
+                attr = random.choices(candidates, weights=[step_weights[a] for a in candidates], k=1)[0]
+                attrs[attr] += 1
+            else:
+                candidates = [attr for attr in relevant_attrs if attrs.get(attr, 10) > 1]
+                if not candidates:
+                    break
+                step_weights = {
+                    attr: weights[attr] * (1.8 if attr in weaknesses else 0.45 if attr in strengths else 1.0)
+                    for attr in candidates
+                }
+                attr = random.choices(candidates, weights=[step_weights[a] for a in candidates], k=1)[0]
+                attrs[attr] -= 1
+        return attrs
     
     @staticmethod
     def generate(position: PlayerPosition, archetype: str, style: str,
@@ -410,50 +552,64 @@ class AttributeGenerator:
         
         # 3. Archetype 加成
         bias = ARCHETYPE_BIAS.get(archetype, {})
+        weakness_bias = ARCHETYPE_WEAKNESS_BIAS.get(archetype, {})
         
-        # 4. Style 修正
+        # 4. 选择属性画像：大多数球员会有明确强项和短板，少数才是全能型。
+        profile = AttributeGenerator._pick_attribute_profile(style, base_ovr)
+        profile_config = ATTRIBUTE_PROFILE_CONFIG[profile]
+        strength_count = random.randint(*profile_config["strengths"])
+        weakness_count = random.randint(*profile_config["weaknesses"])
+
+        core_candidates = [attr for attr in PLAYER_ATTRIBUTES if attr in core_attrs]
+        strength_weights = {attr: bias.get(attr, 1.0) for attr in core_candidates}
+        strengths = AttributeGenerator._weighted_sample_attrs(core_candidates, strength_weights, strength_count)
+
+        relevant_weights = OVR_WEIGHTS[position]
+        weakness_candidates = [
+            attr for attr in core_candidates
+            if attr not in strengths and relevant_weights.get(attr, 0) > 0
+        ]
+        if len(weakness_candidates) < weakness_count:
+            weakness_candidates.extend([attr for attr in core_candidates if attr not in strengths])
+        weakness_weights = {
+            attr: weakness_bias.get(attr, 1.0) * (1.0 + relevant_weights.get(attr, 0) / 20.0)
+            for attr in weakness_candidates
+        }
+        weaknesses = AttributeGenerator._weighted_sample_attrs(weakness_candidates, weakness_weights, weakness_count)
+
+        variance = profile_config["variance"]
         if style == "天才型":
-            style_core_boost = 1.15
-            style_non_core_penalty = 0.85
-            variance = 1.5
+            variance *= 1.15
         elif style == "平均型":
-            style_core_boost = 1.0
-            style_non_core_penalty = 1.0
-            variance = 0.5
-        else:  # 标准型
-            style_core_boost = 1.0
-            style_non_core_penalty = 1.0
-            variance = 1.0
+            variance *= 0.75
         
         # 5. 逐项生成
-        all_attrs = ["sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal",
-                     "defe", "tkl", "vis", "cro", "con", "fin", "com", "sav", "ref", "pos", "rus", "dec", "fk", "pk"]
-        
         attrs = {}
-        for attr in all_attrs:
+        for attr in PLAYER_ATTRIBUTES:
             is_core = attr in core_attrs
             
             # 基础值: OVR 映射到 1-20 区间
             base_attr = (base_ovr / 100.0) * 18 + 1  # 映射到 1-19
             
-            # 核心属性略高
+            # 核心属性略高，非核心属性明显拉低，避免所有位置都全能。
             if is_core:
-                base_attr *= 1.05
+                base_attr *= 1.02
             else:
-                base_attr *= 0.85
+                base_attr *= 0.68
             
-            # Archetype 加成
+            # Archetype 只提供倾向，真正的强弱项由画像决定。
             bias_factor = bias.get(attr, 1.0)
-            base_attr *= bias_factor
-            
-            # Style 修正
-            if is_core:
-                base_attr *= style_core_boost
-            else:
-                base_attr *= style_non_core_penalty
+            base_attr *= 1.0 + (bias_factor - 1.0) * 0.55
+
+            if attr in strengths:
+                base_attr += random.uniform(*profile_config["strong_bonus"])
+            elif attr in weaknesses:
+                base_attr -= random.uniform(*profile_config["weak_penalty"])
+            elif is_core and profile in {"specialist", "volatile", "flawed_starter"}:
+                base_attr += random.uniform(-0.9, 0.6)
             
             # 随机方差
-            noise = random.gauss(0, variance * 1.5)
+            noise = random.gauss(0, variance)
             val = base_attr + noise
             
             attrs[attr] = _clamp(val)
@@ -470,7 +626,8 @@ class AttributeGenerator:
             random.gauss(0, variance)
         )
 
-        # 6. 计算实际OVR (可能因分布与base_ovr不同)
+        # 6. 校准实际OVR，尽量保持球队强度分布，同时保留强弱项轮廓。
+        attrs = AttributeGenerator._calibrate_ovr(position, attrs, base_ovr, strengths, weaknesses)
         actual_ovr = AttributeGenerator.calculate_ovr(position, attrs)
         attrs["ovr"] = actual_ovr
         return attrs

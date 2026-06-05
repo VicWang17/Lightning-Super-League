@@ -89,7 +89,7 @@ export default function MyOffers() {
     try {
       const res = await api.createFinalOffer(finalNegotiation.negotiationId, {
         buyer_team_id: teamId,
-        amount: Number(finalAmount),
+        amount: Number(finalAmount) * 10000,
       })
       if (res.success && res.data) {
         setFinalSuccess(true)
@@ -170,7 +170,7 @@ export default function MyOffers() {
                       </Link>
                     </p>
                     <p className="text-xs text-[#4B4B6A]">
-                      {OFFER_KIND_NAMES[o.offer_kind]} · {o.amount}万
+                      {OFFER_KIND_NAMES[o.offer_kind]} · {(o.amount / 10000).toFixed(1)}万
                     </p>
                   </div>
                   <div className="text-right min-w-[80px]">
