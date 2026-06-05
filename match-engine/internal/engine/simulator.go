@@ -125,6 +125,11 @@ func (sim *Simulator) Simulate(req domain.SimulateRequest) domain.SimulateResult
 		baseSec := 4.0 + sim.r.Float64()*3.5
 		ms.AdvanceClock(baseSec)
 
+		// Apply per-minute wear to all on-field players
+		if int(ms.Minute) > int(prevMinute) {
+			sim.applyMinuteWear(ms)
+		}
+
 		// Fast recovery skill: every 5 minutes
 		if int(ms.Minute/5) > int(prevMinute/5) {
 			ApplyFastRecovery(ms)
@@ -213,6 +218,12 @@ func (sim *Simulator) runExtraTime(ms *domain.MatchState) string {
 
 		baseSec := 4.0 + sim.r.Float64()*3.5
 		ms.AdvanceClock(baseSec)
+
+		// Apply per-minute wear to all on-field players
+		if int(ms.Minute) > int(prevMinute) {
+			sim.applyMinuteWear(ms)
+		}
+
 		if int(ms.Minute/5) > int(prevMinute/5) {
 			ApplyFastRecovery(ms)
 		}
@@ -1459,6 +1470,11 @@ func (sim *Simulator) doWingBreakEvent(ms *domain.MatchState, possTeam, oppTeam 
 
 	ConsumeStamina(dribbler, StaminaCost(config.EventWingBreak))
 	ConsumeStamina(defender, StaminaCost(config.EventWingBreak)*0.6)
+	sim.applyWearForAction(dribbler, "sprint")
+	sim.applyWearForAction(defender, "direction_change")
+	if dribbler.CurrentStamina < 30 {
+		sim.maybeApplyInjury(ms, dribbler, "sprint_fatigue", defender)
+	}
 
 	dribbler.Stats.Dribbles++
 	if possTeam == ms.HomeTeam {
@@ -1515,6 +1531,7 @@ func (sim *Simulator) doCutInsideEvent(ms *domain.MatchState, possTeam, oppTeam 
 
 	success := ResolveDuel(atkVal, defVal, sim.r)
 	ConsumeStamina(dribbler, StaminaCost(config.EventCutInside))
+	sim.applyWearForAction(dribbler, "direction_change")
 
 	dribbler.Stats.Dribbles++
 	if possTeam == ms.HomeTeam {
@@ -1575,6 +1592,11 @@ func (sim *Simulator) doDribblePastEvent(ms *domain.MatchState, possTeam, oppTea
 
 	ConsumeStamina(dribbler, StaminaCost(config.EventDribblePast))
 	ConsumeStamina(defender, StaminaCost(config.EventDribblePast)*0.6)
+	sim.applyWearForAction(dribbler, "sprint")
+	sim.applyWearForAction(defender, "direction_change")
+	if dribbler.CurrentStamina < 30 {
+		sim.maybeApplyInjury(ms, dribbler, "sprint_fatigue", defender)
+	}
 
 	dribbler.Stats.Dribbles++
 	if possTeam == ms.HomeTeam {
@@ -1910,6 +1932,10 @@ func (sim *Simulator) doHeaderDuel(ms *domain.MatchState, possTeam, oppTeam *dom
 
 	ConsumeStamina(attacker, 1.5)
 	ConsumeStamina(defender, 1.5)
+	sim.applyWearForAction(attacker, "header")
+	sim.applyWearForAction(defender, "header")
+	sim.maybeApplyInjury(ms, attacker, "aerial_clash", defender)
+	sim.maybeApplyInjury(ms, defender, "aerial_clash", attacker)
 
 	attacker.Stats.Headers++
 	defender.Stats.Headers++
@@ -2046,6 +2072,8 @@ func (sim *Simulator) doKeeperRushEvent(ms *domain.MatchState, possTeam, oppTeam
 	success := ResolveDuel(rushAtk, aerialDef, sim.r, com)
 
 	ConsumeStamina(keeper, 2.0)
+	sim.applyWearForAction(keeper, "keeper_dive")
+	sim.maybeApplyInjury(ms, keeper, "keeper_dive", attacker)
 
 	if success {
 		// Rush success: keeper claims the ball
@@ -2085,6 +2113,9 @@ func (sim *Simulator) doShotEventWithKeeperOut(ms *domain.MatchState, possTeam, 
 	success := ResolveDuel(atkVal, defVal+0.2, sim.r, com)
 
 	ConsumeStamina(shooter, StaminaCost(config.EventCloseShot))
+	sim.applyWearForAction(shooter, "shot")
+	sim.applyWearForAction(keeper, "keeper_dive")
+	sim.maybeApplyInjury(ms, keeper, "keeper_dive", shooter)
 
 	if ms.Possession == domain.SideHome {
 		ms.HomeStats.Shots++
@@ -2335,6 +2366,7 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 	success := ResolveDuel(atkVal, defVal+2.5, sim.r, com)
 
 	ConsumeStamina(shooter, StaminaCost(config.EventCloseShot))
+	sim.applyWearForAction(shooter, "shot")
 
 	// Stats
 	if ms.Possession == domain.SideHome {
@@ -2560,52 +2592,23 @@ func (sim *Simulator) doTackleEvent(ms *domain.MatchState, possTeam, oppTeam *do
 		sim.boostGlobalMomentum(ms, 0.01)
 	}
 
-	// === Injury check from hard tackle ===
-	if !holder.Injured && success {
-		injuryRoll := sim.r.Float64()
+	// === Wear accumulation from tackle ===
+	wearMult := GetStaminaWearMultiplier(holder.CurrentStamina)
+	ApplyMatchWear(holder, "tackle", wearMult)
+	ApplyMatchWear(tackler, "tackle", wearMult)
+
+	// === Injury check from hard tackle (new wear-driven system) ===
+	if holder.MatchInjury == nil && success {
 		tackleIntensity := tackler.GetAttrByName("TKL")*0.5 + tackler.GetAttrByName("STR")*0.3
-		// Apply skill injury probability modifiers (铁人 / 玻璃体质)
-		ctx := SkillContext{EventType: config.EventTackle, Player: holder, Zone: zone, Minute: ms.Minute, Half: ms.Half}
-		bonus := ComputeSkillBonus(ctx)
-		injuryMod := bonus.ProbMod
-		majorThreshold := 0.005 + injuryMod
-		minorThreshold := 0.02 + injuryMod
-		if majorThreshold < 0 {
-			majorThreshold = 0
+		action := "brutal_tackle"
+		if tackleIntensity <= 14 {
+			action = "tackle" // use brutal_tackle only for intensity > 14
 		}
-		if minorThreshold < 0 {
-			minorThreshold = 0
-		}
-		if tackleIntensity > 14 && injuryRoll < majorThreshold {
-			// Major injury from brutal tackle
-			holder.Injured = true
-			holder.InjurySeverity = 2
-			if bonus.NarrativeSuffix != "" {
-				holder.LastSkillSuffix = bonus.NarrativeSuffix
+		if tackleIntensity > 12 {
+			occurred, part, severity := CheckInjury(sim.r, holder, action)
+			if occurred {
+				sim.applyInjury(ms, holder, part, severity, tackler)
 			}
-			sim.addEvent(ms, domain.MatchEvent{
-				Type:         config.EventMajorInjury,
-				Team:         possTeam.Name,
-				PlayerID:     holder.PlayerID,
-				PlayerName:   holder.Name,
-				OpponentID:   tackler.PlayerID,
-				OpponentName: tackler.Name,
-			})
-		} else if tackleIntensity > 12 && injuryRoll < minorThreshold {
-			// Minor injury
-			holder.Injured = true
-			holder.InjurySeverity = 1
-			if bonus.NarrativeSuffix != "" {
-				holder.LastSkillSuffix = bonus.NarrativeSuffix
-			}
-			sim.addEvent(ms, domain.MatchEvent{
-				Type:         config.EventMinorInjury,
-				Team:         possTeam.Name,
-				PlayerID:     holder.PlayerID,
-				PlayerName:   holder.Name,
-				OpponentID:   tackler.PlayerID,
-				OpponentName: tackler.Name,
-			})
 		}
 	}
 
@@ -3073,51 +3076,21 @@ func (sim *Simulator) doFoulEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 		})
 	}
 
-	// === Injury check ===
-	if !victim.Injured {
-		injuryRoll := sim.r.Float64()
-		// Apply skill injury probability modifiers (铁人 / 玻璃体质)
-		ctx := SkillContext{EventType: config.EventFoul, Player: victim, Zone: zone, Minute: ms.Minute, Half: ms.Half}
-		bonus := ComputeSkillBonus(ctx)
-		injuryMod := bonus.ProbMod
-		majorThreshold := 0.50 + injuryMod
-		minorThreshold := 0.06 + injuryMod
-		if majorThreshold < 0 {
-			majorThreshold = 0
+	// === Wear accumulation from foul ===
+	wearMult := GetStaminaWearMultiplier(victim.CurrentStamina)
+	ApplyMatchWear(victim, "tackle", wearMult)
+
+	// === Injury check (new wear-driven system) ===
+	if victim.MatchInjury == nil {
+		action := "dangerous_foul"
+		if cardResult != "red" && severityScore <= yellowThreshold {
+			action = "" // only check for dangerous fouls
 		}
-		if minorThreshold < 0 {
-			minorThreshold = 0
-		}
-		if cardResult == "red" && injuryRoll < majorThreshold {
-			// Major injury from dangerous foul (red card level)
-			victim.Injured = true
-			victim.InjurySeverity = 2
-			if bonus.NarrativeSuffix != "" {
-				victim.LastSkillSuffix = bonus.NarrativeSuffix
+		if action != "" {
+			occurred, part, severity := CheckInjury(sim.r, victim, action)
+			if occurred {
+				sim.applyInjury(ms, victim, part, severity, fouler)
 			}
-			sim.addEvent(ms, domain.MatchEvent{
-				Type:         config.EventMajorInjury,
-				Team:         possTeam.Name,
-				PlayerID:     victim.PlayerID,
-				PlayerName:   victim.Name,
-				OpponentID:   fouler.PlayerID,
-				OpponentName: fouler.Name,
-			})
-		} else if severityScore > yellowThreshold && injuryRoll < minorThreshold {
-			// Minor injury
-			victim.Injured = true
-			victim.InjurySeverity = 1
-			if bonus.NarrativeSuffix != "" {
-				victim.LastSkillSuffix = bonus.NarrativeSuffix
-			}
-			sim.addEvent(ms, domain.MatchEvent{
-				Type:         config.EventMinorInjury,
-				Team:         possTeam.Name,
-				PlayerID:     victim.PlayerID,
-				PlayerName:   victim.Name,
-				OpponentID:   fouler.PlayerID,
-				OpponentName: fouler.Name,
-			})
 		}
 	}
 
@@ -3714,6 +3687,29 @@ func (sim *Simulator) addEvent(ms *domain.MatchState, ev domain.MatchEvent) {
 	if ev.Score == nil {
 		ev.Score = &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away}
 	}
+	// Auto-fill jersey numbers from player runtimes
+	for _, p := range ms.HomeTeam.PlayerRuntimes {
+		if p.PlayerID == ev.PlayerID {
+			ev.PlayerNumber = p.Number
+		}
+		if p.PlayerID == ev.Player2ID {
+			ev.Player2Number = p.Number
+		}
+		if p.PlayerID == ev.OpponentID {
+			ev.OpponentNumber = p.Number
+		}
+	}
+	for _, p := range ms.AwayTeam.PlayerRuntimes {
+		if p.PlayerID == ev.PlayerID {
+			ev.PlayerNumber = p.Number
+		}
+		if p.PlayerID == ev.Player2ID {
+			ev.Player2Number = p.Number
+		}
+		if p.PlayerID == ev.OpponentID {
+			ev.OpponentNumber = p.Number
+		}
+	}
 	// Generate narrative with control/momentum context
 	ctrl := ms.EffectiveControl(ms.ActiveZone)
 	ev.Narrative = sim.ng.GenerateWithContext(ev, ctrl, ms.GlobalMomentum, ms.ActiveZone)
@@ -3869,7 +3865,10 @@ func (sim *Simulator) buildResult(ms *domain.MatchState) domain.SimulateResult {
 			if rating < 3.0 {
 				rating = 3.0
 			}
-			result.PlayerStats = append(result.PlayerStats, domain.PlayerResultStat{
+			if p.CurrentStamina < 10 {
+				sim.maybeApplyInjury(ms, p, "post_overuse", nil)
+			}
+			stat := domain.PlayerResultStat{
 				PlayerID:        p.PlayerID,
 				Name:            p.Name,
 				Position:        p.Position,
@@ -3905,7 +3904,15 @@ func (sim *Simulator) buildResult(ms *domain.MatchState) domain.SimulateResult {
 				Turnovers:       ps.Turnovers,
 				Touches:         ps.Touches,
 				Rating:          round(rating, 1),
-			})
+				MatchWear:       p.MatchWear,
+			}
+			if p.MatchInjury != nil {
+				stat.InjuryBodyPart = p.MatchInjury.BodyPart
+				stat.InjuryName = p.MatchInjury.InjuryName
+				stat.InjurySeverity = p.MatchInjury.Severity
+				stat.InjuryDays = p.MatchInjury.RemainingDays
+			}
+			result.PlayerStats = append(result.PlayerStats, stat)
 		}
 	}
 
@@ -3938,6 +3945,165 @@ func (sim *Simulator) recordAssist(ms *domain.MatchState, scorer *domain.PlayerR
 			ms.LastPasser.Stats.Assists++
 			ms.LastPasser.Stats.RatingBase += 0.7
 			return
+		}
+	}
+}
+
+// applyInjury creates an injury event and sets player state.
+// opponent may be nil for non-contact injuries.
+func (sim *Simulator) applyInjury(ms *domain.MatchState, player *domain.PlayerRuntime, part string, severity int, opponent *domain.PlayerRuntime) {
+	if player.MatchInjury != nil {
+		return // already injured
+	}
+
+	days := RandomRecoveryDays(sim.r, part, severity)
+	injuryName := GetInjuryName(part, severity)
+
+	player.MatchInjury = &domain.ActiveInjury{
+		BodyPart:      part,
+		InjuryName:    injuryName,
+		Severity:      severity,
+		RemainingDays: days,
+		AttrImpact:    BuildInjuryAttrImpact(part),
+	}
+
+	// Legacy flags for compatibility
+	player.Injured = true
+	player.InjurySeverity = severity
+
+	// Determine event type
+	evType := config.EventMinorInjury
+	if severity >= 2 {
+		evType = config.EventMajorInjury
+	}
+
+	var teamName string
+	for _, t := range []*domain.TeamRuntime{ms.HomeTeam, ms.AwayTeam} {
+		for _, pl := range t.PlayerRuntimes {
+			if pl.PlayerID == player.PlayerID {
+				teamName = t.Name
+				break
+			}
+		}
+		for _, pl := range t.BenchRuntimes {
+			if pl.PlayerID == player.PlayerID {
+				teamName = t.Name
+				break
+			}
+		}
+	}
+
+	ev := domain.MatchEvent{
+		Type:       evType,
+		Team:       teamName,
+		PlayerID:   player.PlayerID,
+		PlayerName: player.Name,
+		Zone:       zoneStr(ms.ActiveZone),
+		Detail:     part + "|" + injuryName + "|" + fmt.Sprintf("%d", severity) + "|" + fmt.Sprintf("%d", days),
+	}
+	if opponent != nil {
+		ev.OpponentID = opponent.PlayerID
+		ev.OpponentName = opponent.Name
+	}
+	sim.addEvent(ms, ev)
+
+	// Medium/Major injuries: attempt substitution if possible
+	if severity >= 2 {
+		sim.attemptInjurySubstitution(ms, player)
+	}
+}
+
+// applyWearForAction applies match wear for a specific action to a player
+func (sim *Simulator) applyWearForAction(p *domain.PlayerRuntime, action string) {
+	mult := GetStaminaWearMultiplier(p.CurrentStamina)
+	ApplyMatchWear(p, action, mult)
+}
+
+func (sim *Simulator) maybeApplyInjury(ms *domain.MatchState, player *domain.PlayerRuntime, action string, opponent *domain.PlayerRuntime) {
+	if player == nil || player.MatchInjury != nil || player.Substituted || player.RedCard {
+		return
+	}
+	occurred, part, severity := CheckInjury(sim.r, player, action)
+	if occurred {
+		sim.applyInjury(ms, player, part, severity, opponent)
+	}
+}
+
+// attemptInjurySubstitution tries to substitute an injured player
+func (sim *Simulator) attemptInjurySubstitution(ms *domain.MatchState, injured *domain.PlayerRuntime) {
+	// Find the team
+	var team *domain.TeamRuntime
+	for _, t := range []*domain.TeamRuntime{ms.HomeTeam, ms.AwayTeam} {
+		for _, p := range t.PlayerRuntimes {
+			if p.PlayerID == injured.PlayerID {
+				team = t
+				break
+			}
+		}
+	}
+	if team == nil {
+		return
+	}
+
+	// Find available substitute (same position preferred)
+	var sub *domain.PlayerRuntime
+	for _, b := range team.BenchRuntimes {
+		if b.Substituted || b.RedCard || b.MatchInjury != nil {
+			continue
+		}
+		if sub == nil {
+			sub = b
+		} else if b.Position == injured.Position {
+			sub = b
+			break
+		}
+	}
+
+	if sub != nil {
+		// Perform substitution
+		injured.Substituted = true
+		sub.Substituted = false
+		// Replace in PlayerRuntimes
+		for i, p := range team.PlayerRuntimes {
+			if p.PlayerID == injured.PlayerID {
+				team.PlayerRuntimes[i] = sub
+				break
+			}
+		}
+		// Add to bench
+		team.BenchRuntimes = append(team.BenchRuntimes, injured)
+		// Remove sub from bench
+		newBench := make([]*domain.PlayerRuntime, 0, len(team.BenchRuntimes))
+		for _, b := range team.BenchRuntimes {
+			if b.PlayerID != sub.PlayerID {
+				newBench = append(newBench, b)
+			}
+		}
+		team.BenchRuntimes = newBench
+
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:         config.EventSubstitution,
+			Team:         team.Name,
+			PlayerID:     sub.PlayerID,
+			PlayerName:   sub.Name,
+			OpponentID:   injured.PlayerID,
+			OpponentName: injured.Name,
+		})
+	}
+}
+
+// applyMinuteWear applies per-minute wear to all on-field players
+func (sim *Simulator) applyMinuteWear(ms *domain.MatchState) {
+	for _, team := range []*domain.TeamRuntime{ms.HomeTeam, ms.AwayTeam} {
+		for _, p := range team.PlayerRuntimes {
+			if p.Substituted || p.RedCard {
+				continue
+			}
+			mult := GetStaminaWearMultiplier(p.CurrentStamina)
+			ApplyMinuteWear(p, mult)
+			if p.CurrentStamina < 15 {
+				sim.maybeApplyInjury(ms, p, "fatigue_crit", nil)
+			}
 		}
 	}
 }

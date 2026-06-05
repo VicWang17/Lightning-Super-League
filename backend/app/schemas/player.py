@@ -127,6 +127,8 @@ class PlayerBase(BaseSchema):
     avatar_url: Optional[str] = Field(None, description="头像路径")
     position: PlayerPosition = Field(..., description="位置")
     preferred_foot: PlayerFoot = PlayerFoot.RIGHT
+    preferred_number: int = Field(default=10, ge=1, le=99, description="号码偏好")
+    squad_number: Optional[int] = Field(None, ge=1, le=99, description="队内号码")
     height: int = Field(..., ge=165, le=200, description="身高(cm)")
     weight: int = Field(..., ge=60, le=95, description="体重(kg)")
     birth_offset: int = Field(..., description="出生偏移量(负数)")
@@ -178,6 +180,10 @@ class PlayerResponse(PlayerBase):
     release_clause: Optional[Decimal] = None
     squad_role: str = Field(default="first_team")
     
+    # 号码
+    preferred_number: int = Field(default=10, ge=1, le=99)
+    squad_number: Optional[int] = Field(None, ge=1, le=99)
+    
     # 经济
     market_value: Decimal
     
@@ -206,6 +212,7 @@ class PlayerListItem(BaseSchema):
     ovr: int
     potential_letter: PotentialLetter
     market_value: Decimal
+    squad_number: Optional[int] = None
     team_id: Optional[str] = None
 
 

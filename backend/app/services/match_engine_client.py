@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models.player import Player, PlayerPosition
-from app.models.season import Fixture, FixtureType
+from app.models.season import Fixture, FixtureType, Season
 from app.models.team import Team
 from app.services.player_state_service import PlayerStateService
 
@@ -231,10 +231,14 @@ class MatchEngineClient:
             FixtureType.PLAYOFF,
         }
 
+        # 获取当前赛季编号用于计算球员年龄
+        season = await db.get(Season, fixture.season_id)
+        season_number = season.season_number if season else 0
+
         return {
             "match_id": fixture.id,
-            "home_team": await self._build_team_setup(home_team, home_players, db),
-            "away_team": await self._build_team_setup(away_team, away_players, db),
+            "home_team": await self._build_team_setup(home_team, home_players, db, season_number),
+            "away_team": await self._build_team_setup(away_team, away_players, db, season_number),
             "home_advantage": True,
             "requires_winner": requires_winner,
             "mode": self.mode,
@@ -256,11 +260,13 @@ class MatchEngineClient:
             raise ValueError(f"Team {team_id} has fewer than 8 players")
         return players
 
-    async def _build_team_setup(self, team: Team, players: list[Player], db=None) -> dict[str, Any]:
+    async def _build_team_setup(self, team: Team, players: list[Player], db=None, season_number: int = 0) -> dict[str, Any]:
         formation_id = self._choose_formation(players)
         starters, bench = self._select_lineup(players, formation_id)
-        starter_setups = await asyncio.gather(*[self._player_setup(p, db) for p in starters])
-        bench_setups = await asyncio.gather(*[self._player_setup(p, db) for p in bench])
+        if len(starters) < 8:
+            raise ValueError(f"Team {team.id} has fewer than 8 match-fit players")
+        starter_setups = await asyncio.gather(*[self._player_setup(p, db, season_number) for p in starters])
+        bench_setups = await asyncio.gather(*[self._player_setup(p, db, season_number) for p in bench])
         return {
             "team_id": team.id,
             "name": team.name,
@@ -273,7 +279,7 @@ class MatchEngineClient:
 
     def _select_lineup(self, players: list[Player], formation_id: str) -> tuple[list[Player], list[Player]]:
         active = [p for p in players if getattr(p.status, "value", p.status) == "ACTIVE"]
-        pool = active if len(active) >= 8 else players
+        pool = active
         gks = sorted([p for p in pool if p.position == PlayerPosition.GK], key=self._lineup_score, reverse=True)
         outfield = [p for p in pool if p.position != PlayerPosition.GK]
 
@@ -299,7 +305,7 @@ class MatchEngineClient:
 
     def _choose_formation(self, players: list[Player]) -> str:
         active = [p for p in players if getattr(p.status, "value", p.status) == "ACTIVE"]
-        pool = active if len(active) >= 8 else players
+        pool = active
         outfield = [p for p in pool if p.position != PlayerPosition.GK]
         if len(outfield) < 7:
             return "F01"
@@ -414,7 +420,7 @@ class MatchEngineClient:
             ),
         }
 
-    async def _player_setup(self, player: Player, db=None) -> dict[str, Any]:
+    async def _player_setup(self, player: Player, db=None, season_number: int = 0) -> dict[str, Any]:
         # 基础属性
         base_attributes = {
             "SHO": player.sho,
@@ -440,6 +446,7 @@ class MatchEngineClient:
             "DEC": player.dec,
         }
         stamina = float(player.fitness or 100)
+        age = season_number + abs(player.birth_offset)
         
         # 应用状态修正（需要 db session）。大规模闭环压测可关闭，避免为每个赛前 payload
         # 重复查询近期比赛状态；赛后状态更新仍由 MatchSimulator 负责。
@@ -450,6 +457,10 @@ class MatchEngineClient:
                 setup = await state_service.build_match_player_setup(player)
                 # 保留 skills 和其他字段，build_match_player_setup 只返回基础结构
                 setup["skills"] = self._skill_names(player.skills or [])
+                # 追加伤病系统字段
+                setup["body_wear"] = player.body_wear or {}
+                setup["traits"] = player.traits or []
+                setup["age"] = age
                 return setup
             except Exception as exc:
                 logger.warning(
@@ -460,11 +471,15 @@ class MatchEngineClient:
             "player_id": player.id,
             "name": player.name,
             "position": getattr(player.position, "value", player.position),
+            "number": player.squad_number or player.preferred_number or 0,
             "attributes": base_attributes,
             "skills": self._skill_names(player.skills or []),
             "stamina": stamina,
             "height": player.height,
             "foot": self._foot(player.preferred_foot),
+            "body_wear": player.body_wear or {},
+            "traits": player.traits or [],
+            "age": age,
         }
 
     def _skill_names(self, skills: list[Any]) -> list[str]:

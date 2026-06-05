@@ -195,11 +195,21 @@ function PlayerDetail() {
       <Card className="mb-6 bg-[#0D4A4D]/30 border-2 border-[#2D2D44] hover:-translate-y-1 hover:shadow-pixel transition-all">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
           {/* 头像 */}
-          <div className="w-28 h-28 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center shadow-pixel overflow-hidden">
-            {player.avatar_url ? (
-              <img src={`/${player.avatar_url}`} alt={player.name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-5xl">👤</span>
+          <div className="relative">
+            <div className="w-28 h-28 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center shadow-pixel overflow-hidden">
+              {player.avatar_url ? (
+                <img src={`/${player.avatar_url}`} alt={player.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-5xl">👤</span>
+              )}
+            </div>
+            {/* 号码大标识 */}
+            {(player.squad_number || player.preferred_number) && (
+              <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#0D7377] border-2 border-[#2D2D44] flex items-center justify-center shadow-pixel">
+                <span className="text-lg font-bold text-white stat-number">
+                  #{player.squad_number || player.preferred_number}
+                </span>
+              </div>
             )}
           </div>
           <div className="flex-1">

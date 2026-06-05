@@ -25,6 +25,7 @@ from app.models.team import Team
 from app.services.standing_service import StandingService
 from app.services.player_state_service import PlayerStateService
 from app.services.player_fatigue_service import PlayerFatigueService
+from app.services.injury_service import InjuryService
 from app.core.logging import get_logger
 
 
@@ -575,7 +576,7 @@ class MatchSimulator:
         result: MatchResult,
         db: AsyncSession,
     ) -> None:
-        """赛后更新球员 fitness、match_rust_score 并触发状态重算"""
+        """赛后更新球员 fitness、match_rust_score、body_wear、injury 并触发状态重算"""
         if not result.player_stats:
             return
         
@@ -627,6 +628,22 @@ class MatchSimulator:
                 resolution=result.resolution,
             )
             
+            # === 伤病系统 v2: 回写比赛磨损 ===
+            match_wear = player_stats.get("match_wear")
+            if match_wear:
+                InjuryService.apply_match_wear(player, match_wear)
+            
+            # === 伤病系统 v2: 回写比赛伤病 ===
+            injury_severity = player_stats.get("injury_severity", 0)
+            if injury_severity > 0 and player.current_injury is None:
+                injury_info = {
+                    "body_part": player_stats.get("injury_body_part"),
+                    "injury_name": player_stats.get("injury_name"),
+                    "severity": injury_severity,
+                    "days": player_stats.get("injury_days", 3),
+                }
+                InjuryService.apply_match_injury(player, injury_info)
+            
             # match_rust_score 恢复（栈式弹出）
             player.match_rust_score = min(player.match_rust_score + 1, 0)
 
@@ -655,6 +672,11 @@ class MatchSimulator:
         for player_id, player in all_players.items():
             if player_id in played_player_ids:
                 continue
+            
+            # 伤病恢复倒计时（比赛日也算一天）
+            if player.current_injury is not None:
+                InjuryService.tick_injury_recovery(player)
+            
             if player.status in (PlayerStatus.INJURED, PlayerStatus.SUSPENDED):
                 continue
             

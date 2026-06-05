@@ -22,6 +22,7 @@ class TrainingItem:
     attribute_weights: dict[str, float] = field(default_factory=dict)
     position_fit: dict[str, float] = field(default_factory=dict)
     is_recovery: bool = False
+    wear_impact: dict[str, float] = field(default_factory=dict)  # 各部位劳损值 e.g. {"hamstring": 3.0}
 
 
 # ==================== 训练内容池 ====================
@@ -36,86 +37,86 @@ def _register(item: TrainingItem) -> None:
 # ----- 9.1 终结训练 -----
 _register(TrainingItem("box_finish_one_touch", "禁区一脚终结", "finishing", "进攻组", 0.07, "normal", -4, 7, 2,
     {"sho": 1.0, "com": 0.35, "acc": 0.25},
-    {"FW": 1.10, "MF": 0.90, "DF": 0.60, "GK": 0.40}))
+    {"FW": 1.10, "MF": 0.90, "DF": 0.60, "GK": 0.40}, wear_impact={"quadriceps": 2, "groin": 1, "knee": 1}))
 _register(TrainingItem("box_finish_under_pressure", "对抗下射门选择", "finishing", "进攻组", 0.08, "hard", -6, 10, 3,
     {"sho": 0.90, "com": 0.80, "bal": 0.30, "dec": 0.30},
-    {"FW": 1.10, "MF": 0.85, "DF": 0.55, "GK": 0.35}))
+    {"FW": 1.10, "MF": 0.85, "DF": 0.55, "GK": 0.35}, wear_impact={"quadriceps": 3, "groin": 2, "back": 2, "ankle": 1}))
 _register(TrainingItem("cutback_finish", "倒三角接应射门", "finishing", "进攻组/中场", 0.07, "normal", -4, 7, 2,
     {"sho": 0.90, "pas": 0.35, "dec": 0.30},
-    {"FW": 1.05, "MF": 1.00, "DF": 0.60, "GK": 0.40}))
+    {"FW": 1.05, "MF": 1.00, "DF": 0.60, "GK": 0.40}, wear_impact={"quadriceps": 2, "groin": 1}))
 _register(TrainingItem("near_post_finish", "前点抢射", "finishing", "进攻组", 0.06, "normal", -4, 7, 2,
     {"sho": 1.0, "acc": 0.40, "com": 0.25},
-    {"FW": 1.10, "MF": 0.80, "DF": 0.60, "GK": 0.40}))
+    {"FW": 1.10, "MF": 0.80, "DF": 0.60, "GK": 0.40}, wear_impact={"quadriceps": 2, "knee": 1, "ankle": 1}))
 _register(TrainingItem("far_post_arrival", "后点包抄", "finishing", "进攻组/中场", 0.06, "normal", -4, 7, 2,
     {"sho": 0.90, "dec": 0.40, "hea": 0.30, "acc": 0.25},
-    {"FW": 1.05, "MF": 0.95, "DF": 0.65, "GK": 0.40}))
+    {"FW": 1.05, "MF": 0.95, "DF": 0.65, "GK": 0.40}, wear_impact={"hamstring": 2, "quadriceps": 2, "knee": 1}))
 _register(TrainingItem("weak_foot_finish", "非惯用脚终结", "finishing", "进攻组", 0.06, "normal", -4, 7, 2,
     {"sho": 1.0, "com": 0.35, "bal": 0.30},
-    {"FW": 1.10, "MF": 0.85, "DF": 0.55, "GK": 0.35}))
+    {"FW": 1.10, "MF": 0.85, "DF": 0.55, "GK": 0.35}, wear_impact={"quadriceps": 2, "ankle": 2, "groin": 1}))
 _register(TrainingItem("long_shot_window", "禁区弧顶远射窗口", "finishing", "中场/进攻组", 0.06, "normal", -4, 7, 2,
     {"fin": 1.0, "sho": 0.50, "dec": 0.30},
-    {"FW": 0.95, "MF": 1.10, "DF": 0.60, "GK": 0.35}))
+    {"FW": 0.95, "MF": 1.10, "DF": 0.60, "GK": 0.35}, wear_impact={"quadriceps": 3, "groin": 2, "knee": 1}))
 _register(TrainingItem("volley_second_ball", "二点球凌空处理", "finishing", "进攻组/防守组", 0.07, "hard", -6, 10, 3,
     {"sho": 0.90, "hea": 0.40, "bal": 0.30},
-    {"FW": 1.05, "MF": 0.90, "DF": 0.80, "GK": 0.40}))
+    {"FW": 1.05, "MF": 0.90, "DF": 0.80, "GK": 0.40}, wear_impact={"quadriceps": 3, "groin": 2, "back": 2, "knee": 2}))
 _register(TrainingItem("penalty_routine", "点球助跑与角度", "finishing", "指定球员/进攻组", 0.05, "light", -2, 3, 1,
     {"pk": 1.0, "com": 0.40, "sho": 0.25},
-    {"FW": 1.05, "MF": 0.85, "DF": 0.60, "GK": 0.40}))
+    {"FW": 1.05, "MF": 0.85, "DF": 0.60, "GK": 0.40}, wear_impact={"quadriceps": 1}))
 _register(TrainingItem("penalty_pressure", "压力点球模拟", "finishing", "指定球员/全队", 0.08, "normal", -4, 7, 2,
     {"pk": 1.0, "com": 0.80, "sho": 0.25},
-    {"FW": 1.10, "MF": 0.90, "DF": 0.65, "GK": 0.45}))
+    {"FW": 1.10, "MF": 0.90, "DF": 0.65, "GK": 0.45}, wear_impact={"quadriceps": 1, "groin": 1}))
 
 # ----- 9.2 传控训练 -----
 _register(TrainingItem("rondo_4v2", "4v2 小圈保球", "passing", "全队/中场", 0.06, "normal", -4, 7, 2,
     {"pas": 0.90, "con": 0.80, "dec": 0.30, "vis": 0.25},
-    {"FW": 0.90, "MF": 1.10, "DF": 0.85, "GK": 0.50}))
+    {"FW": 0.90, "MF": 1.10, "DF": 0.85, "GK": 0.50}, wear_impact={"ankle": 2, "knee": 1, "groin": 1}))
 _register(TrainingItem("third_man_combination", "第三人接应配合", "passing", "中场/进攻组", 0.06, "normal", -4, 7, 2,
     {"pas": 0.90, "vis": 0.70, "dec": 0.35, "con": 0.25},
-    {"FW": 0.90, "MF": 1.10, "DF": 0.80, "GK": 0.45}))
+    {"FW": 0.90, "MF": 1.10, "DF": 0.80, "GK": 0.45}, wear_impact={"ankle": 1, "knee": 1}))
 _register(TrainingItem("wall_pass_timing", "撞墙配合时机", "passing", "进攻组/中场", 0.06, "normal", -4, 7, 2,
     {"pas": 1.0, "acc": 0.30, "dec": 0.30},
-    {"FW": 1.05, "MF": 1.05, "DF": 0.70, "GK": 0.40}))
+    {"FW": 1.05, "MF": 1.05, "DF": 0.70, "GK": 0.40}, wear_impact={"ankle": 1, "knee": 1}))
 _register(TrainingItem("switch_play", "弱侧转移", "passing", "中场/防守组", 0.06, "normal", -4, 7, 2,
     {"pas": 0.80, "vis": 0.80, "cro": 0.30, "dec": 0.25},
-    {"FW": 0.80, "MF": 1.10, "DF": 0.90, "GK": 0.50}))
+    {"FW": 0.80, "MF": 1.10, "DF": 0.90, "GK": 0.50}, wear_impact={"hamstring": 1, "calf": 1, "knee": 1}))
 _register(TrainingItem("line_breaking_pass", "穿线直塞", "passing", "中场", 0.06, "normal", -4, 7, 2,
     {"vis": 0.90, "pas": 0.80, "dec": 0.40, "com": 0.25},
-    {"FW": 0.85, "MF": 1.10, "DF": 0.70, "GK": 0.40}))
+    {"FW": 0.85, "MF": 1.10, "DF": 0.70, "GK": 0.40}, wear_impact={"ankle": 1}))
 _register(TrainingItem("first_touch_escape", "第一脚卸压", "passing", "全队/中场", 0.06, "normal", -4, 7, 2,
     {"con": 0.90, "dri": 0.40, "bal": 0.30},
-    {"FW": 0.90, "MF": 1.05, "DF": 0.85, "GK": 0.50}))
+    {"FW": 0.90, "MF": 1.05, "DF": 0.85, "GK": 0.50}, wear_impact={"ankle": 2, "knee": 1}))
 _register(TrainingItem("back_to_goal_link", "背身接应做球", "passing", "进攻组", 0.07, "hard", -6, 10, 3,
     {"con": 0.80, "pas": 0.70, "str_": 0.40, "dec": 0.30},
-    {"FW": 1.10, "MF": 0.90, "DF": 0.60, "GK": 0.35}))
+    {"FW": 1.10, "MF": 0.90, "DF": 0.60, "GK": 0.35}, wear_impact={"back": 2, "groin": 2, "knee": 2, "ankle": 1}))
 _register(TrainingItem("cross_low_driven", "低平传中", "passing", "边路球员", 0.06, "normal", -4, 7, 2,
     {"cro": 1.0, "pas": 0.35, "dec": 0.25},
-    {"FW": 0.80, "MF": 1.00, "DF": 0.90, "GK": 0.35}))
+    {"FW": 0.80, "MF": 1.00, "DF": 0.90, "GK": 0.35}, wear_impact={"groin": 2, "hamstring": 1, "knee": 1}))
 _register(TrainingItem("cross_early", "提前量传中", "passing", "边路球员", 0.06, "normal", -4, 7, 2,
     {"cro": 0.90, "vis": 0.50, "pas": 0.30},
-    {"FW": 0.80, "MF": 1.00, "DF": 0.90, "GK": 0.35}))
+    {"FW": 0.80, "MF": 1.00, "DF": 0.90, "GK": 0.35}, wear_impact={"groin": 2, "hamstring": 1}))
 _register(TrainingItem("build_out_under_press", "后场出球抗压", "passing", "防守组/门将", 0.07, "hard", -6, 10, 3,
     {"pas": 0.80, "con": 0.70, "dec": 0.40, "com": 0.30},
-    {"FW": 0.50, "MF": 0.80, "DF": 1.05, "GK": 0.90}))
+    {"FW": 0.50, "MF": 0.80, "DF": 1.05, "GK": 0.90}, wear_impact={"ankle": 2, "knee": 2, "back": 1, "groin": 1}))
 
 # ----- 9.3 个人技术 -----
 _register(TrainingItem("dribble_cone_tight", "密集标志盘带", "technical", "进攻组/中场", 0.06, "normal", -4, 7, 2,
     {"dri": 1.0, "con": 0.50, "bal": 0.30},
-    {"FW": 1.10, "MF": 0.95, "DF": 0.60, "GK": 0.35}))
+    {"FW": 1.10, "MF": 0.95, "DF": 0.60, "GK": 0.35}, wear_impact={"ankle": 3, "knee": 2, "groin": 1}))
 _register(TrainingItem("one_v_one_wing", "边路 1v1 突破", "technical", "进攻组", 0.07, "hard", -6, 10, 3,
     {"dri": 0.90, "acc": 0.70, "spd": 0.40, "bal": 0.25},
-    {"FW": 1.10, "MF": 0.85, "DF": 0.60, "GK": 0.30}))
+    {"FW": 1.10, "MF": 0.85, "DF": 0.60, "GK": 0.30}, wear_impact={"hamstring": 3, "groin": 2, "ankle": 2, "knee": 2}))
 _register(TrainingItem("receive_on_half_turn", "半转身接球", "technical", "中场/进攻组", 0.06, "normal", -4, 7, 2,
     {"con": 0.80, "dec": 0.50, "dri": 0.30, "vis": 0.25},
-    {"FW": 0.95, "MF": 1.05, "DF": 0.70, "GK": 0.40}))
+    {"FW": 0.95, "MF": 1.05, "DF": 0.70, "GK": 0.40}, wear_impact={"ankle": 1, "knee": 1}))
 _register(TrainingItem("shield_and_roll", "护球转身摆脱", "technical", "中场/进攻组", 0.07, "hard", -6, 10, 3,
     {"con": 0.80, "str_": 0.60, "bal": 0.40, "dri": 0.30},
-    {"FW": 1.00, "MF": 1.00, "DF": 0.65, "GK": 0.30}))
+    {"FW": 1.00, "MF": 1.00, "DF": 0.65, "GK": 0.30}, wear_impact={"back": 2, "groin": 2, "knee": 2, "ankle": 1}))
 _register(TrainingItem("carry_into_space", "带球推进空间识别", "technical", "中场/进攻组", 0.06, "normal", -4, 7, 2,
     {"dri": 0.80, "dec": 0.60, "spd": 0.35, "con": 0.30},
-    {"FW": 1.00, "MF": 1.00, "DF": 0.65, "GK": 0.30}))
+    {"FW": 1.00, "MF": 1.00, "DF": 0.65, "GK": 0.30}, wear_impact={"hamstring": 1, "calf": 1, "ankle": 1}))
 _register(TrainingItem("touchline_escape", "边线夹击脱困", "technical", "边路球员", 0.07, "hard", -6, 10, 3,
     {"dri": 0.80, "con": 0.60, "bal": 0.40, "pas": 0.25},
-    {"FW": 0.90, "MF": 0.90, "DF": 0.80, "GK": 0.30}))
+    {"FW": 0.90, "MF": 0.90, "DF": 0.80, "GK": 0.30}, wear_impact={"ankle": 3, "groin": 2, "knee": 2, "hamstring": 2}))
 _register(TrainingItem("receiving_scanning", "接球前观察", "technical", "全队/中场", 0.04, "light", -2, 3, 1,
     {"dec": 0.80, "vis": 0.60, "con": 0.30, "pas": 0.20},
     {"FW": 0.90, "MF": 1.05, "DF": 0.90, "GK": 0.60}))
@@ -123,129 +124,129 @@ _register(TrainingItem("receiving_scanning", "接球前观察", "technical", "�
 # ----- 9.4 防守训练 -----
 _register(TrainingItem("body_shape_defense", "防守身体朝向", "defending", "防守组", 0.06, "normal", -4, 7, 2,
     {"defe": 1.0, "dec": 0.40, "bal": 0.25},
-    {"FW": 0.50, "MF": 0.80, "DF": 1.10, "GK": 0.40}))
+    {"FW": 0.50, "MF": 0.80, "DF": 1.10, "GK": 0.40}, wear_impact={"knee": 1, "ankle": 1}))
 _register(TrainingItem("delay_and_channel", "延缓与逼向边线", "defending", "防守组", 0.06, "normal", -4, 7, 2,
     {"defe": 0.80, "dec": 0.60, "spd": 0.30, "tkl": 0.30},
-    {"FW": 0.50, "MF": 0.80, "DF": 1.10, "GK": 0.40}))
+    {"FW": 0.50, "MF": 0.80, "DF": 1.10, "GK": 0.40}, wear_impact={"hamstring": 1, "calf": 1, "knee": 1}))
 _register(TrainingItem("standing_tackle_timing", "正面抢断时机", "defending", "防守组", 0.07, "hard", -6, 10, 3,
     {"tkl": 1.0, "defe": 0.50, "bal": 0.25},
-    {"FW": 0.45, "MF": 0.75, "DF": 1.10, "GK": 0.35}))
+    {"FW": 0.45, "MF": 0.75, "DF": 1.10, "GK": 0.35}, wear_impact={"ankle": 3, "knee": 3, "groin": 2, "hamstring": 2}))
 _register(TrainingItem("cover_shadow_press", "遮挡传球线路逼抢", "defending", "全队/防守组", 0.07, "hard", -6, 10, 3,
     {"dec": 0.80, "defe": 0.70, "sta": 0.30, "acc": 0.25},
-    {"FW": 0.60, "MF": 0.90, "DF": 1.10, "GK": 0.40}))
+    {"FW": 0.60, "MF": 0.90, "DF": 1.10, "GK": 0.40}, wear_impact={"hamstring": 3, "calf": 2, "groin": 2, "knee": 2}))
 _register(TrainingItem("recovery_run", "回追路线", "defending", "防守组/中场", 0.07, "hard", -6, 10, 3,
     {"spd": 0.80, "defe": 0.60, "sta": 0.40, "dec": 0.25},
-    {"FW": 0.50, "MF": 0.90, "DF": 1.10, "GK": 0.35}))
+    {"FW": 0.50, "MF": 0.90, "DF": 1.10, "GK": 0.35}, wear_impact={"hamstring": 4, "calf": 3, "groin": 2, "quadriceps": 2}))
 _register(TrainingItem("aerial_duel_defense", "防守争顶", "defending", "防守组", 0.06, "normal", -4, 7, 2,
     {"hea": 0.90, "str_": 0.60, "defe": 0.40, "bal": 0.25},
-    {"FW": 0.70, "MF": 0.80, "DF": 1.10, "GK": 0.50}))
+    {"FW": 0.70, "MF": 0.80, "DF": 1.10, "GK": 0.50}, wear_impact={"back": 2, "knee": 2, "ankle": 1}))
 _register(TrainingItem("box_marking", "禁区盯人与保护", "defending", "防守组/门将", 0.06, "normal", -4, 7, 2,
     {"defe": 0.80, "dec": 0.60, "hea": 0.30, "pos": 0.25},
-    {"FW": 0.40, "MF": 0.70, "DF": 1.10, "GK": 0.80}))
+    {"FW": 0.40, "MF": 0.70, "DF": 1.10, "GK": 0.80}, wear_impact={"knee": 1, "ankle": 1, "back": 1}))
 _register(TrainingItem("counterpress_after_loss", "丢球后 5 秒反抢", "defending", "全队", 0.07, "hard", -9, 14, 4,
     {"tkl": 0.80, "sta": 0.60, "dec": 0.40, "acc": 0.25},
-    {"FW": 0.80, "MF": 1.00, "DF": 1.00, "GK": 0.30}))
+    {"FW": 0.80, "MF": 1.00, "DF": 1.00, "GK": 0.30}, wear_impact={"hamstring": 3, "calf": 3, "groin": 2, "ankle": 2, "knee": 2}))
 
 # ----- 9.5 定位球训练 -----
 _register(TrainingItem("corner_near_post", "角球前点跑位", "set_piece", "进攻组", 0.04, "light", -2, 3, 1,
     {"fk": 0.60, "hea": 0.60, "dec": 0.30, "acc": 0.20},
-    {"FW": 1.00, "MF": 0.80, "DF": 0.70, "GK": 0.30}))
+    {"FW": 1.00, "MF": 0.80, "DF": 0.70, "GK": 0.30}, wear_impact={"knee": 1}))
 _register(TrainingItem("corner_far_post", "角球后点包抄", "set_piece", "进攻组/防守组", 0.04, "light", -2, 3, 1,
     {"hea": 0.70, "dec": 0.40, "str_": 0.25, "fk": 0.20},
-    {"FW": 0.90, "MF": 0.80, "DF": 0.80, "GK": 0.30}))
+    {"FW": 0.90, "MF": 0.80, "DF": 0.80, "GK": 0.30}, wear_impact={"knee": 1, "back": 1}))
 _register(TrainingItem("free_kick_direct", "直接任意球脚法", "set_piece", "指定球员", 0.04, "light", -2, 3, 1,
     {"fk": 1.0, "com": 0.40, "sho": 0.30},
-    {"FW": 0.90, "MF": 1.00, "DF": 0.70, "GK": 0.30}))
+    {"FW": 0.90, "MF": 1.00, "DF": 0.70, "GK": 0.30}, wear_impact={"quadriceps": 1, "groin": 1}))
 _register(TrainingItem("free_kick_routine", "间接任意球配合", "set_piece", "进攻组", 0.04, "light", -2, 3, 1,
     {"fk": 0.80, "dec": 0.50, "pas": 0.30, "hea": 0.20},
-    {"FW": 0.90, "MF": 0.90, "DF": 0.60, "GK": 0.30}))
+    {"FW": 0.90, "MF": 0.90, "DF": 0.60, "GK": 0.30}, wear_impact={"knee": 1}))
 _register(TrainingItem("throw_in_pattern", "边线球接应套路", "set_piece", "全队", 0.03, "light", -2, 3, 1,
     {"dec": 0.60, "pas": 0.40, "con": 0.20},
-    {"FW": 0.80, "MF": 0.90, "DF": 0.85, "GK": 0.30}))
+    {"FW": 0.80, "MF": 0.90, "DF": 0.85, "GK": 0.30}, wear_impact={"shoulder": 1}))
 _register(TrainingItem("set_piece_marking", "定位球区域盯防", "set_piece", "防守组/门将", 0.03, "light", -2, 3, 1,
     {"defe": 0.70, "pos": 0.50, "hea": 0.30, "dec": 0.20},
-    {"FW": 0.40, "MF": 0.70, "DF": 1.00, "GK": 0.80}))
+    {"FW": 0.40, "MF": 0.70, "DF": 1.00, "GK": 0.80}, wear_impact={"knee": 1}))
 _register(TrainingItem("penalty_keeper_read", "门将扑点预判", "set_piece", "门将组", 0.04, "light", -2, 3, 1,
     {"ref": 0.80, "com": 0.60, "sav": 0.50, "dec": 0.30},
-    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}))
+    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}, wear_impact={"shoulder": 1}))
 
 # ----- 9.6 身体训练 -----
 _register(TrainingItem("accel_5m", "5 米启动", "physical", "进攻组/防守组", 0.07, "hard", -9, 14, 4,
     {"acc": 1.0, "spd": 0.50, "bal": 0.25},
-    {"FW": 1.05, "MF": 0.90, "DF": 1.00, "GK": 0.40}))
+    {"FW": 1.05, "MF": 0.90, "DF": 1.00, "GK": 0.40}, wear_impact={"hamstring": 4, "calf": 3, "groin": 2, "quadriceps": 2}))
 _register(TrainingItem("repeat_sprint", "重复冲刺能力", "physical", "全队", 0.07, "hard", -9, 14, 4,
     {"sta": 0.90, "spd": 0.60, "acc": 0.30},
-    {"FW": 1.00, "MF": 1.00, "DF": 1.00, "GK": 0.40}))
+    {"FW": 1.00, "MF": 1.00, "DF": 1.00, "GK": 0.40}, wear_impact={"hamstring": 5, "calf": 4, "groin": 3, "quadriceps": 3, "knee": 2}))
 _register(TrainingItem("max_velocity", "最高速度跑", "physical", "进攻组/防守组", 0.07, "hard", -9, 14, 4,
     {"spd": 1.0, "acc": 0.40},
-    {"FW": 1.05, "MF": 0.85, "DF": 1.00, "GK": 0.35}))
+    {"FW": 1.05, "MF": 0.85, "DF": 1.00, "GK": 0.35}, wear_impact={"hamstring": 5, "calf": 3, "groin": 2, "quadriceps": 2}))
 _register(TrainingItem("change_direction", "变向制动", "physical", "全队", 0.07, "hard", -9, 14, 4,
     {"bal": 0.90, "acc": 0.50, "dri": 0.30, "tkl": 0.20},
-    {"FW": 0.90, "MF": 1.00, "DF": 1.00, "GK": 0.50}))
+    {"FW": 0.90, "MF": 1.00, "DF": 1.00, "GK": 0.50}, wear_impact={"ankle": 4, "knee": 3, "groin": 3, "hamstring": 2}))
 _register(TrainingItem("upper_body_duel", "上肢对抗", "physical", "防守组/进攻组", 0.07, "hard", -9, 14, 4,
     {"str_": 1.0, "bal": 0.50, "hea": 0.30},
-    {"FW": 1.00, "MF": 0.80, "DF": 1.05, "GK": 0.40}))
+    {"FW": 1.00, "MF": 0.80, "DF": 1.05, "GK": 0.40}, wear_impact={"shoulder": 3, "back": 3, "ribs": 2}))
 _register(TrainingItem("core_stability", "核心稳定", "physical", "全队", 0.05, "normal", -4, 7, 2,
     {"bal": 0.90, "str_": 0.40, "con": 0.25},
-    {"FW": 0.90, "MF": 1.00, "DF": 1.00, "GK": 0.60}))
+    {"FW": 0.90, "MF": 1.00, "DF": 1.00, "GK": 0.60}, wear_impact={"back": 2, "groin": 1}))
 _register(TrainingItem("aerobic_blocks", "分段有氧跑", "physical", "全队", 0.06, "hard", -9, 14, 4,
     {"sta": 1.0, "bal": 0.30},
-    {"FW": 0.90, "MF": 1.05, "DF": 1.00, "GK": 0.45}))
+    {"FW": 0.90, "MF": 1.05, "DF": 1.00, "GK": 0.45}, wear_impact={"hamstring": 3, "calf": 3, "quadriceps": 2, "knee": 2}))
 _register(TrainingItem("jump_power", "起跳与落地", "physical", "进攻组/防守组", 0.05, "normal", -4, 7, 2,
     {"hea": 0.80, "str_": 0.50, "bal": 0.30},
-    {"FW": 1.00, "MF": 0.85, "DF": 1.05, "GK": 0.50}))
+    {"FW": 1.00, "MF": 0.85, "DF": 1.05, "GK": 0.50}, wear_impact={"knee": 3, "back": 2, "ankle": 2, "achilles": 2}))
 
 # ----- 9.7 战术训练 -----
 _register(TrainingItem("build_up_2_3", "2-3 出球结构", "tactical", "全队/防守组", 0.05, "normal", -4, 7, 2,
     {"dec": 0.80, "pas": 0.60, "con": 0.30, "vis": 0.25},
-    {"FW": 0.60, "MF": 1.00, "DF": 1.05, "GK": 0.60}))
+    {"FW": 0.60, "MF": 1.00, "DF": 1.05, "GK": 0.60}, wear_impact={"ankle": 1, "knee": 1}))
 _register(TrainingItem("wide_overload", "边路局部人数优势", "tactical", "进攻组/中场", 0.05, "normal", -4, 7, 2,
     {"dec": 0.70, "pas": 0.60, "cro": 0.30, "dri": 0.25},
-    {"FW": 1.00, "MF": 1.00, "DF": 0.60, "GK": 0.30}))
+    {"FW": 1.00, "MF": 1.00, "DF": 0.60, "GK": 0.30}, wear_impact={"hamstring": 1, "groin": 1, "ankle": 1}))
 _register(TrainingItem("central_compactness", "中路紧凑防守", "tactical", "防守组/中场", 0.05, "normal", -4, 7, 2,
     {"defe": 0.70, "dec": 0.60, "tkl": 0.30, "sta": 0.25},
-    {"FW": 0.40, "MF": 1.00, "DF": 1.05, "GK": 0.50}))
+    {"FW": 0.40, "MF": 1.00, "DF": 1.05, "GK": 0.50}, wear_impact={"knee": 1, "ankle": 1}))
 _register(TrainingItem("press_trigger", "逼抢触发点", "tactical", "全队", 0.06, "hard", -6, 10, 3,
     {"dec": 0.70, "sta": 0.50, "tkl": 0.40, "acc": 0.25},
-    {"FW": 0.80, "MF": 1.05, "DF": 1.00, "GK": 0.30}))
+    {"FW": 0.80, "MF": 1.05, "DF": 1.00, "GK": 0.30}, wear_impact={"hamstring": 3, "calf": 2, "groin": 2, "ankle": 2, "knee": 2}))
 _register(TrainingItem("rest_defense", "进攻时防反站位", "tactical", "防守组/中场", 0.05, "normal", -4, 7, 2,
     {"defe": 0.70, "dec": 0.60, "spd": 0.30, "pos": 0.25},
-    {"FW": 0.40, "MF": 0.90, "DF": 1.05, "GK": 0.50}))
+    {"FW": 0.40, "MF": 0.90, "DF": 1.05, "GK": 0.50}, wear_impact={"hamstring": 1, "knee": 1}))
 _register(TrainingItem("transition_attack", "抢回球后的第一传", "tactical", "全队", 0.05, "normal", -4, 7, 2,
     {"dec": 0.70, "pas": 0.60, "spd": 0.25, "vis": 0.25},
-    {"FW": 0.90, "MF": 1.00, "DF": 0.80, "GK": 0.40}))
+    {"FW": 0.90, "MF": 1.00, "DF": 0.80, "GK": 0.40}, wear_impact={"hamstring": 1, "calf": 1}))
 _register(TrainingItem("transition_defense", "失球权后的回收", "tactical", "全队", 0.06, "hard", -6, 10, 3,
     {"dec": 0.70, "sta": 0.50, "defe": 0.40, "spd": 0.25},
-    {"FW": 0.70, "MF": 1.00, "DF": 1.00, "GK": 0.40}))
+    {"FW": 0.70, "MF": 1.00, "DF": 1.00, "GK": 0.40}, wear_impact={"hamstring": 3, "calf": 2, "groin": 2, "quadriceps": 2}))
 _register(TrainingItem("game_model_8v8", "8v8 队内模型赛", "tactical", "全队", 0.06, "hard", -12, 18, 5,
     {"dec": 0.80, "pas": 0.40, "defe": 0.30, "sta": 0.30},
-    {"FW": 0.90, "MF": 1.00, "DF": 0.95, "GK": 0.40}))
+    {"FW": 0.90, "MF": 1.00, "DF": 0.95, "GK": 0.40}, wear_impact={"hamstring": 3, "calf": 3, "knee": 3, "ankle": 3, "groin": 2, "back": 2}))
 
 # ----- 9.8 门将训练 -----
 _register(TrainingItem("gk_set_position", "准备姿势与重心", "goalkeeper", "门将组", 0.05, "normal", -4, 7, 2,
     {"pos": 0.90, "ref": 0.50, "bal": 0.25, "com": 0.20},
-    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}))
+    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}, wear_impact={"knee": 1, "ankle": 1}))
 _register(TrainingItem("gk_low_save", "低平球扑救", "goalkeeper", "门将组", 0.05, "normal", -4, 7, 2,
     {"sav": 0.90, "ref": 0.50, "pos": 0.25},
-    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}))
+    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}, wear_impact={"shoulder": 2, "knee": 2, "back": 1}))
 _register(TrainingItem("gk_close_range", "近距离封堵", "goalkeeper", "门将组", 0.06, "hard", -6, 10, 3,
     {"ref": 0.80, "sav": 0.70, "com": 0.30, "rus": 0.25},
-    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}))
+    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}, wear_impact={"shoulder": 3, "knee": 3, "fingers": 2, "back": 2}))
 _register(TrainingItem("gk_cross_claim", "传中球摘取", "goalkeeper", "门将组", 0.05, "normal", -4, 7, 2,
     {"rus": 0.80, "pos": 0.50, "com": 0.30, "hea": 0.20},
-    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}))
+    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}, wear_impact={"shoulder": 2, "back": 2, "knee": 2, "fingers": 1}))
 _register(TrainingItem("gk_one_v_one", "单刀出击", "goalkeeper", "门将组", 0.06, "hard", -6, 10, 3,
     {"rus": 0.80, "com": 0.50, "ref": 0.40, "dec": 0.25},
-    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}))
+    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}, wear_impact={"knee": 3, "ankle": 3, "shoulder": 2, "back": 2}))
 _register(TrainingItem("gk_distribution_short", "短传出球", "goalkeeper", "门将组", 0.04, "light", -2, 3, 1,
     {"pas": 0.70, "com": 0.40, "dec": 0.25, "con": 0.20},
-    {"FW": 0.20, "MF": 0.30, "DF": 0.40, "GK": 1.10}))
+    {"FW": 0.20, "MF": 0.30, "DF": 0.40, "GK": 1.10}, wear_impact={"shoulder": 1}))
 _register(TrainingItem("gk_distribution_long", "长距离开球", "goalkeeper", "门将组", 0.04, "normal", -4, 7, 2,
     {"pas": 0.80, "str_": 0.30, "dec": 0.25},
-    {"FW": 0.20, "MF": 0.30, "DF": 0.40, "GK": 1.10}))
+    {"FW": 0.20, "MF": 0.30, "DF": 0.40, "GK": 1.10}, wear_impact={"shoulder": 2, "back": 2, "groin": 1}))
 _register(TrainingItem("gk_penalty_read", "点球方向读取", "goalkeeper", "门将组", 0.04, "light", -2, 3, 1,
     {"ref": 0.70, "com": 0.50, "sav": 0.40, "dec": 0.25},
-    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}))
+    {"FW": 0.20, "MF": 0.20, "DF": 0.30, "GK": 1.15}, wear_impact={"shoulder": 1}))
 
 # ----- 9.9 恢复与分析 -----
 _register(TrainingItem("full_rest", "完全休息", "recovery", "全队", 0.0, "light", 14, -16, -2,

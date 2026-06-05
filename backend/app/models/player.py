@@ -122,6 +122,10 @@ class Player(Base):
     position: Mapped[PlayerPosition] = mapped_column(Enum(PlayerPosition), nullable=False, index=True)
     preferred_foot: Mapped[PlayerFoot] = mapped_column(Enum(PlayerFoot), default=PlayerFoot.RIGHT, nullable=False)
     
+    # 号码系统
+    preferred_number: Mapped[int] = mapped_column(Integer, nullable=False, default=10)  # 号码偏好
+    squad_number: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 实际队内号码
+    
     height: Mapped[int] = mapped_column(Integer, nullable=False)   # cm, 165-200
     weight: Mapped[int] = mapped_column(Integer, nullable=False)   # kg, 60-95
     
@@ -221,6 +225,12 @@ class Player(Base):
     # 疲劳系统
     fatigue: Mapped[int] = mapped_column(Integer, default=0, nullable=False)   # 长期疲劳 0-100
     fatigue_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
+    # 伤病系统 (v2 新增)
+    body_wear: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)  # 身体部位劳损值 {hamstring: 15.5, ...}
+    traits: Mapped[list] = mapped_column(JSON, default=list, nullable=False)     # 体质特质 ["铁人", "玻璃体质"]
+    current_injury: Mapped[dict | None] = mapped_column(JSON, nullable=True)     # 当前伤病 {body_part, injury_name, severity, remaining_days}
+    injury_history: Mapped[list] = mapped_column(JSON, default=list, nullable=False)  # 历史伤病记录
     
     # 属性成长系统
     attribute_caps: Mapped[dict | None] = mapped_column(JSON, nullable=True)   # 各属性隐藏上限 {sho: 17.4, ...}

@@ -16,9 +16,11 @@ from app.schemas import (
     DashboardStats,
     ErrorResponse,
     PlayerListItem,
+    TeamHistoryResponse,
+    TeamSeasonHistoryItem,
 )
 from app.dependencies import get_db, get_current_user
-from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season, LeagueSystem
+from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season, LeagueSystem, PlayerSeasonStats, Player
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/teams", tags=["球队"])
@@ -474,5 +476,74 @@ async def update_team(team_id: str, team_data: TeamUpdate):
             user_id=1,
             created_at="2024-01-01T00:00:00",
             updated_at="2024-01-01T00:00:00",
+        ),
+    )
+
+
+@router.get(
+    "/{team_id}/history",
+    response_model=ResponseSchema[TeamHistoryResponse],
+    summary="获取球队历史",
+    description="获取球队各赛季的联赛排名和战绩",
+)
+async def get_team_history(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取球队历史赛季数据"""
+    # 验证球队存在
+    team_result = await db.execute(select(Team).where(Team.id == team_id))
+    team = team_result.scalar_one_or_none()
+    if not team:
+        return ResponseSchema(success=False, message="球队不存在", code=404)
+
+    # 查询所有赛季的联赛排名
+    standings_result = await db.execute(
+        select(LeagueStanding, Season, League)
+        .join(Season, LeagueStanding.season_id == Season.id)
+        .join(League, LeagueStanding.league_id == League.id)
+        .where(LeagueStanding.team_id == team_id)
+        .order_by(Season.season_number.asc())
+    )
+    rows = standings_result.all()
+
+    seasons: list[TeamSeasonHistoryItem] = []
+    for standing, season, league in rows:
+        # 查询该赛季队内射手王
+        top_scorer_result = await db.execute(
+            select(Player.name, PlayerSeasonStats.goals)
+            .join(Player, PlayerSeasonStats.player_id == Player.id)
+            .where(
+                PlayerSeasonStats.team_id == team_id,
+                PlayerSeasonStats.season_id == season.id,
+            )
+            .order_by(PlayerSeasonStats.goals.desc())
+            .limit(1)
+        )
+        top_scorer = top_scorer_result.first()
+
+        seasons.append(TeamSeasonHistoryItem(
+            season_number=season.season_number,
+            league_name=league.name,
+            league_level=league.level if league.level else 1,
+            position=standing.position,
+            played=standing.played,
+            won=standing.won,
+            drawn=standing.drawn,
+            lost=standing.lost,
+            goals_for=standing.goals_for,
+            goals_against=standing.goals_against,
+            goal_difference=standing.goal_difference,
+            points=standing.points,
+            top_scorer_name=top_scorer[0] if top_scorer else None,
+            top_scorer_goals=top_scorer[1] if top_scorer else 0,
+        ))
+
+    return ResponseSchema(
+        success=True,
+        data=TeamHistoryResponse(
+            seasons=seasons,
+            record_count=len(seasons),
+            trophies=[],
         ),
     )

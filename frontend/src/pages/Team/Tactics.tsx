@@ -1,11 +1,14 @@
-import { useState } from 'react'
-import { 
-  Sword, 
+import { useEffect, useState } from 'react'
+import {
+  Sword,
   Target,
   Download
 } from '../../components/ui/pixel-icons'
+import { api } from '../../api/client'
+import type { PlayerListItem } from '../../types/player'
+import { Card } from '../../components/ui/Card'
 
-// 七人制阵型定义
+// 阵型定义（前端游戏常量）
 const formations = [
   { id: '1-2-3', name: '1-2-3', label: '进攻型', desc: '1门将 + 2后卫 + 3前锋', attack: 85, defense: 45, control: 50 },
   { id: '1-3-2', name: '1-3-2', label: '均衡型', desc: '1门将 + 3中场 + 2前锋', attack: 60, defense: 60, control: 70 },
@@ -14,7 +17,7 @@ const formations = [
   { id: '1-1-4', name: '1-1-4', label: '全攻型', desc: '1门将 + 1后卫 + 4前锋', attack: 95, defense: 30, control: 40 },
 ]
 
-// 战术心态
+// 战术心态（前端游戏常量）
 const mentalities = [
   { id: 'ultra-attacking', name: '全力进攻', desc: '高风险高回报', color: 'text-red-400' },
   { id: 'attacking', name: '积极进攻', desc: '主动压迫', color: 'text-orange-400' },
@@ -23,49 +26,88 @@ const mentalities = [
   { id: 'ultra-defensive', name: '死守', desc: '铁桶阵', color: 'text-[#4B4B6A]' },
 ]
 
-// Mock 球员
-const mockPlayers = [
-  { id: '1', name: '王强', position: 'GK', ovr: 72, x: 50, y: 90 },
-  { id: '2', name: '李明', position: 'CB', ovr: 68, x: 35, y: 65 },
-  { id: '3', name: '张伟', position: 'CB', ovr: 70, x: 65, y: 65 },
-  { id: '4', name: '刘洋', position: 'CMF', ovr: 74, x: 50, y: 50 },
-  { id: '5', name: '陈浩', position: 'WF', ovr: 71, x: 20, y: 30 },
-  { id: '6', name: '赵雷', position: 'ST', ovr: 76, x: 50, y: 20 },
-  { id: '7', name: '孙凯', position: 'WF', ovr: 69, x: 80, y: 30 },
-]
-
 const positionColors: Record<string, string> = {
   GK: 'bg-amber-500',
-  CB: 'bg-blue-500',
-  DMF: 'bg-blue-400',
-  CMF: 'bg-emerald-500',
-  AMF: 'bg-emerald-400',
-  WF: 'bg-red-400',
-  ST: 'bg-red-500',
+  DF: 'bg-blue-500',
+  MF: 'bg-emerald-500',
+  FW: 'bg-red-500',
+}
+
+// 根据球员位置简单映射坐标（七人制球场）
+function getPositionCoords(position: string, index: number, total: number) {
+  const pos = position as string
+  if (pos === 'GK') return { x: 50, y: 88 }
+  if (pos === 'DF' || pos === 'CB') {
+    const count = total
+    const spacing = count > 1 ? 60 / (count - 1) : 0
+    return { x: 20 + spacing * index, y: 65 }
+  }
+  if (pos === 'MF' || pos === 'CMF' || pos === 'DMF' || pos === 'AMF') {
+    return { x: 30 + (index % 3) * 20, y: 48 }
+  }
+  if (pos === 'FW' || pos === 'ST' || pos === 'WF') {
+    return { x: 25 + (index % 3) * 25, y: 22 }
+  }
+  return { x: 20 + Math.random() * 60, y: 50 }
 }
 
 export default function Tactics() {
+  const [players, setPlayers] = useState<PlayerListItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedFormation, setSelectedFormation] = useState(formations[1])
   const [selectedMentality, setSelectedMentality] = useState(mentalities[2])
-  const [saved, setDownloadd] = useState(false)
+  const [saved, setSaved] = useState(false)
 
-  const handleDownload = () => {
-    setDownloadd(true)
-    setTimeout(() => setDownloadd(false), 2000)
+  useEffect(() => {
+    let cancelled = false
+    async function fetch() {
+      try {
+        const teamRes = await api.get<{ id: string }>('/teams/my-team')
+        if (!teamRes.success || !teamRes.data?.id) return
+        const playersRes = await api.get<{ items: PlayerListItem[] }>(`/teams/${teamRes.data.id}/players?page_size=100`)
+        if (!cancelled && playersRes.success) {
+          // 取 OVR 最高的 7 人作为首发
+          const sorted = (playersRes.data?.items || []).sort((a, b) => b.ovr - a.ovr)
+          setPlayers(sorted.slice(0, 7))
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetch()
+    return () => { cancelled = true }
+  }, [])
+
+  const handleSave = () => {
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (loading) {
+    return <div className="max-w-[1400px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+  }
+
+  // 按位置分组计算坐标
+  const posCounts: Record<string, number> = {}
+  const posIndices: Record<string, number> = {}
+  for (const p of players) {
+    const group = p.position === 'GK' ? 'GK' : p.position === 'DF' ? 'DF' : p.position === 'MF' ? 'MF' : 'FW'
+    posCounts[group] = (posCounts[group] || 0) + 1
   }
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">战术设置</h1>
           <p className="text-sm text-[#8B8BA7] mt-1">配置阵型、心态与战术指令</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={handleDownload}
-            className="btn-primary flex items-center gap-2"
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-2 px-4 py-2 bg-[#0D7377] border-2 border-[#0A5A5D] text-white text-sm font-medium hover:bg-[#0A5A5D] transition-all"
           >
             <Download className="w-4 h-4" />
             {saved ? '已保存!' : '保存战术'}
@@ -76,73 +118,69 @@ export default function Tactics() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 左侧 - 阵型选择 */}
         <div className="space-y-6">
-          <div className="card">
+          <Card>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Target className="w-4 h-4 text-[#0D7377]" />
               阵型选择
             </h3>
             <div className="space-y-2">
-              {formations.map((f) => (
+              {formations.map(f => (
                 <button
                   key={f.id}
                   onClick={() => setSelectedFormation(f)}
-                  className={clsx(
-                    'w-full text-left p-3 border-2 transition-all duration-200',
+                  className={`w-full text-left p-3 border-2 transition-all duration-200 ${
                     selectedFormation.id === f.id
                       ? 'bg-[#0D7377]/20 border-[#0D7377] shadow-pixel-green'
                       : 'bg-[#0A0A0F] border-[#2D2D44] hover:border-[#0D7377]/50'
-                  )}
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold text-white">{f.name}</p>
                       <p className="text-xs text-[#8B8BA7]">{f.desc}</p>
                     </div>
-                    <span className={clsx(
-                      'text-xs px-2 py-0.5 border',
+                    <span className={`text-xs px-2 py-0.5 border ${
                       f.label === '进攻型' || f.label === '全攻型' ? 'text-red-400 border-red-400/30' :
                       f.label === '防守反击' || f.label === '防守型' ? 'text-blue-400 border-blue-400/30' :
                       'text-[#0D7377] border-[#0D7377]/30'
-                    )}>
+                    }`}>
                       {f.label}
                     </span>
                   </div>
                 </button>
               ))}
             </div>
-          </div>
+          </Card>
 
-          {/* 战术心态 */}
-          <div className="card">
+          <Card>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Sword className="w-4 h-4 text-[#0D7377]" />
               比赛心态
             </h3>
             <div className="space-y-2">
-              {mentalities.map((m) => (
+              {mentalities.map(m => (
                 <button
                   key={m.id}
                   onClick={() => setSelectedMentality(m)}
-                  className={clsx(
-                    'w-full text-left p-3 border-2 transition-all duration-200',
+                  className={`w-full text-left p-3 border-2 transition-all duration-200 ${
                     selectedMentality.id === m.id
                       ? 'bg-[#0D7377]/20 border-[#0D7377] shadow-pixel-green'
                       : 'bg-[#0A0A0F] border-[#2D2D44] hover:border-[#0D7377]/50'
-                  )}
+                  }`}
                 >
-                  <p className={clsx('font-bold', selectedMentality.id === m.id ? m.color : 'text-white')}>
+                  <p className={`font-bold ${selectedMentality.id === m.id ? m.color : 'text-white'}`}>
                     {m.name}
                   </p>
                   <p className="text-xs text-[#8B8BA7]">{m.desc}</p>
                 </button>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* 中间 - 战术板 */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="card">
+          <Card>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">战术板</h3>
               <div className="flex items-center gap-2 text-xs text-[#8B8BA7]">
@@ -152,8 +190,7 @@ export default function Tactics() {
                 <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-500"/>前锋</span>
               </div>
             </div>
-            
-            {/* 球场 */}
+
             <div className="relative w-full aspect-[3/4] bg-[#065F46] border-4 border-[#2D2D44] overflow-hidden"
               style={{
                 backgroundImage: `
@@ -163,34 +200,35 @@ export default function Tactics() {
                 backgroundSize: '20px 20px'
               }}
             >
-              {/* 球场白线 */}
               <div className="absolute inset-4 border-2 border-white/30" />
               <div className="absolute top-1/2 left-4 right-4 h-px bg-white/30" />
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border-2 border-white/30 rounded-full" />
-              
-              {/* 球员 */}
-              {mockPlayers.map((player) => (
-                <div
-                  key={player.id}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
-                  style={{ left: `${player.x}%`, top: `${player.y}%` }}
-                >
-                  <div className={clsx(
-                    'w-10 h-10 border-2 border-white/80 flex items-center justify-center shadow-pixel transition-all group-hover:scale-110',
-                    positionColors[player.position] || 'bg-[#2D2D44]'
-                  )}>
-                    <span className="text-xs font-bold text-white">{player.position}</span>
-                  </div>
-                  <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    <p className="text-[10px] text-white bg-black/60 px-1">{player.name}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* 属性对比 */}
-          <div className="card">
+              {players.map((player) => {
+                const group = player.position === 'GK' ? 'GK' : player.position === 'DF' ? 'DF' : player.position === 'MF' ? 'MF' : 'FW'
+                posIndices[group] = (posIndices[group] || 0) + 1
+                const coords = getPositionCoords(player.position, posIndices[group] - 1, posCounts[group] || 1)
+                return (
+                  <div
+                    key={player.id}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
+                    style={{ left: `${coords.x}%`, top: `${coords.y}%` }}
+                  >
+                    <div className={`w-10 h-10 border-2 border-white/80 flex items-center justify-center shadow-pixel transition-all group-hover:scale-110 ${
+                      positionColors[group] || 'bg-[#2D2D44]'
+                    }`}>
+                      <span className="text-xs font-bold text-white">{player.position}</span>
+                    </div>
+                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      <p className="text-[10px] text-white bg-black/60 px-1">{player.name}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+
+          <Card>
             <h3 className="text-lg font-semibold mb-4">战术属性</h3>
             <div className="grid grid-cols-3 gap-6">
               <div>
@@ -221,13 +259,9 @@ export default function Tactics() {
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>
   )
-}
-
-function clsx(...args: (string | false | undefined)[]) {
-  return args.filter(Boolean).join(' ')
 }

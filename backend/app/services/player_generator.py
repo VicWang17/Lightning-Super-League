@@ -19,6 +19,7 @@ from app.models.player import (
     PotentialLetter, PlayerPersonality, ContractType, MatchForm, SquadRole,
     OriginType,
 )
+from app.services.player_number_service import generate_preferred_number
 from app.services.training_growth_service import TrainingGrowthService
 
 
@@ -353,13 +354,31 @@ class AvatarPool:
         if base_path is None:
             base_path = Path(__file__).resolve().parents[3] / "frontend" / "public" / "avatars"
         self.base_path = Path(base_path)
-        self.asian = sorted([f"avatars/asian/{f.name}" for f in (self.base_path / "asian").glob("*.png")])
-        self.western = sorted([f"avatars/western/{f.name}" for f in (self.base_path / "western").glob("*.png")])
-        if not self.asian or not self.western:
+        self.asian_field = self._load_pool("asian_field")
+        self.asian_gk = self._load_pool("asian_gk")
+        self.western_field = self._load_pool("western_field")
+        self.western_gk = self._load_pool("western_gk")
+
+        # Fallback for older workspaces before the v2 avatar split is installed.
+        self.asian = self._load_pool("asian")
+        self.western = self._load_pool("western")
+        if not (self.asian_field or self.asian) or not (self.western_field or self.western):
             raise RuntimeError("Avatar pool empty! Check frontend/public/avatars/")
-    
-    def pick(self, race: str) -> str:
-        pool = self.asian if race == "asian" else self.western
+
+    def _load_pool(self, dirname: str) -> list[str]:
+        directory = self.base_path / dirname
+        return sorted([f"avatars/{dirname}/{f.name}" for f in directory.glob("*.png")])
+
+    def pick(self, race: str, position: PlayerPosition | None = None) -> str:
+        is_gk = position == PlayerPosition.GK
+        if race == "asian":
+            pool = self.asian_gk if is_gk and self.asian_gk else self.asian_field
+            if not pool:
+                pool = self.asian
+        else:
+            pool = self.western_gk if is_gk and self.western_gk else self.western_field
+            if not pool:
+                pool = self.western
         return random.choice(pool)
 
 
@@ -574,12 +593,12 @@ class PlayerGenerator:
         # Name
         name, region = self.name_gen.generate(race_str)
         
-        # Avatar
-        avatar_url = self.avatar_pool.pick(race_str)
-        
         # Position (如果未指定)
         if position is None:
             position = random.choice(list(PlayerPosition))
+
+        # Avatar
+        avatar_url = self.avatar_pool.pick(race_str, position)
         
         # Archetype
         archetype = _weighted_choice(ARCHETYPE_CONFIG[position])
@@ -643,12 +662,15 @@ class PlayerGenerator:
             potential_max, position, actual_age
         )
         
+        preferred_number = generate_preferred_number(position)
+        
         return Player(
             name=name,
             race=race,
             avatar_url=avatar_url,
             position=position,
             preferred_foot=foot,
+            preferred_number=preferred_number,
             height=height,
             weight=weight,
             birth_offset=birth_offset,
@@ -699,9 +721,9 @@ class PlayerGenerator:
         race_str = random.choice(["asian", "western"])
         race = PlayerRace.ASIAN if race_str == "asian" else PlayerRace.WESTERN
         name, region = self.name_gen.generate(race_str)
-        avatar_url = self.avatar_pool.pick(race_str)
         
         position = random.choice(list(PlayerPosition))
+        avatar_url = self.avatar_pool.pick(race_str, position)
         archetype = _weighted_choice(ARCHETYPE_CONFIG[position])
         style = _weighted_choice(STYLE_DISTRIBUTION)
         
@@ -743,12 +765,15 @@ class PlayerGenerator:
         
         wage = estimate_initial_wage(base_ovr, potential_max, actual_age)
         
+        preferred_number = generate_preferred_number(position)
+        
         return Player(
             name=name,
             race=race,
             avatar_url=avatar_url,
             position=position,
             preferred_foot=foot,
+            preferred_number=preferred_number,
             height=height,
             weight=weight,
             birth_offset=birth_offset,
@@ -868,10 +893,10 @@ class PlayerGenerator:
         race_str = random.choice(["asian", "western"])
         race = PlayerRace.ASIAN if race_str == "asian" else PlayerRace.WESTERN
         name, region = self.name_gen.generate(race_str)
-        avatar_url = self.avatar_pool.pick(race_str)
         
         # Position
         position = random.choice(list(PlayerPosition))
+        avatar_url = self.avatar_pool.pick(race_str, position)
         archetype = _weighted_choice(ARCHETYPE_CONFIG[position])
         style = _weighted_choice(STYLE_DISTRIBUTION)
         
@@ -904,12 +929,15 @@ class PlayerGenerator:
             potential_max, position, actual_age
         )
         
+        preferred_number = generate_preferred_number(position)
+        
         return Player(
             name=name,
             race=race,
             avatar_url=avatar_url,
             position=position,
             preferred_foot=foot,
+            preferred_number=preferred_number,
             height=height,
             weight=weight,
             birth_offset=birth_offset,

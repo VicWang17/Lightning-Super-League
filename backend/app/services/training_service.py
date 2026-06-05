@@ -23,6 +23,7 @@ from app.core.training_config import (
 )
 from app.services.training_growth_service import TrainingGrowthService
 from app.services.player_fatigue_service import PlayerFatigueService
+from app.services.injury_service import InjuryService
 from app.core.logging import get_logger
 
 logger = get_logger("app.training")
@@ -35,6 +36,7 @@ class TrainingService:
         self.db = db
         self.growth_service = TrainingGrowthService()
         self.fatigue_service = PlayerFatigueService()
+        self.injury_service = InjuryService()
     
     # =====================================================================
     # 查询接口
@@ -363,6 +365,17 @@ class TrainingService:
             fatigue_before = player.fatigue
             self.fatigue_service.apply_training_load(player, training_item)
             
+            # 应用劳损累积 (伤病系统 v2)
+            body_wear_before = dict(player.body_wear) if player.body_wear else {}
+            self.injury_service.apply_training_wear(player, training_item)
+            
+            # 训练后伤病检定 (伤病系统 v2)
+            training_injury = None
+            if not training_item.is_recovery:
+                training_injury = self.injury_service.check_training_injury(player, training_item)
+                if training_injury:
+                    self.injury_service.apply_injury(player, training_injury, cause="training")
+            
             # 应用属性成长/衰退
             before_snapshot = self._snapshot_attributes(player)
             breakthroughs = self.growth_service.apply_attribute_progress(player, gains)
@@ -404,6 +417,14 @@ class TrainingService:
                     "player_name": player.name,
                     "breakthroughs": breakthroughs,
                 })
+            
+            # 如果有训练伤病，也记录下来 (可以后续扩展 TrainingResult 表)
+            if training_injury:
+                logger.warning(
+                    f"Training injury: {player.name} ({player.id}) - "
+                    f"{training_injury['injury_name']} ({training_injury['body_part']}, "
+                    f"severity={training_injury['severity']}, days={training_injury['days']})"
+                )
         
         await self.db.flush()
         
@@ -415,7 +436,7 @@ class TrainingService:
         }
     
     async def _get_trainable_players(self, team_id: str) -> list[Player]:
-        """获取可训练球员（排除伤停）"""
+        """获取可训练球员（排除伤停和重伤球员）"""
         result = await self.db.execute(
             select(Player).where(
                 and_(
@@ -424,7 +445,12 @@ class TrainingService:
                 )
             )
         )
-        return list(result.scalars().all())
+        players = list(result.scalars().all())
+        # 排除中伤/重伤球员（severity >= 2）
+        return [
+            p for p in players
+            if p.current_injury is None or p.current_injury.get("severity", 0) < 2
+        ]
     
     async def _get_players_by_ids(self, player_ids: list[str]) -> list[Player]:
         """根据ID列表获取球员"""
@@ -637,6 +663,8 @@ class TrainingService:
         total_sessions = 0
         total_breakthroughs = 0
         total_declines = 0
+        total_training_injuries = 0
+        training_injuries_by_severity = {1: 0, 2: 0, 3: 0}
         results_to_add: list[TrainingResult] = []
 
         for team_id in team_ids:
@@ -656,6 +684,11 @@ class TrainingService:
                 recent_count = recent_counts.get((team_id, training_item.id), 0)
 
                 for player in players:
+                    if player.status != PlayerStatus.ACTIVE:
+                        continue
+                    if player.current_injury is not None and player.current_injury.get("severity", 0) >= 2:
+                        continue
+
                     age = current_season_number + abs(player.birth_offset)
 
                     if training_item.intensity == "hard" and not self.fatigue_service.can_do_high_intensity_training(player):
@@ -672,6 +705,22 @@ class TrainingService:
                     fitness_before = player.fitness
                     fatigue_before = player.fatigue
                     self.fatigue_service.apply_training_load(player, training_item)
+                    self.injury_service.apply_training_wear(player, training_item)
+
+                    training_injury = None
+                    if not training_item.is_recovery:
+                        training_injury = self.injury_service.check_training_injury(player, training_item)
+                        if training_injury:
+                            self.injury_service.apply_injury(player, training_injury, cause="training")
+                            total_training_injuries += 1
+                            severity = int(training_injury.get("severity", 0) or 0)
+                            if severity in training_injuries_by_severity:
+                                training_injuries_by_severity[severity] += 1
+                            logger.warning(
+                                f"Training injury: {player.name} ({player.id}) - "
+                                f"{training_injury['injury_name']} ({training_injury['body_part']}, "
+                                f"severity={training_injury['severity']}, days={training_injury['days']})"
+                            )
 
                     before_snapshot = self._snapshot_attributes(player)
                     breakthroughs = self.growth_service.apply_attribute_progress(player, gains)
@@ -717,4 +766,8 @@ class TrainingService:
             "sessions_completed": total_sessions,
             "total_breakthroughs": total_breakthroughs,
             "total_declines": total_declines,
+            "training_injuries": total_training_injuries,
+            "training_injuries_minor": training_injuries_by_severity[1],
+            "training_injuries_medium": training_injuries_by_severity[2],
+            "training_injuries_major": training_injuries_by_severity[3],
         }

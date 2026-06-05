@@ -300,6 +300,7 @@ function TeamDetail() {
                   <thead>
                     <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
                       <th className="py-3 px-2 font-medium">头像</th>
+                      <th className="py-3 px-2 font-medium text-center">号码</th>
                       <th className="py-3 px-2 font-medium">位置</th>
                       <th className="py-3 px-2 font-medium">姓名</th>
                       <th className="py-3 px-2 font-medium text-center">年龄</th>
@@ -322,6 +323,15 @@ function TeamDetail() {
                                 <span className="text-xs flex items-center justify-center h-full">👤</span>
                               )}
                             </div>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            {player.squad_number ? (
+                              <span className="inline-flex items-center justify-center w-8 h-8 text-xs font-bold bg-[#0D7377] text-white">
+                                {player.squad_number}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-[#8B8BA7]">—</span>
+                            )}
                           </td>
                           <td className="py-3 px-2">
                             <span className={`inline-flex items-center justify-center w-8 h-8 text-xs font-bold ${getPositionColor(player.position)}`}>

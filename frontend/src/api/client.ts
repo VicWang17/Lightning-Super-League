@@ -858,6 +858,105 @@ class ApiClient {
   async triggerAITransferScan() {
     return this.post<{ scanned: number; responded: number; listed: number; offered: number }>('/transfers/admin/ai-scan', {})
   }
+
+  // ==================== 训练系统 API ====================
+
+  async getTrainingItems(category?: string) {
+    const query = category ? `?category=${category}` : ''
+    return this.requestWithAuth<{
+      items: import('../types/training').TrainingItem[]
+    }>(`/training/items${query}`, { method: 'GET' })
+  }
+
+  async getTrainingTemplates() {
+    return this.requestWithAuth<{
+      items: import('../types/training').TrainingTemplate[]
+    }>('/training/templates', { method: 'GET' })
+  }
+
+  async getTeamTrainingPlan(teamId: string, seasonId: string, startDay: number, days = 7) {
+    return this.requestWithAuth<{
+      items: import('../types/training').TrainingPlanSlot[]
+    }>(`/training/teams/${teamId}/plan?season_id=${seasonId}&start_day=${startDay}&days=${days}`, { method: 'GET' })
+  }
+
+  async saveTeamTrainingPlan(teamId: string, seasonId: string, items: Array<{
+    season_day: number
+    slot: string
+    mode: string
+    training_item_id?: string
+    groups?: import('../types/training').TrainingGroup[]
+  }>) {
+    return this.requestWithAuth<{
+      items: import('../types/training').TrainingPlanSlot[]
+    }>(`/training/teams/${teamId}/plan`, {
+      method: 'PUT',
+      body: JSON.stringify({ season_id: seasonId, items }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  async applyTrainingTemplate(teamId: string, templateId: string, seasonId: string, startDay: number) {
+    return this.requestWithAuth<{
+      items: import('../types/training').TrainingPlanSlot[]
+    }>(`/training/teams/${teamId}/templates/${templateId}/apply`, {
+      method: 'POST',
+      body: JSON.stringify({ season_id: seasonId, start_day: startDay }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  async autoGroupPlayers(teamId: string, mode = 'groups_3') {
+    return this.requestWithAuth<import('../types/training').AutoGroupResponse>(
+      `/training/teams/${teamId}/auto-group?mode=${mode}`,
+      { method: 'POST' }
+    )
+  }
+
+  async completeTrainingSlot(teamId: string, seasonId: string, seasonDay: number, slot: string) {
+    return this.requestWithAuth<import('../types/training').TrainingDailySummary>(
+      `/training/teams/${teamId}/plan/complete?season_id=${seasonId}&season_day=${seasonDay}&slot=${slot}`,
+      { method: 'POST' }
+    )
+  }
+
+  async getTrainingResults(teamId: string, seasonId: string, params?: {
+    player_id?: string
+    start_day?: number
+    days?: number
+    limit?: number
+  }) {
+    const query = new URLSearchParams()
+    query.append('season_id', seasonId)
+    if (params?.player_id) query.append('player_id', params.player_id)
+    if (params?.start_day !== undefined) query.append('start_day', String(params.start_day))
+    if (params?.days !== undefined) query.append('days', String(params.days))
+    if (params?.limit !== undefined) query.append('limit', String(params.limit))
+    return this.requestWithAuth<{
+      items: import('../types/training').TrainingResultItem[]
+    }>(`/training/teams/${teamId}/results?${query.toString()}`, { method: 'GET' })
+  }
+
+  async getPlayerFatigue(playerId: string) {
+    return this.requestWithAuth<import('../types/training').PlayerFatigueItem>(
+      `/training/players/${playerId}/fatigue`,
+      { method: 'GET' }
+    )
+  }
+
+  async getTeamFatigue(teamId: string) {
+    return this.requestWithAuth<import('../types/training').TeamFatigueResponse>(
+      `/training/teams/${teamId}/fatigue`,
+      { method: 'GET' }
+    )
+  }
+
+  async getPlayerTrainingProgress(playerId: string, seasonId: string, days = 7) {
+    return this.requestWithAuth<import('../types/training').PlayerTrainingProgress>(
+      `/training/players/${playerId}/training/progress?season_id=${seasonId}&days=${days}`,
+      { method: 'GET' }
+    )
+  }
 }
 
 // Types needed for the API client

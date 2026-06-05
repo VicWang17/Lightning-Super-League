@@ -39,6 +39,16 @@ var AttrNames = []string{
 	"ACC", "CRO", "CON", "FIN", "BAL", "COM", "SAV", "REF", "POS", "SET", "DEC",
 }
 
+// AttrIndex returns the index for a given attribute name, or -1 if not found
+func AttrIndex(name string) int {
+	for i, n := range AttrNames {
+		if n == name {
+			return i
+		}
+	}
+	return -1
+}
+
 // Event types (MVP subset)
 const (
 	EventKickoff      = "kickoff"
@@ -112,6 +122,21 @@ const (
 	// Phase 4: Injury events
 	EventMinorInjury = "minor_injury"
 	EventMajorInjury = "major_injury"
+
+	// Body parts for injury/wear system
+	PartHamstring  = "hamstring"
+	PartQuadriceps = "quadriceps"
+	PartCalf       = "calf"
+	PartGroin      = "groin"
+	PartAnkle      = "ankle"
+	PartKnee       = "knee"
+	PartAchilles   = "achilles"
+	PartFoot       = "foot"
+	PartBack       = "back"
+	PartRibs       = "ribs"
+	PartShoulder   = "shoulder"
+	PartFingers    = "fingers"
+	PartHead       = "head"
 
 	// Phase 5: Rare dead ball
 	EventDropBall = "drop_ball"

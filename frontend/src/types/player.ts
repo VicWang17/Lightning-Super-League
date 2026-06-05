@@ -26,6 +26,8 @@ export interface Player {
   avatar_url?: string
   position: PlayerPosition
   preferred_foot: PlayerFoot
+  preferred_number: number
+  squad_number?: number
   height: number
   weight: number
   birth_offset: number
@@ -111,6 +113,7 @@ export interface PlayerListItem {
   ovr: number
   potential_letter: PotentialLetter
   market_value: number
+  squad_number?: number
   team_id?: string
 }
 
@@ -171,6 +174,37 @@ export interface PlayerState {
 export interface TeamPlayerStates {
   team_id: string
   players: PlayerState[]
+}
+
+// =====================================================================
+// Growth Curve types
+// =====================================================================
+
+export interface GrowthCurvePoint {
+  age: number
+  ovr: number
+  is_projected: boolean
+}
+
+export interface AttributeProgressItem {
+  attribute: string
+  label: string
+  current: number
+  cap: number
+  progress_pct: number
+}
+
+export interface PlayerGrowthData {
+  current_age: number
+  current_ovr: number
+  peak_age: number
+  curve_type: string
+  curve_type_label: string
+  growth_speed: number
+  stability: number
+  late_bloom_factor: number
+  projected_curve: GrowthCurvePoint[]
+  attribute_progress: AttributeProgressItem[]
 }
 
 // Position display names

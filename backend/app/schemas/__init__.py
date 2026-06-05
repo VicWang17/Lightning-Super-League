@@ -39,6 +39,9 @@ from app.schemas.records import (
     PlayerHistoryResponse,
     TeamSeasonHistoryItem,
     TeamHistoryResponse,
+    PlayerGrowthResponse,
+    GrowthCurvePoint,
+    AttributeProgressItem,
 )
 from app.schemas.mail import (
     MailItem,
@@ -138,6 +141,9 @@ __all__ = [
     "PlayerHistoryResponse",
     "TeamSeasonHistoryItem",
     "TeamHistoryResponse",
+    "PlayerGrowthResponse",
+    "GrowthCurvePoint",
+    "AttributeProgressItem",
     # Mail
     "MailItem",
     "MailDetail",

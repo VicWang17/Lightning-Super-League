@@ -159,3 +159,33 @@ class TeamHistoryResponse(BaseSchema):
     seasons: List[TeamSeasonHistoryItem] = Field(default_factory=list)
     record_count: int = 0
     trophies: List[dict] = Field(default_factory=list)
+
+
+class GrowthCurvePoint(BaseSchema):
+    """成长曲线单点数据"""
+    age: int
+    ovr: int
+    is_projected: bool = Field(..., description="是否为预测值")
+
+
+class AttributeProgressItem(BaseSchema):
+    """单属性成长进度"""
+    attribute: str
+    label: str
+    current: int
+    cap: float
+    progress_pct: float = Field(..., description="当前值占上限的百分比")
+
+
+class PlayerGrowthResponse(BaseSchema):
+    """球员成长曲线页完整响应"""
+    current_age: int
+    current_ovr: int
+    peak_age: int | None
+    curve_type: str | None = Field(None, description="early_bloomer/steady/late_bloomer/explosive/plateau")
+    curve_type_label: str = ""
+    growth_speed: float
+    stability: float
+    late_bloom_factor: float
+    projected_curve: List[GrowthCurvePoint] = Field(default_factory=list)
+    attribute_progress: List[AttributeProgressItem] = Field(default_factory=list)

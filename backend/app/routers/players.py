@@ -28,8 +28,11 @@ from app.schemas import (
     ContractSignRequest,
     PlayerStateResponse,
     TeamPlayerStatesResponse,
+    PlayerGrowthResponse,
+    GrowthCurvePoint,
+    AttributeProgressItem,
 )
-from app.models import Player, PlayerSeasonStats, Season, Team
+from app.models import Player, PlayerSeasonStats, Season, Team, SeasonStatus
 from app.services.contract_service import ContractService
 from app.services.player_state_service import PlayerStateService
 
@@ -123,6 +126,7 @@ async def list_players(
             ovr=p.ovr,
             potential_letter=p.potential_letter,
             market_value=p.market_value,
+            squad_number=p.squad_number,
             team_id=p.team_id,
         )
         for p in players
@@ -200,6 +204,8 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
             wage=player.wage,
             release_clause=player.release_clause,
             squad_role=player.squad_role,
+            preferred_number=player.preferred_number,
+            squad_number=player.squad_number,
             market_value=player.market_value,
             stats=stats,
             matches_played=career_stats["matches_played"],
@@ -655,4 +661,173 @@ async def get_team_player_states(
     return ResponseSchema(
         success=True,
         data=TeamPlayerStatesResponse(team_id=team_id, players=states),
+    )
+
+
+# =====================================================================
+# Player Growth Curve API
+# =====================================================================
+
+_ATTR_LABELS = {
+    "sho": "射门", "pas": "传球", "dri": "盘带", "spd": "速度",
+    "str_": "力量", "sta": "体能", "acc": "爆发力", "hea": "头球",
+    "bal": "平衡", "defe": "防守意识", "tkl": "抢断", "vis": "视野",
+    "cro": "传中", "con": "控球", "fin": "远射", "com": "镇定",
+    "sav": "扑救", "ref": "反应", "pos": "站位", "rus": "出击",
+    "dec": "球商", "fk": "任意球", "pk": "点球",
+}
+
+_CURVE_TYPE_LABELS = {
+    "early_bloomer": "早熟型",
+    "steady": "稳定型",
+    "late_bloomer": "晚熟型",
+    "explosive": "爆发型",
+    "plateau": "平台型",
+}
+
+
+def _generate_projected_curve(
+    current_age: int,
+    current_ovr: int,
+    peak_age: int,
+    curve_type: str,
+    speed: float,
+) -> list[GrowthCurvePoint]:
+    """基于球员成长参数生成预测曲线（15-35岁）。"""
+    if peak_age <= 15:
+        peak_age = 28
+
+    # 估算巅峰 OVR
+    if current_age < peak_age:
+        years_to_peak = peak_age - current_age
+        peak_ovr = current_ovr + years_to_peak * 2.0 * speed
+    else:
+        peak_ovr = current_ovr + (current_age - peak_age) * 1.5
+    peak_ovr = min(99, peak_ovr)
+
+    # 15 岁基础 OVR
+    base_ovr = max(35, peak_ovr - (peak_age - 15) * 3.5)
+
+    curve: list[GrowthCurvePoint] = []
+    for age in range(15, 36):
+        if age <= peak_age:
+            t = (age - 15) / max(1, peak_age - 15)
+            if curve_type == "early_bloomer":
+                factor = 1 - (1 - t) ** 0.5
+            elif curve_type == "late_bloomer":
+                factor = t ** 2
+            elif curve_type == "explosive":
+                factor = 1 - (1 - t) ** 0.3
+            elif curve_type == "plateau":
+                factor = min(1.0, t / 0.6)
+            else:  # steady
+                factor = t
+            ovr = base_ovr + (peak_ovr - base_ovr) * factor
+        else:
+            t = (age - peak_age) / max(1, 35 - peak_age)
+            if curve_type == "early_bloomer":
+                decline = t ** 0.8
+            elif curve_type == "explosive":
+                decline = t ** 0.5
+            elif curve_type == "plateau":
+                decline = max(0.0, (t - 0.3) / 0.7)
+            elif curve_type == "late_bloomer":
+                decline = t ** 1.2
+            else:
+                decline = t
+            ovr = peak_ovr - (peak_ovr - 30) * decline
+
+        ovr = int(max(30, min(99, ovr)))
+        curve.append(GrowthCurvePoint(
+            age=age,
+            ovr=ovr,
+            is_projected=(age != current_age),
+        ))
+
+    return curve
+
+
+@router.get(
+    "/{player_id}/growth",
+    response_model=ResponseSchema[PlayerGrowthResponse],
+    summary="获取球员成长曲线",
+    description="获取球员成长曲线元数据、属性进度和预测曲线",
+)
+async def get_player_growth(
+    player_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取球员成长曲线数据"""
+    result = await db.execute(select(Player).where(Player.id == player_id))
+    player = result.scalar_one_or_none()
+    if not player:
+        return ResponseSchema(success=False, message="球员不存在", code=404)
+
+    # 获取当前赛季以计算年龄
+    season_result = await db.execute(
+        select(Season)
+        .where(Season.status == SeasonStatus.ONGOING)
+        .order_by(Season.season_number.desc())
+        .limit(1)
+    )
+    season = season_result.scalar_one_or_none()
+    current_age = abs(player.birth_offset)
+    if season:
+        current_age = season.season_number + abs(player.birth_offset)
+
+    current_ovr = player.ovr
+    peak_age = player.growth_peak_age or 28
+    curve_type = player.growth_curve_type or "steady"
+    speed = float(player.growth_speed) if player.growth_speed else 1.0
+    stability = float(player.growth_stability) if player.growth_stability else 1.0
+    late_bloom = float(player.late_bloom_factor) if player.late_bloom_factor else 1.0
+
+    # 生成预测曲线
+    projected_curve = _generate_projected_curve(
+        current_age=current_age,
+        current_ovr=current_ovr,
+        peak_age=peak_age,
+        curve_type=curve_type,
+        speed=speed,
+    )
+
+    # 属性进度
+    attribute_progress: list[AttributeProgressItem] = []
+    caps = player.attribute_caps or {}
+    progress = player.attribute_progress or {}
+    for attr_key in _ATTR_LABELS:
+        # 获取当前属性值
+        current_val = getattr(player, attr_key, 10) or 10
+        cap_val = caps.get(attr_key, 20.0) if isinstance(caps, dict) else 20.0
+        if isinstance(cap_val, (int, float)):
+            progress_pct = round((current_val / cap_val) * 100, 1) if cap_val > 0 else 0.0
+        else:
+            cap_val = 20.0
+            progress_pct = 0.0
+
+        attribute_progress.append(AttributeProgressItem(
+            attribute=attr_key,
+            label=_ATTR_LABELS[attr_key],
+            current=current_val,
+            cap=float(cap_val),
+            progress_pct=progress_pct,
+        ))
+
+    # 按 progress_pct 排序，潜力空间最小的排前面（最接近上限）
+    attribute_progress.sort(key=lambda x: x.progress_pct, reverse=True)
+
+    return ResponseSchema(
+        success=True,
+        data=PlayerGrowthResponse(
+            current_age=current_age,
+            current_ovr=current_ovr,
+            peak_age=peak_age,
+            curve_type=curve_type,
+            curve_type_label=_CURVE_TYPE_LABELS.get(curve_type, "未知"),
+            growth_speed=speed,
+            stability=stability,
+            late_bloom_factor=late_bloom,
+            projected_curve=projected_curve,
+            attribute_progress=attribute_progress,
+        ),
     )

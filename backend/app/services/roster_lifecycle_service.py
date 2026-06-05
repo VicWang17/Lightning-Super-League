@@ -38,6 +38,7 @@ from app.models.finance import (
 from app.services.contract_service import ContractService
 from app.services.finance_service import FinanceService
 from app.services.player_generator import PlayerGenerator
+from app.services.player_number_service import assign_squad_number
 from app.core.logging import get_logger
 
 logger = get_logger("app.roster_lifecycle")
@@ -397,6 +398,9 @@ class RosterLifecycleService:
             )
             self.db.add(player)
             await self.db.flush()
+
+            # 分配队内号码
+            await assign_squad_number(self.db, player, team.id)
 
             # 签 1 年合同
             try:

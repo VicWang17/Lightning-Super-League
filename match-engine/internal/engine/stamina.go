@@ -30,19 +30,9 @@ func ApplyStaminaDecay(m *domain.MatchState) {
 				base := float64(p.Attributes[config.AttrNames[i]])
 				p.EffectiveAttrs[i] = base * multiplier
 			}
-			// Apply injury penalty
-			if p.Injured {
-				injuryMultiplier := 1.0
-				switch p.InjurySeverity {
-				case 1: // minor
-					injuryMultiplier = 0.85
-				case 2: // major
-					injuryMultiplier = 0.60
-				}
-				for i := 0; i < config.AttrCount; i++ {
-					p.EffectiveAttrs[i] *= injuryMultiplier
-				}
-			}
+
+			// Apply new injury system: body-part-specific attribute penalties
+			ApplyMinorInjuryToAttrs(p)
 
 			// Apply skill attribute multipliers (e.g., 大场面先生)
 			ctx := SkillContext{Player: p, Zone: m.ActiveZone, Minute: m.Minute, Half: m.Half}

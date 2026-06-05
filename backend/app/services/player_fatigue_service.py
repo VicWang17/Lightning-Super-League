@@ -8,6 +8,7 @@ from typing import Optional
 from app.models.player import Player, PlayerPosition
 from app.models.season import FixtureType
 from app.core.training_config import TrainingItem, INTENSITY_LOAD_POINTS
+from app.services.injury_service import InjuryService
 
 
 # 位置疲劳影响系数 (设计文档 5.2)
@@ -126,17 +127,37 @@ class PlayerFatigueService:
         player.fatigue = _clamp(player.fatigue + fatigue_delta)
     
     @staticmethod
-    def apply_daily_recovery(player: Player, had_match: bool = False, had_high_intensity_training: bool = False) -> None:
-        """自然恢复 (设计文档 5.6)"""
+    def apply_daily_recovery(player: Player, had_match: bool = False, had_high_intensity_training: bool = False, activity_type: str = "normal_training") -> dict:
+        """自然恢复 (设计文档 5.6)
+        
+        activity_type: full_rest / recovery_training / light_training / normal_training / high_intensity_training
+        返回恢复摘要。
+        """
+        summary = {}
+        
         if had_match:
-            return  # 由比赛结算处理
+            # 比赛日只处理伤病恢复，不处理体力和劳损
+            recovered = InjuryService.tick_injury_recovery(player)
+            if recovered:
+                summary["injury_recovered"] = True
+            return summary
         
-        if had_high_intensity_training:
-            return  # 中高强度训练不额外恢复
+        # 默认恢复体力和疲劳
+        if not had_high_intensity_training:
+            player.fitness = _clamp(player.fitness + 10)
+            player.fatigue = _clamp(player.fatigue - 8)
         
-        # 默认恢复
-        player.fitness = _clamp(player.fitness + 10)
-        player.fatigue = _clamp(player.fatigue - 8)
+        # 伤病恢复倒计时
+        recovered = InjuryService.tick_injury_recovery(player)
+        if recovered:
+            summary["injury_recovered"] = True
+        
+        # BodyWear 自然恢复 (伤病系统 v2)
+        wear_recovery = InjuryService.apply_daily_recovery(player, activity_type=activity_type)
+        if wear_recovery:
+            summary["wear_recovery"] = wear_recovery
+        
+        return summary
     
     @staticmethod
     def calculate_initial_stamina(player: Player) -> float:

@@ -1,15 +1,45 @@
 package domain
 
+// BodyWear tracks wear/fatigue for each body part (0-100 scale)
+type BodyWear struct {
+	Hamstring  float64 `json:"hamstring"`
+	Quadriceps float64 `json:"quadriceps"`
+	Calf       float64 `json:"calf"`
+	Groin      float64 `json:"groin"`
+	Ankle      float64 `json:"ankle"`
+	Knee       float64 `json:"knee"`
+	Achilles   float64 `json:"achilles"`
+	Foot       float64 `json:"foot"`
+	Back       float64 `json:"back"`
+	Ribs       float64 `json:"ribs"`
+	Shoulder   float64 `json:"shoulder"`
+	Fingers    float64 `json:"fingers"`
+	Head       float64 `json:"head"`
+}
+
+// ActiveInjury represents a currently active injury on a player
+type ActiveInjury struct {
+	BodyPart      string            `json:"body_part"`
+	InjuryName    string            `json:"injury_name"`
+	Severity      int               `json:"severity"`       // 1=minor, 2=medium, 3=major
+	RemainingDays int               `json:"remaining_days"`
+	AttrImpact    map[string]float64 `json:"attr_impact"`   // only for minor injuries during match
+}
+
 // PlayerSetup represents input player data
 type PlayerSetup struct {
 	PlayerID   string         `json:"player_id"`
 	Name       string         `json:"name"`
 	Position   string         `json:"position"`    // GK/FW/MF/DF
+	Number     int            `json:"number"`      // jersey number
 	Attributes map[string]int `json:"attributes"`  // 21 attrs 1-20
 	Skills     []string       `json:"skills"`
 	Stamina    float64        `json:"stamina"`     // initial stamina 0-100
 	Height     int            `json:"height"`
 	Foot       string         `json:"foot"`        // left/right/both
+	BodyWear   BodyWear       `json:"body_wear"`   // wear per body part
+	Traits     []string       `json:"traits"`      // e.g. "铁人", "玻璃体质"
+	Age        int            `json:"age"`
 }
 
 // PlayerRuntime is the in-match mutable state of a player
@@ -25,8 +55,11 @@ type PlayerRuntime struct {
 	YellowCards    int
 	RedCard        bool
 	Injured        bool
-	InjurySeverity int // 0=none, 1=minor, 2=major
+	InjurySeverity int // 0=none, 1=minor, 2=major (deprecated, use MatchInjury)
 	Substituted    bool
+
+	// Match injury info (new system)
+	MatchInjury *ActiveInjury // nil = healthy, set when injury occurs during match
 
 	// Skill context (set by simulator, read by resolver)
 	SkillEventType string
@@ -37,6 +70,9 @@ type PlayerRuntime struct {
 	// LastSkillSuffix is set by applySkillAttack/Defense when a skill triggers,
 	// and consumed by addEvent to append to the event narrative.
 	LastSkillSuffix string
+
+	// Wear accumulation counters during match (for post-match output)
+	MatchWear BodyWear
 }
 
 // PlayerMatchStats accumulates during match

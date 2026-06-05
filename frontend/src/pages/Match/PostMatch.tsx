@@ -1,46 +1,128 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Star } from 'lucide-react'
-import { 
+import {
   Target
 } from '../../components/ui/pixel-icons'
+import { api } from '../../api/client'
+import { Card } from '../../components/ui/Card'
 
-const mockResult = {
-  homeTeam: '雷霆龙骑',
-  awayTeam: '南海蛟龙',
-  homeScore: 2,
-  awayScore: 1,
-  homeEmoji: '🐉',
-  awayEmoji: '🌊',
+interface MatchPayload {
+  id: string
+  home_team_id: string
+  away_team_id: string
+  home_team_name?: string
+  away_team_name?: string
+  home_score?: number
+  away_score?: number
+  status: string
+  engine_result?: {
+    winner_team_id?: string
+    resolution?: string
+    penalty_score?: { home: number; away: number }
+  }
 }
 
-const mockPlayerStats = [
-  { name: '赵雷', pos: 'ST', goals: 1, assists: 0, rating: 8.5, mvp: true },
-  { name: '陈浩', pos: 'WF', goals: 1, assists: 1, rating: 8.2, mvp: false },
-  { name: '刘洋', pos: 'CMF', goals: 0, assists: 0, rating: 7.4, mvp: false },
-  { name: '王强', pos: 'GK', goals: 0, assists: 0, rating: 7.1, mvp: false },
-  { name: '李明', pos: 'CB', goals: 0, assists: 0, rating: 6.8, mvp: false },
-  { name: '张伟', pos: 'CB', goals: 0, assists: 0, rating: 6.5, mvp: false },
-  { name: '孙凯', pos: 'WF', goals: 0, assists: 0, rating: 6.3, mvp: false },
-]
+interface PlayerStat {
+  player_id: string
+  name: string
+  position: string
+  team: 'home' | 'away'
+  goals: number
+  assists: number
+  shots: number
+  passes: number
+  tackles: number
+  saves: number
+  rating: number
+}
 
-const mockMatchStats = {
-  possession: [52, 48],
-  shots: [12, 9],
-  shotsOn: [6, 4],
-  corners: [5, 4],
-  fouls: [8, 10],
-  yellows: [1, 1],
-  reds: [0, 0],
+interface MatchStatsPayload {
+  match_id: string
+  stats: Record<string, number>
+  player_stats: PlayerStat[]
+  resolution?: string
+  winner_team_id?: string
+  penalty_score?: { home: number; away: number }
 }
 
 export default function PostMatch() {
+  const [match, setMatch] = useState<MatchPayload | null>(null)
+  const [stats, setStats] = useState<MatchStatsPayload | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetch() {
+      try {
+        const teamRes = await api.get<{ id: string }>('/teams/my-team')
+        if (!teamRes.success || !teamRes.data?.id) {
+          setError('未找到球队')
+          setLoading(false)
+          return
+        }
+        const teamId = teamRes.data.id
+
+        // 查找最近完成的比赛
+        const matchesRes = await api.get<{ items: MatchPayload[] }>(`/matches?team_id=${teamId}&status=finished&page_size=1`)
+        if (!matchesRes.success || !matchesRes.data?.items?.length) {
+          setError('暂无已完成比赛')
+          setLoading(false)
+          return
+        }
+        const finishedMatch = matchesRes.data.items[0]
+        setMatch(finishedMatch)
+
+        const statsRes = await api.get<MatchStatsPayload>(`/matches/${finishedMatch.id}/stats`)
+        if (!cancelled && statsRes.success) {
+          setStats(statsRes.data)
+        }
+      } catch {
+        if (!cancelled) setError('加载失败')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetch()
+    return () => { cancelled = true }
+  }, [])
+
+  if (loading) {
+    return <div className="max-w-[1200px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+  }
+
+  if (error || !match) {
+    return (
+      <div className="max-w-[1200px] p-8 text-center">
+        <p className="text-[#8B8BA7]">{error || '暂无已完成比赛'}</p>
+        <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white mt-4 inline-block">
+          查看赛程 →
+        </Link>
+      </div>
+    )
+  }
+
+  const homeName = match.home_team_name || match.home_team_id
+  const awayName = match.away_team_name || match.away_team_id
+  const homeScore = match.home_score ?? 0
+  const awayScore = match.away_score ?? 0
+
+  // 判断胜负
+  const isWin = (match.engine_result?.winner_team_id === match.home_team_id && homeScore > awayScore) ||
+                (match.engine_result?.winner_team_id === match.away_team_id && awayScore > homeScore)
+  const isDraw = homeScore === awayScore
+
+  const matchStats = stats?.stats || {}
+  const playerStats = stats?.player_stats || []
+  const mvp = [...playerStats].sort((a, b) => b.rating - a.rating)[0]
+
   return (
     <div className="space-y-6 max-w-[1200px]">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">赛后统计</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">联赛第8轮 · 全场结束</p>
+          <p className="text-sm text-[#8B8BA7] mt-1">全场结束</p>
         </div>
         <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
           返回赛程 →
@@ -48,99 +130,111 @@ export default function PostMatch() {
       </div>
 
       {/* 比分结果 */}
-      <div className="card bg-[#0D4A4D]/20 border-[#0D7377]/30">
+      <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
         <div className="flex items-center justify-center gap-8 py-8">
           <div className="text-center">
             <div className="w-20 h-20 bg-[#0D7377] border-2 border-[#0D7377]/50 flex items-center justify-center mx-auto mb-3 shadow-pixel-green">
-              <span className="text-3xl">{mockResult.homeEmoji}</span>
+              <span className="text-3xl">🏠</span>
             </div>
-            <h2 className="text-xl font-bold">{mockResult.homeTeam}</h2>
+            <h2 className="text-xl font-bold">{homeName}</h2>
           </div>
 
           <div className="text-center">
-            <div className="pixel-scoreboard">
-              <span className="score-home">{mockResult.homeScore}</span>
-              <span className="score-divider">:</span>
-              <span className="score-away">{mockResult.awayScore}</span>
+            <div className="text-5xl font-bold pixel-number text-white">
+              {homeScore} : {awayScore}
             </div>
-            <span className="inline-block mt-3 px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs border border-emerald-500/30">
-              胜利
+            <span className={`inline-block mt-3 px-3 py-1 text-xs border ${
+              isWin ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+              isDraw ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+              'bg-red-500/20 text-red-400 border-red-500/30'
+            }`}>
+              {isWin ? '胜利' : isDraw ? '平局' : '失利'}
             </span>
+            {stats?.penalty_score && (
+              <p className="text-xs text-[#8B8BA7] mt-2">
+                点球 {stats.penalty_score.home}:{stats.penalty_score.away}
+              </p>
+            )}
           </div>
 
           <div className="text-center">
             <div className="w-20 h-20 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center mx-auto mb-3">
-              <span className="text-3xl">{mockResult.awayEmoji}</span>
+              <span className="text-3xl">✈</span>
             </div>
-            <h2 className="text-xl font-bold">{mockResult.awayTeam}</h2>
+            <h2 className="text-xl font-bold">{awayName}</h2>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* MVP */}
-      <div className="card border-yellow-500/30">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-yellow-500/20 border-2 border-yellow-500/50 flex items-center justify-center">
-            <Star className="w-8 h-8 text-yellow-400" />
+      {mvp && (
+        <Card className="border-yellow-500/30">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-yellow-500/20 border-2 border-yellow-500/50 flex items-center justify-center">
+              <Star className="w-8 h-8 text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-xs text-yellow-400 font-bold uppercase tracking-wider">本场最佳</p>
+              <h3 className="text-2xl font-bold text-white">{mvp.name}</h3>
+              <p className="text-sm text-[#8B8BA7]">{mvp.position} · 评分 {mvp.rating.toFixed(1)} · {mvp.goals}进球 {mvp.assists}助攻</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-yellow-400 font-bold uppercase tracking-wider">本场最佳</p>
-            <h3 className="text-2xl font-bold text-white">赵雷</h3>
-            <p className="text-sm text-[#8B8BA7]">前锋 · 评分 8.5 · 1进球</p>
-          </div>
-        </div>
-      </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 球员评分 */}
-        <div className="card">
+        <Card>
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Star className="w-4 h-4 text-[#0D7377]" />
             球员评分
           </h3>
-          <div className="space-y-2">
-            {mockPlayerStats.map((p) => (
-              <div key={p.name} className="flex items-center gap-3 p-2 bg-[#0A0A0F] border-2 border-[#2D2D44]">
-                <div className="w-8 h-8 bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-[#8B8BA7]">{p.pos}</span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">{p.name}</p>
-                  <div className="flex items-center gap-2 text-[10px] text-[#4B4B6A]">
-                    {p.goals > 0 && <span className="text-yellow-400">⚽{p.goals}</span>}
-                    {p.assists > 0 && <span className="text-[#0D7377]">🅰️{p.assists}</span>}
+          {playerStats.length === 0 ? (
+            <p className="text-[#8B8BA7] text-center py-8">暂无球员数据</p>
+          ) : (
+            <div className="space-y-2">
+              {playerStats.sort((a, b) => b.rating - a.rating).map(p => (
+                <div key={p.player_id} className="flex items-center gap-3 p-2 bg-[#0A0A0F] border-2 border-[#2D2D44]">
+                  <div className="w-8 h-8 bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-[#8B8BA7]">{p.position}</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">{p.name}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-[#4B4B6A]">
+                      {p.goals > 0 && <span className="text-yellow-400">⚽{p.goals}</span>}
+                      {p.assists > 0 && <span className="text-[#0D7377]">🅰️{p.assists}</span>}
+                    </div>
+                  </div>
+                  <div className={`w-10 h-8 flex items-center justify-center text-sm font-bold pixel-number ${
+                    p.rating >= 8 ? 'bg-yellow-500/20 text-yellow-400' :
+                    p.rating >= 7 ? 'bg-emerald-500/20 text-emerald-400' :
+                    p.rating >= 6 ? 'bg-[#2D2D44] text-[#8B8BA7]' :
+                    'bg-red-500/20 text-red-400'
+                  }`}>
+                    {p.rating.toFixed(1)}
                   </div>
                 </div>
-                <div className={clsx(
-                  'w-10 h-8 flex items-center justify-center text-sm font-bold pixel-number',
-                  p.rating >= 8 ? 'bg-yellow-500/20 text-yellow-400' :
-                  p.rating >= 7 ? 'bg-emerald-500/20 text-emerald-400' :
-                  p.rating >= 6 ? 'bg-[#2D2D44] text-[#8B8BA7]' :
-                  'bg-red-500/20 text-red-400'
-                )}>
-                  {p.rating}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          )}
+        </Card>
 
         {/* 全场数据 */}
-        <div className="card">
+        <Card>
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Target className="w-4 h-4 text-[#0D7377]" />
             全场数据
           </h3>
           <div className="space-y-4">
-            <StatRow label="控球率" home={mockMatchStats.possession[0]} away={mockMatchStats.possession[1]} unit="%" />
-            <StatRow label="射门" home={mockMatchStats.shots[0]} away={mockMatchStats.shots[1]} />
-            <StatRow label="射正" home={mockMatchStats.shotsOn[0]} away={mockMatchStats.shotsOn[1]} />
-            <StatRow label="角球" home={mockMatchStats.corners[0]} away={mockMatchStats.corners[1]} />
-            <StatRow label="犯规" home={mockMatchStats.fouls[0]} away={mockMatchStats.fouls[1]} />
-            <StatRow label="黄牌" home={mockMatchStats.yellows[0]} away={mockMatchStats.yellows[1]} />
-            <StatRow label="红牌" home={mockMatchStats.reds[0]} away={mockMatchStats.reds[1]} />
+            <StatRow label="控球率" home={matchStats.possession_home ?? 50} away={matchStats.possession_away ?? 50} unit="%" />
+            <StatRow label="射门" home={matchStats.shots_home ?? 0} away={matchStats.shots_away ?? 0} />
+            <StatRow label="射正" home={matchStats.shots_on_target_home ?? 0} away={matchStats.shots_on_target_away ?? 0} />
+            <StatRow label="角球" home={matchStats.corners_home ?? 0} away={matchStats.corners_away ?? 0} />
+            <StatRow label="犯规" home={matchStats.fouls_home ?? 0} away={matchStats.fouls_away ?? 0} />
+            <StatRow label="黄牌" home={matchStats.yellows_home ?? 0} away={matchStats.yellows_away ?? 0} />
+            <StatRow label="红牌" home={matchStats.reds_home ?? 0} away={matchStats.reds_away ?? 0} />
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   )
@@ -149,7 +243,7 @@ export default function PostMatch() {
 function StatRow({ label, home, away, unit = '' }: { label: string; home: number; away: number; unit?: string }) {
   const total = home + away
   const homePct = total > 0 ? (home / total) * 100 : 50
-  
+
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
@@ -163,8 +257,4 @@ function StatRow({ label, home, away, unit = '' }: { label: string; home: number
       </div>
     </div>
   )
-}
-
-function clsx(...args: (string | false | undefined)[]) {
-  return args.filter(Boolean).join(' ')
 }

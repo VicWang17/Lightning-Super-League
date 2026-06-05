@@ -300,6 +300,11 @@ class SeasonService:
         total_sessions = 0
         total_breakthroughs = 0
         total_declines = 0
+        training_injuries = 0
+        training_injuries_minor = 0
+        training_injuries_medium = 0
+        training_injuries_major = 0
+        recovery_summary = {"players_processed": 0, "injury_recovered": 0}
         if team_ids:
             try:
                 summary = await training_service.bulk_complete_training_day(
@@ -308,8 +313,13 @@ class SeasonService:
                 total_sessions = summary.get("sessions_completed", 0)
                 total_breakthroughs = summary.get("total_breakthroughs", 0)
                 total_declines = summary.get("total_declines", 0)
+                training_injuries = summary.get("training_injuries", 0)
+                training_injuries_minor = summary.get("training_injuries_minor", 0)
+                training_injuries_medium = summary.get("training_injuries_medium", 0)
+                training_injuries_major = summary.get("training_injuries_major", 0)
             except Exception as e:
                 logger.warning(f"批量训练结算失败: day={day}, error={e}")
+            recovery_summary = await self._apply_training_day_recovery(season_id, day, team_ids)
 
         await self.db.commit()
 
@@ -321,7 +331,106 @@ class SeasonService:
             "sessions_completed": total_sessions,
             "total_breakthroughs": total_breakthroughs,
             "total_declines": total_declines,
+            "training_injuries": training_injuries,
+            "training_injuries_minor": training_injuries_minor,
+            "training_injuries_medium": training_injuries_medium,
+            "training_injuries_major": training_injuries_major,
+            "recovery": recovery_summary,
         }
+
+    async def _apply_training_day_recovery(self, season_id: str, day: int, team_ids: list[str]) -> Dict:
+        """Apply end-of-day recovery after training has been completed."""
+        from app.core.training_config import get_training_item
+        from app.models.player import Player, PlayerStatus
+        from app.models.training import TeamTrainingPlan, TrainingPlanStatus
+        from app.services.player_fatigue_service import PlayerFatigueService
+
+        plans_result = await self.db.execute(
+            select(TeamTrainingPlan).where(
+                and_(
+                    TeamTrainingPlan.season_id == season_id,
+                    TeamTrainingPlan.season_day == day,
+                    TeamTrainingPlan.team_id.in_(team_ids),
+                    TeamTrainingPlan.status == TrainingPlanStatus.COMPLETED,
+                )
+            )
+        )
+        team_intensities: dict[str, set[str]] = {}
+        for plan in plans_result.scalars().all():
+            item = get_training_item(plan.training_item_id) if plan.training_item_id else None
+            if not item:
+                continue
+            team_intensities.setdefault(plan.team_id, set()).add(item.intensity)
+
+        players_result = await self.db.execute(
+            select(Player).where(
+                and_(
+                    Player.team_id.in_(team_ids),
+                    Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]),
+                )
+            )
+        )
+        fatigue_service = PlayerFatigueService()
+        summary = {
+            "players_processed": 0,
+            "injury_recovered": 0,
+            "wear_recovered_players": 0,
+        }
+        for player in players_result.scalars().all():
+            intensities = team_intensities.get(player.team_id, set())
+            if "hard" in intensities:
+                activity_type = "high_intensity_training"
+            elif intensities and intensities.issubset({"recovery"}):
+                activity_type = "recovery_training"
+            elif intensities and intensities.issubset({"light", "recovery"}):
+                activity_type = "light_training"
+            else:
+                activity_type = "normal_training"
+
+            result = fatigue_service.apply_daily_recovery(
+                player,
+                had_high_intensity_training=activity_type == "high_intensity_training",
+                activity_type=activity_type,
+            )
+            summary["players_processed"] += 1
+            if result.get("injury_recovered"):
+                summary["injury_recovered"] += 1
+            if result.get("wear_recovery"):
+                summary["wear_recovered_players"] += 1
+
+        return summary
+
+    async def _apply_rest_day_recovery(
+        self,
+        excluded_team_ids: set[str] | None = None,
+    ) -> Dict:
+        """Apply full-rest recovery to active roster players whose teams did not play today."""
+        from app.models.player import Player, PlayerStatus
+        from app.services.player_fatigue_service import PlayerFatigueService
+
+        excluded_team_ids = excluded_team_ids or set()
+        query = select(Player).where(
+            Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]),
+            Player.team_id.isnot(None),
+        )
+        if excluded_team_ids:
+            query = query.where(Player.team_id.not_in(excluded_team_ids))
+
+        players = (await self.db.execute(query)).scalars().all()
+        fatigue_service = PlayerFatigueService()
+        summary = {
+            "players_processed": 0,
+            "injury_recovered": 0,
+            "wear_recovered_players": 0,
+        }
+        for player in players:
+            result = fatigue_service.apply_daily_recovery(player, activity_type="full_rest")
+            summary["players_processed"] += 1
+            if result.get("injury_recovered"):
+                summary["injury_recovered"] += 1
+            if result.get("wear_recovery"):
+                summary["wear_recovered_players"] += 1
+        return summary
 
     # =====================================================================
     # Phase 4: 选秀事件（已移除）
@@ -477,6 +586,14 @@ class SeasonService:
                 except Exception as e:
                     logger.warning(f"比赛财务结算失败: fixture={fixture.id}, error={e}")
 
+        match_team_ids = {
+            team_id
+            for fixture in fixtures
+            for team_id in (fixture.home_team_id, fixture.away_team_id)
+            if team_id
+        }
+        rest_recovery = await self._apply_rest_day_recovery(excluded_team_ids=match_team_ids)
+
         await self.db.commit()
 
         return {
@@ -485,6 +602,7 @@ class SeasonService:
             "season_day": day,
             "fixtures_processed": len(match_results),
             "results": match_results,
+            "rest_recovery": rest_recovery,
         }
 
     async def _simulate_fixtures_with_engine(self, fixtures: list[Fixture]):

@@ -24,6 +24,7 @@ from app.models.team import Team
 from app.models.season import Season, SeasonStatus
 from app.services.player_state_service import PlayerStateService
 from app.services.finance_service import FinanceService
+from app.services.player_number_service import assign_squad_number
 from app.core.logging import get_logger
 
 logger = get_logger("app.contract")
@@ -265,6 +266,8 @@ class ContractService:
         if player.team_id != team_id:
             player.team_id = team_id
             player.joined_first_team_season = current_season
+            # 分配队内号码
+            await assign_squad_number(self.db, player, team_id)
 
         # 刷新状态
         await self.state_service.recalculate_player_state(player_id, "contract_signed")

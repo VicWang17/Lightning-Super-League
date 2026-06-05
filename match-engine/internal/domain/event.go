@@ -2,22 +2,25 @@ package domain
 
 // MatchEvent represents a single event in the match
 type MatchEvent struct {
-	ID           int     `json:"id"`
-	Minute       float64 `json:"minute"`
-	Type         string  `json:"type"`
-	Team         string  `json:"team,omitempty"` // "home" or "away"
-	PlayerID     string  `json:"player_id,omitempty"`
-	PlayerName   string  `json:"player_name,omitempty"`
-	Player2ID    string  `json:"player2_id,omitempty"` // secondary player
-	Player2Name  string  `json:"player2_name,omitempty"`
-	OpponentID   string  `json:"opponent_id,omitempty"`
-	OpponentName string  `json:"opponent_name,omitempty"`
-	Zone         string  `json:"zone,omitempty"`
-	Result       string  `json:"result,omitempty"` // success / fail / goal / saved / blocked / offside / corner / etc
-	Detail       string  `json:"detail,omitempty"` // aggressive / safe / etc
-	Score        *Score  `json:"score,omitempty"`
-	Narrative    string  `json:"narrative,omitempty"`
-	ExtraValue   float64 `json:"extra_value,omitempty"` // numeric extra data (e.g. added time minutes)
+	ID             int     `json:"id"`
+	Minute         float64 `json:"minute"`
+	Type           string  `json:"type"`
+	Team           string  `json:"team,omitempty"` // "home" or "away"
+	PlayerID       string  `json:"player_id,omitempty"`
+	PlayerName     string  `json:"player_name,omitempty"`
+	PlayerNumber   int     `json:"player_number,omitempty"`
+	Player2ID      string  `json:"player2_id,omitempty"` // secondary player
+	Player2Name    string  `json:"player2_name,omitempty"`
+	Player2Number  int     `json:"player2_number,omitempty"`
+	OpponentID     string  `json:"opponent_id,omitempty"`
+	OpponentName   string  `json:"opponent_name,omitempty"`
+	OpponentNumber int     `json:"opponent_number,omitempty"`
+	Zone           string  `json:"zone,omitempty"`
+	Result         string  `json:"result,omitempty"` // success / fail / goal / saved / blocked / offside / corner / etc
+	Detail         string  `json:"detail,omitempty"` // aggressive / safe / etc
+	Score          *Score  `json:"score,omitempty"`
+	Narrative      string  `json:"narrative,omitempty"`
+	ExtraValue     float64 `json:"extra_value,omitempty"` // numeric extra data (e.g. added time minutes)
 }
 
 // Score represents the current score
@@ -88,41 +91,47 @@ type MatchStats struct {
 
 // PlayerResultStat per-player output
 type PlayerResultStat struct {
-	PlayerID        string  `json:"player_id"`
-	Name            string  `json:"name"`
-	Position        string  `json:"position"`
-	Team            string  `json:"team"`
-	Goals           int     `json:"goals"`
-	Assists         int     `json:"assists"`
-	Shots           int     `json:"shots"`
-	ShotsOnTarget   int     `json:"shots_on_target"`
-	Passes          int     `json:"passes"`
-	PassAccuracy    float64 `json:"pass_accuracy"`
-	KeyPasses       int     `json:"key_passes"`
-	Crosses         int     `json:"crosses"`
-	CrossAccuracy   float64 `json:"cross_accuracy"`
-	Dribbles        int     `json:"dribbles"`
-	DribbleAccuracy float64 `json:"dribble_accuracy"`
-	Tackles         int     `json:"tackles"`
-	TackleAccuracy  float64 `json:"tackle_accuracy"`
-	Interceptions   int     `json:"interceptions"`
-	Clearances      int     `json:"clearances"`
-	Blocks          int     `json:"blocks"`
-	Headers         int     `json:"headers"`
-	HeaderAccuracy  float64 `json:"header_accuracy"`
-	Saves           int     `json:"saves"`
-	Fouls           int     `json:"fouls"`
-	FoulsDrawn      int     `json:"fouls_drawn"`
-	Offsides        int     `json:"offsides"`
-	YellowCards     int     `json:"yellow_cards"`
-	RedCards        int     `json:"red_cards"`
-	FreeKicks       int     `json:"free_kicks"`
-	FreeKickGoals   int     `json:"free_kick_goals"`
-	Penalties       int     `json:"penalties"`
-	PenaltyGoals    int     `json:"penalty_goals"`
-	Turnovers       int     `json:"turnovers"`
-	Touches         int     `json:"touches"`
-	Rating          float64 `json:"rating"`
+	PlayerID        string     `json:"player_id"`
+	Name            string     `json:"name"`
+	Position        string     `json:"position"`
+	Team            string     `json:"team"`
+	Goals           int        `json:"goals"`
+	Assists         int        `json:"assists"`
+	Shots           int        `json:"shots"`
+	ShotsOnTarget   int        `json:"shots_on_target"`
+	Passes          int        `json:"passes"`
+	PassAccuracy    float64    `json:"pass_accuracy"`
+	KeyPasses       int        `json:"key_passes"`
+	Crosses         int        `json:"crosses"`
+	CrossAccuracy   float64    `json:"cross_accuracy"`
+	Dribbles        int        `json:"dribbles"`
+	DribbleAccuracy float64    `json:"dribble_accuracy"`
+	Tackles         int        `json:"tackles"`
+	TackleAccuracy  float64    `json:"tackle_accuracy"`
+	Interceptions   int        `json:"interceptions"`
+	Clearances      int        `json:"clearances"`
+	Blocks          int        `json:"blocks"`
+	Headers         int        `json:"headers"`
+	HeaderAccuracy  float64    `json:"header_accuracy"`
+	Saves           int        `json:"saves"`
+	Fouls           int        `json:"fouls"`
+	FoulsDrawn      int        `json:"fouls_drawn"`
+	Offsides        int        `json:"offsides"`
+	YellowCards     int        `json:"yellow_cards"`
+	RedCards        int        `json:"red_cards"`
+	FreeKicks       int        `json:"free_kicks"`
+	FreeKickGoals   int        `json:"free_kick_goals"`
+	Penalties       int        `json:"penalties"`
+	PenaltyGoals    int        `json:"penalty_goals"`
+	Turnovers       int        `json:"turnovers"`
+	Touches         int        `json:"touches"`
+	Rating          float64    `json:"rating"`
+	// Injury output fields
+	InjuryBodyPart   string     `json:"injury_body_part,omitempty"`
+	InjuryName       string     `json:"injury_name,omitempty"`
+	InjurySeverity   int        `json:"injury_severity,omitempty"`     // 1=minor, 2=medium, 3=major
+	InjuryDays       int        `json:"injury_days,omitempty"`
+	MatchWear        BodyWear   `json:"match_wear"`
 }
 
 // SimulateResult is the engine output

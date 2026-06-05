@@ -32,6 +32,7 @@ from app.models.wage_config import WageConfig, WageConfigType
 from app.models.league import League
 from app.services.contract_service import ContractService
 from app.services.player_generator import PlayerGenerator
+from app.services.player_number_service import assign_squad_number
 from app.core.logging import get_logger
 
 logger = get_logger("app.youth_academy")
@@ -454,6 +455,8 @@ class YouthAcademyService:
         if player:
             player.team_id = team_id
             player.joined_first_team_season = (await self._get_current_season()).season_number
+            # 分配队内号码
+            await assign_squad_number(self.db, player, team_id)
 
         await self.db.commit()
 

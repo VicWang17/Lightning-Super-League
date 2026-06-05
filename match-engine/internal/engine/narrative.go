@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"math/rand/v2"
+	"strings"
 
 	"match-engine/internal/config"
 	"match-engine/internal/domain"
@@ -17,6 +18,13 @@ type NarrativeGenerator struct {
 
 func NewNarrativeGenerator(seed uint64) *NarrativeGenerator {
 	return &NarrativeGenerator{r: rand.New(rand.NewPCG(seed, seed+1))}
+}
+
+func playerNameWithNumber(number int, name string) string {
+	if number > 0 && name != "" {
+		return fmt.Sprintf("%d号%s", number, name)
+	}
+	return name
 }
 
 func (ng *NarrativeGenerator) Generate(ev domain.MatchEvent) string {
@@ -208,16 +216,17 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("%s从中圈开球，发动新一轮进攻。", ev.Team),
 		})
 	case config.EventTurnover:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		if ev.PlayerName != "" {
 			return ng.pick([]string{
-				fmt.Sprintf("球权来到%s队这边，%s拿球组织。", ev.Team, ev.PlayerName),
-				fmt.Sprintf("%s队展开反击，%s带球推进！", ev.Team, ev.PlayerName),
-				fmt.Sprintf("%s夺回球权，%s迅速转入进攻！", ev.Team, ev.PlayerName),
-				fmt.Sprintf("%s队重新掌控球权，%s在前场拿球。", ev.Team, ev.PlayerName),
-				fmt.Sprintf("%s断球成功，%s准备发动攻势。", ev.Team, ev.PlayerName),
-				fmt.Sprintf("球权转换！%s的%s拿球了。", ev.Team, ev.PlayerName),
-				fmt.Sprintf("%s队夺回控球权，%s在寻找传球线路。", ev.Team, ev.PlayerName),
-				fmt.Sprintf("%s抢回球权，%s开始推进！", ev.Team, ev.PlayerName),
+				fmt.Sprintf("球权来到%s队这边，%s拿球组织。", ev.Team, pName),
+				fmt.Sprintf("%s队展开反击，%s带球推进！", ev.Team, pName),
+				fmt.Sprintf("%s夺回球权，%s迅速转入进攻！", ev.Team, pName),
+				fmt.Sprintf("%s队重新掌控球权，%s在前场拿球。", ev.Team, pName),
+				fmt.Sprintf("%s断球成功，%s准备发动攻势。", ev.Team, pName),
+				fmt.Sprintf("球权转换！%s的%s拿球了。", ev.Team, pName),
+				fmt.Sprintf("%s队夺回控球权，%s在寻找传球线路。", ev.Team, pName),
+				fmt.Sprintf("%s抢回球权，%s开始推进！", ev.Team, pName),
 			})
 		}
 		return ng.pick([]string{
@@ -522,6 +531,7 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("%s的传中被%s拦截。", ev.PlayerName, ev.OpponentName),
 		})
 	case config.EventHeader:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		if ev.Result == "goal" {
 			scoreStr := ""
 			if ev.Score != nil {
@@ -529,7 +539,7 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			}
 			situation := ng.scoreSituation(ev)
 			return ng.pick([]string{
-				fmt.Sprintf("%s%s力压后卫头球攻门——球进了！！！%s", scoreStr, ev.PlayerName, situation),
+				fmt.Sprintf("%s%s力压后卫头球攻门——球进了！！！%s", scoreStr, pName, situation),
 				fmt.Sprintf("%s头球！%s甩头攻门，球应声入网！%s", scoreStr, ev.PlayerName, situation),
 				fmt.Sprintf("%s%s高高跃起，一记势大力沉的头球破门！%s", scoreStr, ev.PlayerName, situation),
 				fmt.Sprintf("%s%s泰山压顶！头球砸进球门！%s", scoreStr, ev.PlayerName, situation),
@@ -564,8 +574,9 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 		}
 		return fmt.Sprintf("%s争顶失败，%s控制住了球权。", ev.PlayerName, ev.OpponentName)
 	case config.EventShotWindup:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		return ng.pick([]string{
-			fmt.Sprintf("%s起脚打门——！", ev.PlayerName),
+			fmt.Sprintf("%s起脚打门——！", pName),
 			fmt.Sprintf("%s抡起右脚，一脚劲射！", ev.PlayerName),
 			fmt.Sprintf("%s调整步点，直接射门！", ev.PlayerName),
 			fmt.Sprintf("%s抓住机会，果断起脚！", ev.PlayerName),
@@ -577,6 +588,7 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("%s起脚射门！", ev.PlayerName),
 		})
 	case config.EventCloseShot:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		if ev.Result == "goal" {
 			scoreStr := ""
 			if ev.Score != nil {
@@ -585,7 +597,7 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			situation := ng.scoreSituation(ev)
 			angle := ng.shootingAngle()
 			return ng.pick([]string{
-				fmt.Sprintf("球进了！！！%s%s的射门%s洞穿网窝！%s", scoreStr, ev.PlayerName, angle, situation),
+				fmt.Sprintf("球进了！！！%s%s的射门%s洞穿网窝！%s", scoreStr, pName, angle, situation),
 				fmt.Sprintf("进了！%s%s冷静%s破门！%s", scoreStr, ev.PlayerName, angle, situation),
 				fmt.Sprintf("应声入网！%s%s%s让门将毫无反应！%s", scoreStr, ev.PlayerName, angle, situation),
 				fmt.Sprintf("%s%s%s得手！比分改写！%s", scoreStr, ev.PlayerName, angle, situation),
@@ -632,6 +644,7 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("高出了横梁！"),
 		})
 	case config.EventLongShot:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		if ev.Result == "goal" {
 			scoreStr := ""
 			if ev.Score != nil {
@@ -639,7 +652,7 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			}
 			situation := ng.scoreSituation(ev)
 			return ng.pick([]string{
-				fmt.Sprintf("世界波！！！%s皮球直挂死角！%s！%s", scoreStr, ev.PlayerName, situation),
+				fmt.Sprintf("世界波！！！%s皮球直挂死角！%s！%s", scoreStr, pName, situation),
 				fmt.Sprintf("进了！！！%s%s这脚远射简直不可思议！%s", scoreStr, ev.PlayerName, situation),
 				fmt.Sprintf("%s%s禁区外突施冷箭，世界波！%s", scoreStr, ev.PlayerName, situation),
 				fmt.Sprintf("%s%s一脚石破天惊的远射！球进了！%s", scoreStr, ev.PlayerName, situation),
@@ -673,9 +686,11 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("这脚放了高射炮。"),
 		})
 	case config.EventTackle:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
+		oName := playerNameWithNumber(ev.OpponentNumber, ev.OpponentName)
 		if ev.Result == "success" {
 			return ng.pick([]string{
-				fmt.Sprintf("%s干净利落地铲断了%s的带球！", ev.PlayerName, ev.OpponentName),
+				fmt.Sprintf("%s干净利落地铲断了%s的带球！", pName, oName),
 				fmt.Sprintf("%s上抢成功，从%s脚下断球！", ev.PlayerName, ev.OpponentName),
 				fmt.Sprintf("%s精准放铲，断下%s的球！", ev.PlayerName, ev.OpponentName),
 				fmt.Sprintf("%s一个漂亮的铲抢，从%s脚下夺得球权！", ev.PlayerName, ev.OpponentName),
@@ -686,8 +701,9 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("%s的铲抢没有碰到球，%s轻松摆脱。", ev.PlayerName, ev.OpponentName),
 		})
 	case config.EventIntercept:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 			return ng.pick([]string{
-				fmt.Sprintf("%s预判准确，拦截了对方的传球。", ev.PlayerName),
+				fmt.Sprintf("%s预判准确，拦截了对方的传球。", pName),
 				fmt.Sprintf("%s机警地断下传球路线！", ev.PlayerName),
 				fmt.Sprintf("%s抢先一步，将传球拦截下来。", ev.PlayerName),
 				fmt.Sprintf("%s阅读比赛出色，成功拦截！", ev.PlayerName),
@@ -699,8 +715,9 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 				fmt.Sprintf("%s抢在对方之前断下传球！", ev.PlayerName),
 			})
 	case config.EventClearance:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		return ng.pick([]string{
-			fmt.Sprintf("%s大脚解围，化解了险情。", ev.PlayerName),
+			fmt.Sprintf("%s大脚解围，化解了险情。", pName),
 			fmt.Sprintf("%s把球踢出危险区域！", ev.PlayerName),
 			fmt.Sprintf("%s头球解围！化解了险情！", ev.PlayerName),
 			fmt.Sprintf("%s把球解围出底线！", ev.PlayerName),
@@ -724,8 +741,9 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("%s比分改写！%s", scoreStr, analysis),
 		})
 	case config.EventGoalCelebration:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		return ng.pick([]string{
-			fmt.Sprintf("%s冲向角旗杆庆祝！队友们纷纷围了上来！", ev.PlayerName),
+			fmt.Sprintf("%s冲向角旗杆庆祝！队友们纷纷围了上来！", pName),
 			fmt.Sprintf("%s张开双臂接受球迷的欢呼！", ev.PlayerName),
 			fmt.Sprintf("%s滑跪庆祝！全场球迷疯狂呐喊！", ev.PlayerName),
 			fmt.Sprintf("%s和队友们拥抱在一起！这是属于他们的时刻！", ev.PlayerName),
@@ -739,8 +757,9 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("%s被队友们压在身下！欢乐的叠罗汉！", ev.PlayerName),
 		})
 	case config.EventOwnGoal:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		return ng.pick([]string{
-			fmt.Sprintf("😱 乌龙球！%s不慎将球碰入自家大门！", ev.PlayerName),
+			fmt.Sprintf("😱 乌龙球！%s不慎将球碰入自家大门！", pName),
 			fmt.Sprintf("😱 太不幸了！%s自摆乌龙！", ev.PlayerName),
 		})
 	case config.EventKeeperSave:
@@ -789,9 +808,11 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			})
 		}
 		if ev.Result == "yellow" {
+			pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
+			oName := playerNameWithNumber(ev.OpponentNumber, ev.OpponentName)
 			if isBox {
 				return ng.pick([]string{
-					fmt.Sprintf("禁区内犯规！%s对%s凶狠犯规，吃到黄牌！", ev.PlayerName, ev.OpponentName),
+					fmt.Sprintf("禁区内犯规！%s对%s凶狠犯规，吃到黄牌！", pName, oName),
 					fmt.Sprintf("%s在禁区内拉倒%s，裁判出示黄牌并指向点球点！", ev.PlayerName, ev.OpponentName),
 					fmt.Sprintf("%s在禁区内对%s犯规！黄牌+点球！", ev.PlayerName, ev.OpponentName),
 					fmt.Sprintf("%s放倒%s，裁判出示黄牌并判罚点球！", ev.PlayerName, ev.OpponentName),
@@ -810,30 +831,34 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			})
 		}
 		if ev.Result == "red" {
+			pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
+			oName := playerNameWithNumber(ev.OpponentNumber, ev.OpponentName)
 			if isBox {
 				return ng.pick([]string{
-					fmt.Sprintf("%s在禁区内严重犯规！红牌罚下并判罚点球！", ev.PlayerName),
-					fmt.Sprintf("禁区内恶劣犯规！%s放倒%s，直接红牌！", ev.PlayerName, ev.OpponentName),
-					fmt.Sprintf("%s被红牌罚下！还判了点球！", ev.PlayerName),
-					fmt.Sprintf("%s的恶劣犯规！红牌+点球！", ev.PlayerName),
-					fmt.Sprintf("%s跪在草皮上双手抱头，队友们纷纷上前理论。", ev.PlayerName),
-					fmt.Sprintf("裁判掏出红牌！%s瘫坐在地上，仿佛不敢相信。", ev.PlayerName),
+					fmt.Sprintf("%s在禁区内严重犯规！红牌罚下并判罚点球！", pName),
+					fmt.Sprintf("禁区内恶劣犯规！%s放倒%s，直接红牌！", ev.PlayerName, oName),
+					fmt.Sprintf("%s被红牌罚下！还判了点球！", pName),
+					fmt.Sprintf("%s的恶劣犯规！红牌+点球！", pName),
+					fmt.Sprintf("%s跪在草皮上双手抱头，队友们纷纷上前理论。", pName),
+					fmt.Sprintf("裁判掏出红牌！%s瘫坐在地上，仿佛不敢相信。", pName),
 				})
 			}
 			return ng.pick([]string{
-				fmt.Sprintf("%s对%s严重犯规！", ev.PlayerName, ev.OpponentName),
-				fmt.Sprintf("%s凶狠地放倒了%s！", ev.PlayerName, ev.OpponentName),
-				fmt.Sprintf("裁判直接掏出红牌！%s被驱逐出场！", ev.PlayerName),
-				fmt.Sprintf("%s的飞铲亮出鞋底，红牌毫无疑问！", ev.PlayerName),
-				fmt.Sprintf("%s冲向裁判大声抗议，队友赶紧把他拉开。", ev.PlayerName),
-				fmt.Sprintf("%s双手抱头跪地，裁判不为所动，红牌！", ev.PlayerName),
-				fmt.Sprintf("主裁判毫不犹豫地出示红牌，%s低着头走向更衣室。", ev.PlayerName),
+				fmt.Sprintf("%s对%s严重犯规！", ev.PlayerName, oName),
+				fmt.Sprintf("%s凶狠地放倒了%s！", ev.PlayerName, oName),
+				fmt.Sprintf("裁判直接掏出红牌！%s被驱逐出场！", pName),
+				fmt.Sprintf("%s的飞铲亮出鞋底，红牌毫无疑问！", pName),
+				fmt.Sprintf("%s冲向裁判大声抗议，队友赶紧把他拉开。", pName),
+				fmt.Sprintf("%s双手抱头跪地，裁判不为所动，红牌！", pName),
+				fmt.Sprintf("主裁判毫不犹豫地出示红牌，%s低着头走向更衣室。", pName),
 			})
 		}
 		// No card, but foul called
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
+		oName := playerNameWithNumber(ev.OpponentNumber, ev.OpponentName)
 		if isBox {
 			return ng.pick([]string{
-				fmt.Sprintf("禁区内犯规！%s对%s犯规，裁判指向点球点！", ev.PlayerName, ev.OpponentName),
+				fmt.Sprintf("禁区内犯规！%s对%s犯规，裁判指向点球点！", pName, oName),
 				fmt.Sprintf("%s在禁区内放倒%s，点球！", ev.PlayerName, ev.OpponentName),
 				fmt.Sprintf("%s拉倒%s，裁判果断判罚点球！", ev.PlayerName, ev.OpponentName),
 				fmt.Sprintf("%s的防守动作过大，裁判鸣哨指向点球点！", ev.PlayerName),
@@ -850,6 +875,8 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("双方球员围向裁判理论，%s的犯规很明确。", ev.PlayerName),
 		})
 	case config.EventFreeKick:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
+		oName := playerNameWithNumber(ev.OpponentNumber, ev.OpponentName)
 		switch ev.Detail {
 		case "penalty":
 			if ev.Result == "goal" {
@@ -859,28 +886,28 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 				}
 				situation := ng.scoreSituation(ev)
 				return ng.pick([]string{
-					fmt.Sprintf("%s点球破门！%s冷静推射，门将判断错了方向！%s", scoreStr, ev.PlayerName, situation),
-					fmt.Sprintf("%s%s稳稳命中点球！%s", scoreStr, ev.PlayerName, situation),
-					fmt.Sprintf("%s%s罚进点球！一蹴而就！%s", scoreStr, ev.PlayerName, situation),
-					fmt.Sprintf("%s%s点球命中！门将扑错了方向！%s", scoreStr, ev.PlayerName, situation),
-					fmt.Sprintf("%s%s点球罚进！冷静得让人害怕！%s", scoreStr, ev.PlayerName, situation),
-					fmt.Sprintf("%s%s助跑后一记劲射，门将鞭长莫及！%s", scoreStr, ev.PlayerName, situation),
-					fmt.Sprintf("%s%s骗过门将，轻松推射入网！%s", scoreStr, ev.PlayerName, situation),
+					fmt.Sprintf("%s点球破门！%s冷静推射，门将判断错了方向！%s", scoreStr, pName, situation),
+					fmt.Sprintf("%s%s稳稳命中点球！%s", scoreStr, pName, situation),
+					fmt.Sprintf("%s%s罚进点球！一蹴而就！%s", scoreStr, pName, situation),
+					fmt.Sprintf("%s%s点球命中！门将扑错了方向！%s", scoreStr, pName, situation),
+					fmt.Sprintf("%s%s点球罚进！冷静得让人害怕！%s", scoreStr, pName, situation),
+					fmt.Sprintf("%s%s助跑后一记劲射，门将鞭长莫及！%s", scoreStr, pName, situation),
+					fmt.Sprintf("%s%s骗过门将，轻松推射入网！%s", scoreStr, pName, situation),
 				})
 			}
 			if ev.Result == "saved" {
 				return ng.pick([]string{
-					fmt.Sprintf("点球被扑出！%s的射门被门将%s神勇化解！", ev.PlayerName, ev.OpponentName),
-					fmt.Sprintf("%s的点球被%s扑出！太可惜了！", ev.PlayerName, ev.OpponentName),
-					fmt.Sprintf("%s的点球被%s判断对了方向，神扑！", ev.PlayerName, ev.OpponentName),
-					fmt.Sprintf("%s的点球力量太正，%s稳稳抱住！", ev.PlayerName, ev.OpponentName),
+					fmt.Sprintf("点球被扑出！%s的射门被门将%s神勇化解！", ev.PlayerName, oName),
+					fmt.Sprintf("%s的点球被%s扑出！太可惜了！", ev.PlayerName, oName),
+					fmt.Sprintf("%s的点球被%s判断对了方向，神扑！", ev.PlayerName, oName),
+					fmt.Sprintf("%s的点球力量太正，%s稳稳抱住！", ev.PlayerName, oName),
 				})
 			}
 			return ng.pick([]string{
-				fmt.Sprintf("点球罚丢了！%s的射门偏出了球门！", ev.PlayerName),
-				fmt.Sprintf("%s的点球打飞了！", ev.PlayerName),
-				fmt.Sprintf("%s的点球击中立柱弹出！运气太差了！", ev.PlayerName),
-				fmt.Sprintf("%s助跑后一脚踢飞，全场一片叹息。", ev.PlayerName),
+				fmt.Sprintf("点球罚丢了！%s的射门偏出了球门！", pName),
+				fmt.Sprintf("%s的点球打飞了！", pName),
+				fmt.Sprintf("%s的点球击中立柱弹出！运气太差了！", pName),
+				fmt.Sprintf("%s助跑后一脚踢飞，全场一片叹息。", pName),
 			})
 		case "cross":
 			if ev.Result == "success" {
@@ -945,8 +972,9 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			})
 		}
 	case config.EventYellowCard:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		return ng.pick([]string{
-			fmt.Sprintf("裁判向%s出示黄牌！", ev.PlayerName),
+			fmt.Sprintf("裁判向%s出示黄牌！", pName),
 			fmt.Sprintf("主裁判掏出了黄牌，%s被警告。", ev.PlayerName),
 			fmt.Sprintf("黄牌！%s的犯规动作过大，裁判出示黄牌警告。", ev.PlayerName),
 			fmt.Sprintf("%s向裁判摊手解释，但黄牌已经掏出来了。", ev.PlayerName),
@@ -956,8 +984,9 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("%s双手叉腰站在原地，显然对判罚很不服气。", ev.PlayerName),
 		})
 	case config.EventRedCard:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		return ng.pick([]string{
-			fmt.Sprintf("红牌！%s被直接罚下！", ev.PlayerName),
+			fmt.Sprintf("红牌！%s被直接罚下！", pName),
 			fmt.Sprintf("主裁判出示红牌，%s被罚出场！", ev.PlayerName),
 			fmt.Sprintf("%s冲向裁判大声抗议，队友赶紧把他推开。", ev.PlayerName),
 			fmt.Sprintf("%s跪在草皮上双手抱头，不敢相信这个判罚。", ev.PlayerName),
@@ -972,8 +1001,10 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("边旗举起！%s越位了。", ev.PlayerName),
 		})
 	case config.EventSubstitution:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
+		p2Name := playerNameWithNumber(ev.Player2Number, ev.Player2Name)
 		return ng.pick([]string{
-			fmt.Sprintf("换人调整！%s下场，%s替补登场。", ev.Player2Name, ev.PlayerName),
+			fmt.Sprintf("换人调整！%s下场，%s替补登场。", p2Name, pName),
 			fmt.Sprintf("%s被换下，%s登场，教练做出战术调整。", ev.Player2Name, ev.PlayerName),
 			fmt.Sprintf("场边第四官员举牌，%s下场，%s替补上阵。", ev.Player2Name, ev.PlayerName),
 			fmt.Sprintf("%s步履蹒跚地走下场，%s热身完毕登场。", ev.Player2Name, ev.PlayerName),
@@ -1055,6 +1086,7 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			fmt.Sprintf("%s预判失误，%s的传球穿了过去。", ev.PlayerName, ev.OpponentName),
 		})
 	case config.EventOneOnOne:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
 		if ev.Result == "goal" {
 			scoreStr := ""
 			if ev.Score != nil {
@@ -1062,7 +1094,7 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 			}
 			situation := ng.scoreSituation(ev)
 			return ng.pick([]string{
-				fmt.Sprintf("%s单刀！%s冷静推射破门！%s", scoreStr, ev.PlayerName, situation),
+				fmt.Sprintf("%s单刀！%s冷静推射破门！%s", scoreStr, pName, situation),
 				fmt.Sprintf("%s%s晃过门将，轻松推射入网！%s", scoreStr, ev.PlayerName, situation),
 				fmt.Sprintf("%s%s单刀赴会，冷静施射得手！%s", scoreStr, ev.PlayerName, situation),
 				fmt.Sprintf("%s%s面对门将，一个假动作后推射空门！%s", scoreStr, ev.PlayerName, situation),
@@ -1293,11 +1325,19 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 
 	// ===== Phase 4: Injury & rare events =====
 	case config.EventMinorInjury:
+		injuryName := parseInjuryDetail(ev.Detail)
+		if injuryName != "" {
+			return fmt.Sprintf("%s出现%s，但他选择继续比赛。", ev.PlayerName, injuryName)
+		}
 		return ng.pick([]string{
 			fmt.Sprintf("%s在对抗中受了轻伤，但仍坚持比赛。", ev.PlayerName),
 			fmt.Sprintf("%s被%s犯规后有些不适。", ev.PlayerName, ev.OpponentName),
 		})
 	case config.EventMajorInjury:
+		injuryName := parseInjuryDetail(ev.Detail)
+		if injuryName != "" {
+			return fmt.Sprintf("🔴 %s%s！队医迅速进场，看起来需要离场治疗。", ev.PlayerName, injuryName)
+		}
 		return ng.pick([]string{
 			fmt.Sprintf("%s严重受伤！队医进场！", ev.PlayerName),
 			fmt.Sprintf("%s在一次凶狠的拼抢中受伤倒地！", ev.PlayerName),
@@ -1396,4 +1436,14 @@ func FormatMinute(m float64) string {
 	min := int(m)
 	sec := int((m - float64(min)) * 60)
 	return fmt.Sprintf("%d'%02d\"", min, sec)
+}
+
+// parseInjuryDetail extracts the injury name from event detail.
+// Detail format: "part|injuryName|severity|days"
+func parseInjuryDetail(detail string) string {
+	parts := strings.Split(detail, "|")
+	if len(parts) >= 2 {
+		return parts[1]
+	}
+	return ""
 }

@@ -79,6 +79,11 @@ ACTIVE_ROSTER_STATUSES = [
 ]
 ROSTER_MIN = 8
 ROSTER_MAX = 18
+BODY_PARTS = [
+    "hamstring", "quadriceps", "calf", "groin", "ankle",
+    "knee", "achilles", "foot", "back", "ribs",
+    "shoulder", "fingers", "head",
+]
 
 
 @dataclass
@@ -146,6 +151,15 @@ class SeasonSummary:
     players_fatigue_over_75: int = 0
     players_fitness_below_50: int = 0
     avg_attr_progress_total: float = 0.0
+    injuries_created: int = 0
+    injuries_minor: int = 0
+    injuries_medium: int = 0
+    injuries_major: int = 0
+    active_injuries: int = 0
+    active_medium_major_injuries: int = 0
+    avg_max_body_wear: float = 0.0
+    players_body_wear_over_70: int = 0
+    players_body_wear_over_90: int = 0
     invariants_failed: int = 0
     warnings: str = ""
 
@@ -161,6 +175,7 @@ class RunArtifacts:
     invariant_rows: list[dict[str, Any]] = field(default_factory=list)
     training_rows: list[dict[str, Any]] = field(default_factory=list)
     fatigue_rows: list[dict[str, Any]] = field(default_factory=list)
+    injury_rows: list[dict[str, Any]] = field(default_factory=list)
     transfer_rows: list[dict[str, Any]] = field(default_factory=list)
     match_tactics_rows: list[dict[str, Any]] = field(default_factory=list)
 
@@ -180,6 +195,52 @@ def decimal_float(value: Any) -> float:
 def avg(values: Iterable[float]) -> float:
     values = list(values)
     return sum(values) / len(values) if values else 0.0
+
+
+def parse_iso_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+    except ValueError:
+        return None
+
+
+def injury_in_season(injury: dict[str, Any], season: Season) -> bool:
+    created_at = parse_iso_datetime(injury.get("created_at"))
+    if created_at is None:
+        return True
+    start = season.start_date
+    end = season.end_date
+    if start and created_at < start:
+        return False
+    if end and created_at > end:
+        return False
+    return True
+
+
+def season_injury_history(player: Player, season: Season) -> list[dict[str, Any]]:
+    return [
+        injury
+        for injury in (player.injury_history or [])
+        if isinstance(injury, dict) and injury_in_season(injury, season)
+    ]
+
+
+def max_body_wear(player: Player) -> float:
+    wear = player.body_wear or {}
+    return max([float(wear.get(part, 0.0) or 0.0) for part in BODY_PARTS], default=0.0)
+
+
+def max_body_wear_part(player: Player) -> str:
+    wear = player.body_wear or {}
+    if not wear:
+        return ""
+    return max(BODY_PARTS, key=lambda part: float(wear.get(part, 0.0) or 0.0))
 
 
 def pearson(xs: list[float], ys: list[float]) -> float | None:
@@ -370,6 +431,18 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
     ).scalars().all()
     state_scores = [int(player.state_score or 0) for player in active_players]
     form_counts = Counter(enum_value(player.match_form).lower() for player in active_players)
+    season_injuries = [
+        injury
+        for player in active_players
+        for injury in season_injury_history(player, season)
+    ]
+    injury_severity_counts = Counter(int(injury.get("severity", 0) or 0) for injury in season_injuries)
+    current_injuries = [
+        player.current_injury
+        for player in active_players
+        if isinstance(player.current_injury, dict)
+    ]
+    max_wears = [max_body_wear(player) for player in active_players]
 
     # 训练指标
     training_results = (
@@ -510,6 +583,15 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         players_fatigue_over_75=sum(1 for f in player_fatigues if f > 75),
         players_fitness_below_50=sum(1 for f in player_fitnesses if f < 50),
         avg_attr_progress_total=round(avg(attr_progress_totals), 2),
+        injuries_created=len(season_injuries),
+        injuries_minor=injury_severity_counts.get(1, 0),
+        injuries_medium=injury_severity_counts.get(2, 0),
+        injuries_major=injury_severity_counts.get(3, 0),
+        active_injuries=len(current_injuries),
+        active_medium_major_injuries=sum(1 for injury in current_injuries if int(injury.get("severity", 0) or 0) >= 2),
+        avg_max_body_wear=round(avg(max_wears), 2),
+        players_body_wear_over_70=sum(1 for value in max_wears if value >= 70),
+        players_body_wear_over_90=sum(1 for value in max_wears if value >= 90),
     )
     return summary
 
@@ -638,6 +720,24 @@ async def collect_player_rows(db, season: Season) -> list[dict[str, Any]]:
                 "stamina_modifier": decimal_float(player.state_stamina_modifier),
                 "fitness": player.fitness or 100,
                 "fatigue": player.fatigue or 0,
+                "current_injury_severity": (
+                    int(player.current_injury.get("severity", 0) or 0)
+                    if isinstance(player.current_injury, dict)
+                    else 0
+                ),
+                "current_injury_part": (
+                    player.current_injury.get("body_part", "")
+                    if isinstance(player.current_injury, dict)
+                    else ""
+                ),
+                "current_injury_remaining_days": (
+                    int(player.current_injury.get("remaining_days", 0) or 0)
+                    if isinstance(player.current_injury, dict)
+                    else 0
+                ),
+                "season_injuries": len(season_injury_history(player, season)),
+                "max_body_wear": round(max_body_wear(player), 2),
+                "max_body_wear_part": max_body_wear_part(player),
                 "attribute_progress_total": round(sum((player.attribute_progress or {}).values()), 2),
                 "recent_ratings": player.recent_ratings or [],
                 "recent_minutes": player.recent_minutes or [],
@@ -881,6 +981,67 @@ async def collect_fatigue_rows(db, season: Season) -> list[dict[str, Any]]:
     return rows
 
 
+async def collect_injury_rows(db, season: Season) -> list[dict[str, Any]]:
+    """按球队汇总伤病和身体部位劳损数据。"""
+    teams = (
+        await db.execute(select(Team, User).join(User, Team.user_id == User.id))
+    ).all()
+
+    rows: list[dict[str, Any]] = []
+    for team, user in teams:
+        players = (
+            await db.execute(
+                select(Player)
+                .where(Player.team_id == team.id)
+                .where(Player.status.in_(ACTIVE_ROSTER_STATUSES))
+            )
+        ).scalars().all()
+        if not players:
+            continue
+
+        injuries = [
+            injury
+            for player in players
+            for injury in season_injury_history(player, season)
+        ]
+        severity_counts = Counter(int(injury.get("severity", 0) or 0) for injury in injuries)
+        cause_counts = Counter(str(injury.get("cause") or "unknown") for injury in injuries)
+        current_injured = [
+            player
+            for player in players
+            if isinstance(player.current_injury, dict)
+        ]
+        max_wears = [max_body_wear(player) for player in players]
+        high_wear_players = [player for player in players if max_body_wear(player) >= 70]
+        critical_wear_players = [player for player in players if max_body_wear(player) >= 90]
+
+        rows.append({
+            "season_number": season.season_number,
+            "season_id": season.id,
+            "team_id": team.id,
+            "team_name": team.name,
+            "is_ai": bool(user.is_ai),
+            "roster_count": len(players),
+            "injuries_created": len(injuries),
+            "injuries_minor": severity_counts.get(1, 0),
+            "injuries_medium": severity_counts.get(2, 0),
+            "injuries_major": severity_counts.get(3, 0),
+            "training_injuries": cause_counts.get("training", 0),
+            "match_injuries": cause_counts.get("match", 0),
+            "active_injuries": len(current_injured),
+            "active_medium_major_injuries": sum(
+                1
+                for player in current_injured
+                if int(player.current_injury.get("severity", 0) or 0) >= 2
+            ),
+            "avg_max_body_wear": round(avg(max_wears), 2),
+            "max_body_wear": round(max(max_wears), 2) if max_wears else 0.0,
+            "players_body_wear_over_70": len(high_wear_players),
+            "players_body_wear_over_90": len(critical_wear_players),
+        })
+    return rows
+
+
 async def collect_transfer_rows(db, season: Season) -> list[dict[str, Any]]:
     """按球队汇总转会市场行为，用于验证 AI 是否主动买卖、反报价、挂牌和解约。"""
     if not await has_table(db, "transfer_listings"):
@@ -1049,6 +1210,46 @@ async def collect_invariants(db, season: Season | None = None) -> list[dict[str,
     )
     add("missing_player_state_cache", "warning", missing_state_cache, "active roster player has not been state-recalculated")
 
+    roster_players = (
+        await db.execute(
+            select(Player)
+            .where(Player.team_id.isnot(None))
+            .where(Player.status.in_(ACTIVE_ROSTER_STATUSES))
+        )
+    ).scalars().all()
+    medium_major_active = sum(
+        1
+        for player in roster_players
+        if player.status == PlayerStatus.ACTIVE
+        and isinstance(player.current_injury, dict)
+        and int(player.current_injury.get("severity", 0) or 0) >= 2
+    )
+    add("medium_major_injury_still_active", "error", medium_major_active, "medium/major injured player still has ACTIVE status")
+
+    bad_remaining_days = sum(
+        1
+        for player in roster_players
+        if isinstance(player.current_injury, dict)
+        and int(player.current_injury.get("remaining_days", 0) or 0) > 15
+    )
+    add("injury_remaining_days_over_15", "error", bad_remaining_days, "injury recovery exceeds design maximum")
+
+    body_wear_out_of_range = sum(
+        1
+        for player in roster_players
+        for value in (player.body_wear or {}).values()
+        if float(value or 0) < 0 or float(value or 0) > 100
+    )
+    add("body_wear_out_of_range", "error", body_wear_out_of_range, "body wear value is outside 0..100")
+
+    team_major_counts: Counter[str] = Counter()
+    for player in roster_players:
+        for injury in season_injury_history(player, season):
+            if int(injury.get("severity", 0) or 0) >= 3 and player.team_id:
+                team_major_counts[player.team_id] += 1
+    teams_with_many_major_injuries = sum(1 for count in team_major_counts.values() if count > 2)
+    add("teams_major_injuries_over_2", "warning", teams_with_many_major_injuries, "team has more than 2 major injuries this season")
+
     return rows
 
 
@@ -1215,6 +1416,15 @@ async def format_event_log_lines(
         remaining = len(results) - match_log_limit
         if remaining > 0:
             lines.append(f"  ... {remaining} more matches")
+        recovery = item.get("rest_recovery") or {}
+        if recovery:
+            lines.append(
+                "  rest_recovery players={players} injury_recovered={recovered} wear_recovered={wear}".format(
+                    players=recovery.get("players_processed", 0),
+                    recovered=recovery.get("injury_recovered", 0),
+                    wear=recovery.get("wear_recovered_players", 0),
+                )
+            )
         return lines
 
     if event == "youth_refresh":
@@ -1237,13 +1447,17 @@ async def format_event_log_lines(
         return [f"[youth] trained={item.get('trained', 0)}"]
 
     if event == "training_day":
+        recovery = item.get("recovery") or {}
         return [
-            "[training] day={day} teams={teams} sessions={sessions} bt={bt} decline={dc}".format(
+            "[training] day={day} teams={teams} sessions={sessions} bt={bt} decline={dc} injuries={inj}/{major} recovered={recovered}".format(
                 day=item.get("season_day"),
                 teams=item.get("teams_processed", 0),
                 sessions=item.get("sessions_completed", 0),
                 bt=item.get("total_breakthroughs", 0),
                 dc=item.get("total_declines", 0),
+                inj=item.get("training_injuries", 0),
+                major=item.get("training_injuries_major", 0),
+                recovered=recovery.get("injury_recovered", 0),
             )
         ]
 
@@ -1393,6 +1607,7 @@ def build_report(artifacts: RunArtifacts) -> str:
     player_rows = artifacts.player_rows
     youth_budget_rows = artifacts.youth_budget_rows
     match_tactics_rows = artifacts.match_tactics_rows
+    injury_rows = artifacts.injury_rows
     transfer_rows = artifacts.transfer_rows
     invariant_rows = artifacts.invariant_rows
 
@@ -1446,6 +1661,10 @@ def build_report(artifacts: RunArtifacts) -> str:
     avg_lineup_gap = avg([float(row.get("starter_bench_lineup_score_gap") or 0) for row in match_tactics_rows])
     avg_state_gap = avg([float(row.get("starter_bench_state_gap") or 0) for row in match_tactics_rows])
     avg_fitness_gap = avg([float(row.get("starter_bench_fitness_gap") or 0) for row in match_tactics_rows])
+    latest_injury_rows = [row for row in injury_rows if int(row.get("season_number") or 0) == latest_season_number]
+    avg_team_major_injuries = avg([float(row.get("injuries_major") or 0) for row in latest_injury_rows])
+    max_team_major_injuries = max([int(row.get("injuries_major") or 0) for row in latest_injury_rows], default=0)
+    avg_team_max_wear = avg([float(row.get("avg_max_body_wear") or 0) for row in latest_injury_rows])
 
     errors = [row for row in invariant_rows if row.get("severity") == "error"]
     warnings = [row for row in invariant_rows if row.get("severity") == "warning"]
@@ -1467,6 +1686,10 @@ def build_report(artifacts: RunArtifacts) -> str:
             "auto_fill_players_joined",
             "training_sessions",
             "training_breakthroughs",
+            "injuries_created",
+            "injuries_minor",
+            "injuries_medium",
+            "injuries_major",
             "transfer_listings_created",
             "transfer_offers_sent",
             "transfer_counter_offers",
@@ -1541,6 +1764,17 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- Training sessions S1..Sn: {' / '.join(str(row.get('training_sessions', 0)) for row in season_rows)}",
         f"- Breakthroughs S1..Sn: {' / '.join(str(row.get('training_breakthroughs', 0)) for row in season_rows)}",
         "",
+        "## Injury Signals",
+        "",
+        f"- Injuries minor/medium/major: {total['injuries_minor']} / {total['injuries_medium']} / {total['injuries_major']}",
+        f"- Latest active injuries / medium+ active: {season_rows[-1].get('active_injuries', 'n/a') if season_rows else 'n/a'} / {season_rows[-1].get('active_medium_major_injuries', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest avg team major injuries / max team major injuries: {avg_team_major_injuries:.2f} / {max_team_major_injuries}",
+        f"- Latest avg max body wear / players wear>70 / wear>90: "
+        f"{season_rows[-1].get('avg_max_body_wear', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('players_body_wear_over_70', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('players_body_wear_over_90', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest avg team max-wear signal: {avg_team_max_wear:.2f}",
+        "",
         "## Match Tactics Signals",
         "",
         f"- Tactical setups captured: {total_tactical_setups}",
@@ -1610,14 +1844,15 @@ def build_report(artifacts: RunArtifacts) -> str:
         "",
         "## Season Table",
         "",
-        "| Season | Contracts | Renew/Recontract | Retired | Youth Signed | Rookie Signed | FA Listings | Training | Breakthroughs | Transfer Offers | Transfers | Releases | Roster Min/Max | Wage Avg/Max | Fatigue | Fitness | Errors |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |",
+        "| Season | Contracts | Renew/Recontract | Retired | Youth Signed | Rookie Signed | FA Listings | Training | Breakthroughs | Injuries/Major | Transfer Offers | Transfers | Releases | Roster Min/Max | Wage Avg/Max | Fatigue | Fitness | Errors |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |",
     ])
     for row in season_rows:
         lines.append(
             "| {season_number} | {contracts_created} | {renewals_or_recontracts} | {retired_players} | "
             "{youth_signed} | {rookie_market_signed} | {free_agent_listings_created} | "
-            "{training_sessions} | {training_breakthroughs} | {transfer_offers_sent} | {transfer_completed} | {transfer_releases} | "
+            "{training_sessions} | {training_breakthroughs} | {injuries_created}/{injuries_major} | "
+            "{transfer_offers_sent} | {transfer_completed} | {transfer_releases} | "
             "{roster_min}/{roster_max} | {avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | "
             "{avg_fatigue:.1f} | {avg_fitness:.1f} | {invariants_failed} |".format(**row)
         )
@@ -1698,6 +1933,8 @@ async def run(args: argparse.Namespace) -> int:
             artifacts.youth_budget_rows.extend(await collect_youth_budget_rows(db, season))
             artifacts.training_rows.extend(await collect_training_rows(db, season))
             artifacts.fatigue_rows.extend(await collect_fatigue_rows(db, season))
+            artifacts.injury_rows.extend(await collect_injury_rows(db, season))
+            artifacts.transfer_rows.extend(await collect_transfer_rows(db, season))
             artifacts.invariant_rows.extend(invariants)
         else:
             for index in range(1, args.seasons + 1):
@@ -1741,6 +1978,7 @@ async def run(args: argparse.Namespace) -> int:
                 artifacts.youth_budget_rows.extend(await collect_youth_budget_rows(db, season))
                 artifacts.training_rows.extend(await collect_training_rows(db, season))
                 artifacts.fatigue_rows.extend(await collect_fatigue_rows(db, season))
+                artifacts.injury_rows.extend(await collect_injury_rows(db, season))
                 artifacts.transfer_rows.extend(await collect_transfer_rows(db, season))
                 artifacts.invariant_rows.extend(invariants)
 
@@ -1748,6 +1986,7 @@ async def run(args: argparse.Namespace) -> int:
                     "[closed-loop] S{season} events={events} roster={rmin}/{rmax} "
                     "contracts={contracts} youth={youth} rookie_signed={rookie} "
                     "training={training}/{breakthroughs} fatigue={avg_fatigue} fitness={avg_fitness} "
+                    "injuries={injuries}/{major} active_inj={active_injuries} wear70={wear70} "
                     "transfers={transfers}/{offers} releases={releases} auto_fill={auto_fill} errors={errors} status={status}"
                 ).format(
                     season=summary.season_number,
@@ -1761,6 +2000,10 @@ async def run(args: argparse.Namespace) -> int:
                     breakthroughs=summary.training_breakthroughs,
                     avg_fatigue=summary.avg_fatigue,
                     avg_fitness=summary.avg_fitness,
+                    injuries=summary.injuries_created,
+                    major=summary.injuries_major,
+                    active_injuries=summary.active_injuries,
+                    wear70=summary.players_body_wear_over_70,
                     transfers=summary.transfer_completed,
                     offers=summary.transfer_offers_sent,
                     releases=summary.transfer_releases,
@@ -1781,6 +2024,7 @@ async def run(args: argparse.Namespace) -> int:
     write_csv(artifacts.out_dir / "youth_budget_metrics.csv", artifacts.youth_budget_rows)
     write_csv(artifacts.out_dir / "training_metrics.csv", artifacts.training_rows)
     write_csv(artifacts.out_dir / "player_fatigue_metrics.csv", artifacts.fatigue_rows)
+    write_csv(artifacts.out_dir / "injury_metrics.csv", artifacts.injury_rows)
     write_csv(artifacts.out_dir / "transfer_metrics.csv", artifacts.transfer_rows)
     write_csv(artifacts.out_dir / "match_tactics_metrics.csv", artifacts.match_tactics_rows)
     write_jsonl(artifacts.out_dir / "event_results.jsonl", artifacts.event_rows)

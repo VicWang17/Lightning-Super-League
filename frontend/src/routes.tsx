@@ -18,6 +18,8 @@ import CupDetail from './pages/Cup/Detail'
 import TeamDetail from './pages/Team/Detail'
 import PlayerDetail from './pages/Team/PlayerDetail'
 import PlayerHistory from './pages/Players/History'
+import PlayerTransfers from './pages/Players/Transfers'
+import PlayerGrowth from './pages/Players/Growth'
 import Tactics from './pages/Team/Tactics'
 
 // Training Pages
@@ -141,6 +143,8 @@ export const router = createBrowserRouter([
                 children: [
                   { path: '', element: <PlayerDetail /> },
                   { path: 'history', element: <PlayerHistory /> },
+                  { path: 'transfers', element: <PlayerTransfers /> },
+                  { path: 'growth', element: <PlayerGrowth /> },
                 ],
               },
               {
@@ -193,6 +197,8 @@ export const router = createBrowserRouter([
             children: [
               { path: '', element: <PlayerDetail /> },
               { path: 'history', element: <PlayerHistory /> },
+              { path: 'transfers', element: <PlayerTransfers /> },
+              { path: 'growth', element: <PlayerGrowth /> },
             ],
           },
           
