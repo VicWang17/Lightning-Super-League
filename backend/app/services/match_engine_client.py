@@ -153,7 +153,10 @@ class MatchEngineClient:
         """
         payloads = [(fixture.id, await self._build_request(db, fixture)) for fixture in fixtures]
         if self.transport == "process":
-            return [self._simulate_with_process(payload) for _, payload in payloads]
+            return [
+                await self.simulate_payload(fixture_id, payload)
+                for fixture_id, payload in payloads
+            ]
 
         semaphore = asyncio.Semaphore(concurrency)
 

@@ -68,6 +68,7 @@ async def get_my_team(
             "short_name": team.short_name,
             "overall_rating": team.overall_rating,
             "current_league_id": team.current_league_id,
+            "league_id": team.current_league_id,
             "league_name": league.name if league else None,
         }
     )

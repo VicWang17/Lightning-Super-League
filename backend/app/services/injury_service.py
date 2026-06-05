@@ -70,9 +70,9 @@ INJURY_NAMES = {
 
 TRAINING_INJURY_RATES = {
     # intensity: (light_prob, medium_prob, severe_prob)
-    "light":  (0.001, 0.0001, 0.00001),   # 0.1%, 0.01%, 0.001%
-    "normal": (0.003, 0.0003, 0.00003),   # 0.3%, 0.03%, 0.003%
-    "hard":   (0.008, 0.0008, 0.00008),   # 0.8%, 0.08%, 0.008%
+    "light":  (0.0006, 0.00004, 0.000002),  # 0.06%, 0.004%, 0.0002%
+    "normal": (0.0018, 0.00012, 0.000006),  # 0.18%, 0.012%, 0.0006%
+    "hard":   (0.0048, 0.00035, 0.00002),   # 0.48%, 0.035%, 0.002%
 }
 
 # ============================================================================
@@ -231,6 +231,12 @@ class InjuryService:
         if severity == 0:
             return None
 
+        # 训练伤病应主要由劳损驱动：低劳损最多轻伤，中等劳损最多中伤。
+        if max_wear < 35:
+            severity = 1
+        elif max_wear < 60:
+            severity = min(severity, 2)
+
         # 确定严重程度分布（基于劳损值）
         if severity == 1:
             sev_dist_roll = random.random()
@@ -285,6 +291,12 @@ class InjuryService:
             "created_at": datetime.utcnow().isoformat(),
             "cause": cause,
         }
+        if injury.get("season_id"):
+            player.current_injury["season_id"] = injury["season_id"]
+        if injury.get("fixture_id"):
+            player.current_injury["fixture_id"] = injury["fixture_id"]
+        if player.team_id:
+            player.current_injury["team_id"] = player.team_id
         _flag_json_modified(player, "current_injury")
 
         if injury["severity"] >= 2:

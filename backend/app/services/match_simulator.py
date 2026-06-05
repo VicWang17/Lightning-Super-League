@@ -641,6 +641,8 @@ class MatchSimulator:
                     "injury_name": player_stats.get("injury_name"),
                     "severity": injury_severity,
                     "days": player_stats.get("injury_days", 3),
+                    "season_id": fixture.season_id,
+                    "fixture_id": fixture.id,
                 }
                 InjuryService.apply_match_injury(player, injury_info)
             

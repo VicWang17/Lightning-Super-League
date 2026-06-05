@@ -553,8 +553,15 @@ class SeasonService:
 
         # Step 3: 串行 apply_result（避免 standings 共享状态竞争）
         match_results = []
+        match_injury_counts = {1: 0, 2: 0, 3: 0}
         for fixture, sim_result in zip(fixtures, sim_results):
             await self.simulator.apply_result(fixture, sim_result, self.db)
+            fixture_injury_counts = {1: 0, 2: 0, 3: 0}
+            for player_stat in sim_result.player_stats or []:
+                severity = int(player_stat.get("injury_severity", 0) or 0)
+                if severity in fixture_injury_counts:
+                    fixture_injury_counts[severity] += 1
+                    match_injury_counts[severity] += 1
             match_results.append({
                 "fixture_id": fixture.id,
                 "type": fixture.fixture_type.value,
@@ -563,6 +570,10 @@ class SeasonService:
                 "home_score": sim_result.home_score,
                 "away_score": sim_result.away_score,
                 "match_setup": (sim_result.engine_raw or {}).get("match_setup") if sim_result.engine_raw else None,
+                "match_injuries": sum(fixture_injury_counts.values()),
+                "match_injuries_minor": fixture_injury_counts[1],
+                "match_injuries_medium": fixture_injury_counts[2],
+                "match_injuries_major": fixture_injury_counts[3],
             })
 
         # 更新赛季状态（复用 scheduler.process_matchday 的逻辑，但不重复 commit）
@@ -602,6 +613,10 @@ class SeasonService:
             "season_day": day,
             "fixtures_processed": len(match_results),
             "results": match_results,
+            "match_injuries": sum(match_injury_counts.values()),
+            "match_injuries_minor": match_injury_counts[1],
+            "match_injuries_medium": match_injury_counts[2],
+            "match_injuries_major": match_injury_counts[3],
             "rest_recovery": rest_recovery,
         }
 

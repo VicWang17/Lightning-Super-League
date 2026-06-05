@@ -206,10 +206,11 @@ def main() -> None:
     parser.add_argument("--prefix", required=True)
     parser.add_argument("--cols", type=int, default=4)
     parser.add_argument("--rows", type=int, default=4)
+    parser.add_argument("--start-index", type=int, default=1)
     args = parser.parse_args()
 
     all_avatars: list[Image.Image] = []
-    start_index = 1
+    start_index = args.start_index
     for sheet in args.sheets:
         avatars = crop_sheet(sheet, args.out, args.prefix, start_index, args.cols, args.rows)
         all_avatars.extend(avatars)

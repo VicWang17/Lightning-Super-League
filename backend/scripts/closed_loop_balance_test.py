@@ -211,6 +211,9 @@ def parse_iso_datetime(value: Any) -> datetime | None:
 
 
 def injury_in_season(injury: dict[str, Any], season: Season) -> bool:
+    injury_season_id = injury.get("season_id")
+    if injury_season_id:
+        return str(injury_season_id) == str(season.id)
     created_at = parse_iso_datetime(injury.get("created_at"))
     if created_at is None:
         return True
@@ -1416,6 +1419,15 @@ async def format_event_log_lines(
         remaining = len(results) - match_log_limit
         if remaining > 0:
             lines.append(f"  ... {remaining} more matches")
+        if int(item.get("match_injuries") or 0) > 0:
+            lines.append(
+                "  match_injuries={total} minor/medium/major={minor}/{medium}/{major}".format(
+                    total=item.get("match_injuries", 0),
+                    minor=item.get("match_injuries_minor", 0),
+                    medium=item.get("match_injuries_medium", 0),
+                    major=item.get("match_injuries_major", 0),
+                )
+            )
         recovery = item.get("rest_recovery") or {}
         if recovery:
             lines.append(

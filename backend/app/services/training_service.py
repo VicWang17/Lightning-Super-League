@@ -374,6 +374,7 @@ class TrainingService:
             if not training_item.is_recovery:
                 training_injury = self.injury_service.check_training_injury(player, training_item)
                 if training_injury:
+                    training_injury["season_id"] = plan.season_id
                     self.injury_service.apply_injury(player, training_injury, cause="training")
             
             # 应用属性成长/衰退
@@ -665,6 +666,7 @@ class TrainingService:
         total_declines = 0
         total_training_injuries = 0
         training_injuries_by_severity = {1: 0, 2: 0, 3: 0}
+        training_injury_samples: list[str] = []
         results_to_add: list[TrainingResult] = []
 
         for team_id in team_ids:
@@ -711,16 +713,17 @@ class TrainingService:
                     if not training_item.is_recovery:
                         training_injury = self.injury_service.check_training_injury(player, training_item)
                         if training_injury:
+                            training_injury["season_id"] = season_id
                             self.injury_service.apply_injury(player, training_injury, cause="training")
                             total_training_injuries += 1
                             severity = int(training_injury.get("severity", 0) or 0)
                             if severity in training_injuries_by_severity:
                                 training_injuries_by_severity[severity] += 1
-                            logger.warning(
-                                f"Training injury: {player.name} ({player.id}) - "
-                                f"{training_injury['injury_name']} ({training_injury['body_part']}, "
-                                f"severity={training_injury['severity']}, days={training_injury['days']})"
-                            )
+                            if len(training_injury_samples) < 5:
+                                training_injury_samples.append(
+                                    f"{player.name}:{training_injury['injury_name']}"
+                                    f"(S{training_injury['severity']},{training_injury['days']}d)"
+                                )
 
                     before_snapshot = self._snapshot_attributes(player)
                     breakthroughs = self.growth_service.apply_attribute_progress(player, gains)
@@ -760,6 +763,17 @@ class TrainingService:
         if results_to_add:
             self.db.add_all(results_to_add)
         await self.db.flush()
+        if total_training_injuries:
+            logger.info(
+                "Training injuries: season=%s day=%s total=%s minor/medium/major=%s/%s/%s samples=%s",
+                season_id,
+                season_day,
+                total_training_injuries,
+                training_injuries_by_severity[1],
+                training_injuries_by_severity[2],
+                training_injuries_by_severity[3],
+                "; ".join(training_injury_samples),
+            )
 
         return {
             "teams_processed": len(team_ids),

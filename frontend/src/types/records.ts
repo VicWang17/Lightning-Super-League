@@ -110,3 +110,40 @@ export const RECORD_SCOPE_LABELS: Record<RecordScope, string> = {
   [RecordScope.LEAGUE]: '联赛纪录',
   [RecordScope.TEAM]: '队伍纪录',
 }
+
+export const RECORD_TYPES_BY_CATEGORY: Record<RecordCategory, RecordType[]> = {
+  [RecordCategory.TEAM]: [
+    RecordType.SEASON_TEAM_GOALS,
+    RecordType.SEASON_TEAM_GOALS_AGAINST,
+    RecordType.SEASON_TEAM_POINTS,
+    RecordType.SEASON_TEAM_WINS,
+    RecordType.SEASON_CLEAN_SHEETS,
+    RecordType.LONGEST_WIN_STREAK,
+    RecordType.LONGEST_UNBEATEN,
+    RecordType.LONGEST_LOSING_STREAK,
+  ],
+  [RecordCategory.PLAYER]: [
+    RecordType.CAREER_GOALS,
+    RecordType.CAREER_ASSISTS,
+    RecordType.CAREER_APPEARANCES,
+    RecordType.CAREER_YELLOW_CARDS,
+    RecordType.CAREER_RED_CARDS,
+    RecordType.CAREER_RATING,
+    RecordType.SEASON_GOALS,
+    RecordType.SEASON_ASSISTS,
+    RecordType.SEASON_RATING,
+    RecordType.MATCH_GOALS,
+    RecordType.MATCH_ASSISTS,
+    RecordType.FASTEST_GOAL,
+    RecordType.YOUNGEST_SCORER,
+    RecordType.OLDEST_SCORER,
+    RecordType.HAT_TRICKS,
+    RecordType.SCORING_STREAK,
+    RecordType.ASSIST_STREAK,
+  ],
+  [RecordCategory.MATCH]: [
+    RecordType.BIGGEST_WIN_MARGIN,
+    RecordType.BIGGEST_DEFEAT_MARGIN,
+    RecordType.MOST_GOALS_IN_MATCH,
+  ],
+}

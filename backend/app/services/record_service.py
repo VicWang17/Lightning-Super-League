@@ -21,7 +21,7 @@ from app.models.record import (
     RECORD_TYPE_LABELS,
     RECORD_TYPES_LOWER_IS_BETTER,
 )
-from app.models.season import Fixture, FixtureStatus, FixtureType
+from app.models.season import Fixture, FixtureStatus, FixtureType, Season
 from app.models.player import Player, PlayerPosition
 from app.models.match_result import MatchResult as MatchResultModel
 from app.models.team import Team
@@ -56,9 +56,10 @@ class RecordService:
         # 3. 连胜/连败 streak 纪录
         await RecordService._check_streak_records(fixture, db)
 
-        # 4. 球员生涯累计纪录（在 player_stats 更新之后检测）
+        # 4. 球员生涯累计纪录 + 连续场次纪录（在 player_stats 更新之后检测）
         if result.player_stats:
             await RecordService._check_career_records_from_engine(fixture, result, db)
+            await RecordService._check_player_streaks(fixture, result, db)
 
         # 5. 赛季级纪录增量检测（单赛季最佳纪录）
         if fixture.season_id:
@@ -314,6 +315,67 @@ class RecordService:
                         match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
                         db=db,
                     )
+
+        # ---- 最年轻/最年长进球者 ----
+        if goal_events:
+            scorer_player_ids = list({e.get("player_id") for e in goal_events if e.get("player_id")})
+            if scorer_player_ids:
+                players_result = await db.execute(
+                    select(Player).where(Player.id.in_(scorer_player_ids))
+                )
+                players = {p.id: p for p in players_result.scalars().all()}
+
+                season_number = 0
+                if fixture.season_id:
+                    season_result = await db.execute(
+                        select(Season).where(Season.id == fixture.season_id)
+                    )
+                    season = season_result.scalar_one_or_none()
+                    if season:
+                        season_number = season.season_number
+
+                for player_id in scorer_player_ids:
+                    player = players.get(player_id)
+                    if not player:
+                        continue
+
+                    age = season_number + abs(player.birth_offset)
+
+                    for scope, target_id in [
+                        (RecordScope.WORLD, None),
+                        (RecordScope.LEAGUE, fixture.league_id),
+                        (RecordScope.TEAM, player.team_id),
+                    ]:
+                        if scope == RecordScope.LEAGUE and not target_id:
+                            continue
+                        await RecordService._update_record(
+                            scope=scope,
+                            scope_target_id=target_id,
+                            record_type=RecordType.YOUNGEST_SCORER,
+                            category=RecordCategory.PLAYER,
+                            value_str=f"{age}岁",
+                            value_num=-float(age),
+                            holder_player_id=player_id,
+                            holder_team_id=player.team_id,
+                            fixture_id=fixture.id,
+                            season_id=fixture.season_id,
+                            match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
+                            db=db,
+                        )
+                        await RecordService._update_record(
+                            scope=scope,
+                            scope_target_id=target_id,
+                            record_type=RecordType.OLDEST_SCORER,
+                            category=RecordCategory.PLAYER,
+                            value_str=f"{age}岁",
+                            value_num=float(age),
+                            holder_player_id=player_id,
+                            holder_team_id=player.team_id,
+                            fixture_id=fixture.id,
+                            season_id=fixture.season_id,
+                            match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
+                            db=db,
+                        )
 
     # ------------------------------------------------------------------
     # 3. 连胜/连败 streak 纪录
@@ -572,6 +634,123 @@ class RecordService:
                 )
 
     # ------------------------------------------------------------------
+    # 4.5 球员连续进球/助攻场次纪录
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    async def _check_player_streaks(
+        fixture: Fixture,
+        result: "MatchResult",
+        db: AsyncSession,
+    ) -> None:
+        """检测球员连续进球/助攻场次纪录"""
+        player_stats = result.player_stats or []
+
+        for ps in player_stats:
+            player_id = ps.get("player_id")
+            if not player_id:
+                continue
+
+            team_side = ps.get("team", "")
+            team_id = fixture.home_team_id if team_side == "home" else fixture.away_team_id
+
+            # 获取该球队所有已完成的比赛（按时间倒序）
+            fixtures_result = await db.execute(
+                select(Fixture, MatchResultModel)
+                .join(MatchResultModel, MatchResultModel.fixture_id == Fixture.id)
+                .where(
+                    and_(
+                        Fixture.status == FixtureStatus.FINISHED,
+                        or_(
+                            Fixture.home_team_id == team_id,
+                            Fixture.away_team_id == team_id,
+                        ),
+                    )
+                )
+                .order_by(Fixture.scheduled_at.desc())
+            )
+            rows = fixtures_result.all()
+
+            # 计算当前连续进球/助攻场次
+            scoring_streak = 0
+            assist_streak = 0
+            scoring_broken = False
+            assist_broken = False
+
+            for f, mr in rows:
+                ps_list = mr.player_stats or []
+                player_data = next(
+                    (p for p in ps_list if p.get("player_id") == player_id), None
+                )
+                if player_data:
+                    goals = int(player_data.get("goals", 0))
+                    assists = int(player_data.get("assists", 0))
+                else:
+                    goals = 0
+                    assists = 0
+
+                if not scoring_broken:
+                    if goals > 0:
+                        scoring_streak += 1
+                    else:
+                        scoring_broken = True
+
+                if not assist_broken:
+                    if assists > 0:
+                        assist_streak += 1
+                    else:
+                        assist_broken = True
+
+                if scoring_broken and assist_broken:
+                    break
+
+            if scoring_streak >= 2:
+                for scope, target_id in [
+                    (RecordScope.WORLD, None),
+                    (RecordScope.LEAGUE, fixture.league_id),
+                    (RecordScope.TEAM, team_id),
+                ]:
+                    if scope == RecordScope.LEAGUE and not target_id:
+                        continue
+                    await RecordService._update_record(
+                        scope=scope,
+                        scope_target_id=target_id,
+                        record_type=RecordType.SCORING_STREAK,
+                        category=RecordCategory.PLAYER,
+                        value_str=f"{scoring_streak}场",
+                        value_num=float(scoring_streak),
+                        holder_player_id=player_id,
+                        holder_team_id=team_id,
+                        fixture_id=fixture.id,
+                        season_id=fixture.season_id,
+                        match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
+                        db=db,
+                    )
+
+            if assist_streak >= 2:
+                for scope, target_id in [
+                    (RecordScope.WORLD, None),
+                    (RecordScope.LEAGUE, fixture.league_id),
+                    (RecordScope.TEAM, team_id),
+                ]:
+                    if scope == RecordScope.LEAGUE and not target_id:
+                        continue
+                    await RecordService._update_record(
+                        scope=scope,
+                        scope_target_id=target_id,
+                        record_type=RecordType.ASSIST_STREAK,
+                        category=RecordCategory.PLAYER,
+                        value_str=f"{assist_streak}场",
+                        value_num=float(assist_streak),
+                        holder_player_id=player_id,
+                        holder_team_id=team_id,
+                        fixture_id=fixture.id,
+                        season_id=fixture.season_id,
+                        match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
+                        db=db,
+                    )
+
+    # ------------------------------------------------------------------
     # 5. 赛季级纪录增量检测（每场比赛后调用）
     # ------------------------------------------------------------------
 
@@ -683,6 +862,18 @@ class RecordService:
                             season_id=season_id,
                             db=db,
                         )
+                    await RecordService._update_record(
+                        scope=RecordScope.TEAM,
+                        scope_target_id=player.team_id,
+                        record_type=RecordType.SEASON_ASSISTS,
+                        category=RecordCategory.PLAYER,
+                        value_str=f"{stats.assists}次",
+                        value_num=float(stats.assists),
+                        holder_player_id=player.id,
+                        holder_team_id=player.team_id,
+                        season_id=season_id,
+                        db=db,
+                    )
 
                 # 单赛季评分（至少10场）
                 if stats.matches_played >= 10:
@@ -690,6 +881,33 @@ class RecordService:
                     await RecordService._update_record(
                         scope=RecordScope.WORLD,
                         scope_target_id=None,
+                        record_type=RecordType.SEASON_RATING,
+                        category=RecordCategory.PLAYER,
+                        value_str=f"{rating:.1f}分",
+                        value_num=rating,
+                        holder_player_id=player.id,
+                        holder_team_id=player.team_id,
+                        season_id=season_id,
+                        db=db,
+                        context={"matches_played": stats.matches_played},
+                    )
+                    if fixture.league_id:
+                        await RecordService._update_record(
+                            scope=RecordScope.LEAGUE,
+                            scope_target_id=fixture.league_id,
+                            record_type=RecordType.SEASON_RATING,
+                            category=RecordCategory.PLAYER,
+                            value_str=f"{rating:.1f}分",
+                            value_num=rating,
+                            holder_player_id=player.id,
+                            holder_team_id=player.team_id,
+                            season_id=season_id,
+                            db=db,
+                            context={"matches_played": stats.matches_played},
+                        )
+                    await RecordService._update_record(
+                        scope=RecordScope.TEAM,
+                        scope_target_id=player.team_id,
                         record_type=RecordType.SEASON_RATING,
                         category=RecordCategory.PLAYER,
                         value_str=f"{rating:.1f}分",
