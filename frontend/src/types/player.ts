@@ -88,6 +88,49 @@ export interface Player {
   average_rating: number
   minutes_played: number
 
+  // 进攻
+  shots: number
+  shots_on_target: number
+  shot_accuracy: number
+  dribbles: number
+  dribbles_succ: number
+  dribble_accuracy: number
+  headers: number
+  headers_succ: number
+  header_accuracy: number
+
+  // 传球
+  passes: number
+  passes_succ: number
+  pass_accuracy: number
+  key_passes: number
+  crosses: number
+  crosses_succ: number
+  cross_accuracy: number
+
+  // 防守
+  tackles: number
+  tackles_succ: number
+  tackle_accuracy: number
+  interceptions: number
+  clearances: number
+  blocks: number
+
+  // 门将
+  saves: number
+  clean_sheets: number
+
+  // 纪律/其他
+  fouls: number
+  fouls_drawn: number
+  offsides: number
+  turnovers: number
+  touches: number
+  free_kicks: number
+  free_kick_goals: number
+  penalties: number
+  penalty_goals: number
+
   team_id?: string
   created_at: string
   updated_at: string
@@ -101,6 +144,49 @@ export interface PlayerStats {
   red_cards: number
   average_rating: number
   minutes_played: number
+
+  // 进攻
+  shots: number
+  shots_on_target: number
+  shot_accuracy: number
+  dribbles: number
+  dribbles_succ: number
+  dribble_accuracy: number
+  headers: number
+  headers_succ: number
+  header_accuracy: number
+
+  // 传球
+  passes: number
+  passes_succ: number
+  pass_accuracy: number
+  key_passes: number
+  crosses: number
+  crosses_succ: number
+  cross_accuracy: number
+
+  // 防守
+  tackles: number
+  tackles_succ: number
+  tackle_accuracy: number
+  interceptions: number
+  clearances: number
+  blocks: number
+
+  // 门将
+  saves: number
+  clean_sheets: number
+
+  // 纪律/其他
+  fouls: number
+  fouls_drawn: number
+  offsides: number
+  turnovers: number
+  touches: number
+  free_kicks: number
+  free_kick_goals: number
+  penalties: number
+  penalty_goals: number
 }
 
 export interface PlayerListItem {
@@ -115,6 +201,45 @@ export interface PlayerListItem {
   market_value: number
   squad_number?: number
   team_id?: string
+  matches_played: number
+  minutes_played: number
+  goals: number
+  assists: number
+  average_rating: number
+  yellow_cards: number
+  red_cards: number
+  // 进攻
+  shots: number
+  shots_on_target: number
+  dribbles: number
+  dribbles_succ: number
+  headers: number
+  headers_succ: number
+  // 传球
+  passes: number
+  passes_succ: number
+  key_passes: number
+  crosses: number
+  crosses_succ: number
+  // 防守
+  tackles: number
+  tackles_succ: number
+  interceptions: number
+  clearances: number
+  blocks: number
+  // 门将
+  saves: number
+  clean_sheets: number
+  // 纪律/其他
+  fouls: number
+  fouls_drawn: number
+  offsides: number
+  turnovers: number
+  touches: number
+  free_kicks: number
+  free_kick_goals: number
+  penalties: number
+  penalty_goals: number
 }
 
 // =====================================================================

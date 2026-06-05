@@ -47,14 +47,55 @@ class RecordType(str, PyEnum):
     HAT_TRICKS = "hat_tricks"                        # 帽子戏法次数
     SCORING_STREAK = "scoring_streak"                # 连续进球场次
     ASSIST_STREAK = "assist_streak"                  # 连续助攻场次
-    
+
+    # 传球纪录
+    CAREER_PASSES = "career_passes"                  # 生涯总传球最多
+    CAREER_KEY_PASSES = "career_key_passes"          # 生涯关键传球最多
+    SEASON_PASSES = "season_passes"                  # 单赛季传球最多
+    SEASON_KEY_PASSES = "season_key_passes"          # 单赛季关键传球最多
+    MATCH_PASSES = "match_passes"                    # 单场传球最多
+    MATCH_KEY_PASSES = "match_key_passes"            # 单场关键传球最多
+
+    # 防守纪录
+    CAREER_TACKLES = "career_tackles"                # 生涯总抢断最多
+    CAREER_INTERCEPTIONS = "career_interceptions"    # 生涯总拦截最多
+    CAREER_CLEARANCES = "career_clearances"          # 生涯总解围最多
+    SEASON_TACKLES = "season_tackles"                # 单赛季抢断最多
+    SEASON_INTERCEPTIONS = "season_interceptions"    # 单赛季拦截最多
+    SEASON_CLEARANCES = "season_clearances"          # 单赛季解围最多
+    MATCH_TACKLES = "match_tackles"                  # 单场抢断最多
+    MATCH_INTERCEPTIONS = "match_interceptions"      # 单场拦截最多
+
+    # 射门/进攻纪录
+    CAREER_SHOTS = "career_shots"                    # 生涯总射门最多
+    CAREER_SHOTS_ON_TARGET = "career_shots_on_target" # 生涯射正最多
+    SEASON_SHOTS = "season_shots"                    # 单赛季射门最多
+    SEASON_SHOTS_ON_TARGET = "season_shots_on_target" # 单赛季射正最多
+    MATCH_SHOTS = "match_shots"                      # 单场射门最多
+    MATCH_SHOTS_ON_TARGET = "match_shots_on_target"  # 单场射正最多
+
+    # 门将纪录
+    CAREER_SAVES = "career_saves"                    # 生涯总扑救最多
+    CAREER_CLEAN_SHEETS = "career_clean_sheets"      # 生涯零封最多
+    SEASON_SAVES = "season_saves"                    # 单赛季扑救最多
+    SEASON_CLEAN_SHEETS = "season_clean_sheets"      # 单赛季零封最多
+    MATCH_SAVES = "match_saves"                      # 单场扑救最多
+
+    # 其他纪律纪录
+    CAREER_FOULS = "career_fouls"                    # 生涯犯规最多
+    CAREER_OFFSIDES = "career_offsides"              # 生涯越位最多
+    SEASON_FOULS = "season_fouls"                    # 单赛季犯规最多
+    SEASON_OFFSIDES = "season_offsides"              # 单赛季越位最多
+    MATCH_FOULS = "match_fouls"                      # 单场犯规最多
+    MATCH_OFFSIDES = "match_offsides"                # 单场越位最多
+
     # --- 球队纪录 ---
     SEASON_TEAM_GOALS = "season_team_goals"          # 单赛季球队进球最多
     SEASON_TEAM_GOALS_AGAINST = "season_team_goals_against"  # 单赛季失球最少
     SEASON_TEAM_POINTS = "season_team_points"        # 单赛季积分最高
     SEASON_TEAM_WINS = "season_team_wins"            # 单赛季胜场最多
-    SEASON_CLEAN_SHEETS = "season_clean_sheets"      # 单赛季零封最多
-    
+    SEASON_TEAM_CLEAN_SHEETS = "season_team_clean_sheets"  # 单赛季球队零封最多
+
     BIGGEST_WIN_MARGIN = "biggest_win_margin"        # 最大比分胜利
     BIGGEST_DEFEAT_MARGIN = "biggest_defeat_margin"  # 最大比分失利
     MOST_GOALS_IN_MATCH = "most_goals_in_match"      # 单场总进球最多
@@ -82,11 +123,47 @@ RECORD_TYPE_LABELS: dict[RecordType, str] = {
     RecordType.HAT_TRICKS: "帽子戏法次数",
     RecordType.SCORING_STREAK: "连续进球场次",
     RecordType.ASSIST_STREAK: "连续助攻场次",
+    # 传球
+    RecordType.CAREER_PASSES: "生涯总传球最多",
+    RecordType.CAREER_KEY_PASSES: "生涯关键传球最多",
+    RecordType.SEASON_PASSES: "单赛季传球最多",
+    RecordType.SEASON_KEY_PASSES: "单赛季关键传球最多",
+    RecordType.MATCH_PASSES: "单场传球最多",
+    RecordType.MATCH_KEY_PASSES: "单场关键传球最多",
+    # 防守
+    RecordType.CAREER_TACKLES: "生涯总抢断最多",
+    RecordType.CAREER_INTERCEPTIONS: "生涯总拦截最多",
+    RecordType.CAREER_CLEARANCES: "生涯总解围最多",
+    RecordType.SEASON_TACKLES: "单赛季抢断最多",
+    RecordType.SEASON_INTERCEPTIONS: "单赛季拦截最多",
+    RecordType.SEASON_CLEARANCES: "单赛季解围最多",
+    RecordType.MATCH_TACKLES: "单场抢断最多",
+    RecordType.MATCH_INTERCEPTIONS: "单场拦截最多",
+    # 射门
+    RecordType.CAREER_SHOTS: "生涯总射门最多",
+    RecordType.CAREER_SHOTS_ON_TARGET: "生涯射正最多",
+    RecordType.SEASON_SHOTS: "单赛季射门最多",
+    RecordType.SEASON_SHOTS_ON_TARGET: "单赛季射正最多",
+    RecordType.MATCH_SHOTS: "单场射门最多",
+    RecordType.MATCH_SHOTS_ON_TARGET: "单场射正最多",
+    # 门将
+    RecordType.CAREER_SAVES: "生涯总扑救最多",
+    RecordType.CAREER_CLEAN_SHEETS: "生涯零封最多",
+    RecordType.SEASON_SAVES: "单赛季扑救最多",
+    RecordType.SEASON_CLEAN_SHEETS: "单赛季零封最多",
+    RecordType.MATCH_SAVES: "单场扑救最多",
+    # 纪律
+    RecordType.CAREER_FOULS: "生涯犯规最多",
+    RecordType.CAREER_OFFSIDES: "生涯越位最多",
+    RecordType.SEASON_FOULS: "单赛季犯规最多",
+    RecordType.SEASON_OFFSIDES: "单赛季越位最多",
+    RecordType.MATCH_FOULS: "单场犯规最多",
+    RecordType.MATCH_OFFSIDES: "单场越位最多",
     RecordType.SEASON_TEAM_GOALS: "单赛季进球最多",
     RecordType.SEASON_TEAM_GOALS_AGAINST: "单赛季失球最少",
     RecordType.SEASON_TEAM_POINTS: "单赛季积分最高",
     RecordType.SEASON_TEAM_WINS: "单赛季胜场最多",
-    RecordType.SEASON_CLEAN_SHEETS: "单赛季零封最多",
+    RecordType.SEASON_TEAM_CLEAN_SHEETS: "单赛季球队零封最多",
     RecordType.BIGGEST_WIN_MARGIN: "最大比分胜利",
     RecordType.BIGGEST_DEFEAT_MARGIN: "最大比分失利",
     RecordType.MOST_GOALS_IN_MATCH: "单场总进球最多",

@@ -22,15 +22,18 @@ class RecordCategory(str, Enum):
 
 
 class RecordType(str, Enum):
+    # --- 球员纪录 ---
     CAREER_GOALS = "career_goals"
     CAREER_ASSISTS = "career_assists"
     CAREER_APPEARANCES = "career_appearances"
     CAREER_YELLOW_CARDS = "career_yellow_cards"
     CAREER_RED_CARDS = "career_red_cards"
     CAREER_RATING = "career_rating"
+
     SEASON_GOALS = "season_goals"
     SEASON_ASSISTS = "season_assists"
     SEASON_RATING = "season_rating"
+
     MATCH_GOALS = "match_goals"
     MATCH_ASSISTS = "match_assists"
     FASTEST_GOAL = "fastest_goal"
@@ -39,11 +42,54 @@ class RecordType(str, Enum):
     HAT_TRICKS = "hat_tricks"
     SCORING_STREAK = "scoring_streak"
     ASSIST_STREAK = "assist_streak"
+
+    # 传球纪录
+    CAREER_PASSES = "career_passes"
+    CAREER_KEY_PASSES = "career_key_passes"
+    SEASON_PASSES = "season_passes"
+    SEASON_KEY_PASSES = "season_key_passes"
+    MATCH_PASSES = "match_passes"
+    MATCH_KEY_PASSES = "match_key_passes"
+
+    # 防守纪录
+    CAREER_TACKLES = "career_tackles"
+    CAREER_INTERCEPTIONS = "career_interceptions"
+    CAREER_CLEARANCES = "career_clearances"
+    SEASON_TACKLES = "season_tackles"
+    SEASON_INTERCEPTIONS = "season_interceptions"
+    SEASON_CLEARANCES = "season_clearances"
+    MATCH_TACKLES = "match_tackles"
+    MATCH_INTERCEPTIONS = "match_interceptions"
+
+    # 射门/进攻纪录
+    CAREER_SHOTS = "career_shots"
+    CAREER_SHOTS_ON_TARGET = "career_shots_on_target"
+    SEASON_SHOTS = "season_shots"
+    SEASON_SHOTS_ON_TARGET = "season_shots_on_target"
+    MATCH_SHOTS = "match_shots"
+    MATCH_SHOTS_ON_TARGET = "match_shots_on_target"
+
+    # 门将纪录
+    CAREER_SAVES = "career_saves"
+    CAREER_CLEAN_SHEETS = "career_clean_sheets"
+    SEASON_SAVES = "season_saves"
+    SEASON_CLEAN_SHEETS = "season_clean_sheets"
+    MATCH_SAVES = "match_saves"
+
+    # 纪律纪录
+    CAREER_FOULS = "career_fouls"
+    CAREER_OFFSIDES = "career_offsides"
+    SEASON_FOULS = "season_fouls"
+    SEASON_OFFSIDES = "season_offsides"
+    MATCH_FOULS = "match_fouls"
+    MATCH_OFFSIDES = "match_offsides"
+
+    # --- 球队纪录 ---
     SEASON_TEAM_GOALS = "season_team_goals"
     SEASON_TEAM_GOALS_AGAINST = "season_team_goals_against"
     SEASON_TEAM_POINTS = "season_team_points"
     SEASON_TEAM_WINS = "season_team_wins"
-    SEASON_CLEAN_SHEETS = "season_clean_sheets"
+    SEASON_TEAM_CLEAN_SHEETS = "season_team_clean_sheets"
     BIGGEST_WIN_MARGIN = "biggest_win_margin"
     BIGGEST_DEFEAT_MARGIN = "biggest_defeat_margin"
     MOST_GOALS_IN_MATCH = "most_goals_in_match"
@@ -103,6 +149,49 @@ class PlayerSeasonHistoryItem(BaseSchema):
     red_cards: int = 0
     clean_sheets: int = 0
     average_rating: float = 0.0
+
+    # 进攻
+    shots: int = 0
+    shots_on_target: int = 0
+    shot_accuracy: float = 0.0
+    dribbles: int = 0
+    dribbles_succ: int = 0
+    dribble_accuracy: float = 0.0
+    headers: int = 0
+    headers_succ: int = 0
+    header_accuracy: float = 0.0
+
+    # 传球
+    passes: int = 0
+    passes_succ: int = 0
+    pass_accuracy: float = 0.0
+    key_passes: int = 0
+    crosses: int = 0
+    crosses_succ: int = 0
+    cross_accuracy: float = 0.0
+
+    # 防守
+    tackles: int = 0
+    tackles_succ: int = 0
+    tackle_accuracy: float = 0.0
+    interceptions: int = 0
+    clearances: int = 0
+    blocks: int = 0
+
+    # 门将
+    saves: int = 0
+
+    # 纪律/其他
+    fouls: int = 0
+    fouls_drawn: int = 0
+    offsides: int = 0
+    turnovers: int = 0
+    touches: int = 0
+    free_kicks: int = 0
+    free_kick_goals: int = 0
+    penalties: int = 0
+    penalty_goals: int = 0
+
     # 联赛+杯赛细分
     competition_breakdown: List[dict] = Field(default_factory=list)
 
@@ -118,6 +207,43 @@ class PlayerCareerSummary(BaseSchema):
     total_red_cards: int = 0
     overall_average_rating: float = 0.0
     best_season: Optional[dict] = None
+
+    # 进攻
+    total_shots: int = 0
+    total_shots_on_target: int = 0
+    total_dribbles: int = 0
+    total_dribbles_succ: int = 0
+    total_headers: int = 0
+    total_headers_succ: int = 0
+
+    # 传球
+    total_passes: int = 0
+    total_passes_succ: int = 0
+    total_key_passes: int = 0
+    total_crosses: int = 0
+    total_crosses_succ: int = 0
+
+    # 防守
+    total_tackles: int = 0
+    total_tackles_succ: int = 0
+    total_interceptions: int = 0
+    total_clearances: int = 0
+    total_blocks: int = 0
+
+    # 门将
+    total_saves: int = 0
+    total_clean_sheets: int = 0
+
+    # 纪律/其他
+    total_fouls: int = 0
+    total_fouls_drawn: int = 0
+    total_offsides: int = 0
+    total_turnovers: int = 0
+    total_touches: int = 0
+    total_free_kicks: int = 0
+    total_free_kick_goals: int = 0
+    total_penalties: int = 0
+    total_penalty_goals: int = 0
 
 
 class PlayerMilestone(BaseSchema):

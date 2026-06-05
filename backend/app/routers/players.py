@@ -27,7 +27,6 @@ from app.schemas import (
     ContractPreviewResponse,
     ContractSignRequest,
     PlayerStateResponse,
-    TeamPlayerStatesResponse,
     PlayerGrowthResponse,
     GrowthCurvePoint,
     AttributeProgressItem,
@@ -37,6 +36,10 @@ from app.services.contract_service import ContractService
 from app.services.player_state_service import PlayerStateService
 
 router = APIRouter(prefix="/players", tags=["球员"])
+
+
+def _calc_accuracy(total: int, succ: int) -> float:
+    return round((succ / total) * 100, 1) if total else 0.0
 
 
 async def _get_career_stats(db: AsyncSession, player_id: str):
@@ -53,28 +56,132 @@ async def _get_career_stats(db: AsyncSession, player_id: str):
                 func.sum(PlayerSeasonStats.average_rating * PlayerSeasonStats.matches_played),
                 0,
             ),
+            # 进攻
+            func.coalesce(func.sum(PlayerSeasonStats.shots), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.shots_on_target), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.dribbles), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.dribbles_succ), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.headers), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.headers_succ), 0),
+            # 传球
+            func.coalesce(func.sum(PlayerSeasonStats.passes), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.passes_succ), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.key_passes), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.crosses), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.crosses_succ), 0),
+            # 防守
+            func.coalesce(func.sum(PlayerSeasonStats.tackles), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.tackles_succ), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.interceptions), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.clearances), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.blocks), 0),
+            # 门将
+            func.coalesce(func.sum(PlayerSeasonStats.saves), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.clean_sheets), 0),
+            # 纪律/其他
+            func.coalesce(func.sum(PlayerSeasonStats.fouls), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.fouls_drawn), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.offsides), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.turnovers), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.touches), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.free_kicks), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.free_kick_goals), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.penalties), 0),
+            func.coalesce(func.sum(PlayerSeasonStats.penalty_goals), 0),
         ).where(PlayerSeasonStats.player_id == player_id)
     )
-    (
-        matches_played,
-        goals,
-        assists,
-        yellow_cards,
-        red_cards,
-        minutes_played,
-        rating_sum,
-    ) = result.one()
+    row = result.one()
+    matches_played = int(row[0] or 0)
+    goals = int(row[1] or 0)
+    assists = int(row[2] or 0)
+    yellow_cards = int(row[3] or 0)
+    red_cards = int(row[4] or 0)
+    minutes_played = int(row[5] or 0)
+    rating_sum = row[6] or 0
+
+    # 进攻
+    shots = int(row[7] or 0)
+    shots_on_target = int(row[8] or 0)
+    dribbles = int(row[9] or 0)
+    dribbles_succ = int(row[10] or 0)
+    headers = int(row[11] or 0)
+    headers_succ = int(row[12] or 0)
+    # 传球
+    passes = int(row[13] or 0)
+    passes_succ = int(row[14] or 0)
+    key_passes = int(row[15] or 0)
+    crosses = int(row[16] or 0)
+    crosses_succ = int(row[17] or 0)
+    # 防守
+    tackles = int(row[18] or 0)
+    tackles_succ = int(row[19] or 0)
+    interceptions = int(row[20] or 0)
+    clearances = int(row[21] or 0)
+    blocks = int(row[22] or 0)
+    # 门将
+    saves = int(row[23] or 0)
+    clean_sheets = int(row[24] or 0)
+    # 纪律/其他
+    fouls = int(row[25] or 0)
+    fouls_drawn = int(row[26] or 0)
+    offsides = int(row[27] or 0)
+    turnovers = int(row[28] or 0)
+    touches = int(row[29] or 0)
+    free_kicks = int(row[30] or 0)
+    free_kick_goals = int(row[31] or 0)
+    penalties = int(row[32] or 0)
+    penalty_goals = int(row[33] or 0)
+
     avg_rating = Decimal("6.0")
     if matches_played:
         avg_rating = (Decimal(str(rating_sum)) / Decimal(matches_played)).quantize(Decimal("0.1"))
+
     return {
-        "matches_played": int(matches_played or 0),
-        "goals": int(goals or 0),
-        "assists": int(assists or 0),
-        "yellow_cards": int(yellow_cards or 0),
-        "red_cards": int(red_cards or 0),
+        "matches_played": matches_played,
+        "goals": goals,
+        "assists": assists,
+        "yellow_cards": yellow_cards,
+        "red_cards": red_cards,
         "average_rating": float(avg_rating),
-        "minutes_played": int(minutes_played or 0),
+        "minutes_played": minutes_played,
+        # 进攻
+        "shots": shots,
+        "shots_on_target": shots_on_target,
+        "shot_accuracy": _calc_accuracy(shots, shots_on_target),
+        "dribbles": dribbles,
+        "dribbles_succ": dribbles_succ,
+        "dribble_accuracy": _calc_accuracy(dribbles, dribbles_succ),
+        "headers": headers,
+        "headers_succ": headers_succ,
+        "header_accuracy": _calc_accuracy(headers, headers_succ),
+        # 传球
+        "passes": passes,
+        "passes_succ": passes_succ,
+        "pass_accuracy": _calc_accuracy(passes, passes_succ),
+        "key_passes": key_passes,
+        "crosses": crosses,
+        "crosses_succ": crosses_succ,
+        "cross_accuracy": _calc_accuracy(crosses, crosses_succ),
+        # 防守
+        "tackles": tackles,
+        "tackles_succ": tackles_succ,
+        "tackle_accuracy": _calc_accuracy(tackles, tackles_succ),
+        "interceptions": interceptions,
+        "clearances": clearances,
+        "blocks": blocks,
+        # 门将
+        "saves": saves,
+        "clean_sheets": clean_sheets,
+        # 纪律/其他
+        "fouls": fouls,
+        "fouls_drawn": fouls_drawn,
+        "offsides": offsides,
+        "turnovers": turnovers,
+        "touches": touches,
+        "free_kicks": free_kicks,
+        "free_kick_goals": free_kick_goals,
+        "penalties": penalties,
+        "penalty_goals": penalty_goals,
     }
 
 
@@ -114,6 +221,34 @@ async def list_players(
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
     players = result.scalars().all()
+
+    player_ids = [p.id for p in players]
+    stats_by_player: dict[str, dict] = {}
+    if player_ids:
+        stats_result = await db.execute(
+            select(
+                PlayerSeasonStats.player_id,
+                func.coalesce(func.sum(PlayerSeasonStats.matches_played), 0).label("matches_played"),
+                func.coalesce(func.sum(PlayerSeasonStats.goals), 0).label("goals"),
+                func.coalesce(func.sum(PlayerSeasonStats.assists), 0).label("assists"),
+                func.coalesce(
+                    func.sum(PlayerSeasonStats.average_rating * PlayerSeasonStats.matches_played),
+                    0,
+                ).label("rating_sum"),
+            )
+            .where(PlayerSeasonStats.player_id.in_(player_ids))
+            .group_by(PlayerSeasonStats.player_id)
+        )
+        for row in stats_result.all():
+            matches_played = int(row.matches_played or 0)
+            rating_sum = row.rating_sum or 0
+            average_rating = round(float(rating_sum) / matches_played, 1) if matches_played else 0.0
+            stats_by_player[row.player_id] = {
+                "matches_played": matches_played,
+                "goals": int(row.goals or 0),
+                "assists": int(row.assists or 0),
+                "average_rating": average_rating,
+            }
     
     items = [
         PlayerListItem(
@@ -128,6 +263,15 @@ async def list_players(
             market_value=p.market_value,
             squad_number=p.squad_number,
             team_id=p.team_id,
+            **stats_by_player.get(
+                p.id,
+                {
+                    "matches_played": 0,
+                    "goals": 0,
+                    "assists": 0,
+                    "average_rating": 0.0,
+                },
+            ),
         )
         for p in players
     ]
@@ -208,16 +352,10 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
             squad_number=player.squad_number,
             market_value=player.market_value,
             stats=stats,
-            matches_played=career_stats["matches_played"],
-            goals=career_stats["goals"],
-            assists=career_stats["assists"],
-            yellow_cards=career_stats["yellow_cards"],
-            red_cards=career_stats["red_cards"],
-            average_rating=career_stats["average_rating"],
-            minutes_played=career_stats["minutes_played"],
             team_id=player.team_id,
             created_at=player.created_at,
             updated_at=player.updated_at,
+            **career_stats,
         ),
     )
 
@@ -269,6 +407,23 @@ async def get_player_history(
                 "clean_sheets": 0,
                 "total_rating_sum": 0.0,
                 "total_rating_matches": 0,
+                # 进攻
+                "shots": 0, "shots_on_target": 0,
+                "dribbles": 0, "dribbles_succ": 0,
+                "headers": 0, "headers_succ": 0,
+                # 传球
+                "passes": 0, "passes_succ": 0, "key_passes": 0,
+                "crosses": 0, "crosses_succ": 0,
+                # 防守
+                "tackles": 0, "tackles_succ": 0,
+                "interceptions": 0, "clearances": 0, "blocks": 0,
+                # 门将
+                "saves": 0,
+                # 纪律/其他
+                "fouls": 0, "fouls_drawn": 0, "offsides": 0,
+                "turnovers": 0, "touches": 0,
+                "free_kicks": 0, "free_kick_goals": 0,
+                "penalties": 0, "penalty_goals": 0,
             }
             competition_details[sn] = []
 
@@ -280,6 +435,38 @@ async def get_player_history(
         s["yellow_cards"] += stats.yellow_cards
         s["red_cards"] += stats.red_cards
         s["clean_sheets"] += stats.clean_sheets
+
+        # 进攻
+        s["shots"] += stats.shots
+        s["shots_on_target"] += stats.shots_on_target
+        s["dribbles"] += stats.dribbles
+        s["dribbles_succ"] += stats.dribbles_succ
+        s["headers"] += stats.headers
+        s["headers_succ"] += stats.headers_succ
+        # 传球
+        s["passes"] += stats.passes
+        s["passes_succ"] += stats.passes_succ
+        s["key_passes"] += stats.key_passes
+        s["crosses"] += stats.crosses
+        s["crosses_succ"] += stats.crosses_succ
+        # 防守
+        s["tackles"] += stats.tackles
+        s["tackles_succ"] += stats.tackles_succ
+        s["interceptions"] += stats.interceptions
+        s["clearances"] += stats.clearances
+        s["blocks"] += stats.blocks
+        # 门将
+        s["saves"] += stats.saves
+        # 纪律/其他
+        s["fouls"] += stats.fouls
+        s["fouls_drawn"] += stats.fouls_drawn
+        s["offsides"] += stats.offsides
+        s["turnovers"] += stats.turnovers
+        s["touches"] += stats.touches
+        s["free_kicks"] += stats.free_kicks
+        s["free_kick_goals"] += stats.free_kick_goals
+        s["penalties"] += stats.penalties
+        s["penalty_goals"] += stats.penalty_goals
 
         if stats.matches_played > 0:
             s["total_rating_sum"] += float(stats.average_rating) * stats.matches_played
@@ -304,11 +491,12 @@ async def get_player_history(
             if s["total_rating_matches"] > 0
             else 0.0
         )
+        mp = s["matches_played"]
         seasons.append(PlayerSeasonHistoryItem(
             season_number=s["season_number"],
             team_name=s["team_name"],
             team_id=s["team_id"],
-            matches_played=s["matches_played"],
+            matches_played=mp,
             minutes_played=s["minutes_played"],
             goals=s["goals"],
             assists=s["assists"],
@@ -316,6 +504,43 @@ async def get_player_history(
             red_cards=s["red_cards"],
             clean_sheets=s["clean_sheets"],
             average_rating=avg_rating,
+            # 进攻
+            shots=s["shots"],
+            shots_on_target=s["shots_on_target"],
+            shot_accuracy=_calc_accuracy(s["shots"], s["shots_on_target"]),
+            dribbles=s["dribbles"],
+            dribbles_succ=s["dribbles_succ"],
+            dribble_accuracy=_calc_accuracy(s["dribbles"], s["dribbles_succ"]),
+            headers=s["headers"],
+            headers_succ=s["headers_succ"],
+            header_accuracy=_calc_accuracy(s["headers"], s["headers_succ"]),
+            # 传球
+            passes=s["passes"],
+            passes_succ=s["passes_succ"],
+            pass_accuracy=_calc_accuracy(s["passes"], s["passes_succ"]),
+            key_passes=s["key_passes"],
+            crosses=s["crosses"],
+            crosses_succ=s["crosses_succ"],
+            cross_accuracy=_calc_accuracy(s["crosses"], s["crosses_succ"]),
+            # 防守
+            tackles=s["tackles"],
+            tackles_succ=s["tackles_succ"],
+            tackle_accuracy=_calc_accuracy(s["tackles"], s["tackles_succ"]),
+            interceptions=s["interceptions"],
+            clearances=s["clearances"],
+            blocks=s["blocks"],
+            # 门将
+            saves=s["saves"],
+            # 纪律/其他
+            fouls=s["fouls"],
+            fouls_drawn=s["fouls_drawn"],
+            offsides=s["offsides"],
+            turnovers=s["turnovers"],
+            touches=s["touches"],
+            free_kicks=s["free_kicks"],
+            free_kick_goals=s["free_kick_goals"],
+            penalties=s["penalties"],
+            penalty_goals=s["penalty_goals"],
             competition_breakdown=competition_details[sn],
         ))
 
@@ -353,6 +578,38 @@ async def get_player_history(
         total_red_cards=total_red,
         overall_average_rating=overall_rating,
         best_season=best_season,
+        # 进攻
+        total_shots=sum(s.shots for s in seasons),
+        total_shots_on_target=sum(s.shots_on_target for s in seasons),
+        total_dribbles=sum(s.dribbles for s in seasons),
+        total_dribbles_succ=sum(s.dribbles_succ for s in seasons),
+        total_headers=sum(s.headers for s in seasons),
+        total_headers_succ=sum(s.headers_succ for s in seasons),
+        # 传球
+        total_passes=sum(s.passes for s in seasons),
+        total_passes_succ=sum(s.passes_succ for s in seasons),
+        total_key_passes=sum(s.key_passes for s in seasons),
+        total_crosses=sum(s.crosses for s in seasons),
+        total_crosses_succ=sum(s.crosses_succ for s in seasons),
+        # 防守
+        total_tackles=sum(s.tackles for s in seasons),
+        total_tackles_succ=sum(s.tackles_succ for s in seasons),
+        total_interceptions=sum(s.interceptions for s in seasons),
+        total_clearances=sum(s.clearances for s in seasons),
+        total_blocks=sum(s.blocks for s in seasons),
+        # 门将
+        total_saves=sum(s.saves for s in seasons),
+        total_clean_sheets=sum(s.clean_sheets for s in seasons),
+        # 纪律/其他
+        total_fouls=sum(s.fouls for s in seasons),
+        total_fouls_drawn=sum(s.fouls_drawn for s in seasons),
+        total_offsides=sum(s.offsides for s in seasons),
+        total_turnovers=sum(s.turnovers for s in seasons),
+        total_touches=sum(s.touches for s in seasons),
+        total_free_kicks=sum(s.free_kicks for s in seasons),
+        total_free_kick_goals=sum(s.free_kick_goals for s in seasons),
+        total_penalties=sum(s.penalties for s in seasons),
+        total_penalty_goals=sum(s.penalty_goals for s in seasons),
     )
 
     # 里程碑（简化版）
@@ -613,54 +870,6 @@ async def get_player_state(
             state_score=player.state_score,
             match_rust_score=player.match_rust_score,
         ),
-    )
-
-
-@router.get(
-    "/teams/{team_id}/player-states",
-    response_model=ResponseSchema[TeamPlayerStatesResponse],
-    summary="获取全队球员状态",
-)
-async def get_team_player_states(
-    team_id: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """获取全队所有球员的状态列表"""
-    result = await db.execute(select(Player).where(Player.team_id == team_id))
-    players = result.scalars().all()
-    
-    states = []
-    for player in players:
-        hints = []
-        if player.match_form.value == "HOT":
-            hints.append("近期状态火热")
-        elif player.match_form.value == "LOW":
-            hints.append("近期状态低迷")
-        if player.fitness < 50:
-            hints.append("体能堪忧")
-        if player.match_rust_score < -1:
-            hints.append("久疏战阵")
-        
-        trend = "stable"
-        if player.state_score >= 3:
-            trend = "up"
-        elif player.state_score <= -2:
-            trend = "down"
-        
-        states.append(PlayerStateResponse(
-            player_id=player.id,
-            visible_form=player.match_form,
-            fitness=player.fitness,
-            availability=player.status,
-            trend=trend,
-            hints=hints,
-            state_score=player.state_score,
-            match_rust_score=player.match_rust_score,
-        ))
-    
-    return ResponseSchema(
-        success=True,
-        data=TeamPlayerStatesResponse(team_id=team_id, players=states),
     )
 
 

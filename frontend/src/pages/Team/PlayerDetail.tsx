@@ -11,6 +11,29 @@ import { ContractModal } from '../../components/players/ContractModal'
 import { getPositionColor, type Player, type PlayerContract, type PlayerState } from '../../types/player'
 import { api } from '../../api/client'
 
+function StatItem({
+  label,
+  total,
+  played,
+  suffix = '',
+}: {
+  label: string
+  total: number
+  played: number
+  suffix?: string
+}) {
+  const avg = played > 0 ? (total / played).toFixed(1) : '0.0'
+  return (
+    <div className="flex flex-col bg-[#2D2D44] rounded-lg px-3 py-2">
+      <span className="text-xs text-[#8B8BA7]">{label}</span>
+      <span className="font-bold text-sm pixel-number mt-1">
+        {total}
+        {suffix} <span className="text-[#8B8BA7] text-xs font-normal">场均 {avg}</span>
+      </span>
+    </div>
+  )
+}
+
 function PlayerDetail() {
   const { id } = useParams<{ id: string }>()
   const [player, setPlayer] = useState<Player | null>(null)
@@ -404,6 +427,65 @@ function PlayerDetail() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-[#8B8BA7]">出场时间</span>
                 <span className="font-bold stat-number pixel-number">{player.minutes_played} 分钟</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* 详细数据 */}
+          <Card hover>
+            <h3 className="text-lg font-semibold mb-4">详细数据</h3>
+            <div className="space-y-4">
+              {/* 进攻 */}
+              <div>
+                <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">进攻</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatItem label="射门" total={player.shots} played={player.matches_played} />
+                  <StatItem label="射正" total={player.shots_on_target} played={player.matches_played} suffix={` (${player.shot_accuracy}%)`} />
+                  <StatItem label="盘带" total={player.dribbles} played={player.matches_played} suffix={` (${player.dribble_accuracy}%)`} />
+                  <StatItem label="头球" total={player.headers} played={player.matches_played} suffix={` (${player.header_accuracy}%)`} />
+                </div>
+              </div>
+              {/* 传球 */}
+              <div>
+                <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">传球</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatItem label="传球" total={player.passes} played={player.matches_played} suffix={` (${player.pass_accuracy}%)`} />
+                  <StatItem label="关键传球" total={player.key_passes} played={player.matches_played} />
+                  <StatItem label="传中" total={player.crosses} played={player.matches_played} suffix={` (${player.cross_accuracy}%)`} />
+                </div>
+              </div>
+              {/* 防守 */}
+              <div>
+                <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">防守</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatItem label="抢断" total={player.tackles} played={player.matches_played} suffix={` (${player.tackle_accuracy}%)`} />
+                  <StatItem label="拦截" total={player.interceptions} played={player.matches_played} />
+                  <StatItem label="解围" total={player.clearances} played={player.matches_played} />
+                  <StatItem label="封堵" total={player.blocks} played={player.matches_played} />
+                </div>
+              </div>
+              {/* 门将 */}
+              {player.position === 'GK' && (
+                <div>
+                  <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">门将</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <StatItem label="扑救" total={player.saves} played={player.matches_played} />
+                    <StatItem label="零封" total={player.clean_sheets} played={player.matches_played} />
+                  </div>
+                </div>
+              )}
+              {/* 其他 */}
+              <div>
+                <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">其他</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatItem label="犯规" total={player.fouls} played={player.matches_played} />
+                  <StatItem label="被犯规" total={player.fouls_drawn} played={player.matches_played} />
+                  <StatItem label="越位" total={player.offsides} played={player.matches_played} />
+                  <StatItem label="触球" total={player.touches} played={player.matches_played} />
+                  <StatItem label="失误" total={player.turnovers} played={player.matches_played} />
+                  <StatItem label="任意球" total={player.free_kicks} played={player.matches_played} />
+                  <StatItem label="点球" total={player.penalties} played={player.matches_played} />
+                </div>
               </div>
             </div>
           </Card>

@@ -1,10 +1,13 @@
 """
 Team management API routes
 """
+from datetime import datetime
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc
+from sqlalchemy import select, and_, desc, func
 
 from app.schemas import (
     ResponseSchema,
@@ -18,6 +21,10 @@ from app.schemas import (
     PlayerListItem,
     TeamHistoryResponse,
     TeamSeasonHistoryItem,
+    TeamFinancials,
+    TeamStats,
+    PlayerStateResponse,
+    TeamPlayerStatesResponse,
 )
 from app.dependencies import get_db, get_current_user
 from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season, LeagueSystem, PlayerSeasonStats, Player
@@ -59,6 +66,27 @@ async def get_my_team(
     
     team, league = row
     logger.info(f"返回球队信息: team_id={team.id}, name={team.name}, current_league_id={team.current_league_id}")
+
+    # 计算球队三线评分
+    from app.models import Player as PlayerModel
+    player_result = await db.execute(
+        select(PlayerModel.position, PlayerModel.ovr)
+        .where(PlayerModel.team_id == team.id)
+        .order_by(PlayerModel.ovr.desc())
+    )
+    pos_ovrs: dict[str, list[int]] = {"GK": [], "DF": [], "MF": [], "FW": []}
+    for pos, ovr in player_result.all():
+        if pos in pos_ovrs:
+            pos_ovrs[pos].append(ovr)
+
+    def _avg_top(lst: list[int], n: int) -> int:
+        if not lst:
+            return 0
+        return round(sum(lst[:n]) / min(len(lst), n))
+
+    attack = _avg_top(pos_ovrs["FW"], 3)
+    midfield = _avg_top(pos_ovrs["MF"], 4)
+    defense = _avg_top(pos_ovrs["DF"], 4)
     
     return ResponseSchema(
         success=True,
@@ -67,6 +95,9 @@ async def get_my_team(
             "name": team.name,
             "short_name": team.short_name,
             "overall_rating": team.overall_rating,
+            "attack": attack,
+            "midfield": midfield,
+            "defense": defense,
             "current_league_id": team.current_league_id,
             "league_id": team.current_league_id,
             "league_name": league.name if league else None,
@@ -317,6 +348,104 @@ async def get_team_players(
     )
     players = result.scalars().all()
     players.sort(key=lambda p: p.ovr, reverse=True)
+
+    player_ids = [p.id for p in players]
+    stats_by_player: dict[str, dict] = {}
+    if player_ids:
+        stats_result = await db.execute(
+            select(
+                PlayerSeasonStats.player_id,
+                func.coalesce(func.sum(PlayerSeasonStats.matches_played), 0).label("matches_played"),
+                func.coalesce(func.sum(PlayerSeasonStats.minutes_played), 0).label("minutes_played"),
+                func.coalesce(func.sum(PlayerSeasonStats.goals), 0).label("goals"),
+                func.coalesce(func.sum(PlayerSeasonStats.assists), 0).label("assists"),
+                func.coalesce(func.sum(PlayerSeasonStats.yellow_cards), 0).label("yellow_cards"),
+                func.coalesce(func.sum(PlayerSeasonStats.red_cards), 0).label("red_cards"),
+                func.coalesce(
+                    func.sum(PlayerSeasonStats.average_rating * PlayerSeasonStats.matches_played),
+                    0,
+                ).label("rating_sum"),
+                # 进攻
+                func.coalesce(func.sum(PlayerSeasonStats.shots), 0).label("shots"),
+                func.coalesce(func.sum(PlayerSeasonStats.shots_on_target), 0).label("shots_on_target"),
+                func.coalesce(func.sum(PlayerSeasonStats.dribbles), 0).label("dribbles"),
+                func.coalesce(func.sum(PlayerSeasonStats.dribbles_succ), 0).label("dribbles_succ"),
+                func.coalesce(func.sum(PlayerSeasonStats.headers), 0).label("headers"),
+                func.coalesce(func.sum(PlayerSeasonStats.headers_succ), 0).label("headers_succ"),
+                # 传球
+                func.coalesce(func.sum(PlayerSeasonStats.passes), 0).label("passes"),
+                func.coalesce(func.sum(PlayerSeasonStats.passes_succ), 0).label("passes_succ"),
+                func.coalesce(func.sum(PlayerSeasonStats.key_passes), 0).label("key_passes"),
+                func.coalesce(func.sum(PlayerSeasonStats.crosses), 0).label("crosses"),
+                func.coalesce(func.sum(PlayerSeasonStats.crosses_succ), 0).label("crosses_succ"),
+                # 防守
+                func.coalesce(func.sum(PlayerSeasonStats.tackles), 0).label("tackles"),
+                func.coalesce(func.sum(PlayerSeasonStats.tackles_succ), 0).label("tackles_succ"),
+                func.coalesce(func.sum(PlayerSeasonStats.interceptions), 0).label("interceptions"),
+                func.coalesce(func.sum(PlayerSeasonStats.clearances), 0).label("clearances"),
+                func.coalesce(func.sum(PlayerSeasonStats.blocks), 0).label("blocks"),
+                # 门将
+                func.coalesce(func.sum(PlayerSeasonStats.saves), 0).label("saves"),
+                func.coalesce(func.sum(PlayerSeasonStats.clean_sheets), 0).label("clean_sheets"),
+                # 纪律/其他
+                func.coalesce(func.sum(PlayerSeasonStats.fouls), 0).label("fouls"),
+                func.coalesce(func.sum(PlayerSeasonStats.fouls_drawn), 0).label("fouls_drawn"),
+                func.coalesce(func.sum(PlayerSeasonStats.offsides), 0).label("offsides"),
+                func.coalesce(func.sum(PlayerSeasonStats.turnovers), 0).label("turnovers"),
+                func.coalesce(func.sum(PlayerSeasonStats.touches), 0).label("touches"),
+                func.coalesce(func.sum(PlayerSeasonStats.free_kicks), 0).label("free_kicks"),
+                func.coalesce(func.sum(PlayerSeasonStats.free_kick_goals), 0).label("free_kick_goals"),
+                func.coalesce(func.sum(PlayerSeasonStats.penalties), 0).label("penalties"),
+                func.coalesce(func.sum(PlayerSeasonStats.penalty_goals), 0).label("penalty_goals"),
+            )
+            .where(PlayerSeasonStats.player_id.in_(player_ids))
+            .group_by(PlayerSeasonStats.player_id)
+        )
+        for row in stats_result.all():
+            matches_played = int(row.matches_played or 0)
+            rating_sum = row.rating_sum or 0
+            average_rating = round(float(rating_sum) / matches_played, 1) if matches_played else 0.0
+            stats_by_player[row.player_id] = {
+                "matches_played": matches_played,
+                "minutes_played": int(row.minutes_played or 0),
+                "goals": int(row.goals or 0),
+                "assists": int(row.assists or 0),
+                "yellow_cards": int(row.yellow_cards or 0),
+                "red_cards": int(row.red_cards or 0),
+                "average_rating": average_rating,
+                # 进攻
+                "shots": int(row.shots or 0),
+                "shots_on_target": int(row.shots_on_target or 0),
+                "dribbles": int(row.dribbles or 0),
+                "dribbles_succ": int(row.dribbles_succ or 0),
+                "headers": int(row.headers or 0),
+                "headers_succ": int(row.headers_succ or 0),
+                # 传球
+                "passes": int(row.passes or 0),
+                "passes_succ": int(row.passes_succ or 0),
+                "key_passes": int(row.key_passes or 0),
+                "crosses": int(row.crosses or 0),
+                "crosses_succ": int(row.crosses_succ or 0),
+                # 防守
+                "tackles": int(row.tackles or 0),
+                "tackles_succ": int(row.tackles_succ or 0),
+                "interceptions": int(row.interceptions or 0),
+                "clearances": int(row.clearances or 0),
+                "blocks": int(row.blocks or 0),
+                # 门将
+                "saves": int(row.saves or 0),
+                "clean_sheets": int(row.clean_sheets or 0),
+                # 纪律/其他
+                "fouls": int(row.fouls or 0),
+                "fouls_drawn": int(row.fouls_drawn or 0),
+                "offsides": int(row.offsides or 0),
+                "turnovers": int(row.turnovers or 0),
+                "touches": int(row.touches or 0),
+                "free_kicks": int(row.free_kicks or 0),
+                "free_kick_goals": int(row.free_kick_goals or 0),
+                "penalties": int(row.penalties or 0),
+                "penalty_goals": int(row.penalty_goals or 0),
+            }
     
     items = [
         PlayerListItem(
@@ -329,7 +458,47 @@ async def get_team_players(
             ovr=p.ovr,
             potential_letter=p.potential_letter,
             market_value=p.market_value,
+            squad_number=p.squad_number,
             team_id=p.team_id,
+            **stats_by_player.get(
+                p.id,
+                {
+                    "matches_played": 0,
+                    "minutes_played": 0,
+                    "goals": 0,
+                    "assists": 0,
+                    "yellow_cards": 0,
+                    "red_cards": 0,
+                    "average_rating": 0.0,
+                    "shots": 0,
+                    "shots_on_target": 0,
+                    "dribbles": 0,
+                    "dribbles_succ": 0,
+                    "headers": 0,
+                    "headers_succ": 0,
+                    "passes": 0,
+                    "passes_succ": 0,
+                    "key_passes": 0,
+                    "crosses": 0,
+                    "crosses_succ": 0,
+                    "tackles": 0,
+                    "tackles_succ": 0,
+                    "interceptions": 0,
+                    "clearances": 0,
+                    "blocks": 0,
+                    "saves": 0,
+                    "clean_sheets": 0,
+                    "fouls": 0,
+                    "fouls_drawn": 0,
+                    "offsides": 0,
+                    "turnovers": 0,
+                    "touches": 0,
+                    "free_kicks": 0,
+                    "free_kick_goals": 0,
+                    "penalties": 0,
+                    "penalty_goals": 0,
+                },
+            ),
         )
         for p in players
     ]
@@ -431,21 +600,109 @@ async def get_team_finances(
         404: {"model": ErrorResponse, "description": "球队不存在"},
     },
 )
-async def get_team(team_id: str):
+async def get_team(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+):
     """
     获取球队详情
-    
+
     - **team_id**: 球队ID
     """
-    # TODO: 实现球队详情查询
+    result = await db.execute(
+        select(Team, League).join(League, Team.current_league_id == League.id, isouter=True)
+        .where(Team.id == team_id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="球队不存在",
+        )
+    team, league = row
+
+    # 获取球队财务
+    from app.models.team import TeamFinance
+    finance_result = await db.execute(select(TeamFinance).where(TeamFinance.team_id == team_id))
+    finance = finance_result.scalar_one_or_none()
+
+    # 计算球队三线评分（取各位置 top N 球员的平均 OVR）
+    from app.models import Player as PlayerModel
+    player_result = await db.execute(
+        select(PlayerModel.position, PlayerModel.ovr)
+        .where(PlayerModel.team_id == team_id)
+        .order_by(PlayerModel.ovr.desc())
+    )
+    pos_ovrs: dict[str, list[int]] = {"GK": [], "DF": [], "MF": [], "FW": []}
+    for pos, ovr in player_result.all():
+        if pos in pos_ovrs:
+            pos_ovrs[pos].append(ovr)
+
+    def _avg_top(lst: list[int], n: int) -> int:
+        if not lst:
+            return 0
+        return round(sum(lst[:n]) / min(len(lst), n))
+
+    attack = _avg_top(pos_ovrs["FW"], 3)
+    midfield = _avg_top(pos_ovrs["MF"], 4)
+    defense = _avg_top(pos_ovrs["DF"], 4)  # 包含 GK 影响小，取纯 DF
+
+    # 获取当前赛季排名数据
+    stats = None
+    if team.current_league_id:
+        season_result = await db.execute(
+            select(Season).where(Season.status == "ongoing")
+        )
+        current_season = season_result.scalar_one_or_none()
+        if current_season:
+            standing_result = await db.execute(
+                select(LeagueStanding).where(
+                    and_(
+                        LeagueStanding.team_id == team_id,
+                        LeagueStanding.league_id == team.current_league_id,
+                        LeagueStanding.season_id == current_season.id,
+                    )
+                )
+            )
+            standing = standing_result.scalar_one_or_none()
+            if standing:
+                stats = TeamStats(
+                    matches_played=standing.played,
+                    wins=standing.won,
+                    draws=standing.drawn,
+                    losses=standing.lost,
+                    goals_for=standing.goals_for,
+                    goals_against=standing.goals_against,
+                    points=standing.points,
+                    league_position=standing.position,
+                )
+
     return ResponseSchema(
         success=True,
         data=TeamResponse(
-            id=team_id,
-            name="示例球队",
-            user_id=1,
-            created_at="2024-01-01T00:00:00",
-            updated_at="2024-01-01T00:00:00",
+            id=team.id,
+            name=team.name,
+            short_name=team.short_name,
+            logo_url=team.logo_url,
+            stadium=team.stadium,
+            city=team.city,
+            founded_year=team.founded_year,
+            user_id=team.user_id,
+            league_id=team.current_league_id,
+            status=team.status,
+            overall_rating=team.overall_rating,
+            attack=attack,
+            midfield=midfield,
+            defense=defense,
+            created_at=team.created_at if hasattr(team, "created_at") else datetime.now(),
+            updated_at=team.updated_at if hasattr(team, "updated_at") else datetime.now(),
+            financials=TeamFinancials(
+                balance=finance.balance if finance else Decimal("0"),
+                weekly_wages=finance.weekly_wage_bill if finance else Decimal("0"),
+                stadium_capacity=finance.stadium_capacity if finance else 0,
+                ticket_price=finance.ticket_price if finance else Decimal("0"),
+            ) if finance else None,
+            stats=stats,
         ),
     )
 
@@ -547,4 +804,52 @@ async def get_team_history(
             record_count=len(seasons),
             trophies=[],
         ),
+    )
+
+
+@router.get(
+    "/{team_id}/player-states",
+    response_model=ResponseSchema[TeamPlayerStatesResponse],
+    summary="获取全队球员状态",
+)
+async def get_team_player_states(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取全队所有球员的状态列表"""
+    result = await db.execute(select(Player).where(Player.team_id == team_id))
+    players = result.scalars().all()
+
+    states = []
+    for player in players:
+        hints = []
+        if player.match_form.value == "HOT":
+            hints.append("近期状态火热")
+        elif player.match_form.value == "LOW":
+            hints.append("近期状态低迷")
+        if player.fitness < 50:
+            hints.append("体能堪忧")
+        if player.match_rust_score < -1:
+            hints.append("久疏战阵")
+
+        trend = "stable"
+        if player.state_score >= 3:
+            trend = "up"
+        elif player.state_score <= -2:
+            trend = "down"
+
+        states.append(PlayerStateResponse(
+            player_id=player.id,
+            visible_form=player.match_form,
+            fitness=player.fitness,
+            availability=player.status,
+            trend=trend,
+            hints=hints,
+            state_score=player.state_score,
+            match_rust_score=player.match_rust_score,
+        ))
+
+    return ResponseSchema(
+        success=True,
+        data=TeamPlayerStatesResponse(team_id=team_id, players=states),
     )

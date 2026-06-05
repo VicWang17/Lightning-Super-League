@@ -119,6 +119,49 @@ class PlayerStats(BaseSchema):
     average_rating: float = Field(default=6.0, ge=1, le=10)
     minutes_played: int = 0
 
+    # 进攻
+    shots: int = 0
+    shots_on_target: int = 0
+    shot_accuracy: float = Field(default=0.0, ge=0, le=100)
+    dribbles: int = 0
+    dribbles_succ: int = 0
+    dribble_accuracy: float = Field(default=0.0, ge=0, le=100)
+    headers: int = 0
+    headers_succ: int = 0
+    header_accuracy: float = Field(default=0.0, ge=0, le=100)
+
+    # 传球
+    passes: int = 0
+    passes_succ: int = 0
+    pass_accuracy: float = Field(default=0.0, ge=0, le=100)
+    key_passes: int = 0
+    crosses: int = 0
+    crosses_succ: int = 0
+    cross_accuracy: float = Field(default=0.0, ge=0, le=100)
+
+    # 防守
+    tackles: int = 0
+    tackles_succ: int = 0
+    tackle_accuracy: float = Field(default=0.0, ge=0, le=100)
+    interceptions: int = 0
+    clearances: int = 0
+    blocks: int = 0
+
+    # 门将
+    saves: int = 0
+    clean_sheets: int = 0
+
+    # 纪律/其他
+    fouls: int = 0
+    fouls_drawn: int = 0
+    offsides: int = 0
+    turnovers: int = 0
+    touches: int = 0
+    free_kicks: int = 0
+    free_kick_goals: int = 0
+    penalties: int = 0
+    penalty_goals: int = 0
+
 
 class PlayerBase(BaseSchema):
     """Base player schema"""
@@ -196,7 +239,50 @@ class PlayerResponse(PlayerBase):
     red_cards: int = 0
     average_rating: float = Field(default=6.0, ge=1, le=10)
     minutes_played: int = 0
-    
+
+    # 进攻统计
+    shots: int = 0
+    shots_on_target: int = 0
+    shot_accuracy: float = Field(default=0.0, ge=0, le=100)
+    dribbles: int = 0
+    dribbles_succ: int = 0
+    dribble_accuracy: float = Field(default=0.0, ge=0, le=100)
+    headers: int = 0
+    headers_succ: int = 0
+    header_accuracy: float = Field(default=0.0, ge=0, le=100)
+
+    # 传球统计
+    passes: int = 0
+    passes_succ: int = 0
+    pass_accuracy: float = Field(default=0.0, ge=0, le=100)
+    key_passes: int = 0
+    crosses: int = 0
+    crosses_succ: int = 0
+    cross_accuracy: float = Field(default=0.0, ge=0, le=100)
+
+    # 防守统计
+    tackles: int = 0
+    tackles_succ: int = 0
+    tackle_accuracy: float = Field(default=0.0, ge=0, le=100)
+    interceptions: int = 0
+    clearances: int = 0
+    blocks: int = 0
+
+    # 门将统计
+    saves: int = 0
+    clean_sheets: int = 0
+
+    # 纪律/其他统计
+    fouls: int = 0
+    fouls_drawn: int = 0
+    offsides: int = 0
+    turnovers: int = 0
+    touches: int = 0
+    free_kicks: int = 0
+    free_kick_goals: int = 0
+    penalties: int = 0
+    penalty_goals: int = 0
+
     created_at: datetime
     updated_at: datetime
 
@@ -214,6 +300,45 @@ class PlayerListItem(BaseSchema):
     market_value: Decimal
     squad_number: Optional[int] = None
     team_id: Optional[str] = None
+    matches_played: int = 0
+    goals: int = 0
+    assists: int = 0
+    average_rating: float = 0.0
+    minutes_played: int = 0
+    yellow_cards: int = 0
+    red_cards: int = 0
+    # 进攻
+    shots: int = 0
+    shots_on_target: int = 0
+    dribbles: int = 0
+    dribbles_succ: int = 0
+    headers: int = 0
+    headers_succ: int = 0
+    # 传球
+    passes: int = 0
+    passes_succ: int = 0
+    key_passes: int = 0
+    crosses: int = 0
+    crosses_succ: int = 0
+    # 防守
+    tackles: int = 0
+    tackles_succ: int = 0
+    interceptions: int = 0
+    clearances: int = 0
+    blocks: int = 0
+    # 门将
+    saves: int = 0
+    clean_sheets: int = 0
+    # 纪律/其他
+    fouls: int = 0
+    fouls_drawn: int = 0
+    offsides: int = 0
+    turnovers: int = 0
+    touches: int = 0
+    free_kicks: int = 0
+    free_kick_goals: int = 0
+    penalties: int = 0
+    penalty_goals: int = 0
 
 
 # =====================================================================

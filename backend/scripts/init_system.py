@@ -46,6 +46,14 @@ AI_USER_PASSWORD = "ai_password"
 IS_DEV_MODE = os.getenv("ENV", "").lower() == "dev"
 RESET_SCHEMA = os.getenv("INIT_SYSTEM_RESET_SCHEMA", "true").lower() not in {"0", "false", "no"}
 
+# 本地开发环境人类球队配置
+HUMAN_TEAM_NAME = "闪电杰尼"
+HUMAN_TEAM_SHORT_NAME = "闪电杰尼"
+HUMAN_USER_USERNAME = "human_player"
+HUMAN_USER_EMAIL = "human@lightning.dev"
+HUMAN_USER_NICKNAME = "杰尼"
+HUMAN_USER_PASSWORD = "human_password"
+
 settings = get_settings()
 engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -165,14 +173,16 @@ async def init_leagues(db: AsyncSession, systems: dict) -> dict:
 
 
 async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
-    """初始化球队和AI用户"""
+    """初始化球队和AI用户（本地环境额外创建一支人类球队）"""
     print("\n👤 初始化AI用户和球队...")
     
-    hashed_password = hash_password(AI_USER_PASSWORD)
+    ai_hashed_password = hash_password(AI_USER_PASSWORD)
+    human_hashed_password = hash_password(HUMAN_USER_PASSWORD)
     users = []
     teams = []
     
     team_index = 0
+    human_team_created = False
     
     # 按体系分组计数器
     system_level_counters = {}
@@ -189,11 +199,63 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
             for idx, (team_name, user_display_name) in enumerate(league_data["teams"], 1):
                 team_index += 1
                 
+                # 本地环境下，将第一支球队替换为人类球队
+                if IS_DEV_MODE and not human_team_created:
+                    user = User(
+                        username=HUMAN_USER_USERNAME,
+                        email=HUMAN_USER_EMAIL,
+                        hashed_password=human_hashed_password,
+                        nickname=HUMAN_USER_NICKNAME,
+                        is_ai=False,
+                        is_vip=False,
+                        level=1,
+                        experience=0,
+                        status=UserStatus.ACTIVE,
+                        is_verified=True
+                    )
+                    db.add(user)
+                    await db.flush()
+                    users.append(user)
+                    
+                    team = Team(
+                        name=HUMAN_TEAM_NAME,
+                        short_name=HUMAN_TEAM_SHORT_NAME[:4],
+                        user_id=user.id,
+                        current_league_id=league.id,
+                        overall_rating=50 + (4 - level) * 5 + (16 - idx) // 3,
+                        status=TeamStatus.ACTIVE
+                    )
+                    db.add(team)
+                    await db.flush()
+                    teams.append(team)
+                    
+                    initial_balance = Decimal("10000000.00") + Decimal((4 - level) * 5000000)
+                    finance = TeamFinance(
+                        team_id=team.id,
+                        balance=initial_balance,
+                        weekly_wage_bill=Decimal("50000.00"),
+                        stadium_capacity=5000 + (4 - level) * 5000,
+                        ticket_price=Decimal("20.00") + Decimal((4 - level) * 5),
+                        weekly_sponsor_income=Decimal("10000.00"),
+                        weekly_ticket_income=Decimal("0.00"),
+                        transfer_budget=initial_balance * Decimal("0.5"),
+                        wage_budget=Decimal("500000.00")
+                    )
+                    db.add(finance)
+                    
+                    human_team_created = True
+                    print(f"   🧑 已创建人类球队: {HUMAN_TEAM_NAME} ({HUMAN_USER_EMAIL} / {HUMAN_USER_PASSWORD})")
+                    
+                    # 同时创建被替换掉的原始AI球队（避免数据缺失），放在同一联赛末尾
+                    # 或者更简单的做法：跳过这个AI球队，让人类球队占一个名额
+                    # 这样联赛总数保持8队不变
+                    continue
+                
                 # 创建AI用户
                 user = User(
                     username=generate_user_username(team_name),
                     email=generate_user_email(system_code, level, system_level_counters[system_code][level], idx),
-                    hashed_password=hashed_password,
+                    hashed_password=ai_hashed_password,
                     nickname=user_display_name,
                     is_ai=True,
                     is_vip=False,
@@ -238,7 +300,8 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
                     print(f"   🔄 已创建 {team_index}/256 ...")
     
     await db.commit()
-    print(f"✅ 已创建 {len(users)} 个AI用户和 {len(teams)} 支球队")
+    human_info = " (含1支人类球队)" if IS_DEV_MODE else ""
+    print(f"✅ 已创建 {len(users)} 个用户和 {len(teams)} 支球队{human_info}")
     return users, teams
 
 
@@ -286,9 +349,12 @@ async def show_summary(db: AsyncSession):
     result = await db.execute(select(Player))
     players_count = len(result.scalars().all())
     
+    ai_users_count = users_count - 1 if IS_DEV_MODE else users_count
     print(f"\n🏟️ 联赛体系: {systems_count} 个（东区/西区/南区/北区）")
     print(f"📋 联赛: {leagues_count} 个（每体系8个联赛）")
-    print(f"👤 AI用户: {users_count} 个")
+    print(f"👤 AI用户: {ai_users_count} 个")
+    if IS_DEV_MODE:
+        print(f"🧑 人类用户: 1 个")
     print(f"⚽ 球队: {teams_count} 支（每联赛8队）")
     print(f"🏃 球员: {players_count} 人（每队15人）")
     
@@ -305,6 +371,10 @@ async def show_summary(db: AsyncSession):
         print(f"\n🔑 开发模式登录信息:")
         print(f"   邮箱: ai_east_l1_1_001@lightning.dev")
         print(f"   密码: {AI_USER_PASSWORD}")
+        print(f"\n🧑 人类球队登录信息:")
+        print(f"   球队: {HUMAN_TEAM_NAME}")
+        print(f"   邮箱: {HUMAN_USER_EMAIL}")
+        print(f"   密码: {HUMAN_USER_PASSWORD}")
     
     print("\n" + "=" * 60)
 

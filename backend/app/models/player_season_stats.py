@@ -63,7 +63,43 @@ class PlayerSeasonStats(Base):
     
     # 门将数据
     clean_sheets: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    
+
+    # 进攻数据（扩展）
+    shots: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    shots_on_target: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    dribbles: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    dribbles_succ: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    headers: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    headers_succ: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # 传球数据
+    passes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    passes_succ: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    key_passes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    crosses: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    crosses_succ: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # 防守数据
+    tackles: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tackles_succ: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    interceptions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    clearances: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    blocks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # 门将数据（扩展）
+    saves: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # 纪律/其他数据
+    fouls: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    fouls_drawn: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    offsides: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    turnovers: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    touches: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    free_kicks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    free_kick_goals: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    penalties: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    penalty_goals: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
     # 评分
     average_rating: Mapped[Decimal] = mapped_column(
         DECIMAL(3, 1),

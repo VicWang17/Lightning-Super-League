@@ -87,7 +87,7 @@ function FormIndicator({ form }: { form: string }) {
   if (!form) return <span className="text-[#6E7258]">暂无</span>
 
   const resultConfig = {
-    W: 'bg-[#8FD14F] text-[#10220D]',
+    W: 'bg-[#9ECF45] text-[#10220D]',
     D: 'bg-[#5E6472] text-white',
     L: 'bg-[#D75A4A] text-white',
   }
@@ -120,8 +120,8 @@ function StatusTile({
   tone?: 'default' | 'green' | 'amber'
 }) {
   const toneClass = {
-    default: 'border-[#56613D] bg-[#151A10] text-[#F1F4DF]',
-    green: 'border-[#9FE84B] bg-[#203B16] text-[#F1FFC5]',
+    default: 'border-[#56613D] bg-[#151A10] text-[#E8EAD8]',
+    green: 'border-[#9ECF45] bg-[#0C1A0D] text-[#F1FFC5]',
     amber: 'border-[#D7A94A] bg-[#3B270D] text-[#FFE2A1]',
   }[tone]
 
@@ -154,13 +154,13 @@ function PlayerActivityRow({ activity }: { activity: PlayerActivity }) {
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-base font-black text-[#12160F]">{activity.name}</p>
-          <span className="border-2 border-[#5E6B3B] bg-[#202A17] px-1.5 py-0.5 text-[10px] font-bold text-[#CDEB7B]">
+          <p className="truncate text-sm font-black text-[#E8EAD8]">{activity.name}</p>
+          <span className="border-2 border-[#5E6B3B] bg-[#11141A] px-1.5 py-0.5 text-[10px] font-bold text-[#CDEB7B]">
             {activity.value}
           </span>
         </div>
-        <p className="mt-1 text-xs font-bold text-[#536234]">{activity.role}</p>
-        <p className="truncate text-xs text-[#333B25]">{activity.detail}</p>
+        <p className="mt-1 text-xs font-bold text-[#9CA77A]">{activity.role}</p>
+        <p className="truncate text-xs text-[#737B5B]">{activity.detail}</p>
       </div>
     </div>
   )
@@ -188,23 +188,23 @@ function ManagerTask({
         className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 ${
           urgent
             ? 'border-[#6B4C25] bg-[#3B270D] text-[#FFE2A1]'
-            : 'border-[#5E6B3B] bg-[#202A17] text-[#CDEB7B]'
+            : 'border-[#5E6B3B] bg-[#11141A] text-[#CDEB7B]'
         }`}
       >
         <Icon className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-[#15170E]">{title}</p>
-        <p className="truncate text-xs font-medium text-[#4A4630]">{detail}</p>
+        <p className="truncate text-sm font-black text-[#E8EAD8]">{title}</p>
+        <p className="truncate text-xs font-medium text-[#9CA77A]">{detail}</p>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[#5C5B3A] group-hover:text-[#15170E]" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-[#6F7656] group-hover:text-[#CDEB7B]" />
     </Link>
   )
 }
 
 function RecentMatchRow({ match }: { match: RecentMatch }) {
   const config = {
-    W: 'bg-[#8FD14F] text-[#10220D]',
+    W: 'bg-[#9ECF45] text-[#10220D]',
     D: 'bg-[#5E6472] text-white',
     L: 'bg-[#D75A4A] text-white',
   }[match.result]
@@ -215,12 +215,12 @@ function RecentMatchRow({ match }: { match: RecentMatch }) {
         {match.result === 'W' ? '胜' : match.result === 'D' ? '平' : '负'}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-[#F1F4DF]">
+        <p className="truncate text-sm text-[#E8EAD8]">
           {match.is_home ? '主场' : '客场'} {match.opponent}
         </p>
         <p className="text-xs text-[#737B5B]">{match.date}</p>
       </div>
-      <p className="font-mono text-sm font-black text-[#F1F4DF]">{match.score}</p>
+      <p className="font-mono text-sm font-black text-[#E8EAD8]">{match.score}</p>
     </div>
   )
 }
@@ -255,10 +255,10 @@ function Dashboard() {
             const opponentScore = isHome ? fixture.away_score : fixture.home_score
 
             return {
-              opponent: isHome ? fixture.away_team_name : fixture.home_team_name,
+              opponent: (isHome ? fixture.away_team_name : fixture.home_team_name) || '对手未定',
               result: myScore > opponentScore ? 'W' : myScore < opponentScore ? 'L' : 'D',
               score: `${myScore}:${opponentScore}`,
-              date: `Day ${fixture.season_day}`,
+              date: fixture.season_day ? `Day ${fixture.season_day}` : '日期未定',
               is_home: isHome,
             } as RecentMatch
           })
@@ -392,22 +392,22 @@ function Dashboard() {
   return (
     <div className="dashboard-home mx-auto max-w-[1500px] space-y-5">
       <section
-        className="manager-hero pixel-panel relative min-h-[440px] overflow-hidden border-[#3F4A2E] bg-[#10140E]"
+        className="manager-hero pixel-panel relative min-h-[440px] overflow-hidden border-[#242832] bg-[#07080A]"
         style={{ backgroundImage: "url('/dashboard/manager-office-training-v1.png')" }}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#090B08] via-[#090B08]/78 to-[#090B08]/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#090B08] via-transparent to-[#090B08]/45" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#050609] via-[#050609]/88 to-[#050609]/46" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050609] via-[#050609]/30 to-[#050609]/62" />
         <div className="relative z-10 grid min-h-[440px] gap-5 p-5 lg:grid-cols-[1.15fr_0.85fr] lg:p-7">
           <div className="flex max-w-3xl flex-col justify-between">
             <div>
-              <div className="mb-4 inline-flex items-center gap-2 border-2 border-[#8FD14F] bg-[#172412] px-3 py-1.5 text-xs font-bold text-[#DFFFB4]">
-                <span className="h-2 w-2 bg-[#8FD14F]" />
+              <div className="mb-4 inline-flex items-center gap-2 border-2 border-[#9ECF45] bg-[#0B1409] px-3 py-1.5 text-xs font-bold text-[#DFFFB4]">
+                <span className="h-2 w-2 bg-[#9ECF45]" />
                 {currentActivity.eyebrow}
               </div>
               <h1 className="max-w-2xl text-3xl font-black leading-tight text-[#F4F7DF] sm:text-4xl lg:text-5xl">
                 {currentActivity.title}
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-[#D1D6B8] sm:text-base">
+              <p className="mt-4 max-w-xl text-sm leading-7 text-[#C7CBB8] sm:text-base">
                 {currentActivity.detail}
               </p>
             </div>
@@ -440,171 +440,154 @@ function Dashboard() {
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-5">
-          <div className="coach-clipboard">
-            <div className="clipboard-clip" />
-            <div className="mb-5 flex items-center justify-between gap-3 border-b-2 border-[#47582E] pb-3">
+      <section className="office-console">
+        <div className="console-left">
+          <section className="roster-ledger">
+            <div className="console-heading">
               <div>
-                <p className="text-xs font-black uppercase tracking-wider text-[#536234]">Training Ground</p>
-                <h2 className="text-2xl font-black text-[#15170E]">球员正在干什么</h2>
+                <p className="text-xs font-black uppercase tracking-wider text-[#9ECF45]">Training Ground</p>
+                <h2 className="text-xl font-black text-[#E8EAD8]">球员状态</h2>
               </div>
-              <Link to="/training/weekly" className="border-2 border-[#536234] bg-[#202A17] px-3 py-2 text-sm font-black text-[#CDEB7B] hover:bg-[#C6F135] hover:text-[#0A0A0F]">
-                训练计划
-              </Link>
+              <Link to="/training/weekly" className="console-link">训练计划</Link>
             </div>
             {playerActivities.length > 0 ? (
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="compact-roster">
                 {playerActivities.map((activity) => (
                   <PlayerActivityRow key={activity.id} activity={activity} />
                 ))}
               </div>
             ) : (
-              <div className="border-2 border-dashed border-[#8A7B4A] bg-[#D8C98D] p-8 text-center font-bold text-[#5A5233]">
-                后端暂未返回球员列表。
-              </div>
+              <div className="empty-line">后端暂未返回球员列表。</div>
             )}
-          </div>
+          </section>
 
-          <div className="grid gap-5 lg:grid-cols-2">
-            <div className="bulletin-board">
-              <div className="board-title-strip">
-                <h2 className="text-lg font-black text-[#F1F4DF]">经理待办</h2>
-                <Mailbox className="h-5 w-5 text-[#CDEB7B]" />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                {taskItems.map((task) => (
-                  <ManagerTask key={task.title} {...task} />
-                ))}
-              </div>
+          <section className="agenda-strip">
+            <div className="console-heading">
+              <h2 className="text-lg font-black text-[#E8EAD8]">经理待办</h2>
+              <Mailbox className="h-5 w-5 text-[#CDEB7B]" />
             </div>
+            <div className="agenda-grid">
+              {taskItems.slice(0, 3).map((task) => (
+                <ManagerTask key={task.title} {...task} />
+              ))}
+            </div>
+          </section>
 
-            <div className="status-board">
-              <div className="mb-5 flex items-center justify-between border-b-2 border-[#41513A] pb-3">
-                <h2 className="text-lg font-black text-[#F1F4DF]">俱乐部状态</h2>
-                <FormIndicator form={form} />
-              </div>
-              <div className="space-y-5">
-                {[
-                  { label: '综合', value: team?.overall_rating, color: 'bg-[#CDEB7B]' },
-                  { label: '进攻', value: team?.attack, color: 'bg-[#D75A4A]' },
-                  { label: '中场', value: team?.midfield, color: 'bg-[#D7A94A]' },
-                  { label: '防守', value: team?.defense, color: 'bg-[#6EA8E5]' },
-                ].map((item) => {
-                  const value = typeof item.value === 'number' ? item.value : 0
-                  return (
-                  <div key={item.label} className="status-meter">
+          <section className="status-strip">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-lg font-black text-[#E8EAD8]">俱乐部状态</h2>
+              <FormIndicator form={form} />
+            </div>
+            <div className="status-grid">
+              {[
+                { label: '综合', value: team?.overall_rating, color: 'bg-[#CDEB7B]' },
+                { label: '进攻', value: team?.attack, color: 'bg-[#D75A4A]' },
+                { label: '中场', value: team?.midfield, color: 'bg-[#D7A94A]' },
+                { label: '防守', value: team?.defense, color: 'bg-[#6EA8E5]' },
+              ].map((item) => {
+                const value = typeof item.value === 'number' ? item.value : 0
+                return (
+                  <div key={item.label} className="status-meter compact">
                     <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="font-black text-[#D1D6B8]">{item.label}</span>
-                      <span className="font-mono font-bold text-[#F1F4DF]">{typeof item.value === 'number' ? item.value : '-'}</span>
+                      <span className="font-black text-[#C7CBB8]">{item.label}</span>
+                      <span className="font-mono font-bold text-[#E8EAD8]">{typeof item.value === 'number' ? item.value : '-'}</span>
                     </div>
-                    <div className="pixel-progress-track h-3 border-[#323A28] bg-[#070907]">
+                    <div className="pixel-progress-track h-3 border-[#242832] bg-[#070907]">
                       <div className={`pixel-progress-fill ${item.color}`} style={{ width: `${value}%` }} />
                     </div>
                   </div>
-                  )
-                })}
-              </div>
+                )
+              })}
             </div>
-          </div>
+          </section>
         </div>
 
-        <aside className="space-y-5">
-          <div className="match-office border-2 border-[#6B4C25] bg-[#1A130B] p-5">
-            <div className="mb-4 flex items-center justify-between gap-2">
+        <aside className="console-right">
+          <section className="fixture-brief">
+            <div className="console-heading amber">
               <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#FFE2A1]" />
-              <h2 className="text-lg font-black text-[#F7E9C6]">下一场比赛</h2>
+                <Calendar className="h-5 w-5 text-[#FFE2A1]" />
+                <h2 className="text-lg font-black text-[#F7E9C6]">下一场比赛</h2>
               </div>
               <span className="ticket-serial">LSL-{stats?.next_match?.day || '---'}</span>
             </div>
             {nextMatch ? (
               <>
-                <div className="match-ticket p-5">
-                  <div className="mb-4 flex items-center justify-between border-b-2 border-[#6B4C25] pb-3">
+                <div className="match-ticket compact-ticket p-4">
+                  <div className="mb-3 flex items-center justify-between border-b-2 border-[#6B4C25] pb-2">
                     <p className="text-xs font-black uppercase tracking-widest text-[#BFA56B]">{nextMatch.type}</p>
                     <p className="text-xs font-black text-[#BFA56B]">{nextMatch.date}</p>
                   </div>
-                  <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                     <div className="min-w-0 text-center">
-                      <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center border-2 border-[#6B4C25] bg-[#10140E]">
-                        <Shield className="h-7 w-7 text-[#CDEB7B]" />
+                      <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]">
+                        <Shield className="h-6 w-6 text-[#CDEB7B]" />
                       </div>
                       <p className="truncate text-sm font-bold text-[#F7E9C6]">{team?.short_name || team?.name || '我的球队'}</p>
                       <p className="text-xs text-[#BFA56B]">{nextMatch.isHome ? '主场' : '客场'}</p>
                     </div>
                     <div className="text-center">
-                      <p className="font-pixel text-xl text-[#FFE2A1]">VS</p>
-                      <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-[#8A6B34]">Fixture</p>
+                      <p className="font-pixel text-lg text-[#FFE2A1]">VS</p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-[#8A6B34]">Fixture</p>
                     </div>
                     <div className="min-w-0 text-center">
-                      <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center border-2 border-[#6B4C25] bg-[#10140E]">
-                        <Trophy className="h-7 w-7 text-[#D7A94A]" />
+                      <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]">
+                        <Trophy className="h-6 w-6 text-[#D7A94A]" />
                       </div>
                       <p className="truncate text-sm font-bold text-[#F7E9C6]">{nextMatch.opponent}</p>
                       <p className="text-xs text-[#BFA56B]">{nextMatch.isHome ? '客场' : '主场'}</p>
                     </div>
                   </div>
                 </div>
-                <Link to="/match/pre" className="btn-primary mt-4 flex w-full items-center justify-center gap-2">
+                <Link to="/match/pre" className="btn-primary mt-3 flex w-full items-center justify-center gap-2 py-2.5">
                   <Swords className="h-4 w-4" />
                   赛前准备
                 </Link>
               </>
             ) : (
-              <div className="ticket-empty border-2 border-dashed border-[#6B4C25] bg-[#120E09] p-6 text-center font-bold text-[#BFA56B]">
-                暂无比赛安排，适合推进训练和阵容磨合。
-              </div>
+              <div className="empty-line amber">暂无比赛安排。</div>
             )}
-          </div>
+          </section>
 
-          <div className="result-board">
-            <div className="mb-4 flex items-center justify-between border-b-2 border-[#3F4A2E] pb-3">
-              <h2 className="text-lg font-black text-[#F1F4DF]">最近比赛</h2>
-              <Link to="/match/schedule" className="text-sm font-bold text-[#CDEB7B] hover:text-white">
-                赛程表
-              </Link>
+          <section className="result-ledger">
+            <div className="console-heading">
+              <h2 className="text-lg font-black text-[#E8EAD8]">最近比赛</h2>
+              <Link to="/match/schedule" className="console-link">赛程表</Link>
             </div>
             {loading ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {[1, 2, 3].map((item) => (
-                  <div key={item} className="h-12 animate-pulse border-2 border-[#3F4A2E] bg-[#202A17]" />
+                  <div key={item} className="h-10 animate-pulse border-2 border-[#242832] bg-[#11141A]" />
                 ))}
               </div>
             ) : recentMatches.length > 0 ? (
               <div>
-                {recentMatches.map((match, index) => (
+                {recentMatches.slice(0, 4).map((match, index) => (
                   <RecentMatchRow key={`${match.opponent}-${index}`} match={match} />
                 ))}
               </div>
             ) : (
-              <div className="border-2 border-dashed border-[#3F4A2E] bg-[#0C100B] p-6 text-center font-bold text-[#737B5B]">
-                还没有可展示的比赛记录。
-              </div>
+              <div className="empty-line">还没有可展示的比赛记录。</div>
             )}
-          </div>
-
-          <div className="quick-dock">
-            <h2 className="mb-4 border-b-2 border-[#3F4A2E] pb-3 text-lg font-black text-[#F1F4DF]">快速前往</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: '战术板', to: '/team/tactics', icon: Target },
-                { label: '更衣室', to: '/team/players', icon: Users },
-                { label: '联赛大厅', to: leagueId ? `/leagues/${leagueId}` : '/leagues', icon: Trophy },
-                { label: '转会市场', to: '/transfer', icon: Wallet },
-              ].map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  className="quick-dock-key"
-                >
-                  <item.icon className="h-4 w-4 text-[#CDEB7B]" />
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+          </section>
         </aside>
+
+        <nav className="quick-rail">
+          <h2 className="text-base font-black text-[#E8EAD8]">快速前往</h2>
+          <div className="quick-rail-links">
+            {[
+              { label: '战术板', to: '/team/tactics', icon: Target },
+              { label: '更衣室', to: '/team/players', icon: Users },
+              { label: '联赛大厅', to: leagueId ? `/leagues/${leagueId}` : '/leagues', icon: Trophy },
+              { label: '转会市场', to: '/transfer', icon: Wallet },
+            ].map((item) => (
+              <Link key={item.label} to={item.to} className="quick-dock-key">
+                <item.icon className="h-4 w-4 text-[#CDEB7B]" />
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </nav>
       </section>
     </div>
   )

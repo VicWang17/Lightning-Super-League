@@ -183,7 +183,7 @@ function StandingRow({ standing, league }: { standing: LeagueStanding; league: L
 function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  const isFinished = playoff.status === 'finished'
  const isLive = playoff.status === 'ongoing'
- 
+
  return (
  <div className="p-3 bg-amber-500/10 border-2 border-amber-500/30 shadow-pixel-sm hover:-translate-y-1 transition-all">
  <div className="flex items-center justify-between mb-2">
@@ -202,12 +202,17 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  </span>
  )}
  </div>
- 
+
  <div className="flex items-center justify-between">
  <div className="flex-1 text-center">
- <p className="font-medium text-white text-sm">{playoff.home_team.name}</p>
+ <Link
+ to={`/teams/${playoff.home_team.id}`}
+ className="font-medium text-white text-sm hover:text-[#C6F135] transition-colors"
+ >
+ {playoff.home_team.name}
+ </Link>
  </div>
- 
+
  <div className="px-3 text-center">
  {isFinished || isLive ? (
  <div className="text-xl font-bold pixel-number">
@@ -226,9 +231,14 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  {new Date(playoff.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
  </p>
  </div>
- 
+
  <div className="flex-1 text-center">
- <p className="font-medium text-white text-sm">{playoff.away_team.name}</p>
+ <Link
+ to={`/teams/${playoff.away_team.id}`}
+ className="font-medium text-white text-sm hover:text-[#C6F135] transition-colors"
+ >
+ {playoff.away_team.name}
+ </Link>
  </div>
  </div>
  </div>
@@ -239,7 +249,7 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
 function MatchCard({ match }: { match: Match }) {
  const isFinished = match.status === 'finished'
  const isLive = match.status === 'ongoing'
- 
+
  return (
  <div className="p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/30 hover:-translate-y-1 transition-all">
  <div className="flex items-center justify-between mb-3">
@@ -255,13 +265,18 @@ function MatchCard({ match }: { match: Match }) {
  </span>
  )}
  </div>
- 
+
  <div className="flex items-center justify-between">
  <div className="flex-1 text-center">
- <p className="font-medium text-white">{match.home_team.name}</p>
+ <Link
+ to={`/teams/${match.home_team.id}`}
+ className="font-medium text-white hover:text-[#C6F135] transition-colors"
+ >
+ {match.home_team.name}
+ </Link>
  <p className="text-xs text-[#8B8BA7]">主</p>
  </div>
- 
+
  <div className="px-4">
  {isFinished || isLive ? (
  <div className="text-2xl font-bold pixel-number">
@@ -280,9 +295,14 @@ function MatchCard({ match }: { match: Match }) {
  {new Date(match.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
  </p>
  </div>
- 
+
  <div className="flex-1 text-center">
- <p className="font-medium text-white">{match.away_team.name}</p>
+ <Link
+ to={`/teams/${match.away_team.id}`}
+ className="font-medium text-white hover:text-[#C6F135] transition-colors"
+ >
+ {match.away_team.name}
+ </Link>
  <p className="text-xs text-[#8B8BA7]">客</p>
  </div>
  </div>
@@ -291,21 +311,27 @@ function MatchCard({ match }: { match: Match }) {
 }
 
 // 射手榜/助攻榜行组件
-function StatsRow({ rank, name, team, value, label }: { rank: number; name: string; team: string; value: number; label: string }) {
+function StatsRow({ rank, name, team, value, label, playerId }: { rank: number; name: string; team: string; value: number; label: string; playerId?: string }) {
  const rankColors = [
  'bg-amber-500 text-black',
  'bg-slate-300 text-black',
  'bg-orange-400 text-black',
  'bg-[#1E1E2D] text-[#8B8BA7]'
  ]
- 
+
  return (
  <div className="flex items-center gap-4 py-3 border-b border-[#2D2D44] last:border-0">
  <div className={`w-7 h-7 flex items-center justify-center text-sm font-bold pixel-number ${rankColors[Math.min(rank - 1, 3)]}`}>
  {rank}
  </div>
  <div className="flex-1 min-w-0">
- <p className="font-medium text-white truncate">{name}</p>
+ {playerId ? (
+   <Link to={`/players/${playerId}`} className="font-medium text-white truncate hover:text-[#C6F135] transition-colors">
+     {name}
+   </Link>
+ ) : (
+   <p className="font-medium text-white truncate">{name}</p>
+ )}
  <p className="text-xs text-[#8B8BA7]">{team}</p>
  </div>
  <div className="text-right">
@@ -573,13 +599,14 @@ function LeagueDetail() {
  ) : (
  <div>
  {scorers.map(scorer => (
- <StatsRow 
+ <StatsRow
  key={scorer.player_id}
  rank={scorer.rank}
  name={scorer.player_name}
  team={scorer.team_name}
  value={scorer.goals}
  label="进球"
+ playerId={scorer.player_id}
  />
  ))}
  </div>
@@ -604,13 +631,14 @@ function LeagueDetail() {
  ) : (
  <div>
  {assists.map(assist => (
- <StatsRow 
+ <StatsRow
  key={assist.player_id}
  rank={assist.rank}
  name={assist.player_name}
  team={assist.team_name}
  value={assist.assists}
  label="助攻"
+ playerId={assist.player_id}
  />
  ))}
  </div>

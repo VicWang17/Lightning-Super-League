@@ -58,7 +58,7 @@ function Sidebar() {
   return (
     <aside className="game-sidebar w-60 flex flex-col h-screen sticky top-0">
       {/* Logo */}
-      <div className="h-20 flex items-center px-4 border-b-2 border-[#2D3326] bg-[#0B0E0A]">
+      <div className="h-20 flex items-center px-4 border-b-2 border-[#242832] bg-[#07080A]">
         <Link to="/" className="block group">
           <img 
             src="/logo.png" 
@@ -76,10 +76,10 @@ function Sidebar() {
               <Link
                 to={item.path}
                 className={clsx(
-                  'flex items-center gap-3 px-4 py-3 transition-all duration-200 border-2',
+                  'game-nav-link flex items-center gap-3 px-4 py-3 transition-all duration-200 border-2',
                   isActive(item)
-                    ? 'bg-[#C6F135] text-[#0A0A0F] font-black border-[#14532D] shadow-pixel-green'
-                    : 'text-[#8D947B] bg-[#0D100E] hover:text-[#F1F4DF] hover:bg-[#171D12] border-[#171D22]'
+                    ? 'is-active bg-[#B8E532] text-[#0A0A0F] font-black border-[#14532D] shadow-pixel-green'
+                    : 'text-[#8D947B] bg-[#06070A] hover:text-[#E8EAD8] hover:bg-[#11141A] border-[#1B2028]'
                 )}
               >
                 {isActive(item) && (
@@ -93,31 +93,31 @@ function Sidebar() {
         </ul>
         
         {/* 次级导航 - 查看所有比赛 */}
-        <div className="mt-5 pt-5 border-t-2 border-[#2D3326]">
+        <div className="mt-5 pt-5 border-t-2 border-[#242832]">
           <p className="px-4 text-xs text-[#596146] mb-2 font-bold uppercase tracking-wider">赛事入口</p>
           <div className="space-y-1">
             <Link
               to="/leagues/all"
               className={clsx(
-                'flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 border-2',
+                'game-subnav-link flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 border-2',
                 location.pathname === '/leagues' || location.pathname === '/leagues/all'
-                  ? 'text-[#C6F135] bg-[#171D12] border-[#3F4A2E]'
-                  : 'text-[#697157] hover:text-[#D1D6B8] hover:bg-[#171D12] border-transparent'
+                  ? 'is-active text-[#B8E532] bg-[#11141A] border-[#242832]'
+                  : 'text-[#697157] hover:text-[#C7CBB8] hover:bg-[#11141A] border-transparent'
               )}
             >
-              <span className="w-1.5 h-1.5 rounded-none bg-[#C6F135]" />
+              <span className="w-1.5 h-1.5 rounded-none bg-[#B8E532]" />
               联赛
             </Link>
             <Link
               to="/cups/all"
               className={clsx(
-                'flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 border-2',
+                'game-subnav-link flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 border-2',
                 location.pathname === '/cups' || location.pathname === '/cups/all'
-                  ? 'text-[#C6F135] bg-[#171D12] border-[#3F4A2E]'
-                  : 'text-[#697157] hover:text-[#D1D6B8] hover:bg-[#171D12] border-transparent'
+                  ? 'is-active text-[#B8E532] bg-[#11141A] border-[#242832]'
+                  : 'text-[#697157] hover:text-[#C7CBB8] hover:bg-[#11141A] border-transparent'
               )}
             >
-              <span className="w-1.5 h-1.5 rounded-none bg-[#C6F135]" />
+              <span className="w-1.5 h-1.5 rounded-none bg-[#B8E532]" />
               杯赛
             </Link>
           </div>
@@ -125,13 +125,13 @@ function Sidebar() {
       </nav>
 
       {/* User Info */}
-      <div className="p-4 border-t-2 border-[#2D3326] bg-[#0B0E0A]">
+      <div className="p-4 border-t-2 border-[#242832] bg-[#07080A]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#14532D] border-2 border-[#C6F135] flex items-center justify-center">
+          <div className="w-9 h-9 bg-[#14532D] border-2 border-[#B8E532] flex items-center justify-center">
             <span className="text-sm font-medium text-white">{firstLetter}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-[#F1F4DF] truncate">{displayName}</p>
+            <p className="text-sm font-bold text-[#E8EAD8] truncate">{displayName}</p>
             <p className="text-xs text-[#697157]">Lv.{userLevel}</p>
           </div>
           <button 

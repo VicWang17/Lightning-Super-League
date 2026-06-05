@@ -561,6 +561,47 @@ class MatchSimulator:
             stats.matches_played += 1
             stats.minutes_played += minutes
 
+            # 进攻数据
+            stats.shots += int(ps.get("shots", 0))
+            stats.shots_on_target += int(ps.get("shots_on_target", 0))
+            dribbles = int(ps.get("dribbles", 0))
+            stats.dribbles += dribbles
+            stats.dribbles_succ += round(dribbles * ps.get("dribble_accuracy", 0))
+            headers = int(ps.get("headers", 0))
+            stats.headers += headers
+            stats.headers_succ += round(headers * ps.get("header_accuracy", 0))
+
+            # 传球数据
+            passes = int(ps.get("passes", 0))
+            stats.passes += passes
+            stats.passes_succ += round(passes * ps.get("pass_accuracy", 0))
+            stats.key_passes += int(ps.get("key_passes", 0))
+            crosses = int(ps.get("crosses", 0))
+            stats.crosses += crosses
+            stats.crosses_succ += round(crosses * ps.get("cross_accuracy", 0))
+
+            # 防守数据
+            tackles = int(ps.get("tackles", 0))
+            stats.tackles += tackles
+            stats.tackles_succ += round(tackles * ps.get("tackle_accuracy", 0))
+            stats.interceptions += int(ps.get("interceptions", 0))
+            stats.clearances += int(ps.get("clearances", 0))
+            stats.blocks += int(ps.get("blocks", 0))
+
+            # 门将数据
+            stats.saves += int(ps.get("saves", 0))
+
+            # 纪律/其他数据
+            stats.fouls += int(ps.get("fouls", 0))
+            stats.fouls_drawn += int(ps.get("fouls_drawn", 0))
+            stats.offsides += int(ps.get("offsides", 0))
+            stats.turnovers += int(ps.get("turnovers", 0))
+            stats.touches += int(ps.get("touches", 0))
+            stats.free_kicks += int(ps.get("free_kicks", 0))
+            stats.free_kick_goals += int(ps.get("free_kick_goals", 0))
+            stats.penalties += int(ps.get("penalties", 0))
+            stats.penalty_goals += int(ps.get("penalty_goals", 0))
+
             rating = Decimal(str(round(float(ps.get("rating", 6.0)), 1)))
             old_matches = max(stats.matches_played - 1, 0)
             if old_matches:

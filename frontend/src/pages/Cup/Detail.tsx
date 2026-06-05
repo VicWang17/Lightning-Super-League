@@ -70,7 +70,7 @@ function MatchCard({ match }: { match: CupFixture }) {
  const isFinished = match.status === 'finished'
  const isLive = match.status === 'ongoing'
  const stageConfig = match.cup_stage ? CUP_STAGE_CONFIG[match.cup_stage] : null
- 
+
  return (
  <div className="p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/30 hover:-translate-y-1 transition-all">
  <div className="flex items-center justify-between mb-3">
@@ -97,13 +97,18 @@ function MatchCard({ match }: { match: CupFixture }) {
  </span>
  )}
  </div>
- 
+
  <div className="flex items-center justify-between">
  <div className="flex-1 text-center">
- <p className="font-medium text-white">{match.home_team.name}</p>
+ <Link
+ to={`/teams/${match.home_team.id}`}
+ className="font-medium text-white hover:text-[#C6F135] transition-colors"
+ >
+ {match.home_team.name}
+ </Link>
  <p className="text-xs text-[#8B8BA7]">主</p>
  </div>
- 
+
  <div className="px-4">
  {isFinished || isLive ? (
  <div className="text-2xl font-bold stat-number">
@@ -122,9 +127,14 @@ function MatchCard({ match }: { match: CupFixture }) {
  第{match.season_day}天
  </p>
  </div>
- 
+
  <div className="flex-1 text-center">
- <p className="font-medium text-white">{match.away_team.name}</p>
+ <Link
+ to={`/teams/${match.away_team.id}`}
+ className="font-medium text-white hover:text-[#C6F135] transition-colors"
+ >
+ {match.away_team.name}
+ </Link>
  <p className="text-xs text-[#8B8BA7]">客</p>
  </div>
  </div>
@@ -133,19 +143,21 @@ function MatchCard({ match }: { match: CupFixture }) {
 }
 
 // 小组赛表格行组件
-function GroupStandingRow({ 
- position, 
- teamName, 
- played, 
- won, 
- drawn, 
- lost, 
- goalsFor, 
- goalsAgainst, 
+function GroupStandingRow({
+ position,
+ teamId,
+ teamName,
+ played,
+ won,
+ drawn,
+ lost,
+ goalsFor,
+ goalsAgainst,
  points,
- isQualified 
-}: { 
+ isQualified
+}: {
  position: number
+ teamId: string
  teamName: string
  played: number
  won: number
@@ -157,7 +169,7 @@ function GroupStandingRow({
  isQualified: boolean
 }) {
  const goalDiff = goalsFor - goalsAgainst
- 
+
  return (
  <tr className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
  <td className="py-2 px-3">
@@ -168,7 +180,9 @@ function GroupStandingRow({
  </div>
  </td>
  <td className="py-2 px-3">
- <span className="text-sm text-white">{teamName}</span>
+ <Link to={`/teams/${teamId}`} className="text-sm text-white hover:text-[#C6F135] transition-colors">
+ {teamName}
+ </Link>
  {isQualified && <span className="ml-2 text-xs text-emerald-400">✓</span>}
  </td>
  <td className="py-2 px-3 text-center text-sm stat-number">{played}</td>
@@ -232,6 +246,7 @@ function GroupSection({ group }: { group: CupGroup }) {
  <GroupStandingRow
  key={team.teamId}
  position={team.position}
+ teamId={team.teamId}
  teamName={team.teamName}
  played={team.played}
  won={team.won}
@@ -251,21 +266,27 @@ function GroupSection({ group }: { group: CupGroup }) {
 }
 
 // 统计行组件（射手榜/助攻榜/零封榜）
-function StatsRow({ rank, name, team, value, label }: { rank: number; name: string; team: string; value: number; label: string }) {
+function StatsRow({ rank, name, team, value, label, playerId }: { rank: number; name: string; team: string; value: number; label: string; playerId?: string }) {
  const rankColors = [
  'bg-amber-500 text-black',
  'bg-slate-300 text-black',
  'bg-orange-400 text-black',
  'bg-[#1E1E2D] text-[#8B8BA7]'
  ]
- 
+
  return (
  <div className="flex items-center gap-4 py-3 border-b border-[#2D2D44] last:border-0">
  <div className={`w-7 h-7 flex items-center justify-center text-sm font-bold pixel-number ${rankColors[Math.min(rank - 1, 3)]}`}>
  {rank}
  </div>
  <div className="flex-1 min-w-0">
- <p className="font-medium text-white truncate">{name}</p>
+ {playerId ? (
+   <Link to={`/players/${playerId}`} className="font-medium text-white truncate hover:text-[#C6F135] transition-colors">
+     {name}
+   </Link>
+ ) : (
+   <p className="font-medium text-white truncate">{name}</p>
+ )}
  <p className="text-xs text-[#8B8BA7]">{team}</p>
  </div>
  <div className="text-right">
@@ -299,18 +320,30 @@ function TreeMatchCard({ match, showTBD }: { match?: CupFixture; showTBD?: boole
  const winner = isFinished && match.home_score != null && match.away_score != null
  ? match.home_score > match.away_score ? 'home' : match.away_score > match.home_score ? 'away' : null
  : null
- 
+
  return (
  <div className="w-28 p-2 bg-[#1A1A25] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/50 hover:-translate-y-1 transition-all">
  <div className="space-y-1">
  <div className={`flex items-center justify-between text-xs ${winner === 'home' ? 'text-emerald-400 font-medium' : 'text-white'}`}>
- <span className="truncate flex-1">{match.home_team.name}</span>
+ <Link
+ to={`/teams/${match.home_team.id}`}
+ className="truncate flex-1 hover:text-[#C6F135] transition-colors"
+ onClick={(e) => e.stopPropagation()}
+ >
+ {match.home_team.name}
+ </Link>
  <span className="ml-1 font-bold stat-number min-w-[16px] text-right">
  {isFinished ? match.home_score : '-'}
  </span>
  </div>
  <div className={`flex items-center justify-between text-xs ${winner === 'away' ? 'text-emerald-400 font-medium' : 'text-white'}`}>
- <span className="truncate flex-1">{match.away_team.name}</span>
+ <Link
+ to={`/teams/${match.away_team.id}`}
+ className="truncate flex-1 hover:text-[#C6F135] transition-colors"
+ onClick={(e) => e.stopPropagation()}
+ >
+ {match.away_team.name}
+ </Link>
  <span className="ml-1 font-bold stat-number min-w-[16px] text-right">
  {isFinished ? match.away_score : '-'}
  </span>
@@ -813,13 +846,14 @@ function CupDetail() {
  ) : (
  <div>
  {scorers.map(scorer => (
- <StatsRow 
+ <StatsRow
  key={scorer.player_id}
  rank={scorer.rank}
  name={scorer.player_name}
  team={scorer.team_name}
  value={scorer.goals}
  label="进球"
+ playerId={scorer.player_id}
  />
  ))}
  </div>
@@ -845,13 +879,14 @@ function CupDetail() {
  ) : (
  <div>
  {assists.map(assist => (
- <StatsRow 
+ <StatsRow
  key={assist.player_id}
  rank={assist.rank}
  name={assist.player_name}
  team={assist.team_name}
  value={assist.assists}
  label="助攻"
+ playerId={assist.player_id}
  />
  ))}
  </div>
@@ -877,13 +912,14 @@ function CupDetail() {
  ) : (
  <div>
  {cleanSheets.map(cs => (
- <StatsRow 
+ <StatsRow
  key={cs.player_id}
  rank={cs.rank}
  name={cs.player_name}
  team={cs.team_name}
  value={cs.clean_sheets}
  label="零封"
+ playerId={cs.player_id}
  />
  ))}
  </div>

@@ -62,11 +62,14 @@ class TeamStats(BaseSchema):
 
 class TeamResponse(TeamBase):
     """Full team response schema"""
-    id: int
-    user_id: int
-    league_id: Optional[int] = None
+    id: str
+    user_id: str
+    league_id: Optional[str] = None
     status: TeamStatus = TeamStatus.ACTIVE
     overall_rating: int = Field(default=50, description="总评")
+    attack: int = Field(default=0, description="进攻评分")
+    midfield: int = Field(default=0, description="中场评分")
+    defense: int = Field(default=0, description="防守评分")
     created_at: datetime
     updated_at: datetime
     
@@ -77,11 +80,14 @@ class TeamResponse(TeamBase):
 
 class TeamSummary(BaseSchema):
     """Simplified team info for listings"""
-    id: int
+    id: str
     name: str
     short_name: Optional[str] = None
     logo_url: Optional[str] = None
     overall_rating: int
+    attack: int = 0
+    midfield: int = 0
+    defense: int = 0
     league_position: Optional[int] = None
 
 
