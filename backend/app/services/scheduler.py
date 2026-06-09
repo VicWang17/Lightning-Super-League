@@ -603,7 +603,16 @@ class SeasonScheduler:
         
         for fixture in fixtures:
             self.db.add(fixture)
-        
+
+        # 赛季切换：清零未执行完毕的停赛（赛季化设计）
+        from app.models.player import Player, PlayerStatus
+        from app.services.suspension_service import SuspensionService
+        result = await self.db.execute(
+            select(Player).where(Player.status == PlayerStatus.SUSPENDED)
+        )
+        for player in result.scalars().all():
+            SuspensionService.clear_suspension_for_new_season(player)
+
         await self.db.commit()
         return season
     

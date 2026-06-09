@@ -349,6 +349,7 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
             status=player.status,
             match_form=player.match_form,
             fitness=player.fitness,
+            current_suspension=player.current_suspension,
             contract_type=player.contract_type,
             contract_end_season=player.contract_end_season,
             wage=player.wage,

@@ -460,6 +460,8 @@ async def get_team_players(
             market_value=p.market_value,
             squad_number=p.squad_number,
             team_id=p.team_id,
+            status=p.status,
+            current_suspension=p.current_suspension,
             **stats_by_player.get(
                 p.id,
                 {

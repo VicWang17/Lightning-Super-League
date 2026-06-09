@@ -262,7 +262,20 @@ class MatchSimulator:
             })
         
         await db.flush()
-        
+
+        # === 停赛系统：赛后纪律判定（非引擎模式）===
+        from app.services.suspension_service import SuspensionService
+        all_players = {p.id: p for p in home_players + away_players}
+        for player_id, player_event_list in player_events.items():
+            yellow_cards = sum(1 for e in player_event_list if e.event_type == "yellow_card")
+            red_cards = sum(1 for e in player_event_list if e.event_type == "red_card")
+            if yellow_cards > 0 or red_cards > 0:
+                player = all_players.get(player_id)
+                if player:
+                    await SuspensionService.apply_match_discipline(
+                        player, fixture, yellow_cards, red_cards, db
+                    )
+
         # 将生成的 player_stats 写回 result，供纪录检测使用
         if result:
             result.player_stats = player_stats_for_records
@@ -547,6 +560,10 @@ class MatchSimulator:
         }
         minutes = 70 if result.resolution in {"extra_time", "penalties"} else 50
 
+        home_players = await MatchSimulator._get_team_players(db, fixture.home_team_id)
+        away_players = await MatchSimulator._get_team_players(db, fixture.away_team_id)
+        all_players = {p.id: p for p in home_players + away_players}
+
         for ps in result.player_stats:
             player_id = ps.get("player_id")
             if not player_id:
@@ -624,6 +641,22 @@ class MatchSimulator:
                 stats.average_rating = rating
 
         await db.flush()
+
+        # === 停赛系统：赛后纪律判定 ===
+        from app.services.suspension_service import SuspensionService
+        for ps in result.player_stats:
+            player_id = ps.get("player_id")
+            if not player_id:
+                continue
+            player = all_players.get(player_id)
+            if not player:
+                continue
+            yellow_delta = int(ps.get("yellow_cards", 0))
+            red_delta = int(ps.get("red_cards", 0))
+            if yellow_delta > 0 or red_delta > 0:
+                await SuspensionService.apply_match_discipline(
+                    player, fixture, yellow_delta, red_delta, db
+                )
 
     @staticmethod
     async def _update_player_match_state(
@@ -807,6 +840,20 @@ class MatchSimulator:
                         player_name=player.name,
                         player_id=player.id,
                         body_part=body_part,
+                    )
+
+            # 停赛倒计时
+            if player.status == PlayerStatus.SUSPENDED and player.current_suspension is not None:
+                from app.services.suspension_service import SuspensionService
+                recovered = SuspensionService.tick_suspension(player)
+                if recovered:
+                    from app.services.notification_service import NotificationService
+                    notify = NotificationService(db)
+                    await notify.send_player_suspension_lifted(
+                        team_id=player.team_id,
+                        season_id=fixture.season_id,
+                        player_name=player.name,
+                        player_id=player.id,
                     )
 
             if player.status in (PlayerStatus.INJURED, PlayerStatus.SUSPENDED):

@@ -230,6 +230,7 @@ class Player(Base):
     body_wear: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)  # 身体部位劳损值 {hamstring: 15.5, ...}
     traits: Mapped[list] = mapped_column(JSON, default=list, nullable=False)     # 体质特质 ["铁人", "玻璃体质"]
     current_injury: Mapped[dict | None] = mapped_column(JSON, nullable=True)     # 当前伤病 {body_part, injury_name, severity, remaining_days}
+    current_suspension: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # 当前停赛 {reason, matches_remaining, source_fixture_id, effective_from_day, season_id}
     injury_history: Mapped[list] = mapped_column(JSON, default=list, nullable=False)  # 历史伤病记录
     
     # 属性成长系统

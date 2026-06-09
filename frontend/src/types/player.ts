@@ -72,6 +72,12 @@ export interface Player {
   status: PlayerStatus
   match_form: MatchForm
   fitness: number
+  current_suspension?: {
+    reason: string
+    matches_remaining: number
+    source_fixture_id?: string
+    effective_from_day?: number
+  }
 
   contract_type: ContractType
   contract_end_season?: number
@@ -209,6 +215,15 @@ export interface PlayerListItem {
   average_rating: number
   yellow_cards: number
   red_cards: number
+
+  status: PlayerStatus
+  current_suspension?: {
+    reason: string
+    matches_remaining: number
+    source_fixture_id?: string
+    effective_from_day?: number
+  }
+
   // 进攻
   shots: number
   shots_on_target: number

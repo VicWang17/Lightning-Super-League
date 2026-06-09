@@ -11,6 +11,9 @@ import {
   Target,
   Trophy,
   User,
+  Thermometer,
+  SquareAlert,
+  Skull,
 } from '../../components/ui/pixel-icons'
 import { ContractModal } from '../../components/players/ContractModal'
 import {
@@ -54,6 +57,37 @@ const STATUS_NAMES: Record<string, string> = {
   INJURED: '伤病',
   SUSPENDED: '停赛',
   RETIRED: '退役',
+}
+
+function StatusBadge({ status, current_suspension }: { status: string; current_suspension?: Player['current_suspension'] }) {
+  if (status === 'INJURED') {
+    return (
+      <span className="inline-flex items-center gap-1 text-red-400" title="伤病中，无法出场">
+        <Thermometer className="h-4 w-4" />
+        {STATUS_NAMES[status] || status}
+      </span>
+    )
+  }
+  if (status === 'SUSPENDED') {
+    const detail = current_suspension
+      ? `停赛中，剩余 ${current_suspension.matches_remaining} 场`
+      : '停赛中，无法出场'
+    return (
+      <span className="inline-flex items-center gap-1 text-amber-400" title={detail}>
+        <SquareAlert className="h-4 w-4" />
+        {STATUS_NAMES[status] || status}
+      </span>
+    )
+  }
+  if (status === 'RETIRED') {
+    return (
+      <span className="inline-flex items-center gap-1 text-gray-500" title="已退役">
+        <Skull className="h-4 w-4" />
+        {STATUS_NAMES[status] || status}
+      </span>
+    )
+  }
+  return <span>{STATUS_NAMES[status] || status}</span>
 }
 
 const FORM_NAMES: Record<string, string> = {
@@ -227,7 +261,6 @@ function PlayerDetail() {
     return <div className="player-profile-page player-profile-empty">球员未找到</div>
   }
 
-  const statusName = STATUS_NAMES[playerState?.availability || player.status] || '未知'
   const formName = FORM_NAMES[playerState?.visible_form || player.match_form] || '未知'
   const fitness = playerState?.fitness ?? player.fitness ?? 0
   const avatarSrc = player.avatar_url ? `/${player.avatar_url}` : '/locker-room/jersey-placeholder-v1.png'
@@ -291,7 +324,7 @@ function PlayerDetail() {
               <span>{player.age}岁</span>
               <span>{player.height}cm / {player.weight}kg</span>
               <span>{FOOT_NAMES[player.preferred_foot] || '-'}</span>
-              <span>{statusName}</span>
+              <StatusBadge status={player.status} current_suspension={player.current_suspension} />
             </div>
           </div>
           <div className="dossier-score">
@@ -525,7 +558,10 @@ function PlayerDetail() {
               <div style={{ height: `${Math.max(0, Math.min(fitness, 100))}%` }} />
               <strong>{fitness}%</strong>
             </div>
-            <ProfileDataLine label="可用状态" value={statusName} />
+            <ProfileDataLine
+              label="可用状态"
+              value={<StatusBadge status={player.status} current_suspension={player.current_suspension} />}
+            />
             <ProfileDataLine label="比赛状态" value={formName} />
             <ProfileDataLine label="趋势" value={playerState?.trend || '-'} />
             <ProfileDataLine label="市场价值" value={formatMoney(player.market_value)} />
@@ -557,7 +593,7 @@ function PlayerDetail() {
   )
 }
 
-function ProfileDataLine({ label, value }: { label: string; value: string | number }) {
+function ProfileDataLine({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="profile-data-line">
       <span>{label}</span>

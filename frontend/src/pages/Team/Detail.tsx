@@ -7,6 +7,9 @@ import {
   ArrowBigUpDash,
   ArrowBigDown,
   ArrowsHorizontal,
+  Thermometer,
+  SquareAlert,
+  Skull,
 } from '../../components/ui/pixel-icons'
 import { getPositionColor, type PlayerListItem, type PlayerState } from '../../types/player'
 import { api } from '../../api/client'
@@ -53,6 +56,34 @@ function ratingValue(value: unknown) {
 function fitnessTone(fitness?: number) {
   if (typeof fitness !== 'number') return 'bg-[#3A3F4A]'
   return 'bg-[#8A927B]'
+}
+
+function StatusIcon({ player }: { player: LockerPlayer }) {
+  if (player.status === 'INJURED') {
+    return (
+      <span title="伤病中，无法出场">
+        <Thermometer className="h-4 w-4 text-red-400" />
+      </span>
+    )
+  }
+  if (player.status === 'SUSPENDED') {
+    const detail = player.current_suspension
+      ? `停赛中，剩余 ${player.current_suspension.matches_remaining} 场`
+      : '停赛中，无法出场'
+    return (
+      <span title={detail}>
+        <SquareAlert className="h-4 w-4 text-amber-400" />
+      </span>
+    )
+  }
+  if (player.status === 'RETIRED') {
+    return (
+      <span title="已退役">
+        <Skull className="h-4 w-4 text-gray-500" />
+      </span>
+    )
+  }
+  return null
 }
 
 function TeamMetric({ label, value }: { label: string; value?: number }) {
@@ -286,16 +317,19 @@ function TeamDetail() {
                         <td>{player.age}</td>
                         <td className="font-black text-[var(--skin-accent)]">{player.ovr}</td>
                         <td>
-                          {state ? (
-                            <span className={formColor[state.visible_form]} title={formLabel[state.visible_form]}>
-                              {state.visible_form === 'HOT' && <ArrowBigUpDash className="h-4 w-4" />}
-                              {state.visible_form === 'GOOD' && <ArrowUp className="h-4 w-4" />}
-                              {state.visible_form === 'NEUTRAL' && <ArrowsHorizontal className="h-4 w-4" />}
-                              {state.visible_form === 'LOW' && <ArrowBigDown className="h-4 w-4" />}
-                            </span>
-                          ) : (
-                            '-'
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            <StatusIcon player={player} />
+                            {state ? (
+                              <span className={formColor[state.visible_form]} title={formLabel[state.visible_form]}>
+                                {state.visible_form === 'HOT' && <ArrowBigUpDash className="h-4 w-4" />}
+                                {state.visible_form === 'GOOD' && <ArrowUp className="h-4 w-4" />}
+                                {state.visible_form === 'NEUTRAL' && <ArrowsHorizontal className="h-4 w-4" />}
+                                {state.visible_form === 'LOW' && <ArrowBigDown className="h-4 w-4" />}
+                              </span>
+                            ) : (
+                              '-'
+                            )}
+                          </div>
                         </td>
                         <td>
                           <div className="fitness-cell">

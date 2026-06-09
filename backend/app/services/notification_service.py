@@ -1155,6 +1155,34 @@ class NotificationService:
             action_label="查看球员",
         )
 
+    async def send_player_suspension_lifted(
+        self,
+        team_id: str,
+        season_id: str,
+        player_name: str,
+        player_id: str,
+    ) -> Optional[Mail]:
+        """球员停赛解除通知"""
+        subject = f"【解禁】{player_name} 停赛已结束"
+        body = (
+            f"好消息！{player_name} 的停赛处罚已执行完毕，"
+            f"可以重新上场比赛。\n\n"
+            f"请尽快调整阵容安排，让球员回归赛场。"
+        )
+        return await self.send_mail(
+            team_id=team_id,
+            season_id=season_id,
+            category=MailCategory.SYSTEM,
+            priority=MailPriority.NORMAL,
+            sender_name="赛事纪律委员会",
+            subject=subject,
+            body=body,
+            related_id=player_id,
+            related_type="player_suspension_lifted",
+            related_url=f"/players/{player_id}",
+            action_label="查看球员",
+        )
+
     async def send_player_form_change(
         self,
         team_id: str,

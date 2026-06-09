@@ -32,6 +32,14 @@ class PlayerStatus(str, Enum):
     RETIRED = "RETIRED"
 
 
+class PlayerSuspensionInfo(BaseSchema):
+    """当前停赛信息"""
+    reason: str = Field(..., description="停赛原因: red_card / yellow_card_accumulation")
+    matches_remaining: int = Field(..., ge=0, description="剩余停赛场次")
+    source_fixture_id: Optional[str] = None
+    effective_from_day: int = 0
+
+
 class PlayerRace(str, Enum):
     """Player race"""
     ASIAN = "asian"
@@ -215,6 +223,7 @@ class PlayerResponse(PlayerBase):
     status: PlayerStatus = PlayerStatus.ACTIVE
     match_form: MatchForm = MatchForm.NEUTRAL
     fitness: int = Field(default=100, ge=0, le=100, description="体能")
+    current_suspension: Optional[PlayerSuspensionInfo] = None
     
     # 合同
     contract_type: ContractType = ContractType.NORMAL
@@ -339,6 +348,9 @@ class PlayerListItem(BaseSchema):
     free_kick_goals: int = 0
     penalties: int = 0
     penalty_goals: int = 0
+
+    status: PlayerStatus = PlayerStatus.ACTIVE
+    current_suspension: Optional[PlayerSuspensionInfo] = None
 
 
 # =====================================================================
