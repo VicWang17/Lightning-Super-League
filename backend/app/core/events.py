@@ -312,14 +312,16 @@ class EventQueue:
             return
 
         obj.retry_count = (obj.retry_count or 0) + 1
+        # 截断错误信息，避免超出数据库字段长度限制 (String 500)
+        truncated_msg = error_msg[:480] if len(error_msg) > 480 else error_msg
         if obj.retry_count >= max_retries:
             obj.status = EventStatus.FAILED.value
-            obj.error_msg = error_msg
+            obj.error_msg = truncated_msg
             obj.processed_at = datetime.utcnow()
             logger.error(f"Event failed permanently: id={event_id}, error={error_msg}")
         else:
             obj.status = EventStatus.PENDING.value
-            obj.error_msg = error_msg
+            obj.error_msg = truncated_msg
             # 退避：每次重试延迟 5 秒
             obj.scheduled_at = datetime.utcnow() + timedelta(seconds=5 * obj.retry_count)
             logger.warning(f"Event retry scheduled: id={event_id}, retry={obj.retry_count}, error={error_msg}")
