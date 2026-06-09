@@ -35,6 +35,17 @@ from app.core.logging import get_logger
 logger = get_logger("app.match_simulator")
 
 
+def _accuracy_ratio(value) -> float:
+    """Normalize engine accuracy values that may arrive as 0-1 or 0-100."""
+    try:
+        accuracy = float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if accuracy > 1:
+        accuracy /= 100
+    return max(0.0, min(1.0, accuracy))
+
+
 @dataclass
 class MatchEvent:
     """比赛事件"""
@@ -566,24 +577,24 @@ class MatchSimulator:
             stats.shots_on_target += int(ps.get("shots_on_target", 0))
             dribbles = int(ps.get("dribbles", 0))
             stats.dribbles += dribbles
-            stats.dribbles_succ += round(dribbles * ps.get("dribble_accuracy", 0))
+            stats.dribbles_succ += round(dribbles * _accuracy_ratio(ps.get("dribble_accuracy", 0)))
             headers = int(ps.get("headers", 0))
             stats.headers += headers
-            stats.headers_succ += round(headers * ps.get("header_accuracy", 0))
+            stats.headers_succ += round(headers * _accuracy_ratio(ps.get("header_accuracy", 0)))
 
             # 传球数据
             passes = int(ps.get("passes", 0))
             stats.passes += passes
-            stats.passes_succ += round(passes * ps.get("pass_accuracy", 0))
+            stats.passes_succ += round(passes * _accuracy_ratio(ps.get("pass_accuracy", 0)))
             stats.key_passes += int(ps.get("key_passes", 0))
             crosses = int(ps.get("crosses", 0))
             stats.crosses += crosses
-            stats.crosses_succ += round(crosses * ps.get("cross_accuracy", 0))
+            stats.crosses_succ += round(crosses * _accuracy_ratio(ps.get("cross_accuracy", 0)))
 
             # 防守数据
             tackles = int(ps.get("tackles", 0))
             stats.tackles += tackles
-            stats.tackles_succ += round(tackles * ps.get("tackle_accuracy", 0))
+            stats.tackles_succ += round(tackles * _accuracy_ratio(ps.get("tackle_accuracy", 0)))
             stats.interceptions += int(ps.get("interceptions", 0))
             stats.clearances += int(ps.get("clearances", 0))
             stats.blocks += int(ps.get("blocks", 0))
@@ -699,6 +710,20 @@ class MatchSimulator:
                     "fixture_id": fixture.id,
                 }
                 InjuryService.apply_match_injury(player, injury_info)
+                # 发送伤病通知
+                from app.services.notification_service import NotificationService
+                notify = NotificationService(db)
+                await notify.send_injury_report(
+                    team_id=player.team_id,
+                    season_id=fixture.season_id,
+                    player_name=player.name,
+                    player_id=player.id,
+                    injury_name=injury_info["injury_name"],
+                    body_part=injury_info["body_part"],
+                    severity=injury_info["severity"],
+                    days=injury_info["days"],
+                    cause="match",
+                )
             
             # match_rust_score 恢复（栈式弹出）
             player.match_rust_score = min(player.match_rust_score + 1, 0)
@@ -771,8 +796,18 @@ class MatchSimulator:
             
             # 伤病恢复倒计时（比赛日也算一天）
             if player.current_injury is not None:
-                InjuryService.tick_injury_recovery(player)
-            
+                recovered = InjuryService.tick_injury_recovery(player)
+                if recovered:
+                    from app.services.notification_service import NotificationService
+                    notify = NotificationService(db)
+                    await notify.send_injury_recovery(
+                        team_id=player.team_id,
+                        season_id=fixture.season_id,
+                        player_name=player.name,
+                        player_id=player.id,
+                        body_part=player.current_injury.get("body_part", ""),
+                    )
+
             if player.status in (PlayerStatus.INJURED, PlayerStatus.SUSPENDED):
                 continue
             

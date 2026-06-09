@@ -749,6 +749,7 @@ class TrainingService:
         total_training_injuries = 0
         training_injuries_by_severity = {1: 0, 2: 0, 3: 0}
         training_injury_samples: list[str] = []
+        injured_players: list[dict] = []
         results_to_add: list[TrainingResult] = []
 
         for team_id in team_ids:
@@ -804,6 +805,15 @@ class TrainingService:
                             severity = int(training_injury.get("severity", 0) or 0)
                             if severity in training_injuries_by_severity:
                                 training_injuries_by_severity[severity] += 1
+                            injured_players.append({
+                                "player_id": player.id,
+                                "player_name": player.name,
+                                "team_id": team_id,
+                                "injury_name": training_injury["injury_name"],
+                                "body_part": training_injury["body_part"],
+                                "severity": training_injury["severity"],
+                                "days": training_injury["days"],
+                            })
                             if len(training_injury_samples) < 5:
                                 training_injury_samples.append(
                                     f"{player.name}:{training_injury['injury_name']}"
@@ -869,4 +879,5 @@ class TrainingService:
             "training_injuries_minor": training_injuries_by_severity[1],
             "training_injuries_medium": training_injuries_by_severity[2],
             "training_injuries_major": training_injuries_by_severity[3],
+            "injured_players": injured_players,
         }
