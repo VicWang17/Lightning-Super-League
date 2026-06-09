@@ -46,6 +46,10 @@ class EventType(str, Enum):
     YOUTH_TRAINING = "youth_training"
     # Training events
     TRAINING_DAY = "training_day"
+    # Reminder events (Phase 7: 邮件提醒系统)
+    MATCH_PREVIEW_REMINDER = "match_preview_reminder"
+    TACTICS_REMINDER = "tactics_reminder"
+    TRAINING_REMINDER = "training_reminder"
     # Draft events (Phase 4)
     DRAFT_PREFERENCES_OPEN = "draft_preferences_open"
     DRAFT_RUN = "draft_run"
@@ -377,13 +381,43 @@ class EventQueue:
             )
         )
 
-        # 每天一个 MATCH_DAY 事件 + TRAINING_DAY（赛后训练结算）
+        # 每天一个 MATCH_DAY 事件 + TRAINING_DAY（赛后训练结算）+ 提醒事件
         for day in range(1, total_days + 1):
             payload: Dict[str, Any] = {"season_id": season_id, "day": day}
             if day in league_days:
                 payload["league_round"] = league_days.index(day) + 1
             if day in cup_days:
                 payload["cup_round"] = cup_days.index(day) + 1
+
+            has_match = day in league_days or day in cup_days
+
+            # 早上 8:00：比赛预告提醒（仅比赛日）
+            if has_match:
+                events.append(
+                    GameEvent(
+                        event_type=EventType.MATCH_PREVIEW_REMINDER,
+                        payload={"season_id": season_id, "day": day},
+                        scheduled_at=at_day_hour(day, template.match_preview_reminder_hour),
+                    )
+                )
+                # 中午 12:00：战术设置提醒（仅比赛日）
+                events.append(
+                    GameEvent(
+                        event_type=EventType.TACTICS_REMINDER,
+                        payload={"season_id": season_id, "day": day},
+                        scheduled_at=at_day_hour(day, template.tactics_reminder_hour),
+                    )
+                )
+
+            # 早上 8:00：训练提醒（每天）
+            events.append(
+                GameEvent(
+                    event_type=EventType.TRAINING_REMINDER,
+                    payload={"season_id": season_id, "day": day},
+                    scheduled_at=at_day_hour(day, template.training_reminder_hour),
+                )
+            )
+
             events.append(
                 GameEvent(
                     event_type=EventType.MATCH_DAY,

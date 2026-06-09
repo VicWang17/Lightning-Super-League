@@ -70,6 +70,10 @@ class SeasonTimelineConfig:
     budget_close_hour: int = 18
     season_finance_close_hour: int = 22
     season_end_hour: int = 23
+    # 提醒邮件配置
+    match_preview_reminder_hour: int = 8   # 早上发比赛预告
+    tactics_reminder_hour: int = 12        # 中午发战术提醒
+    training_reminder_hour: int = 8        # 早上发训练提醒
     # 青训配置
     youth_refresh_days: Tuple[int, ...] = (4, 8)
     youth_training_interval_days: int = 2

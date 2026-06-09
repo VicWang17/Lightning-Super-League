@@ -21,6 +21,7 @@ from app.services.match_engine_client import (
 )
 from app.services.cup_progression import CupProgressionService
 from app.services.promotion_service import PromotionService
+from app.services.notification_service import NotificationService
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -35,6 +36,7 @@ class SeasonService:
         self.simulator = MatchSimulator()
         self.cup_progression = CupProgressionService(db)
         self.promotion_service = PromotionService(db)
+        self.notify = NotificationService(db)
 
     async def get_current_season(self, zone_id: int = 1) -> Optional[Season]:
         """获取当前赛季（优先进行中，其次待开始）"""
@@ -203,8 +205,152 @@ class SeasonService:
             return await self._handle_ai_transfer_market_scan(event)
         elif event.event_type == EventType.AI_TRANSFER_OFFER_RESPONSE:
             return await self._handle_ai_transfer_offer_response(event)
+        # Phase 7: 邮件提醒事件
+        elif event.event_type == EventType.MATCH_PREVIEW_REMINDER:
+            return await self._handle_match_preview_reminder(event)
+        elif event.event_type == EventType.TACTICS_REMINDER:
+            return await self._handle_tactics_reminder(event)
+        elif event.event_type == EventType.TRAINING_REMINDER:
+            return await self._handle_training_reminder(event)
         else:
             raise ValueError(f"Unknown event type: {event.event_type}")
+
+    # =====================================================================
+    # Phase 7: 邮件提醒事件处理器
+    # =====================================================================
+
+    async def _handle_match_preview_reminder(self, event: GameEvent) -> Dict:
+        """MATCH_PREVIEW_REMINDER: 早上发送比赛预告提醒"""
+        season_id = event.payload.get("season_id")
+        day = event.payload.get("day", 0)
+
+        result = await self.db.execute(
+            select(Fixture)
+            .where(Fixture.season_id == season_id)
+            .where(Fixture.season_day == day)
+            .where(Fixture.status == FixtureStatus.SCHEDULED)
+        )
+        fixtures = list(result.scalars().all())
+
+        team_names = {}
+        team_ids = set()
+        for fixture in fixtures:
+            team_ids.add(fixture.home_team_id)
+            team_ids.add(fixture.away_team_id)
+        if team_ids:
+            from app.models.team import Team
+            teams_result = await self.db.execute(
+                select(Team.id, Team.name).where(Team.id.in_(list(team_ids)))
+            )
+            for tid, tname in teams_result.all():
+                team_names[tid] = tname
+
+        for fixture in fixtures:
+            home_name = team_names.get(fixture.home_team_id, "主场球队")
+            away_name = team_names.get(fixture.away_team_id, "客场球队")
+            round_info = f"第 {fixture.round_number} 轮"
+            fixture_type_map = {
+                FixtureType.LEAGUE.value: "联赛",
+                FixtureType.CUP_LIGHTNING_GROUP.value: "闪电杯小组赛",
+                FixtureType.CUP_LIGHTNING_KNOCKOUT.value: "闪电杯淘汰赛",
+                FixtureType.CUP_JENNY.value: "杰尼杯",
+                FixtureType.PLAYOFF.value: "附加赛",
+            }
+            fixture_type_name = fixture_type_map.get(fixture.fixture_type.value, fixture.fixture_type.value)
+
+            await self.notify.send_match_preview(
+                team_id=fixture.home_team_id,
+                season_id=season_id,
+                fixture_id=fixture.id,
+                opponent_name=away_name,
+                is_home=True,
+                fixture_type=fixture_type_name,
+                round_info=round_info,
+                day=day,
+            )
+            await self.notify.send_match_preview(
+                team_id=fixture.away_team_id,
+                season_id=season_id,
+                fixture_id=fixture.id,
+                opponent_name=home_name,
+                is_home=False,
+                fixture_type=fixture_type_name,
+                round_info=round_info,
+                day=day,
+            )
+
+        await self.db.flush()
+        return {"event": "match_preview_reminder", "season_id": season_id, "day": day, "fixtures": len(fixtures)}
+
+    async def _handle_tactics_reminder(self, event: GameEvent) -> Dict:
+        """TACTICS_REMINDER: 中午发送战术设置提醒"""
+        season_id = event.payload.get("season_id")
+        day = event.payload.get("day", 0)
+
+        result = await self.db.execute(
+            select(Fixture)
+            .where(Fixture.season_id == season_id)
+            .where(Fixture.season_day == day)
+            .where(Fixture.status == FixtureStatus.SCHEDULED)
+        )
+        fixtures = list(result.scalars().all())
+
+        team_names = {}
+        team_ids = set()
+        for fixture in fixtures:
+            team_ids.add(fixture.home_team_id)
+            team_ids.add(fixture.away_team_id)
+        if team_ids:
+            from app.models.team import Team
+            teams_result = await self.db.execute(
+                select(Team.id, Team.name).where(Team.id.in_(list(team_ids)))
+            )
+            for tid, tname in teams_result.all():
+                team_names[tid] = tname
+
+        for fixture in fixtures:
+            home_name = team_names.get(fixture.home_team_id, "主场球队")
+            away_name = team_names.get(fixture.away_team_id, "客场球队")
+            await self.notify.send_tactics_reminder(
+                team_id=fixture.home_team_id,
+                season_id=season_id,
+                fixture_id=fixture.id,
+                opponent_name=away_name,
+                is_home=True,
+            )
+            await self.notify.send_tactics_reminder(
+                team_id=fixture.away_team_id,
+                season_id=season_id,
+                fixture_id=fixture.id,
+                opponent_name=home_name,
+                is_home=False,
+            )
+
+        await self.db.flush()
+        return {"event": "tactics_reminder", "season_id": season_id, "day": day, "fixtures": len(fixtures)}
+
+    async def _handle_training_reminder(self, event: GameEvent) -> Dict:
+        """TRAINING_REMINDER: 早上发送训练提醒"""
+        season_id = event.payload.get("season_id")
+        day = event.payload.get("day", 0)
+
+        result = await self.db.execute(
+            select(Team, User)
+            .join(User, Team.user_id == User.id)
+            .where(Team.status == TeamStatus.ACTIVE)
+            .where(User.is_ai == False)
+        )
+        human_teams = list(result.scalars().all())
+
+        for team in human_teams:
+            await self.notify.send_default_training_reminder(
+                team_id=team.id,
+                season_id=season_id,
+                day=day,
+            )
+
+        await self.db.flush()
+        return {"event": "training_reminder", "season_id": season_id, "day": day, "teams": len(human_teams)}
 
     async def _handle_budget_window_opened(self, event: GameEvent) -> Dict:
         """BUDGET_WINDOW_OPENED: 打开预算窗口"""
@@ -282,6 +428,7 @@ class SeasonService:
 
         # 1. 为所有球队生成当天训练计划（AI / 人类默认）
         team_ids = []
+        human_team_ids = []
         for team, user in teams:
             is_ai = user.is_ai if user else False
             try:
@@ -289,6 +436,7 @@ class SeasonService:
                     plan_items = await planner.generate_daily_plan(team.id, season_id, day)
                 else:
                     plan_items = await planner.generate_default_plan(team.id, season_id, day)
+                    human_team_ids.append(team.id)
                 await training_service.save_training_plan(
                     team.id, season_id, plan_items, TrainingCreatedBy.DEFAULT
                 )
@@ -304,6 +452,7 @@ class SeasonService:
         training_injuries_minor = 0
         training_injuries_medium = 0
         training_injuries_major = 0
+        injured_players = []
         recovery_summary = {"players_processed": 0, "injury_recovered": 0}
         if team_ids:
             try:
@@ -317,9 +466,34 @@ class SeasonService:
                 training_injuries_minor = summary.get("training_injuries_minor", 0)
                 training_injuries_medium = summary.get("training_injuries_medium", 0)
                 training_injuries_major = summary.get("training_injuries_major", 0)
+                injured_players = summary.get("injured_players", [])
             except Exception as e:
                 logger.warning(f"批量训练结算失败: day={day}, error={e}")
             recovery_summary = await self._apply_training_day_recovery(season_id, day, team_ids)
+
+        # 3. 发送训练相关邮件（仅人类球队）
+        for team_id in human_team_ids:
+            await self.notify.send_training_summary(
+                team_id=team_id,
+                season_id=season_id,
+                day=day,
+                sessions_completed=total_sessions // max(len(team_ids), 1),
+                breakthroughs=total_breakthroughs,
+                declines=total_declines,
+                injuries=training_injuries,
+            )
+            await self.notify.send_default_training_reminder(team_id, season_id, day)
+
+        for inj in injured_players:
+            await self.notify.send_training_injury(
+                team_id=inj["team_id"],
+                season_id=season_id,
+                player_name=inj["player_name"],
+                player_id=inj["player_id"],
+                injury_name=inj["injury_name"],
+                severity=inj["severity"],
+                days=inj["days"],
+            )
 
         await self.db.commit()
 
@@ -438,8 +612,28 @@ class SeasonService:
     # 选秀系统已在简化闭环设计中被移除
 
     async def _handle_season_start(self, event: GameEvent) -> Dict:
-        """SEASON_START: 无额外操作（赛季已在 create_new_season 中创建）"""
-        return {"event": "season_start", "season_id": event.payload.get("season_id")}
+        """SEASON_START: 赛季开始，发送通知"""
+        season_id = event.payload.get("season_id")
+
+        # 获取本赛季所有参赛球队
+        result = await self.db.execute(
+            select(Fixture.home_team_id, Fixture.away_team_id)
+            .where(Fixture.season_id == season_id)
+            .distinct()
+        )
+        team_ids = set()
+        for row in result.all():
+            team_ids.add(row[0])
+            team_ids.add(row[1])
+
+        season = await self.db.execute(select(Season).where(Season.id == season_id))
+        season = season.scalar_one_or_none()
+        season_number = season.season_number if season else 1
+
+        for team_id in team_ids:
+            await self.notify.send_season_start(team_id, season_id, season_number)
+
+        return {"event": "season_start", "season_id": season_id}
 
     async def _handle_season_finance_initialized(self, event: GameEvent) -> Dict:
         """SEASON_FINANCE_INITIALIZED: 为所有球队初始化赛季财务"""
@@ -531,6 +725,20 @@ class SeasonService:
         )
         fixtures = list(result.scalars().all())
 
+        # 预加载球队名称用于赛后结果邮件
+        team_names = {}
+        team_ids_in_fixtures = set()
+        for fixture in fixtures:
+            team_ids_in_fixtures.add(fixture.home_team_id)
+            team_ids_in_fixtures.add(fixture.away_team_id)
+        if team_ids_in_fixtures:
+            from app.models.team import Team
+            teams_result = await self.db.execute(
+                select(Team.id, Team.name).where(Team.id.in_(list(team_ids_in_fixtures)))
+            )
+            for tid, tname in teams_result.all():
+                team_names[tid] = tname
+
         # Step 1: 将本日比赛显式分层为 ongoing -> finished。
         # TODO(real-time-engine): 这里未来应改为创建 Go engine match sessions，
         # 由引擎按 match_speed tick 推送事件，并接收临场战术/换人命令；
@@ -562,6 +770,69 @@ class SeasonService:
                 if severity in fixture_injury_counts:
                     fixture_injury_counts[severity] += 1
                     match_injury_counts[severity] += 1
+            # 收集比赛结果邮件数据
+            goals = []
+            yellow_cards = 0
+            red_cards = 0
+            mvp_name = None
+            injuries = []
+            if sim_result.events:
+                for evt in sim_result.events:
+                    if evt.get("type") == "GOAL":
+                        goals.append({
+                            "minute": evt.get("minute", 0),
+                            "player_name": evt.get("player_name", "未知"),
+                        })
+                    elif evt.get("type") == "YELLOW_CARD":
+                        yellow_cards += 1
+                    elif evt.get("type") == "RED_CARD":
+                        red_cards += 1
+            if sim_result.player_stats:
+                for ps in sim_result.player_stats:
+                    if ps.get("is_mvp"):
+                        mvp_name = ps.get("player_name", "未知")
+                    severity = int(ps.get("injury_severity", 0) or 0)
+                    if severity > 0:
+                        injuries.append({
+                            "player_name": ps.get("player_name", "未知"),
+                            "injury_name": ps.get("injury_name", "受伤"),
+                            "days": ps.get("injury_days", 3),
+                        })
+
+            home_name = team_names.get(fixture.home_team_id, "主场球队")
+            away_name = team_names.get(fixture.away_team_id, "客场球队")
+
+            await self.notify.send_match_result(
+                team_id=fixture.home_team_id,
+                season_id=season_id,
+                fixture_id=fixture.id,
+                opponent_name=away_name,
+                is_home=True,
+                home_score=sim_result.home_score,
+                away_score=sim_result.away_score,
+                fixture_type=fixture.fixture_type.value,
+                goals=goals,
+                yellow_cards=yellow_cards,
+                red_cards=red_cards,
+                mvp_name=mvp_name,
+                injuries=injuries,
+            )
+            await self.notify.send_match_result(
+                team_id=fixture.away_team_id,
+                season_id=season_id,
+                fixture_id=fixture.id,
+                opponent_name=home_name,
+                is_home=False,
+                home_score=sim_result.home_score,
+                away_score=sim_result.away_score,
+                fixture_type=fixture.fixture_type.value,
+                goals=goals,
+                yellow_cards=yellow_cards,
+                red_cards=red_cards,
+                mvp_name=mvp_name,
+                injuries=injuries,
+            )
+
             match_results.append({
                 "fixture_id": fixture.id,
                 "type": fixture.fixture_type.value,
@@ -727,6 +998,19 @@ class SeasonService:
         season.status = SeasonStatus.FINISHED
         season.end_date = end_date
         await self.db.commit()
+
+        # 发送赛季结束通知
+        result = await self.db.execute(
+            select(Fixture.home_team_id, Fixture.away_team_id)
+            .where(Fixture.season_id == season_id)
+            .distinct()
+        )
+        team_ids = set()
+        for row in result.all():
+            team_ids.add(row[0])
+            team_ids.add(row[1])
+        for team_id in team_ids:
+            await self.notify.send_season_end(team_id, season_id, season.season_number)
 
         next_start = (end_date + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         next_season = await self.create_new_season(start_date=next_start, zone_id=season.zone_id)
@@ -1070,12 +1354,11 @@ class SeasonService:
                 results['playoff_fixtures_created'] = len(playoff_fixtures)
                 print(f"  📝 创建附加赛: {len(playoff_fixtures)} 场")
 
-            # 保存升降级数据供后续使用
-            season._promotion_data = promotion_data
-
             # 显示直升/直降信息
             auto_up = len(promotion_data['auto_promotions'])
             auto_down = len(promotion_data['auto_relegations'])
+            results['auto_promotions'] = auto_up
+            results['auto_relegations'] = auto_down
             print(f"  ⬆️ 直升: {auto_up} 队")
             print(f"  ⬇️ 直降: {auto_down} 队")
 
@@ -1091,11 +1374,9 @@ class SeasonService:
             # Day 24 休赛期，统一处理所有升降级
             print(f"\n  📊 处理赛季升降级...")
 
-            # 获取之前保存的升降级数据
-            promotion_data = getattr(season, '_promotion_data', {
-                'auto_promotions': [],
-                'auto_relegations': []
-            })
+            # 事件处理会重新从数据库加载 Season；不要依赖前序事件的内存属性。
+            # 直升/直降只依赖最终积分榜，可在实际应用变更前安全重算。
+            promotion_data = await self.promotion_service.process_season_end(season)
 
             # 处理附加赛结果，确定最终升降级名单
             final_results = await self._process_playoff_results(
