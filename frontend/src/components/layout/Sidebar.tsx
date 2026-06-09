@@ -22,7 +22,7 @@ const menuItems = [
   { path: '/team', label: '更衣室', icon: Users },
   { path: '/match/schedule', label: '赛程表', icon: CalendarDays },
   { path: '/training', label: '训练场', icon: Zap },
-  { path: '/leagues', label: '联赛大厅', icon: Trophy },
+  { path: '/leagues', label: '联赛', icon: Trophy },
   { path: '/cups', label: '杯赛', icon: Swords },
   { path: '/transfer', label: '转会市场', icon: ArrowLeftRight },
   { path: '/youth', label: '青训营', icon: Sprout },

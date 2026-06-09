@@ -85,6 +85,7 @@ class Season(Base):
     team_finances: Mapped[list["TeamSeasonFinance"]] = relationship("TeamSeasonFinance", back_populates="season")
     budget_plans: Mapped[list["TeamBudgetPlan"]] = relationship("TeamBudgetPlan", back_populates="target_season")
     sponsor_contracts: Mapped[list["SponsorContract"]] = relationship("SponsorContract", back_populates="season")
+    injury_treatments: Mapped[list["InjuryTreatment"]] = relationship("InjuryTreatment", back_populates="season")
     
     def __repr__(self) -> str:
         return f"<Season(season_number={self.season_number}, status={self.status}, day={self.current_day})>"

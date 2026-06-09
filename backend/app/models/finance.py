@@ -23,6 +23,9 @@ class TransactionSourceType(str, PyEnum):
     YOUTH = "youth"                   # 青训支出
     PENALTY = "penalty"               # 罚金
     MANUAL_ADJUSTMENT = "manual_adjustment"  # 手动调整
+    MEDICAL = "medical"               # 主动医疗加速
+    RESERVE_AUTO_COVER = "reserve_auto_cover"  # 自动缓冲事件
+    RESERVE_SETTLEMENT = "reserve_settlement"  # 赛季末准备金结转
 
 
 class TransactionDirection(str, PyEnum):
@@ -219,6 +222,28 @@ class TeamSeasonFinance(Base):
     overspend_level: Mapped[OverspendLevel] = mapped_column(
         Enum(OverspendLevel),
         default=OverspendLevel.NONE,
+        nullable=False
+    )
+    
+    # 风险准备金使用追踪 (EMERGENCY-FUND-INJURY-FINANCE-DESIGN.md)
+    reserve_spent: Mapped[Decimal] = mapped_column(
+        DECIMAL(15, 2),
+        default=Decimal("0.00"),
+        nullable=False
+    )
+    reserve_auto_used: Mapped[Decimal] = mapped_column(
+        DECIMAL(15, 2),
+        default=Decimal("0.00"),
+        nullable=False
+    )
+    reserve_medical_used: Mapped[Decimal] = mapped_column(
+        DECIMAL(15, 2),
+        default=Decimal("0.00"),
+        nullable=False
+    )
+    reserve_events_used: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
         nullable=False
     )
     

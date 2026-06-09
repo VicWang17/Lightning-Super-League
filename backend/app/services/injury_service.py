@@ -288,8 +288,12 @@ class InjuryService:
             "injury_name": injury["injury_name"],
             "severity": injury["severity"],
             "remaining_days": injury["days"],
+            "original_total_days": injury["days"],
             "created_at": datetime.utcnow().isoformat(),
             "cause": cause,
+            "treatment_applied": False,
+            "treatment_risk_bonus": 0.0,
+            "residual_wear_penalty": 0,
         }
         if injury.get("season_id"):
             player.current_injury["season_id"] = injury["season_id"]
@@ -389,20 +393,29 @@ class InjuryService:
     @staticmethod
     def _recover_from_injury(player: Player) -> None:
         """伤病痊愈处理"""
-        part = player.current_injury.get("body_part") if player.current_injury else None
+        current_injury = player.current_injury
+        part = current_injury.get("body_part") if current_injury else None
+        
+        # 读取治疗带来的残余劳损惩罚（如果有）
+        treatment_penalty = 0
+        if current_injury:
+            treatment_penalty = current_injury.get("residual_wear_penalty", 0)
+        
         player.current_injury = None
         _flag_json_modified(player, "current_injury")
         if player.status == PlayerStatus.INJURED:
             player.status = PlayerStatus.ACTIVE
 
-        # 残余劳损：15~30 随机值
+        # 残余劳损：15~30 随机值 + 治疗惩罚
         if part:
-            residual = random.uniform(15.0, 30.0)
+            residual_min = 15.0 + treatment_penalty
+            residual_max = 30.0 + treatment_penalty
+            residual = random.uniform(residual_min, residual_max)
             # 铁人残余更低
             if "铁人" in (player.traits or []):
-                residual = random.uniform(10.0, 20.0)
+                residual = random.uniform(max(5.0, residual_min - 5), max(15.0, residual_max - 10))
             elif "玻璃体质" in (player.traits or []):
-                residual = random.uniform(25.0, 40.0)
+                residual = random.uniform(residual_min + 10, residual_max + 10)
             InjuryService.set_body_wear(player, part, residual)
 
     # ========================================================================

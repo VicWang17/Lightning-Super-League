@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 from app.models.season import Season, SeasonStatus, Fixture, FixtureStatus
 from app.models.events import EventQueue as EventQueueModel
 from app.services.season_service import SeasonService
+from app.core.formats import get_default_format
 from app.core.events import EventQueue, EventType, EventStatus, GameEvent
 from app.core.clock import clock
 
@@ -131,6 +132,38 @@ class TestDispatchEvent:
         )
         with pytest.raises(ValueError, match="Season not found"):
             await service._dispatch_event(event)
+
+    async def test_promotion_movement_recomputes_data_after_event_reload(self, db):
+        """升降级应用日不能依赖前序事件挂在 Season 对象上的临时属性。"""
+        service = SeasonService(db)
+        season = Season(id="season-1", season_number=1, total_days=25)
+        movement_day = get_default_format().season.promotion_day
+        promotion_data = {
+            "auto_promotions": [("team-up", "league-2", "league-1")],
+            "auto_relegations": [("team-down", "league-1", "league-2")],
+            "playoff_teams": {},
+        }
+        final_results = {
+            "final_promotions": promotion_data["auto_promotions"],
+            "final_relegations": promotion_data["auto_relegations"],
+            "playoff_promotions": [],
+            "playoff_relegations": [],
+        }
+
+        service.promotion_service.process_season_end = AsyncMock(return_value=promotion_data)
+        service._process_playoff_results = AsyncMock(return_value=final_results)
+        service.promotion_service.apply_team_movements = AsyncMock()
+
+        result = await service._process_promotion_relegation(season, movement_day)
+
+        service.promotion_service.process_season_end.assert_awaited_once_with(season)
+        service._process_playoff_results.assert_awaited_once_with(season, promotion_data)
+        service.promotion_service.apply_team_movements.assert_awaited_once_with(
+            final_results["final_promotions"],
+            final_results["final_relegations"],
+        )
+        assert result["final_promotions"] == 1
+        assert result["final_relegations"] == 1
 
 
 @pytest.mark.asyncio

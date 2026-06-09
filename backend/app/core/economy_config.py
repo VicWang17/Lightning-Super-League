@@ -154,6 +154,87 @@ class BudgetConfig:
 
 
 @dataclass(frozen=True)
+class MedicalCostConfig:
+    """医疗成本配置 (EMERGENCY-FUND-INJURY-FINANCE-DESIGN.md)"""
+    market_value_pct: Decimal = Decimal("0.006")
+    weekly_wage_multiplier: Decimal = Decimal("1.5")
+    days_exponent: float = 1.15
+    minimum_remaining_pct: Decimal = Decimal("0.35")
+    
+    # 部位倍率
+    body_part_multiplier: Dict[str, Decimal] = field(default_factory=lambda: {
+        "hamstring": Decimal("1.00"),
+        "quadriceps": Decimal("1.00"),
+        "calf": Decimal("1.00"),
+        "groin": Decimal("1.00"),
+        "ankle": Decimal("1.25"),
+        "knee": Decimal("1.25"),
+        "achilles": Decimal("1.25"),
+        "foot": Decimal("1.00"),
+        "back": Decimal("1.10"),
+        "ribs": Decimal("1.10"),
+        "shoulder": Decimal("1.10"),
+        "fingers": Decimal("0.90"),
+        "head": Decimal("1.30"),
+    })
+    
+    # 门将额外倍率修正（对特定部位）
+    gk_body_part_bonus: Decimal = Decimal("0.30")
+    gk_sensitive_parts: Tuple[str, ...] = field(default_factory=lambda: ("fingers", "shoulder", "head"))
+    
+    # 联赛底价（按级别）
+    league_floor: Dict[int, Decimal] = field(default_factory=lambda: {
+        1: Decimal("50000"),
+        2: Decimal("35000"),
+        3: Decimal("25000"),
+        4: Decimal("15000"),
+    })
+    
+    # severity 倍率
+    severity_multiplier: Dict[int, Decimal] = field(default_factory=lambda: {
+        2: Decimal("1.0"),
+        3: Decimal("1.6"),
+    })
+
+
+@dataclass(frozen=True)
+class TreatmentPlanConfig:
+    """医疗方案配置"""
+    enhanced: Dict[str, object] = field(default_factory=lambda: {
+        "reduction_pct": Decimal("0.25"),
+        "max_days": 2,
+        "cost_multiplier": Decimal("1.0"),
+        "residual_wear_penalty": 0,
+        "recurrence_risk_bonus": Decimal("0.00"),
+    })
+    specialist: Dict[str, object] = field(default_factory=lambda: {
+        "reduction_pct": Decimal("0.40"),
+        "max_days": 4,
+        "cost_multiplier": Decimal("1.8"),
+        "residual_wear_penalty": 5,
+        "recurrence_risk_bonus": Decimal("0.15"),
+    })
+    aggressive: Dict[str, object] = field(default_factory=lambda: {
+        "reduction_pct": Decimal("0.55"),
+        "max_days": 6,
+        "cost_multiplier": Decimal("3.0"),
+        "residual_wear_penalty": 12,
+        "recurrence_risk_bonus": Decimal("0.35"),
+    })
+
+
+@dataclass(frozen=True)
+class ReserveCarryoverConfig:
+    """准备金赛季末结转配置"""
+    rate_by_health: Dict[str, Decimal] = field(default_factory=lambda: {
+        "A": Decimal("0.70"),
+        "B": Decimal("0.60"),
+        "C": Decimal("0.50"),
+        "D": Decimal("0.40"),
+    })
+
+
+@dataclass(frozen=True)
 class EconomyConfig:
     """经济系统完整配置"""
     broadcast: BroadcastConfig = field(default_factory=BroadcastConfig)
@@ -163,6 +244,9 @@ class EconomyConfig:
     wage_cap: WageCapConfig = field(default_factory=WageCapConfig)
     league_prize: LeaguePrizeConfig = field(default_factory=LeaguePrizeConfig)
     budget: BudgetConfig = field(default_factory=BudgetConfig)
+    medical_cost: MedicalCostConfig = field(default_factory=MedicalCostConfig)
+    treatment_plan: TreatmentPlanConfig = field(default_factory=TreatmentPlanConfig)
+    reserve_carryover: ReserveCarryoverConfig = field(default_factory=ReserveCarryoverConfig)
 
 
 # 全局默认经济配置（可调优）

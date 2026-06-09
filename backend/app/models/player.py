@@ -266,6 +266,7 @@ class Player(Base):
     season_stats: Mapped[list["PlayerSeasonStats"]] = relationship("PlayerSeasonStats", back_populates="player")
     contracts: Mapped[list["PlayerContract"]] = relationship("PlayerContract", back_populates="player")
     state_snapshots: Mapped[list["PlayerStateSnapshot"]] = relationship("PlayerStateSnapshot", back_populates="player")
+    injury_treatments: Mapped[list["InjuryTreatment"]] = relationship("InjuryTreatment", back_populates="player")
     
     @property
     def age(self, current_season: int = 0) -> int:
@@ -294,12 +295,15 @@ class Player(Base):
     def ovr(self) -> int:
         """实时计算 OVR"""
         weights = _OVR_WEIGHTS.get(self.position, {})
+        weight_total = sum(weight for weight in weights.values() if weight > 0)
+        if weight_total <= 0:
+            return 0
         total = 0.0
         for attr, weight in weights.items():
             if weight > 0:
                 val = getattr(self, attr, 10) or 10
                 total += (val / 20.0) * weight
-        return int(round(total))
+        return int(round((total / weight_total) * 100))
     
     @ovr.expression
     def ovr(cls):
@@ -311,8 +315,9 @@ class Player(Base):
             for attr, weight in weights.items():
                 if weight > 0:
                     total_expr += getattr(cls, attr) * weight
-            # total_expr / 20.0 得到加权平均值, 再用 ROUND
-            expr = func.round(total_expr / 20.0)
+            weight_total = sum(weight for weight in weights.values() if weight > 0)
+            # total_expr / weight_total 得到 1-20 加权属性均值，再映射到 1-100 OVR。
+            expr = func.round(total_expr * 5.0 / weight_total)
             whens.append((cls.position == pos, expr))
         return case(*whens, else_=0)
     

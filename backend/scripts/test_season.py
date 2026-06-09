@@ -239,16 +239,18 @@ class SeasonTester:
                         self.db.add(user)
                         await self.db.flush()
                         
+                        from app.services.player_generator import calculate_initial_team_overall
                         team = Team(
                             name=team_name,
                             user_id=user.id,
-                            current_league_id=league.id
+                            current_league_id=league.id,
+                            overall_rating=calculate_initial_team_overall(level, team_idx + 1),
                         )
                         self.db.add(team)
                         
                         from app.services.player_generator import PlayerGenerator
                         generator = PlayerGenerator()
-                        players = generator.generate_squad(team, size=15)
+                        players = generator.generate_squad(team, size=15, league_level=level)
                         for p in players:
                             self.db.add(p)
                     

@@ -85,6 +85,10 @@ from app.models.finance import (
     TeamBudgetPlan,
     SponsorContract,
 )
+from app.models.injury_treatment import (
+    InjuryTreatment,
+    TreatmentPlan,
+)
 from app.models.training import (
     TrainingSlot,
     TrainingMode,
@@ -195,6 +199,9 @@ __all__ = [
     "TeamTrainingPlan",
     "TrainingResult",
     "TeamTrainingAIProfile",
+    # Injury Treatment
+    "InjuryTreatment",
+    "TreatmentPlan",
     # Transfer
     "TransferListing",
     "TransferListingStatus",

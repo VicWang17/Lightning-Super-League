@@ -349,6 +349,20 @@ SQUAD_COMPOSITION = [
     (PlayerPosition.FW, 3),
 ]
 
+INITIAL_TEAM_OVR_BY_LEVEL = {
+    1: (78, 82),
+    2: (68, 73),
+    3: (58, 64),
+    4: (48, 55),
+}
+
+INITIAL_SQUAD_OVR_TIERS = {
+    1: [(88, 94, 2), (82, 87, 4), (76, 81, 6), (68, 75, 3)],
+    2: [(84, 88, 1), (76, 83, 3), (66, 75, 6), (58, 65, 6)],
+    3: [(70, 76, 1), (63, 69, 4), (56, 62, 6), (48, 55, 5)],
+    4: [(62, 68, 1), (53, 61, 4), (45, 52, 6), (38, 47, 5)],
+}
+
 
 # ==================== 工具函数 ====================
 
@@ -361,6 +375,14 @@ def _weighted_choice(items: list) -> any:
 
 def _clamp(val: int, lo: int = 1, hi: int = 20) -> int:
     return max(lo, min(hi, int(round(val))))
+
+
+def calculate_initial_team_overall(league_level: int, team_index: int = 1) -> int:
+    """Return the public team OVR used by initial data generation."""
+    low, high = INITIAL_TEAM_OVR_BY_LEVEL.get(league_level, INITIAL_TEAM_OVR_BY_LEVEL[3])
+    span = max(high - low, 0)
+    rank_bonus = max(0, (8 - team_index) // 2)
+    return min(high, low + rank_bonus + random.randint(0, max(span - rank_bonus, 0)))
 
 
 # ==================== 名字生成器 ====================
@@ -466,8 +488,11 @@ class AttributeGenerator:
     @staticmethod
     def calculate_ovr(position: PlayerPosition, attrs: dict) -> int:
         weights = OVR_WEIGHTS[position]
+        weight_total = sum(weight for weight in weights.values() if weight > 0)
+        if weight_total <= 0:
+            return 0
         total = sum((attrs.get(k, 10) / 20.0) * w for k, w in weights.items())
-        return int(round(total))
+        return int(round((total / weight_total) * 100))
 
     @staticmethod
     def _pick_attribute_profile(style: str, base_ovr: int) -> str:
@@ -501,6 +526,7 @@ class AttributeGenerator:
         target_ovr: int,
         strengths: set[str],
         weaknesses: set[str],
+        core_floor: int = 1,
     ) -> dict:
         weights = OVR_WEIGHTS[position]
         relevant_attrs = [attr for attr, weight in weights.items() if weight > 0]
@@ -522,7 +548,10 @@ class AttributeGenerator:
                 attr = random.choices(candidates, weights=[step_weights[a] for a in candidates], k=1)[0]
                 attrs[attr] += 1
             else:
-                candidates = [attr for attr in relevant_attrs if attrs.get(attr, 10) > 1]
+                candidates = [
+                    attr for attr in relevant_attrs
+                    if attrs.get(attr, 10) > max(1, core_floor if attr in POSITION_NON_CORE_ATTRS[position] else 1)
+                ]
                 if not candidates:
                     break
                 step_weights = {
@@ -535,7 +564,8 @@ class AttributeGenerator:
     
     @staticmethod
     def generate(position: PlayerPosition, archetype: str, style: str,
-                 age: int, potential_max: int, team_ovr: int) -> dict:
+                 age: int, potential_max: int, team_ovr: int,
+                 target_ovr: int | None = None) -> dict:
         """
         生成23项属性,返回属性字典 + 计算后的OVR
         """
@@ -543,8 +573,11 @@ class AttributeGenerator:
         age_factor = 1.0 if 21 <= age <= 28 else (0.85 if age <= 20 else 0.90 if age <= 31 else 0.75)
         potential_factor = potential_max / 100.0
         # 基准在 team_ovr ± 5 浮动, 受潜力修正
-        base_ovr = team_ovr + random.randint(-5, 5)
-        base_ovr = int(base_ovr * age_factor * (0.8 + 0.4 * potential_factor))
+        if target_ovr is None:
+            base_ovr = team_ovr + random.randint(-5, 5)
+            base_ovr = int(base_ovr * age_factor * (0.8 + 0.4 * potential_factor))
+        else:
+            base_ovr = target_ovr + random.randint(-1, 1)
         base_ovr = _clamp(base_ovr, 20, 99)
         
         # 2. 核心属性组 (该位置看重的属性)
@@ -627,7 +660,21 @@ class AttributeGenerator:
         )
 
         # 6. 校准实际OVR，尽量保持球队强度分布，同时保留强弱项轮廓。
-        attrs = AttributeGenerator._calibrate_ovr(position, attrs, base_ovr, strengths, weaknesses)
+        if base_ovr >= 85:
+            core_floor = 12
+        elif base_ovr >= 75:
+            core_floor = 11
+        elif base_ovr >= 65:
+            core_floor = 10
+        elif base_ovr >= 55:
+            core_floor = 9
+        else:
+            core_floor = 8
+        for attr in core_candidates:
+            if relevant_weights.get(attr, 0) > 0:
+                attrs[attr] = max(attrs[attr], core_floor)
+
+        attrs = AttributeGenerator._calibrate_ovr(position, attrs, base_ovr, strengths, weaknesses, core_floor)
         actual_ovr = AttributeGenerator.calculate_ovr(position, attrs)
         attrs["ovr"] = actual_ovr
         return attrs
@@ -741,7 +788,8 @@ class PlayerGenerator:
         return h, w
     
     def generate_player(self, team, position: PlayerPosition = None,
-                       team_ovr: int = 50, team_level: int = 4) -> Player:
+                       team_ovr: int = 50, team_level: int = 4,
+                       target_ovr: int | None = None) -> Player:
         """生成单个球员"""
         # Race
         race_str = random.choice(["asian", "western"])
@@ -780,7 +828,7 @@ class PlayerGenerator:
         
         # Attributes
         attr_result = AttributeGenerator.generate(
-            position, archetype, style, actual_age, potential_max, team_ovr
+            position, archetype, style, actual_age, potential_max, team_ovr, target_ovr=target_ovr
         )
         ovr = attr_result.pop("ovr", 50)  # 不持久化, 由模型 hybrid_property 计算
         while ovr >= 100 and any(value > 1 for value in attr_result.values()):
@@ -1129,15 +1177,36 @@ class PlayerGenerator:
             academy_team_id=team.id,
         )
     
-    def generate_squad(self, team, size: int = 15) -> list:
+    def _generate_initial_squad_targets(self, league_level: int, size: int) -> list[int]:
+        tiers = INITIAL_SQUAD_OVR_TIERS.get(league_level, INITIAL_SQUAD_OVR_TIERS[3])
+        targets: list[int] = []
+        for low, high, count in tiers:
+            targets.extend(random.randint(low, high) for _ in range(count))
+        while len(targets) < size:
+            low, high, _ = tiers[-1]
+            targets.append(random.randint(low, high))
+        random.shuffle(targets)
+        return targets[:size]
+
+    def generate_squad(self, team, size: int = 15, league_level: int | None = None) -> list:
         """为球队生成完整阵容"""
         players = []
         team_ovr = getattr(team, 'overall_rating', 50)
-        team_level = 4  # TODO: 从联赛级别推算
+        team_level = league_level or 4
+        targets = self._generate_initial_squad_targets(team_level, size)
+        target_idx = 0
         
         for pos, count in SQUAD_COMPOSITION:
             for _ in range(count):
-                p = self.generate_player(team, position=pos, team_ovr=team_ovr, team_level=team_level)
+                target_ovr = targets[target_idx] if target_idx < len(targets) else None
+                target_idx += 1
+                p = self.generate_player(
+                    team,
+                    position=pos,
+                    team_ovr=team_ovr,
+                    team_level=team_level,
+                    target_ovr=target_ovr,
+                )
                 players.append(p)
         
         return players

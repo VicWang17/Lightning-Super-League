@@ -37,6 +37,9 @@ class TransactionSourceType(str, Enum):
     YOUTH = "youth"
     PENALTY = "penalty"
     MANUAL_ADJUSTMENT = "manual_adjustment"
+    MEDICAL = "medical"
+    RESERVE_AUTO_COVER = "reserve_auto_cover"
+    RESERVE_SETTLEMENT = "reserve_settlement"
 
 
 class TransactionDirection(str, Enum):
@@ -192,6 +195,15 @@ class FinanceOverview(BaseSchema):
     # 预算是否已锁定
     budget_locked: bool = False
     budget_locked_at: Optional[datetime] = None
+    
+    # 风险准备金状态 (EMERGENCY-FUND-INJURY-FINANCE)
+    reserve_spent: Decimal = Field(Decimal("0"), description="已使用准备金")
+    reserve_available: Decimal = Field(Decimal("0"), description="可用准备金")
+    reserve_usage_pct: float = Field(0.0, description="准备金使用率")
+    reserve_auto_used: Decimal = Field(Decimal("0"), description="自动缓冲已用")
+    reserve_medical_used: Decimal = Field(Decimal("0"), description="医疗加速已用")
+    reserve_events_used: int = Field(0, description="使用次数")
+    risk_level: str = Field("标准", description="风险等级")
     
     # Phase 3: 预算与赞助商
     budget_plan: Optional[BudgetPlanSchema] = None

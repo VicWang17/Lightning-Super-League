@@ -43,6 +43,7 @@ from app.models import (  # noqa: E402
     FinanceTransaction,
     FreeAgentListing,
     FreeAgentOrigin,
+    InjuryTreatment,
     League,
     LeagueStanding,
     ListingStatus,
@@ -55,6 +56,7 @@ from app.models import (  # noqa: E402
     SeasonStatus,
     Team,
     TeamSeasonFinance,
+    TransactionSourceType,
     User,
     GrowthSpeed,
     YouthAcademyPlayer,
@@ -67,6 +69,7 @@ from app.models import (  # noqa: E402
     TransferRecord,
     TransferType,
 )
+from app.models.injury_treatment import TreatmentPlan  # noqa: E402
 from app.core.events import EventStatus  # noqa: E402
 from app.models.player_contract import ContractStatus  # noqa: E402
 from app.services.simulation_runner import RunnerResult, SimulationRunner  # noqa: E402
@@ -162,6 +165,18 @@ class SeasonSummary:
     players_body_wear_over_90: int = 0
     invariants_failed: int = 0
     warnings: str = ""
+    # 风险准备金与医疗指标
+    medical_treatments_total: int = 0
+    medical_aggressive_total: int = 0
+    medical_cost_total: float = 0.0
+    medical_reserve_paid_total: float = 0.0
+    medical_cash_paid_total: float = 0.0
+    reserve_spent_total: float = 0.0
+    reserve_auto_total: float = 0.0
+    teams_reserve_depleted: int = 0
+    avg_reserve_usage_pct: float = 0.0
+    median_reserve_usage_pct: float = 0.0
+    off_budget_medical_pct: float = 0.0
 
 
 @dataclass
@@ -178,6 +193,7 @@ class RunArtifacts:
     injury_rows: list[dict[str, Any]] = field(default_factory=list)
     transfer_rows: list[dict[str, Any]] = field(default_factory=list)
     match_tactics_rows: list[dict[str, Any]] = field(default_factory=list)
+    medical_rows: list[dict[str, Any]] = field(default_factory=list)
 
 
 def enum_value(value: Any) -> str:
@@ -501,6 +517,46 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
             TransferOffer.status.in_([OfferStatus.EXPIRED, OfferStatus.OUTBID_CLOSED]),
         )
 
+    # 风险准备金与医疗指标
+    medical_treatments_total = 0
+    medical_aggressive_total = 0
+    medical_cost_total = 0.0
+    medical_reserve_paid_total = 0.0
+    medical_cash_paid_total = 0.0
+    if await has_table(db, "injury_treatments"):
+        treatments = (
+            await db.execute(select(InjuryTreatment).where(InjuryTreatment.season_id == season.id))
+        ).scalars().all()
+        medical_treatments_total = len(treatments)
+        medical_aggressive_total = sum(1 for t in treatments if t.plan == TreatmentPlan.AGGRESSIVE)
+        medical_cost_total = sum(decimal_float(t.cost) for t in treatments)
+        medical_reserve_paid_total = sum(decimal_float(t.reserve_paid) for t in treatments)
+        medical_cash_paid_total = sum(decimal_float(t.cash_paid) for t in treatments)
+
+    reserve_usage_pcts: list[float] = []
+    reserve_spent_total = 0.0
+    reserve_auto_total = 0.0
+    teams_reserve_depleted = 0
+    off_budget_medical_pct = 0.0
+    season_finances = (
+        await db.execute(select(TeamSeasonFinance).where(TeamSeasonFinance.season_id == season.id))
+    ).scalars().all()
+    for finance in season_finances:
+        rb = decimal_float(finance.reserve_budget)
+        rs = decimal_float(finance.reserve_spent)
+        ra = decimal_float(finance.reserve_auto_used)
+        reserve_spent_total += rs
+        reserve_auto_total += ra
+        if rb > 0:
+            reserve_usage_pcts.append(min(rs / rb, 1.0))
+            if rs >= rb:
+                teams_reserve_depleted += 1
+        else:
+            reserve_usage_pcts.append(0.0)
+    locked_budgets = [decimal_float(f.locked_budget_total) for f in season_finances if decimal_float(f.locked_budget_total) > 0]
+    if locked_budgets and medical_cost_total > 0:
+        off_budget_medical_pct = medical_cash_paid_total / sum(locked_budgets) * 100
+
     # 疲劳与成长指标
     player_fatigues = [p.fatigue or 0 for p in active_players]
     player_fitnesses = [p.fitness or 100 for p in active_players]
@@ -595,6 +651,17 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         avg_max_body_wear=round(avg(max_wears), 2),
         players_body_wear_over_70=sum(1 for value in max_wears if value >= 70),
         players_body_wear_over_90=sum(1 for value in max_wears if value >= 90),
+        medical_treatments_total=medical_treatments_total,
+        medical_aggressive_total=medical_aggressive_total,
+        medical_cost_total=round(medical_cost_total, 2),
+        medical_reserve_paid_total=round(medical_reserve_paid_total, 2),
+        medical_cash_paid_total=round(medical_cash_paid_total, 2),
+        reserve_spent_total=round(reserve_spent_total, 2),
+        reserve_auto_total=round(reserve_auto_total, 2),
+        teams_reserve_depleted=teams_reserve_depleted,
+        avg_reserve_usage_pct=round(avg(reserve_usage_pcts) * 100, 2) if reserve_usage_pcts else 0.0,
+        median_reserve_usage_pct=round(sorted(reserve_usage_pcts)[len(reserve_usage_pcts) // 2] * 100, 2) if reserve_usage_pcts else 0.0,
+        off_budget_medical_pct=round(off_budget_medical_pct, 3),
     )
     return summary
 
@@ -611,6 +678,15 @@ async def collect_team_rows(db, season: Season) -> list[dict[str, Any]]:
         await db.execute(select(TeamSeasonFinance).where(TeamSeasonFinance.season_id == season.id))
     ).scalars().all()
     finance_by_team = {finance.team_id: finance for finance in finance_rows}
+
+    # 按球队分组收集医疗数据
+    treatments_by_team: dict[str, list[InjuryTreatment]] = defaultdict(list)
+    if await has_table(db, "injury_treatments"):
+        treatments = (
+            await db.execute(select(InjuryTreatment).where(InjuryTreatment.season_id == season.id))
+        ).scalars().all()
+        for t in treatments:
+            treatments_by_team[str(t.team_id)].append(t)
 
     teams = (
         await db.execute(select(Team, User).join(User, Team.user_id == User.id))
@@ -651,6 +727,14 @@ async def collect_team_rows(db, season: Season) -> list[dict[str, Any]]:
         cap = decimal_float(finance.wage_cap) if finance else 0.0
         bill = decimal_float(finance.wage_bill) if finance else 0.0
 
+        team_treatments = treatments_by_team.get(str(team.id), [])
+        reserve_budget = decimal_float(finance.reserve_budget) if finance else 0.0
+        reserve_spent = decimal_float(finance.reserve_spent) if finance else 0.0
+        reserve_auto = decimal_float(finance.reserve_auto_used) if finance else 0.0
+        reserve_medical = decimal_float(finance.reserve_medical_used) if finance else 0.0
+        reserve_events = int(finance.reserve_events_used) if finance else 0
+        locked_budget = decimal_float(finance.locked_budget_total) if finance else 0.0
+
         rows.append({
             "season_number": season.season_number,
             "season_id": season.id,
@@ -684,6 +768,22 @@ async def collect_team_rows(db, season: Season) -> list[dict[str, Any]]:
             "balance": round(decimal_float(finance.current_balance), 2) if finance else 0.0,
             "financial_health": enum_value(finance.financial_health) if finance else "",
             "overspend_level": enum_value(finance.overspend_level) if finance else "",
+            # 风险准备金与医疗
+            "reserve_budget": round(reserve_budget, 2),
+            "reserve_spent": round(reserve_spent, 2),
+            "reserve_auto_used": round(reserve_auto, 2),
+            "reserve_medical_used": round(reserve_medical, 2),
+            "reserve_events_used": reserve_events,
+            "reserve_usage_pct": round(reserve_spent / reserve_budget * 100, 2) if reserve_budget > 0 else 0.0,
+            "reserve_pct_of_locked": round(reserve_budget / locked_budget * 100, 2) if locked_budget > 0 else 0.0,
+            "medical_count": len(team_treatments),
+            "medical_cost": round(sum(decimal_float(t.cost) for t in team_treatments), 2),
+            "medical_reserve_paid": round(sum(decimal_float(t.reserve_paid) for t in team_treatments), 2),
+            "medical_cash_paid": round(sum(decimal_float(t.cash_paid) for t in team_treatments), 2),
+            "medical_enhanced": sum(1 for t in team_treatments if t.plan == TreatmentPlan.ENHANCED),
+            "medical_specialist": sum(1 for t in team_treatments if t.plan == TreatmentPlan.SPECIALIST),
+            "medical_aggressive": sum(1 for t in team_treatments if t.plan == TreatmentPlan.AGGRESSIVE),
+            "medical_avg_days_reduced": round(avg([decimal_float(t.days_reduced) for t in team_treatments]), 2) if team_treatments else 0.0,
         })
     return rows
 
@@ -1613,6 +1713,184 @@ def short_id(value: Any) -> str:
     return text[:8]
 
 
+def _build_reserve_medical_section(season_rows: list[dict[str, Any]], team_rows: list[dict[str, Any]]) -> list[str]:
+    """生成风险准备金与医疗报告的 Markdown 行列表。"""
+    lines: list[str] = []
+    if not season_rows or not team_rows:
+        return lines
+
+    # 全联盟汇总（取自 season_rows）
+    latest = season_rows[-1]
+    lines.extend([
+        "## Reserve & Medical Signals",
+        "",
+        "### League-Wide Summary",
+        "",
+        f"- Medical treatments total (latest season): {latest.get('medical_treatments_total', 0)}",
+        f"- Aggressive treatments total: {latest.get('medical_aggressive_total', 0)}",
+        f"- Medical cost total: {latest.get('medical_cost_total', 0):,.2f}",
+        f"- Reserve paid / Cash paid: {latest.get('medical_reserve_paid_total', 0):,.2f} / {latest.get('medical_cash_paid_total', 0):,.2f}",
+        f"- Reserve spent total: {latest.get('reserve_spent_total', 0):,.2f}",
+        f"- Reserve auto-used total: {latest.get('reserve_auto_total', 0):,.2f}",
+        f"- Teams with depleted reserve: {latest.get('teams_reserve_depleted', 0)}",
+        f"- Avg reserve usage %: {latest.get('avg_reserve_usage_pct', 0):.1f}%",
+        f"- Median reserve usage %: {latest.get('median_reserve_usage_pct', 0):.1f}%",
+        f"- Off-budget medical / locked budget: {latest.get('off_budget_medical_pct', 0):.3f}%",
+        "",
+    ])
+
+    # 按赛季追踪医疗趋势
+    lines.extend([
+        "### Season-by-Season Medical Trend",
+        "",
+        "| Season | Treatments | Aggressive | Cost | Reserve Paid | Cash Paid | Reserve Spent | Reserve Auto | Depleted |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ])
+    for row in season_rows:
+        lines.append(
+            "| {season} | {treatments} | {aggressive} | {cost:,.0f} | {reserve:,.0f} | {cash:,.0f} | {spent:,.0f} | {auto:,.0f} | {depleted} |".format(
+                season=row.get("season_number", ""),
+                treatments=row.get("medical_treatments_total", 0),
+                aggressive=row.get("medical_aggressive_total", 0),
+                cost=row.get("medical_cost_total", 0),
+                reserve=row.get("medical_reserve_paid_total", 0),
+                cash=row.get("medical_cash_paid_total", 0),
+                spent=row.get("reserve_spent_total", 0),
+                auto=row.get("reserve_auto_total", 0),
+                depleted=row.get("teams_reserve_depleted", 0),
+            )
+        )
+    lines.append("")
+
+    # AI vs 人类对比（所有赛季聚合）
+    ai_rows = [r for r in team_rows if r.get("is_ai")]
+    human_rows = [r for r in team_rows if not r.get("is_ai")]
+
+    def agg_medical(rows: list[dict[str, Any]]) -> dict[str, Any]:
+        n = len(rows) if rows else 1
+        return {
+            "teams": len(rows),
+            "avg_reserve_pct": avg([float(r.get("reserve_pct_of_locked") or 0) for r in rows]),
+            "avg_reserve_usage": avg([float(r.get("reserve_usage_pct") or 0) for r in rows]),
+            "avg_medical_count": sum(float(r.get("medical_count") or 0) for r in rows) / n,
+            "avg_medical_cost": sum(float(r.get("medical_cost") or 0) for r in rows) / n,
+            "total_enhanced": sum(int(r.get("medical_enhanced") or 0) for r in rows),
+            "total_specialist": sum(int(r.get("medical_specialist") or 0) for r in rows),
+            "total_aggressive": sum(int(r.get("medical_aggressive") or 0) for r in rows),
+            "avg_days_reduced": avg([float(r.get("medical_avg_days_reduced") or 0) for r in rows]),
+        }
+
+    ai_agg = agg_medical(ai_rows)
+    human_agg = agg_medical(human_rows)
+
+    lines.extend([
+        "### AI vs Human Comparison (All Seasons)",
+        "",
+        "| Type | Teams | Avg Reserve % | Avg Usage % | Avg Treatments/Team | Avg Cost/Team | Enhanced | Specialist | Aggressive | Avg Days Reduced |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ])
+    for label, agg in [("AI", ai_agg), ("Human", human_agg)]:
+        lines.append(
+            "| {label} | {teams} | {reserve:.1f}% | {usage:.1f}% | {treatments:.2f} | {cost:,.0f} | {enhanced} | {specialist} | {aggressive} | {days:.2f} |".format(
+                label=label,
+                teams=agg["teams"],
+                reserve=agg["avg_reserve_pct"],
+                usage=agg["avg_reserve_usage"],
+                treatments=agg["avg_medical_count"],
+                cost=agg["avg_medical_cost"],
+                enhanced=agg["total_enhanced"],
+                specialist=agg["total_specialist"],
+                aggressive=agg["total_aggressive"],
+                days=agg["avg_days_reduced"],
+            )
+        )
+    lines.append("")
+
+    # 抽样球队跨赛季追踪（5 AI + 5 人类）
+    all_team_ids = list({r["team_id"] for r in team_rows})
+    ai_team_ids = [r["team_id"] for r in team_rows if r.get("is_ai")]
+    human_team_ids = [r["team_id"] for r in team_rows if not r.get("is_ai")]
+
+    # 去重并保持顺序
+    ai_team_ids = list(dict.fromkeys(ai_team_ids))
+    human_team_ids = list(dict.fromkeys(human_team_ids))
+
+    sample_size = 5
+    sampled_ai = ai_team_ids[:sample_size]
+    sampled_human = human_team_ids[:sample_size]
+
+    by_team_season: dict[str, dict[int, dict[str, Any]]] = defaultdict(dict)
+    name_by_team: dict[str, str] = {}
+    for r in team_rows:
+        tid = r["team_id"]
+        name_by_team[tid] = r.get("team_name", tid[:8])
+        by_team_season[tid][int(r["season_number"])] = r
+
+    def render_sample_team(tid: str, is_ai: bool) -> list[str]:
+        out: list[str] = []
+        out.append(f"#### {name_by_team.get(tid, tid[:8])} ({'AI' if is_ai else 'Human'})")
+        out.append("")
+        out.append("| Season | Reserve% | Reserve Usage% | Medical | Cost | Enhanced | Specialist | Aggressive | Financial Health |")
+        out.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
+        seasons = sorted(by_team_season.get(tid, {}).keys())
+        for sn in seasons:
+            r = by_team_season[tid][sn]
+            out.append(
+                "| {season} | {reserve_pct:.1f}% | {usage:.1f}% | {medical} | {cost:,.0f} | {enhanced} | {specialist} | {aggressive} | {health} |".format(
+                    season=sn,
+                    reserve_pct=r.get("reserve_pct_of_locked", 0),
+                    usage=r.get("reserve_usage_pct", 0),
+                    medical=r.get("medical_count", 0),
+                    cost=r.get("medical_cost", 0),
+                    enhanced=r.get("medical_enhanced", 0),
+                    specialist=r.get("medical_specialist", 0),
+                    aggressive=r.get("medical_aggressive", 0),
+                    health=r.get("financial_health", ""),
+                )
+            )
+        out.append("")
+        return out
+
+    lines.extend([
+        "### Sampled Team Tracking (Cross-Season)",
+        "",
+    ])
+    for tid in sampled_ai:
+        lines.extend(render_sample_team(tid, True))
+    for tid in sampled_human:
+        lines.extend(render_sample_team(tid, False))
+
+    # 平衡性验证
+    total_teams = len(ai_rows) + len(human_rows)
+    total_treatments = sum(int(r.get("medical_count") or 0) for r in team_rows)
+    total_aggressive = sum(int(r.get("medical_aggressive") or 0) for r in team_rows)
+    treatments_per_team = total_treatments / total_teams if total_teams else 0
+    aggressive_per_team = total_aggressive / total_teams if total_teams else 0
+    off_budget_pct = latest.get("off_budget_medical_pct", 0)
+    avg_usage = latest.get("avg_reserve_usage_pct", 0)
+    depleted_pct = (latest.get("teams_reserve_depleted", 0) / total_teams * 100) if total_teams else 0
+
+    checks = []
+    def check(label: str, value: float, low: float, high: float, unit: str = "") -> str:
+        status = "OK" if low <= value <= high else "WARN"
+        return f"- [{status}] {label}: {value:.2f}{unit} (target {low}-{high}{unit})"
+
+    checks.append(check("Treatments per team per season", treatments_per_team, 0.2, 1.0))
+    checks.append(check("Aggressive per team per season", aggressive_per_team, 0, 0.15))
+    checks.append(check("Off-budget medical / locked budget", off_budget_pct, 0, 3, "%"))
+    checks.append(check("Avg reserve usage", avg_usage, 20, 60, "%"))
+    checks.append(check("Teams reserve depleted", depleted_pct, 0, 15, "%"))
+
+    lines.extend([
+        "### Balance Checks",
+        "",
+    ])
+    lines.extend(checks)
+    lines.append("")
+
+    return lines
+
+
 def build_report(artifacts: RunArtifacts) -> str:
     season_rows = artifacts.season_rows
     team_rows = artifacts.team_rows
@@ -1787,6 +2065,12 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"{season_rows[-1].get('players_body_wear_over_90', 'n/a') if season_rows else 'n/a'}",
         f"- Latest avg team max-wear signal: {avg_team_max_wear:.2f}",
         "",
+    ]
+
+    # === 风险准备金与医疗报告 ===
+    lines.extend(_build_reserve_medical_section(season_rows, team_rows))
+
+    lines.extend([
         "## Match Tactics Signals",
         "",
         f"- Tactical setups captured: {total_tactical_setups}",
@@ -1823,7 +2107,7 @@ def build_report(artifacts: RunArtifacts) -> str:
         "",
         "| Budget Tier | Teams | Avg Budget % | Avg Youth OVR | Avg Potential | Best Prospect | Useful Rate | Fast Growth/Team | A+S/Team |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
-    ]
+    ])
 
     tier_order = ["low", "medium", "high"]
     rows_by_tier: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -1999,6 +2283,7 @@ async def run(args: argparse.Namespace) -> int:
                     "contracts={contracts} youth={youth} rookie_signed={rookie} "
                     "training={training}/{breakthroughs} fatigue={avg_fatigue} fitness={avg_fitness} "
                     "injuries={injuries}/{major} active_inj={active_injuries} wear70={wear70} "
+                    "medical={medical}/{aggressive} reserve_usage={reserve_usage:.0f}% depleted={depleted} "
                     "transfers={transfers}/{offers} releases={releases} auto_fill={auto_fill} errors={errors} status={status}"
                 ).format(
                     season=summary.season_number,
@@ -2016,6 +2301,10 @@ async def run(args: argparse.Namespace) -> int:
                     major=summary.injuries_major,
                     active_injuries=summary.active_injuries,
                     wear70=summary.players_body_wear_over_70,
+                    medical=summary.medical_treatments_total,
+                    aggressive=summary.medical_aggressive_total,
+                    reserve_usage=summary.avg_reserve_usage_pct,
+                    depleted=summary.teams_reserve_depleted,
                     transfers=summary.transfer_completed,
                     offers=summary.transfer_offers_sent,
                     releases=summary.transfer_releases,

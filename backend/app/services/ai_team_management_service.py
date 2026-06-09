@@ -77,6 +77,20 @@ class AITeamManagementService:
         )
         return list(result.scalars().all())
 
+    async def _get_team_injured_players(self, team_id: str) -> List[Player]:
+        """获取球队当前伤病球员"""
+        result = await self.db.execute(
+            select(Player)
+            .where(
+                and_(
+                    Player.team_id == team_id,
+                    Player.status == PlayerStatus.INJURED,
+                )
+            )
+            .order_by(desc(Player.ovr))
+        )
+        return list(result.scalars().all())
+
     async def _get_team_roster_count(self, team_id: str) -> int:
         """获取球队当前一线队人数。"""
         result = await self.db.execute(
@@ -107,6 +121,40 @@ class AITeamManagementService:
             .order_by(desc(Player.ovr))
         )
         return list(result.all())
+
+    # =====================================================================
+    # 伤病医疗决策 (EMERGENCY-FUND-INJURY-FINANCE-DESIGN.md §10)
+    # =====================================================================
+
+    async def run_injury_treatment_decisions(self, season_id: str) -> Dict[str, Any]:
+        """AI 球队批量伤病治疗决策"""
+        season = await self._get_current_season()
+        if not season:
+            return {"processed": 0, "treated": 0}
+
+        ai_teams = await self._get_ai_teams()
+        treated_count = 0
+
+        from app.services.injury_treatment_service import InjuryTreatmentService
+        treatment_service = InjuryTreatmentService(self.db)
+
+        for team in ai_teams:
+            try:
+                injured_players = await self._get_team_injured_players(team.id)
+                for player in injured_players:
+                    result = await treatment_service.ai_evaluate_and_treat(
+                        team_id=team.id,
+                        player=player,
+                        season_id=season_id,
+                    )
+                    if result:
+                        treated_count += 1
+            except Exception as e:
+                logger.exception(f"AI injury treatment decision failed for team {team.id}")
+
+        await self.db.commit()
+        logger.info(f"AI 伤病治疗决策完成: treated={treated_count}, teams={len(ai_teams)}")
+        return {"processed": len(ai_teams), "treated": treated_count}
 
     # =====================================================================
     # 1. 赛季开始规划

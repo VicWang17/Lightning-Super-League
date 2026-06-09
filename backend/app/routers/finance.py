@@ -18,6 +18,7 @@ from app.schemas import (
     BudgetPlanSchema,
     SponsorContractSchema,
     SponsorOption,
+    ReserveStatusSchema,
 )
 from app.dependencies import get_db, get_current_user
 from app.services.finance_service import FinanceService
@@ -266,6 +267,31 @@ async def get_sponsor_contract(
             status=contract.status.value,
         )
     )
+
+
+@router.get(
+    "/{team_id}/finance/reserve",
+    response_model=ResponseSchema[ReserveStatusSchema],
+    summary="获取风险准备金状态",
+    description="获取球队风险准备金的可用额、已用额、风险等级等",
+)
+async def get_reserve_status(
+    team_id: str,
+    season_id: Optional[str] = Query(None, description="赛季ID，不传则使用当前赛季"),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取风险准备金状态"""
+    from app.services.injury_treatment_service import InjuryTreatmentService
+    
+    service = InjuryTreatmentService(db)
+    if not season_id:
+        season_id = await service._get_current_season_id(team_id)
+    if not season_id:
+        raise HTTPException(status_code=404, detail="未找到赛季")
+    
+    status_data = await service.get_reserve_status(team_id, season_id)
+    return ResponseSchema(success=True, data=ReserveStatusSchema(**status_data))
 
 
 @router.post(

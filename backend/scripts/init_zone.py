@@ -35,7 +35,7 @@ from app.models import (
     Player,
 )
 from app.core.formats import get_default_format
-from app.services.player_generator import PlayerGenerator
+from app.services.player_generator import PlayerGenerator, calculate_initial_team_overall
 from data.teams_and_users import LEAGUE_SYSTEMS
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -185,7 +185,7 @@ async def init_zone_teams_and_users(db: AsyncSession, zone_id: int, systems: dic
                     short_name=team_name[:4],
                     user_id=user.id,
                     current_league_id=league.id,
-                    overall_rating=50 + (4 - level) * 5 + (16 - idx) // 3,
+                    overall_rating=calculate_initial_team_overall(level, idx),
                     status=TeamStatus.ACTIVE
                 )
                 db.add(team)
@@ -220,9 +220,14 @@ async def init_zone_players(db: AsyncSession, zone_id: int, teams: list) -> list
     
     generator = PlayerGenerator()
     players = []
+    league_levels = dict((await db.execute(select(League.id, League.level))).all())
     
     for team in teams:
-        for player in generator.generate_squad(team, size=15):
+        for player in generator.generate_squad(
+            team,
+            size=15,
+            league_level=league_levels.get(team.current_league_id, 4),
+        ):
             db.add(player)
             players.append(player)
         

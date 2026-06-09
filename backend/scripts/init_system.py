@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
+from sqlalchemy import select, text
 from passlib.context import CryptContext
 
 from app.config import get_settings
@@ -35,7 +35,7 @@ from app.models import (
     LeagueSystem, League, 
     Player, PlayerPosition, PlayerFoot, PlayerStatus, SquadRole
 )
-from app.services.player_generator import PlayerGenerator
+from app.services.player_generator import PlayerGenerator, calculate_initial_team_overall
 from scripts.init_wage_configs import init_wage_configs
 from data.teams_and_users import LEAGUE_SYSTEMS
 from app.core.formats import get_default_format
@@ -222,7 +222,7 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
                         short_name=HUMAN_TEAM_SHORT_NAME[:4],
                         user_id=user.id,
                         current_league_id=league.id,
-                        overall_rating=50 + (4 - level) * 5 + (16 - idx) // 3,
+                        overall_rating=calculate_initial_team_overall(level, idx),
                         status=TeamStatus.ACTIVE
                     )
                     db.add(team)
@@ -274,7 +274,7 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
                     short_name=team_name[:4],
                     user_id=user.id,
                     current_league_id=league.id,
-                    overall_rating=50 + (4 - level) * 5 + (16 - idx) // 3,
+                    overall_rating=calculate_initial_team_overall(level, idx),
                     status=TeamStatus.ACTIVE
                 )
                 db.add(team)
@@ -311,9 +311,14 @@ async def init_players(db: AsyncSession, teams: list) -> list:
     
     generator = PlayerGenerator()
     all_players = []
+    league_levels = dict((await db.execute(select(League.id, League.level))).all())
     
     for idx, team in enumerate(teams):
-        players = generator.generate_squad(team, size=15)
+        players = generator.generate_squad(
+            team,
+            size=15,
+            league_level=league_levels.get(team.current_league_id, 4),
+        )
         for p in players:
             db.add(p)
             all_players.append(p)

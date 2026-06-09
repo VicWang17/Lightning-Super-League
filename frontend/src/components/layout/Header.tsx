@@ -11,6 +11,13 @@ function Header() {
     return localStorage.getItem('game-skin') === 'blue' ? 'blue' : 'green'
   })
 
+  const modeLabel = ({
+    normal: '实时',
+    paused: '暂停',
+    turbo: '加速',
+    step: '步进',
+  } as Record<string, string>)[mode] || mode
+
   useEffect(() => {
     document.documentElement.dataset.skin = skin
     localStorage.setItem('game-skin', skin)
@@ -37,7 +44,6 @@ function Header() {
     <header className="game-header h-20 flex items-center justify-between px-6 sticky top-0 z-40">
       <div className="flex items-center gap-4">
         <div className="game-hud-panel px-4 py-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#7F8A63]">Manager Office</p>
           <p className="text-sm font-black text-[#E8EAD8]">俱乐部中枢</p>
         </div>
       </div>
@@ -67,7 +73,7 @@ function Header() {
           </div>
           <div className="text-right">
             <p className="text-xs text-[#697157] uppercase tracking-wider">
-              {clockError ? '时钟同步失败' : `${mode}${mode === 'turbo' ? ` ×${speed}` : ''}`}
+              {clockError ? '时钟同步失败' : `${modeLabel}${mode === 'turbo' ? ` ×${speed}` : ''}`}
             </p>
             <p className="text-sm font-bold text-[#E8EAD8] font-mono">
               {virtualNow.toLocaleDateString('zh-CN', {
@@ -136,7 +142,7 @@ function Header() {
             className="skin-toggle h-9 px-3 border-2 flex items-center justify-center text-xs font-black transition-colors hover:-translate-x-0.5 hover:-translate-y-0.5"
             title="切换黑绿/黑蓝皮肤"
           >
-            {skin === 'green' ? 'BLUE' : 'GREEN'}
+            {skin === 'green' ? '蓝' : '绿'}
           </button>
           <button className="game-action-btn w-9 h-9 border-2 flex items-center justify-center transition-colors hover:-translate-x-0.5 hover:-translate-y-0.5">
             <Bell className="w-4 h-4" />

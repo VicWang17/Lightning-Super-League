@@ -1,37 +1,177 @@
-import { useParams, Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { Weight, Footprints, PenSquare } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import {
-  Clock, ChevronLeft, Calendar,
-  TrendingUp, Award, Ruler, User, Shield, Target, Zap
+  Award,
+  Calendar,
+  Chart,
+  ChevronLeft,
+  Clock,
+  PenSquare,
+  Shield,
+  Target,
+  Trophy,
+  User,
 } from '../../components/ui/pixel-icons'
-import { Card } from '../../components/ui/Card'
-import { PlayerTabs } from '../../components/players/PlayerTabs'
 import { ContractModal } from '../../components/players/ContractModal'
-import { getPositionColor, type Player, type PlayerContract, type PlayerState } from '../../types/player'
+import {
+  POSITION_NAMES,
+  getPositionColor,
+  type Player,
+  type PlayerContract,
+  type PlayerState,
+} from '../../types/player'
 import { api } from '../../api/client'
 
-function StatItem({
-  label,
-  total,
-  played,
-  suffix = '',
-}: {
+type ProfileTab = 'overview' | 'abilities' | 'career' | 'records'
+
+interface AttributeItem {
+  key: keyof Player
   label: string
-  total: number
-  played: number
-  suffix?: string
-}) {
-  const avg = played > 0 ? (total / played).toFixed(1) : '0.0'
-  return (
-    <div className="flex flex-col bg-[#2D2D44] rounded-lg px-3 py-2">
-      <span className="text-xs text-[#8B8BA7]">{label}</span>
-      <span className="font-bold text-sm pixel-number mt-1">
-        {total}
-        {suffix} <span className="text-[#8B8BA7] text-xs font-normal">场均 {avg}</span>
-      </span>
-    </div>
-  )
+}
+
+interface AttributeGroup {
+  title: string
+  subtitle: string
+  items: AttributeItem[]
+}
+
+const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
+  { id: 'abilities', label: '能力', icon: Chart },
+  { id: 'overview', label: '档案', icon: User },
+  { id: 'career', label: '生涯', icon: Calendar },
+  { id: 'records', label: '纪录', icon: Trophy },
+]
+
+const FOOT_NAMES: Record<string, string> = {
+  RIGHT: '右脚',
+  LEFT: '左脚',
+  BOTH: '双脚',
+}
+
+const STATUS_NAMES: Record<string, string> = {
+  ACTIVE: '可出场',
+  INJURED: '伤病',
+  SUSPENDED: '停赛',
+  RETIRED: '退役',
+}
+
+const FORM_NAMES: Record<string, string> = {
+  HOT: '火热',
+  GOOD: '良好',
+  NEUTRAL: '稳定',
+  LOW: '低迷',
+}
+
+const ROLE_NAMES: Record<string, string> = {
+  key_player: '核心球员',
+  first_team: '一线队',
+  rotation: '轮换',
+  backup: '替补',
+  hot_prospect: '希望之星',
+  youngster: '青训球员',
+  not_needed: '不在计划',
+}
+
+const FIELD_ATTRIBUTE_GROUPS: AttributeGroup[] = [
+  {
+    title: '终结与进攻',
+    subtitle: '射门、禁区处理和无球威胁',
+    items: [
+      { key: 'sho', label: '射门' },
+      { key: 'fin', label: '远射' },
+      { key: 'hea', label: '头球' },
+      { key: 'pk', label: '点球' },
+      { key: 'fk', label: '任意球' },
+    ],
+  },
+  {
+    title: '控球与传递',
+    subtitle: '组织推进和前场连接能力',
+    items: [
+      { key: 'pas', label: '传球' },
+      { key: 'vis', label: '视野' },
+      { key: 'dri', label: '盘带' },
+      { key: 'con', label: '控球' },
+      { key: 'cro', label: '传中' },
+      { key: 'dec', label: '球商' },
+    ],
+  },
+  {
+    title: '身体与防守',
+    subtitle: '对抗、覆盖和抢断质量',
+    items: [
+      { key: 'spd', label: '速度' },
+      { key: 'acc', label: '爆发' },
+      { key: 'str', label: '力量' },
+      { key: 'sta', label: '体能' },
+      { key: 'bal', label: '平衡' },
+      { key: 'defe', label: '防守' },
+      { key: 'tkl', label: '抢断' },
+    ],
+  },
+]
+
+const GK_ATTRIBUTE_GROUPS: AttributeGroup[] = [
+  {
+    title: '门将技术',
+    subtitle: '扑救、反应和出击选择',
+    items: [
+      { key: 'sav', label: '扑救' },
+      { key: 'ref', label: '反应' },
+      { key: 'pos', label: '站位' },
+      { key: 'rus', label: '出击' },
+      { key: 'com', label: '镇定' },
+      { key: 'dec', label: '球商' },
+    ],
+  },
+  {
+    title: '身体与脚下',
+    subtitle: '覆盖范围和后场出球',
+    items: [
+      { key: 'spd', label: '速度' },
+      { key: 'acc', label: '爆发' },
+      { key: 'str', label: '力量' },
+      { key: 'sta', label: '体能' },
+      { key: 'pas', label: '传球' },
+      { key: 'fk', label: '任意球' },
+      { key: 'pk', label: '点球' },
+    ],
+  },
+]
+
+function formatNumber(value?: number | null, fallback = '-') {
+  return value === undefined || value === null ? fallback : String(value)
+}
+
+function formatMoney(value?: number | null) {
+  if (!value) return '-'
+  if (value >= 1000000) return `€${(value / 1000000).toFixed(1)}M`
+  return `€${Math.round(value / 1000)}K`
+}
+
+function getAbilityValue(player: Player, key: keyof Player) {
+  const nested = player.abilities?.[key as keyof NonNullable<Player['abilities']>]
+  const direct = player[key]
+  return typeof nested === 'number' ? nested : typeof direct === 'number' ? direct : 0
+}
+
+function metricPer90(value: number, minutes: number) {
+  if (!minutes) return '0.00'
+  return ((value / minutes) * 90).toFixed(2)
+}
+
+function getAbilityTone(value: number) {
+  if (value >= 16) return 'is-elite'
+  if (value >= 11) return 'is-good'
+  return 'is-basic'
+}
+
+function getRadarPoint(value: number, index: number, total: number) {
+  const angle = (Math.PI * 2 * index) / total - Math.PI / 2
+  const radius = 44 * (Math.max(0, Math.min(value, 20)) / 20)
+  const x = 50 + Math.cos(angle) * radius
+  const y = 50 + Math.sin(angle) * radius
+  return `${x.toFixed(2)},${y.toFixed(2)}`
 }
 
 function PlayerDetail() {
@@ -39,6 +179,7 @@ function PlayerDetail() {
   const [player, setPlayer] = useState<Player | null>(null)
   const [contract, setContract] = useState<PlayerContract | null>(null)
   const [playerState, setPlayerState] = useState<PlayerState | null>(null)
+  const [activeTab, setActiveTab] = useState<ProfileTab>('abilities')
   const [showContractModal, setShowContractModal] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -55,7 +196,7 @@ function PlayerDetail() {
       if (contractRes?.success) setContract(contractRes.data)
       if (stateRes?.success) setPlayerState(stateRes.data)
     } catch {
-      // ignore
+      setPlayer(null)
     } finally {
       setLoading(false)
     }
@@ -65,500 +206,356 @@ function PlayerDetail() {
     fetchData()
   }, [id])
 
+  useEffect(() => {
+    setActiveTab('abilities')
+  }, [id])
+
+  const attributeGroups = useMemo(
+    () => (player?.position === 'GK' ? GK_ATTRIBUTE_GROUPS : FIELD_ATTRIBUTE_GROUPS),
+    [player?.position]
+  )
+
   if (loading) {
-    return <div className="max-w-[1200px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return <div className="player-profile-page player-profile-empty">正在读取球员档案...</div>
   }
 
   if (!player) {
-    return <div className="max-w-[1200px] p-8 text-center text-red-400">球员未找到</div>
+    return <div className="player-profile-page player-profile-empty">球员未找到</div>
   }
 
-  const statusNames: Record<string, string> = {
-    ACTIVE: '健康',
-    INJURED: '受伤',
-    SUSPENDED: '停赛',
-    RETIRED: '退役',
-  }
+  const statusName = STATUS_NAMES[playerState?.availability || player.status] || '未知'
+  const formName = FORM_NAMES[playerState?.visible_form || player.match_form] || '未知'
+  const fitness = playerState?.fitness ?? player.fitness ?? 0
+  const avatarSrc = player.avatar_url ? `/${player.avatar_url}` : '/locker-room/jersey-placeholder-v1.png'
+  const backTo = player.team_id ? `/teams/${player.team_id}` : '/dashboard'
+  const played = player.matches_played || 0
+  const minutes = player.minutes_played || 0
 
-  const statusColors: Record<string, string> = {
-    ACTIVE: 'text-emerald-400',
-    INJURED: 'text-red-400',
-    SUSPENDED: 'text-amber-400',
-    RETIRED: 'text-[#8B8BA7]',
-  }
+  const overviewStats = [
+    { label: '每90分钟进球', value: metricPer90(player.goals || 0, minutes) },
+    { label: '每90分钟助攻', value: metricPer90(player.assists || 0, minutes) },
+    { label: '射正率', value: `${formatNumber(player.shot_accuracy, '0')}%` },
+    { label: '传球成功率', value: `${formatNumber(player.pass_accuracy, '0')}%` },
+    { label: '抢断成功率', value: `${formatNumber(player.tackle_accuracy, '0')}%` },
+    { label: '场均触球', value: played ? ((player.touches || 0) / played).toFixed(1) : '0.0' },
+  ]
 
-  const formNames: Record<string, string> = {
-    HOT: '火热',
-    GOOD: '良好',
-    NEUTRAL: '平淡',
-    LOW: '低迷',
-  }
-
-  const formColors: Record<string, string> = {
-    HOT: 'text-red-400',
-    GOOD: 'text-emerald-400',
-    NEUTRAL: 'text-[#8B8BA7]',
-    LOW: 'text-amber-400',
-  }
-
-  const squadRoleNames: Record<string, string> = {
-    key_player: '核心球员',
-    first_team: '一线队',
-    rotation: '轮换',
-    backup: '替补',
-    hot_prospect: '希望之星',
-    youngster: '青训',
-    not_needed: '不需要',
-  }
-
-  const footMap: Record<string, string> = {
-    RIGHT: '右脚',
-    LEFT: '左脚',
-    BOTH: '双脚',
-  }
-
-  // 核心属性按位置分组展示
-  const abilityGroups = [
+  const careerRows = [
     {
-      title: '进攻',
-      icon: <Target className="w-4 h-4 text-red-400" />,
-      color: 'bg-red-500',
-      attrs: [
-        { label: '射门', key: 'sho' },
-        { label: '远射', key: 'fin' },
-      ],
-    },
-    {
-      title: '技术',
-      icon: <Zap className="w-4 h-4 text-[#0D7377]" />,
-      color: 'bg-[#0D7377]',
-      attrs: [
-        { label: '传球', key: 'pas' },
-        { label: '视野', key: 'vis' },
-        { label: '盘带', key: 'dri' },
-        { label: '控球', key: 'con' },
-        { label: '传中', key: 'cro' },
-        { label: '球商', key: 'dec' },
-      ],
-    },
-    {
-      title: '身体',
-      icon: <User className="w-4 h-4 text-emerald-400" />,
-      color: 'bg-emerald-500',
-      attrs: [
-        { label: '速度', key: 'spd' },
-        { label: '爆发力', key: 'acc' },
-        { label: '力量', key: 'str' },
-        { label: '体能', key: 'sta' },
-        { label: '头球', key: 'hea' },
-        { label: '平衡', key: 'bal' },
-      ],
-    },
-    {
-      title: '防守',
-      icon: <Shield className="w-4 h-4 text-blue-400" />,
-      color: 'bg-blue-500',
-      attrs: [
-        { label: '防守意识', key: 'defe' },
-        { label: '抢断', key: 'tkl' },
-      ],
-    },
-    {
-      title: '定位球',
-      icon: <Target className="w-4 h-4 text-amber-400" />,
-      color: 'bg-amber-500',
-      attrs: [
-        { label: '任意球', key: 'fk' },
-        { label: '点球', key: 'pk' },
-      ],
+      season: '当前赛季',
+      team: player.team_id ? '当前球队' : '自由球员',
+      apps: player.matches_played,
+      goals: player.goals,
+      assists: player.assists,
+      rating: player.average_rating,
+      note: '来自球员当前统计',
     },
   ]
 
-  const gkAbilityGroups = [
-    {
-      title: '门将专属',
-      icon: <Shield className="w-4 h-4 text-amber-400" />,
-      color: 'bg-amber-500',
-      attrs: [
-        { label: '扑救', key: 'sav' },
-        { label: '反应', key: 'ref' },
-        { label: '站位', key: 'pos' },
-        { label: '镇定', key: 'com' },
-        { label: '球商', key: 'dec' },
-        { label: '出击', key: 'rus' },
-        { label: '任意球', key: 'fk' },
-        { label: '点球', key: 'pk' },
-      ],
-    },
+  const records = [
+    { label: '个人最多进球', value: player.goals || '-', note: '等待历史纪录接口拆分单场/赛季' },
+    { label: '赛季最多进球', value: player.goals || '-', note: '当前仅有本赛季累计' },
+    { label: '赛季最多助攻', value: player.assists || '-', note: '当前仅有本赛季累计' },
+    { label: '连续进球场次', value: '-', note: '等待比赛序列接口' },
+    { label: '最佳球员次数', value: '-', note: '等待奖项接口' },
+    { label: '零封场次', value: player.position === 'GK' ? player.clean_sheets || '-' : '-', note: '门将有效' },
   ]
 
-  const groups = player.position === 'GK' ? gkAbilityGroups : abilityGroups
+  const highlightedAttributes = attributeGroups
+    .flatMap(group => group.items.map(item => ({ ...item, value: getAbilityValue(player, item.key) })))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6)
 
-  const getAbilityColor = (val: number) => {
-    if (val > 15) return 'text-emerald-400'
-    if (val > 10) return 'text-[#0D7377]'
-    return 'text-white'
-  }
+  const weakAttributes = attributeGroups
+    .flatMap(group => group.items.map(item => ({ ...item, value: getAbilityValue(player, item.key) })))
+    .sort((a, b) => a.value - b.value)
+    .slice(0, 4)
+
+  const contractEnd = contract?.end_season_number ?? player.contract_end_season
+  const releaseClause = contract?.release_clause ?? player.release_clause
 
   return (
-    <div className="max-w-[1200px]">
-      {/* 返回按钮 */}
-      <Link
-        to={`/teams/${player.team_id}`}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
-      >
-        <ChevronLeft className="w-4 h-4" />
-        返回球队
-      </Link>
+    <div className="player-profile-page player-desk-page">
+      <div className="player-profile-topbar player-desk-topbar">
+        <Link to={backTo} className="profile-back-link">
+          <ChevronLeft className="h-4 w-4" />
+          返回球队
+        </Link>
+        {player.team_id && (
+          <button className="profile-contract-btn" onClick={() => setShowContractModal(true)}>
+            <PenSquare className="h-4 w-4" />
+            {contract ? '合同处理' : '签约'}
+          </button>
+        )}
+      </div>
 
-      {/* Tab 导航 */}
-      <PlayerTabs playerId={id!} />
-
-      {/* 球员信息头部 */}
-      <Card className="mb-6 bg-[#0D4A4D]/30 border-2 border-[#2D2D44] hover:-translate-y-1 hover:shadow-pixel transition-all">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-          {/* 头像 */}
-          <div className="relative">
-            <div className="w-28 h-28 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center shadow-pixel overflow-hidden">
-              {player.avatar_url ? (
-                <img src={`/${player.avatar_url}`} alt={player.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-5xl">👤</span>
-              )}
-            </div>
-            {/* 号码大标识 */}
-            {(player.squad_number || player.preferred_number) && (
-              <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-[#0D7377] border-2 border-[#2D2D44] flex items-center justify-center shadow-pixel">
-                <span className="text-lg font-bold text-white stat-number">
-                  #{player.squad_number || player.preferred_number}
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold text-white">{player.name}</h1>
-              <span className={`px-2 py-0.5 rounded-none text-xs font-medium ${getPositionColor(player.position)}`}>
-                {player.position}
-              </span>
-              <span className="px-2 py-0.5 rounded-none text-xs font-bold bg-[#1E1E2D] border border-[#0D7377] text-[#0D7377]">
-                潜力 {player.potential_letter}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-[#8B8BA7]">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" />
-                {player.age} 岁
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Ruler className="w-4 h-4" />
-                {player.height} cm
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Weight className="w-4 h-4" />
-                {player.weight} kg
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Footprints className="w-4 h-4" />
-                {footMap[player.preferred_foot]}
-              </div>
-            </div>
-            <div className="mt-3 flex items-center gap-4">
-              <span className={`text-sm ${statusColors[player.status]}`}>
-                ● {statusNames[player.status]}
-              </span>
-              <span className={`text-sm ${formColors[player.match_form]}`}>
-                {formNames[player.match_form]}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="text-center">
-              <div className="text-4xl font-bold stat-number pixel-number text-[#0D7377]">{player.ovr}</div>
-              <div className="text-xs text-[#8B8BA7]">当前能力</div>
-            </div>
-          </div>
+      <div className="dossier-card-shell">
+        <section className="player-dossier-strip">
+        <div className="dossier-avatar">
+          <img src={avatarSrc} alt={player.name} />
         </div>
-      </Card>
-
-      {/* 招牌技能 */}
-      {player.skills && player.skills.length > 0 && (
-        <Card className="mb-6" hover>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Award className="w-5 h-5 text-amber-400" />
-            招牌技能
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {player.skills.map((skill, idx) => (
-              <span
-                key={idx}
-                className={`px-3 py-1 text-sm border ${
-                  skill.type === 'negative'
-                    ? 'border-zinc-500 text-zinc-300 bg-zinc-500/10'
-                    : (skill.quality || skill.rarity) === '名人堂'
-                    ? 'border-red-500 text-red-400 bg-red-500/10'
-                    : (skill.quality || skill.rarity) === '精英'
-                    ? 'border-purple-500 text-purple-400 bg-purple-500/10'
-                    : (skill.quality || skill.rarity) === '优秀'
-                    ? 'border-blue-500 text-blue-400 bg-blue-500/10'
-                    : 'border-white/40 text-white bg-white/10'
-                }`}
-              >
-                {skill.skill_id}
-                <span className="text-xs opacity-70 ml-1">({skill.quality || skill.rarity})</span>
-              </span>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 左侧 - 详细能力 */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* 能力值 */}
-          <Card hover>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-[#0D7377]" />
-              详细能力
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {groups.map(group => (
-                <div key={group.title} className="space-y-3">
-                  <h4 className="text-sm font-medium text-[#8B8BA7] flex items-center gap-2">
-                    {group.icon}
-                    {group.title}
-                  </h4>
-                  {group.attrs.map(({ label, key }) => {
-                    const val = (player.abilities as any)?.[key] ?? (player as any)[key] ?? 0
-                    return (
-                      <div key={key}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm">{label}</span>
-                          <span className={`font-bold stat-number pixel-number ${getAbilityColor(val)}`}>{val}</span>
-                        </div>
-                        <div className="pixel-progress-track">
-                          <div
-                            className={`pixel-progress-fill ${group.color}`}
-                            style={{ width: `${(val / 20) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
+        <div className="dossier-identity">
+          <div className="dossier-name-row">
+            <h1>{player.name}</h1>
+            <span className={`profile-position ${getPositionColor(player.position)}`}>{player.position}</span>
+              <span className="profile-number">#{player.squad_number || player.preferred_number || '-'}</span>
             </div>
-          </Card>
+            <div className="dossier-vitals">
+              <span>{POSITION_NAMES[player.position]}</span>
+              <span>{player.age}岁</span>
+              <span>{player.height}cm / {player.weight}kg</span>
+              <span>{FOOT_NAMES[player.preferred_foot] || '-'}</span>
+              <span>{statusName}</span>
+            </div>
+          </div>
+          <div className="dossier-score">
+            <span>OVR</span>
+            <strong>{player.ovr}</strong>
+          </div>
+          <div className="dossier-score is-potential">
+            <span>POT</span>
+            <strong>{player.potential_letter}</strong>
+          </div>
+          <div className="dossier-status">
+            <ProfileDataLine label="状态" value={formName} />
+            <ProfileDataLine label="体能" value={`${fitness}%`} />
+          </div>
+        </section>
 
-          {/* 合同信息 */}
-          <Card hover>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">合同信息</h3>
-              {player.team_id && (
+        <nav className="player-profile-tabs player-workbench-tabs dossier-bookmarks" aria-label="球员详情标签">
+            {TABS.map(tab => {
+              const Icon = tab.icon
+              return (
                 <button
-                  onClick={() => setShowContractModal(true)}
-                  className="flex items-center gap-1 text-sm text-[#0D7377] hover:text-white transition-colors"
+                  key={tab.id}
+                  className={activeTab === tab.id ? 'is-active' : ''}
+                  onClick={() => setActiveTab(tab.id)}
                 >
-                  <PenSquare className="w-4 h-4" />
-                  {contract ? '续约' : '签约'}
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
                 </button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-[#1E1E2D]">
-                <p className="text-xs text-[#8B8BA7] mb-1">工资</p>
-                <p className="font-bold stat-number pixel-number text-white">€{(player.wage / 1000).toFixed(0)}K</p>
-              </div>
-              <div className="p-4 bg-[#1E1E2D]">
-                <p className="text-xs text-[#8B8BA7] mb-1">合同到期</p>
-                <p className="font-bold stat-number pixel-number text-white">
-                  {player.contract_end_season ? `第 ${player.contract_end_season} 赛季` : '自由身'}
-                </p>
-              </div>
-              <div className="p-4 bg-[#1E1E2D]">
-                <p className="text-xs text-[#8B8BA7] mb-1">解约金</p>
-                <p className="font-bold stat-number pixel-number text-emerald-400">
-                  {player.release_clause ? `€${(player.release_clause / 1000000).toFixed(1)}M` : '无'}
-                </p>
-              </div>
-              <div className="p-4 bg-[#1E1E2D]">
-                <p className="text-xs text-[#8B8BA7] mb-1">市场价值</p>
-                <p className="font-bold stat-number pixel-number text-[#0D7377]">€{(player.market_value / 1000000).toFixed(1)}M</p>
-              </div>
-            </div>
-          </Card>
-        </div>
+              )
+            })}
+        </nav>
 
-        {/* 右侧 - 统计和状态 */}
-        <div className="space-y-6">
-          {/* 本赛季统计 */}
-          <Card hover>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-[#0D7377]" />
-              本赛季统计
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-[#1E1E2D]">
-                <div className="text-2xl font-bold stat-number pixel-number text-white">{player.matches_played}</div>
-                <div className="text-xs text-[#8B8BA7]">出场</div>
-              </div>
-              <div className="text-center p-4 bg-[#1E1E2D]">
-                <div className="text-2xl font-bold stat-number pixel-number text-emerald-400">{player.goals}</div>
-                <div className="text-xs text-[#8B8BA7]">进球</div>
-              </div>
-              <div className="text-center p-4 bg-[#1E1E2D]">
-                <div className="text-2xl font-bold stat-number pixel-number text-[#0D7377]">{player.assists}</div>
-                <div className="text-xs text-[#8B8BA7]">助攻</div>
-              </div>
-              <div className="text-center p-4 bg-[#1E1E2D]">
-                <div className="text-2xl font-bold stat-number pixel-number text-amber-400">{player.average_rating}</div>
-                <div className="text-xs text-[#8B8BA7]">场均评分</div>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t-2 border-[#2D2D44] space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[#8B8BA7]">黄牌</span>
-                <span className="font-bold stat-number pixel-number text-yellow-400">{player.yellow_cards}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[#8B8BA7]">红牌</span>
-                <span className="font-bold stat-number pixel-number text-red-400">{player.red_cards}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[#8B8BA7]">出场时间</span>
-                <span className="font-bold stat-number pixel-number">{player.minutes_played} 分钟</span>
-              </div>
-            </div>
-          </Card>
+        <div className="player-workbench">
+          <main className="player-workbench-main">
 
-          {/* 详细数据 */}
-          <Card hover>
-            <h3 className="text-lg font-semibold mb-4">详细数据</h3>
-            <div className="space-y-4">
-              {/* 进攻 */}
-              <div>
-                <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">进攻</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <StatItem label="射门" total={player.shots} played={player.matches_played} />
-                  <StatItem label="射正" total={player.shots_on_target} played={player.matches_played} suffix={` (${player.shot_accuracy}%)`} />
-                  <StatItem label="盘带" total={player.dribbles} played={player.matches_played} suffix={` (${player.dribble_accuracy}%)`} />
-                  <StatItem label="头球" total={player.headers} played={player.matches_played} suffix={` (${player.header_accuracy}%)`} />
-                </div>
-              </div>
-              {/* 传球 */}
-              <div>
-                <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">传球</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <StatItem label="传球" total={player.passes} played={player.matches_played} suffix={` (${player.pass_accuracy}%)`} />
-                  <StatItem label="关键传球" total={player.key_passes} played={player.matches_played} />
-                  <StatItem label="传中" total={player.crosses} played={player.matches_played} suffix={` (${player.cross_accuracy}%)`} />
-                </div>
-              </div>
-              {/* 防守 */}
-              <div>
-                <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">防守</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <StatItem label="抢断" total={player.tackles} played={player.matches_played} suffix={` (${player.tackle_accuracy}%)`} />
-                  <StatItem label="拦截" total={player.interceptions} played={player.matches_played} />
-                  <StatItem label="解围" total={player.clearances} played={player.matches_played} />
-                  <StatItem label="封堵" total={player.blocks} played={player.matches_played} />
-                </div>
-              </div>
-              {/* 门将 */}
-              {player.position === 'GK' && (
+          {activeTab === 'overview' && (
+            <section className="profile-panel profile-main-panel">
+              <div className="profile-panel-heading">
                 <div>
-                  <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">门将</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <StatItem label="扑救" total={player.saves} played={player.matches_played} />
-                    <StatItem label="零封" total={player.clean_sheets} played={player.matches_played} />
-                  </div>
+                  <h2>总览判断</h2>
                 </div>
-              )}
-              {/* 其他 */}
-              <div>
-                <h4 className="text-xs text-[#8B8BA7] mb-2 uppercase tracking-wider">其他</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <StatItem label="犯规" total={player.fouls} played={player.matches_played} />
-                  <StatItem label="被犯规" total={player.fouls_drawn} played={player.matches_played} />
-                  <StatItem label="越位" total={player.offsides} played={player.matches_played} />
-                  <StatItem label="触球" total={player.touches} played={player.matches_played} />
-                  <StatItem label="失误" total={player.turnovers} played={player.matches_played} />
-                  <StatItem label="任意球" total={player.free_kicks} played={player.matches_played} />
-                  <StatItem label="点球" total={player.penalties} played={player.matches_played} />
-                </div>
+                <strong>{played} 场 · {minutes} 分钟</strong>
               </div>
-            </div>
-          </Card>
-
-          {/* 状态 */}
-          <Card hover>
-            <h3 className="text-lg font-semibold mb-4">当前状态</h3>
-            <div className="space-y-4">
-              {/* match_form 标签 */}
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 text-sm font-bold border-2 ${
-                  player.match_form === 'HOT' ? 'border-red-500 text-red-400 bg-red-500/10' :
-                  player.match_form === 'GOOD' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' :
-                  player.match_form === 'LOW' ? 'border-amber-500 text-amber-400 bg-amber-500/10' :
-                  'border-[#8B8BA7] text-[#8B8BA7] bg-[#8B8BA7]/10'
-                }`}>
-                  {formNames[player.match_form]}
-                </span>
-                {playerState?.trend && (
-                  <span className={`text-xs ${
-                    playerState.trend === 'up' ? 'text-emerald-400' :
-                    playerState.trend === 'down' ? 'text-red-400' :
-                    'text-[#8B8BA7]'
-                  }`}>
-                    {playerState.trend === 'up' ? '↗ 上升' :
-                     playerState.trend === 'down' ? '↘ 下降' : '→ 稳定'}
-                  </span>
-                )}
-              </div>
-
-              {/* 状态提示 */}
-              {playerState?.hints && playerState.hints.length > 0 && (
-                <div className="space-y-1.5">
-                  {playerState.hints.map((hint, i) => (
-                    <p key={i} className="text-sm text-[#8B8BA7]">• {hint}</p>
+              <div className="desk-overview-grid">
+                <div className="desk-ability-summary">
+                  <h3><Chart className="h-4 w-4" />最强能力</h3>
+                  {highlightedAttributes.map(item => (
+                    <AbilityRow key={String(item.key)} label={item.label} value={item.value} />
                   ))}
                 </div>
-              )}
-
-              {/* 体能条 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-[#8B8BA7]">体能</span>
-                  <span className="font-bold stat-number pixel-number">{player.fitness}%</span>
-                </div>
-                <div className="pixel-progress-track">
-                  <div
-                    className={`pixel-progress-fill ${player.fitness > 80 ? 'bg-emerald-500' : player.fitness > 50 ? 'bg-amber-500' : 'bg-red-500'}`}
-                    style={{ width: `${player.fitness}%` }}
-                  />
+                <div className="desk-ability-summary">
+                  <h3><Target className="h-4 w-4" />需要关注</h3>
+                  {weakAttributes.map(item => (
+                    <AbilityRow key={String(item.key)} label={item.label} value={item.value} />
+                  ))}
+                  <div className="profile-hints muted">这里按当前能力低项排序，不代表战术必然弱点。</div>
                 </div>
               </div>
-
-              {/* 比赛生疏提示 */}
-              {(player.match_rust_score ?? 0) < -1 && (
-                <div className="p-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
-                  ⚠ 久疏战阵，连续 {-(player.match_rust_score ?? 0)} 场未出场
+              <div className="performance-strip desk-performance-strip">
+                {overviewStats.map(item => (
+                  <div key={item.label}>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="profile-stat-columns">
+                <div>
+                  <h3><Target className="h-4 w-4" />进攻</h3>
+                  <ProfileDataLine label="射门 / 射正" value={`${player.shots || 0} / ${player.shots_on_target || 0}`} />
+                  <ProfileDataLine label="进球 / 助攻" value={`${player.goals || 0} / ${player.assists || 0}`} />
+                  <ProfileDataLine label="盘带 / 成功" value={`${player.dribbles || 0} / ${player.dribbles_succ || 0}`} />
+                  <ProfileDataLine label="关键传球" value={formatNumber(player.key_passes)} />
                 </div>
-              )}
-            </div>
-          </Card>
+                <div>
+                  <h3><Shield className="h-4 w-4" />防守</h3>
+                  <ProfileDataLine label="抢断 / 成功" value={`${player.tackles || 0} / ${player.tackles_succ || 0}`} />
+                  <ProfileDataLine label="拦截" value={formatNumber(player.interceptions)} />
+                  <ProfileDataLine label="解围" value={formatNumber(player.clearances)} />
+                  <ProfileDataLine label="封堵" value={formatNumber(player.blocks)} />
+                </div>
+                <div>
+                  <h3><Clock className="h-4 w-4" />负荷</h3>
+                  <ProfileDataLine label="出场时间" value={`${minutes} 分钟`} />
+                  <ProfileDataLine label="黄牌 / 红牌" value={`${player.yellow_cards || 0} / ${player.red_cards || 0}`} />
+                  <ProfileDataLine label="犯规 / 被犯规" value={`${player.fouls || 0} / ${player.fouls_drawn || 0}`} />
+                  <ProfileDataLine label="失误" value={formatNumber(player.turnovers)} />
+                </div>
+              </div>
+            </section>
+          )}
 
-          {/* 角色 */}
-          <Card hover>
-            <h3 className="text-lg font-semibold mb-4">球队角色</h3>
-            <div className="p-4 bg-[#0D4A4D]/30 border-2 border-[#0D7377]/30">
-              <p className="font-medium text-white">{squadRoleNames[player.squad_role]}</p>
+          {activeTab === 'abilities' && (
+            <section className="profile-panel">
+              <div className="profile-panel-heading">
+                <div>
+                  <h2>位置化能力</h2>
+                </div>
+                <strong>OVR {player.ovr}</strong>
+              </div>
+              <div className="ability-overview">
+                <AbilityRadar
+                  values={[
+                    { label: '进攻', value: player.position === 'GK' ? getAbilityValue(player, 'sav') : Math.round((getAbilityValue(player, 'sho') + getAbilityValue(player, 'fin')) / 2) },
+                    { label: '传控', value: Math.round((getAbilityValue(player, 'pas') + getAbilityValue(player, 'con') + getAbilityValue(player, 'vis')) / 3) },
+                    { label: '速度', value: Math.round((getAbilityValue(player, 'spd') + getAbilityValue(player, 'acc')) / 2) },
+                    { label: '身体', value: Math.round((getAbilityValue(player, 'str') + getAbilityValue(player, 'sta') + getAbilityValue(player, 'bal')) / 3) },
+                    { label: '防守', value: player.position === 'GK' ? getAbilityValue(player, 'pos') : Math.round((getAbilityValue(player, 'defe') + getAbilityValue(player, 'tkl')) / 2) },
+                    { label: '心智', value: Math.round((getAbilityValue(player, 'dec') + getAbilityValue(player, 'com')) / 2) },
+                  ]}
+                />
+                <div className="ability-radar-notes">
+                  <h3>能力概览</h3>
+                  <p>雷达图按位置汇总能力，不替代下方 1-20 单项数值。颜色规则：白色为基础，绿色为可靠，金色为精英。</p>
+                  <div>
+                    <span><i className="is-basic" />1-10</span>
+                    <span><i className="is-good" />11-15</span>
+                    <span><i className="is-elite" />16-20</span>
+                  </div>
+                </div>
+              </div>
+              <div className="ability-board">
+                {attributeGroups.map(group => (
+                  <div key={group.title} className="ability-cluster">
+                    <div className="ability-cluster-title">
+                      <h3>{group.title}</h3>
+                      <p>{group.subtitle}</p>
+                    </div>
+                    {group.items.map(item => {
+                      const value = getAbilityValue(player, item.key)
+                      return <AbilityRow key={String(item.key)} label={item.label} value={value} />
+                    })}
+                  </div>
+                ))}
+              </div>
+              {player.skills?.length ? (
+                <div className="signature-skills">
+                  <h3><Award className="h-4 w-4" />招牌技能</h3>
+                  <div>
+                    {player.skills.map((skill, index) => (
+                      <span key={`${skill.skill_id}-${index}`}>{skill.skill_id}<em>{skill.quality || skill.rarity}</em></span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="signature-skills muted">暂无招牌技能</div>
+              )}
+            </section>
+          )}
+
+          {activeTab === 'career' && (
+            <section className="profile-panel">
+              <div className="profile-panel-heading">
+                <div>
+                  <h2>生涯赛季</h2>
+                </div>
+                <strong>等待历史接口</strong>
+              </div>
+              <div className="career-table-wrap">
+                <table className="career-table">
+                  <thead>
+                    <tr>
+                      <th>赛季</th>
+                      <th>球队</th>
+                      <th>出场</th>
+                      <th>进球</th>
+                      <th>助攻</th>
+                      <th>评分</th>
+                      <th>备注</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {careerRows.map(row => (
+                      <tr key={row.season}>
+                        <td>{row.season}</td>
+                        <td>{row.team}</td>
+                        <td>{row.apps}</td>
+                        <td>{row.goals}</td>
+                        <td>{row.assists}</td>
+                        <td>{row.rating || '-'}</td>
+                        <td>{row.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="career-empty-note">
+                后续接入按赛季返回的球队与数据后，这里会自然扩展为完整履历表，不需要再改变页面结构。
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'records' && (
+            <section className="profile-panel">
+              <div className="profile-panel-heading">
+                <div>
+                  <h2>个人历史纪录</h2>
+                </div>
+                <strong>{player.name}</strong>
+              </div>
+              <div className="record-grid">
+                {records.map(record => (
+                  <div key={record.label} className="record-tile">
+                    <span>{record.label}</span>
+                    <strong>{record.value}</strong>
+                    <p>{record.note}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+          </main>
+
+          <aside className="player-intel-rail">
+          <div className="intel-card-scene">
+            <img src={avatarSrc} alt={player.name} />
+            <div>
+              <span>{POSITION_NAMES[player.position]}</span>
+              <strong>{ROLE_NAMES[player.squad_role] || player.squad_role || '-'}</strong>
             </div>
-          </Card>
+          </div>
+          <section className="profile-panel profile-status-panel">
+            <div className="profile-panel-heading compact">
+              <div>
+                <h2>情报栏</h2>
+              </div>
+            </div>
+            <div className="fitness-gauge">
+              <div style={{ height: `${Math.max(0, Math.min(fitness, 100))}%` }} />
+              <strong>{fitness}%</strong>
+            </div>
+            <ProfileDataLine label="可用状态" value={statusName} />
+            <ProfileDataLine label="比赛状态" value={formName} />
+            <ProfileDataLine label="趋势" value={playerState?.trend || '-'} />
+            <ProfileDataLine label="市场价值" value={formatMoney(player.market_value)} />
+            <ProfileDataLine label="工资" value={formatMoney(player.wage)} />
+            <ProfileDataLine label="合同到期" value={contractEnd ? `第 ${contractEnd} 赛季` : '自由身'} />
+            <ProfileDataLine label="解约金" value={formatMoney(releaseClause)} />
+            {playerState?.hints?.length ? (
+              <div className="profile-hints">
+                {playerState.hints.map((hint, index) => <p key={index}>{hint}</p>)}
+              </div>
+            ) : (
+              <div className="profile-hints muted">暂无状态提示</div>
+            )}
+          </section>
+          </aside>
         </div>
       </div>
 
-      {/* 合同弹窗 */}
       {showContractModal && player.team_id && (
         <ContractModal
           player={player}
@@ -568,6 +565,73 @@ function PlayerDetail() {
           onSuccess={fetchData}
         />
       )}
+    </div>
+  )
+}
+
+function ProfileDataLine({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="profile-data-line">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function AbilityRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="ability-row">
+      <span>{label}</span>
+      <div>
+        <i style={{ width: `${Math.max(0, Math.min(value, 20)) * 5}%` }} />
+      </div>
+      <strong className={`pixel-number ${getAbilityTone(value)}`}>{value}</strong>
+    </div>
+  )
+}
+
+function AbilityRadar({ values }: { values: { label: string; value: number }[] }) {
+  const points = values.map((item, index) => getRadarPoint(item.value, index, values.length)).join(' ')
+  const rings = [20, 35, 50, 65, 80].map(size => {
+    const radius = 44 * (size / 100)
+    return values.map((_, index) => {
+      const angle = (Math.PI * 2 * index) / values.length - Math.PI / 2
+      return `${(50 + Math.cos(angle) * radius).toFixed(2)},${(50 + Math.sin(angle) * radius).toFixed(2)}`
+    }).join(' ')
+  })
+
+  return (
+    <div className="ability-radar-card">
+      <svg viewBox="0 0 100 100" role="img" aria-label="能力雷达图">
+        {rings.map((ring, index) => <polygon key={index} points={ring} className="radar-ring" />)}
+        {values.map((_, index) => (
+          <line
+            key={index}
+            x1="50"
+            y1="50"
+            x2={getRadarPoint(20, index, values.length).split(',')[0]}
+            y2={getRadarPoint(20, index, values.length).split(',')[1]}
+            className="radar-axis"
+          />
+        ))}
+        <polygon points={points} className="radar-shape" />
+        {values.map((item, index) => {
+          const [x, y] = getRadarPoint(20, index, values.length).split(',').map(Number)
+          return (
+            <text key={item.label} x={x} y={y} className="radar-label">
+              {item.label}
+            </text>
+          )
+        })}
+      </svg>
+      <div className="radar-value-list">
+        {values.map(item => (
+          <span key={item.label}>
+            {item.label}
+            <strong className={`pixel-number ${getAbilityTone(item.value)}`}>{item.value}</strong>
+          </span>
+        ))}
+      </div>
     </div>
   )
 }

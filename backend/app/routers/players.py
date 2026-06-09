@@ -39,7 +39,13 @@ router = APIRouter(prefix="/players", tags=["球员"])
 
 
 def _calc_accuracy(total: int, succ: int) -> float:
-    return round((succ / total) * 100, 1) if total else 0.0
+    if not total:
+        return 0.0
+    return max(0.0, min(100.0, round((succ / total) * 100, 1)))
+
+
+def _bounded_success(total: int, succ: int) -> int:
+    return max(0, min(total, succ))
 
 
 async def _get_career_stats(db: AsyncSession, player_id: str):
@@ -103,18 +109,18 @@ async def _get_career_stats(db: AsyncSession, player_id: str):
     shots = int(row[7] or 0)
     shots_on_target = int(row[8] or 0)
     dribbles = int(row[9] or 0)
-    dribbles_succ = int(row[10] or 0)
+    dribbles_succ = _bounded_success(dribbles, int(row[10] or 0))
     headers = int(row[11] or 0)
-    headers_succ = int(row[12] or 0)
+    headers_succ = _bounded_success(headers, int(row[12] or 0))
     # 传球
     passes = int(row[13] or 0)
-    passes_succ = int(row[14] or 0)
+    passes_succ = _bounded_success(passes, int(row[14] or 0))
     key_passes = int(row[15] or 0)
     crosses = int(row[16] or 0)
-    crosses_succ = int(row[17] or 0)
+    crosses_succ = _bounded_success(crosses, int(row[17] or 0))
     # 防守
     tackles = int(row[18] or 0)
-    tackles_succ = int(row[19] or 0)
+    tackles_succ = _bounded_success(tackles, int(row[19] or 0))
     interceptions = int(row[20] or 0)
     clearances = int(row[21] or 0)
     blocks = int(row[22] or 0)
@@ -509,23 +515,23 @@ async def get_player_history(
             shots_on_target=s["shots_on_target"],
             shot_accuracy=_calc_accuracy(s["shots"], s["shots_on_target"]),
             dribbles=s["dribbles"],
-            dribbles_succ=s["dribbles_succ"],
-            dribble_accuracy=_calc_accuracy(s["dribbles"], s["dribbles_succ"]),
+            dribbles_succ=_bounded_success(s["dribbles"], s["dribbles_succ"]),
+            dribble_accuracy=_calc_accuracy(s["dribbles"], _bounded_success(s["dribbles"], s["dribbles_succ"])),
             headers=s["headers"],
-            headers_succ=s["headers_succ"],
-            header_accuracy=_calc_accuracy(s["headers"], s["headers_succ"]),
+            headers_succ=_bounded_success(s["headers"], s["headers_succ"]),
+            header_accuracy=_calc_accuracy(s["headers"], _bounded_success(s["headers"], s["headers_succ"])),
             # 传球
             passes=s["passes"],
-            passes_succ=s["passes_succ"],
-            pass_accuracy=_calc_accuracy(s["passes"], s["passes_succ"]),
+            passes_succ=_bounded_success(s["passes"], s["passes_succ"]),
+            pass_accuracy=_calc_accuracy(s["passes"], _bounded_success(s["passes"], s["passes_succ"])),
             key_passes=s["key_passes"],
             crosses=s["crosses"],
-            crosses_succ=s["crosses_succ"],
-            cross_accuracy=_calc_accuracy(s["crosses"], s["crosses_succ"]),
+            crosses_succ=_bounded_success(s["crosses"], s["crosses_succ"]),
+            cross_accuracy=_calc_accuracy(s["crosses"], _bounded_success(s["crosses"], s["crosses_succ"])),
             # 防守
             tackles=s["tackles"],
-            tackles_succ=s["tackles_succ"],
-            tackle_accuracy=_calc_accuracy(s["tackles"], s["tackles_succ"]),
+            tackles_succ=_bounded_success(s["tackles"], s["tackles_succ"]),
+            tackle_accuracy=_calc_accuracy(s["tackles"], _bounded_success(s["tackles"], s["tackles_succ"])),
             interceptions=s["interceptions"],
             clearances=s["clearances"],
             blocks=s["blocks"],

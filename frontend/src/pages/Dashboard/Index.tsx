@@ -83,6 +83,17 @@ function positionText(position?: string) {
   return position ? map[position] || position : '球员'
 }
 
+function fixtureTypeText(type?: string) {
+  const map: Record<string, string> = {
+    LEAGUE: '联赛',
+    CUP: '杯赛',
+    CUP_LIGHTNING_GROUP: '闪电杯小组赛',
+    CUP_LIGHTNING_KNOCKOUT: '闪电杯淘汰赛',
+    FRIENDLY: '友谊赛',
+  }
+  return type ? map[type] || '赛事' : '联赛'
+}
+
 function FormIndicator({ form }: { form: string }) {
   if (!form) return <span className="text-[#6E7258]">暂无</span>
 
@@ -320,8 +331,8 @@ function Dashboard() {
     ? {
         opponent: stats.next_match.opponent_name,
         isHome: stats.next_match.is_home,
-        date: `Day ${stats.next_match.day}`,
-        type: stats.next_match.fixture_type || '联赛',
+        date: `第 ${stats.next_match.day} 天`,
+        type: fixtureTypeText(stats.next_match.fixture_type),
       }
     : null
 
@@ -445,7 +456,6 @@ function Dashboard() {
           <section className="roster-ledger">
             <div className="console-heading">
               <div>
-                <p className="text-xs font-black uppercase tracking-wider text-[#9ECF45]">Training Ground</p>
                 <h2 className="text-xl font-black text-[#E8EAD8]">球员状态</h2>
               </div>
               <Link to="/training/weekly" className="console-link">训练计划</Link>
@@ -515,7 +525,7 @@ function Dashboard() {
               <>
                 <div className="match-ticket compact-ticket p-4">
                   <div className="mb-3 flex items-center justify-between border-b-2 border-[#6B4C25] pb-2">
-                    <p className="text-xs font-black uppercase tracking-widest text-[#BFA56B]">{nextMatch.type}</p>
+                    <p className="text-xs font-black text-[#BFA56B]">{nextMatch.type}</p>
                     <p className="text-xs font-black text-[#BFA56B]">{nextMatch.date}</p>
                   </div>
                   <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -528,7 +538,7 @@ function Dashboard() {
                     </div>
                     <div className="text-center">
                       <p className="font-pixel text-lg text-[#FFE2A1]">VS</p>
-                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-[#8A6B34]">Fixture</p>
+                      <p className="mt-1 text-[10px] font-black text-[#8A6B34]">赛程</p>
                     </div>
                     <div className="min-w-0 text-center">
                       <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]">
@@ -578,7 +588,7 @@ function Dashboard() {
             {[
               { label: '战术板', to: '/team/tactics', icon: Target },
               { label: '更衣室', to: '/team/players', icon: Users },
-              { label: '联赛大厅', to: leagueId ? `/leagues/${leagueId}` : '/leagues', icon: Trophy },
+              { label: '联赛', to: leagueId ? `/leagues/${leagueId}` : '/leagues', icon: Trophy },
               { label: '转会市场', to: '/transfer', icon: Wallet },
             ].map((item) => (
               <Link key={item.label} to={item.to} className="quick-dock-key">

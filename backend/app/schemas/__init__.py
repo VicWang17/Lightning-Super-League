@@ -69,6 +69,13 @@ from app.schemas.finance import (
     SponsorContractSchema,
     SponsorOption,
 )
+from app.schemas.injury_treatment import (
+    TreatmentPlanEnum,
+    TreatmentOptionSchema,
+    TreatmentApplyRequest,
+    TreatmentApplyResponse,
+    ReserveStatusSchema,
+)
 
 __all__ = [
     # Base
@@ -168,4 +175,10 @@ __all__ = [
     "BudgetPlanSchema",
     "SponsorContractSchema",
     "SponsorOption",
+    "ReserveStatusSchema",
+    # Injury Treatment
+    "TreatmentPlanEnum",
+    "TreatmentOptionSchema",
+    "TreatmentApplyRequest",
+    "TreatmentApplyResponse",
 ]

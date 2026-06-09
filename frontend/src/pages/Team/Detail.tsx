@@ -77,9 +77,7 @@ function PlayerAvatar({ player, size = 'sm' }: { player: LockerPlayer; size?: 's
       {player.avatar_url ? (
         <img src={`/${player.avatar_url}`} alt={player.name} className="h-full w-full object-cover" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-lg font-black text-[#7B8392]">
-          {player.name.charAt(0)}
-        </div>
+        <img src="/locker-room/jersey-placeholder-v1.png" alt="" className="h-full w-full object-cover" />
       )}
     </div>
   )
@@ -219,8 +217,7 @@ function TeamDetail() {
 
       <section className="locker-hero">
         <div>
-          <p className="text-xs font-black uppercase tracking-widest text-[var(--skin-accent)]">Locker Room</p>
-          <h1 className="mt-1 text-3xl font-black text-[var(--skin-text)]">{team?.name || '更衣室'}</h1>
+          <h1 className="text-3xl font-black text-[var(--skin-text)]">{team?.name || '更衣室'}</h1>
         </div>
         <div className="locker-metrics">
           <TeamMetric label="总评" value={team?.overall_rating} />
@@ -235,7 +232,6 @@ function TeamDetail() {
         <main className="locker-board">
           <div className="locker-board-header">
             <div>
-              <p className="text-xs font-black uppercase tracking-widest text-[var(--skin-accent)]">Squad Board</p>
               <h2 className="text-xl font-black text-[var(--skin-text)]">球员名单</h2>
             </div>
             <span className="text-sm font-bold text-[#7B8392]">{players.length} 名球员</span>
@@ -324,8 +320,7 @@ function TeamDetail() {
               <div className="locker-detail-top">
                 <PlayerAvatar player={selectedPlayer} size="lg" />
                 <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-[var(--skin-accent)]">Selected Player</p>
-                  <h2 className="mt-1 text-2xl font-black text-[var(--skin-text)]">{selectedPlayer.name}</h2>
+                  <h2 className="text-2xl font-black text-[var(--skin-text)]">{selectedPlayer.name}</h2>
                   <p className="text-sm font-bold text-[#7B8392]">
                     {selectedPlayer.squad_number ? `#${selectedPlayer.squad_number} · ` : ''}
                     {selectedPlayer.position} · {selectedPlayer.age}岁

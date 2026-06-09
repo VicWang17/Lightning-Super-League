@@ -5,6 +5,35 @@ from app.services.player_generator import AttributeGenerator
 
 
 class TestAttributeGeneratorDiversity:
+    def test_ovr_is_normalized_by_position_weight_total(self):
+        attrs = {attr: 20 for attr in [
+            "sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal",
+            "defe", "tkl", "vis", "cro", "con", "fin", "com", "sav", "ref",
+            "pos", "rus", "dec", "fk", "pk",
+        ]}
+
+        assert AttributeGenerator.calculate_ovr(PlayerPosition.FW, attrs) == 100
+        assert AttributeGenerator.calculate_ovr(PlayerPosition.GK, attrs) == 100
+
+    def test_top_tier_specialists_keep_professional_core_floor(self):
+        random.seed(20260608)
+
+        samples = [
+            AttributeGenerator.generate(
+                PlayerPosition.FW,
+                "射手型",
+                "标准型",
+                age=random.randint(22, 28),
+                potential_max=random.randint(90, 100),
+                team_ovr=82,
+                target_ovr=random.randint(85, 90),
+            )
+            for _ in range(80)
+        ]
+
+        assert min(attrs["spd"] for attrs in samples) >= 12
+        assert min(attrs["acc"] for attrs in samples) >= 12
+
     def test_mid_tier_forwards_can_have_clear_strengths_and_weaknesses(self):
         random.seed(20260605)
 
