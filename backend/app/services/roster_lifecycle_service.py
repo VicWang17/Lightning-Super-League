@@ -39,6 +39,7 @@ from app.services.contract_service import ContractService
 from app.services.finance_service import FinanceService
 from app.services.player_generator import PlayerGenerator
 from app.services.player_number_service import assign_squad_number
+from app.services.notification_service import NotificationService
 from app.core.logging import get_logger
 
 logger = get_logger("app.roster_lifecycle")
@@ -88,7 +89,7 @@ class RosterLifecycleService:
         logger.info(f"Starting roster lifecycle close for season {season_id} (number={current_season_number})")
 
         # 2. 处理退役
-        retired = await self._process_retirements(current_season_number)
+        retired = await self._process_retirements(current_season_number, season_id)
 
         # 3. 处理合同到期
         expired = await self._process_contract_expirations(current_season_number, season_id)
@@ -134,7 +135,7 @@ class RosterLifecycleService:
     # 退役处理
     # =====================================================================
 
-    async def _process_retirements(self, current_season_number: int) -> int:
+    async def _process_retirements(self, current_season_number: int, season_id: str) -> int:
         """处理 34+ 球员退役（设计文档 6.2）
 
         只对 status=ACTIVE 且未在青训营的球员判断。
@@ -160,15 +161,16 @@ class RosterLifecycleService:
             prob = _RETIREMENT_PROBABILITY.get(min(age, 39), 0.85)
 
             if random.random() < prob:
-                await self._retire_player(player, current_season_number)
+                await self._retire_player(player, current_season_number, season_id)
                 retired_count += 1
 
         await self.db.flush()
         logger.info(f"Retired {retired_count} players for season end")
         return retired_count
 
-    async def _retire_player(self, player: Player, current_season_number: int) -> None:
+    async def _retire_player(self, player: Player, current_season_number: int, season_id: str) -> None:
         """退役单个球员"""
+        team_id = player.team_id
         # 终止活跃合同
         result = await self.db.execute(
             select(PlayerContract).where(
@@ -203,6 +205,20 @@ class RosterLifecycleService:
         if listing:
             listing.status = ListingStatus.RETIRED
 
+        # 发送退役通知
+        if team_id:
+            notify = NotificationService(self.db)
+            age = current_season_number + abs(player.birth_offset)
+            seasons_served = max(1, current_season_number - (player.joined_first_team_season or current_season_number))
+            await notify.send_player_retired(
+                team_id=team_id,
+                season_id=season_id,
+                player_name=player.name,
+                player_id=player.id,
+                age=age,
+                seasons_served=seasons_served,
+            )
+
         logger.info(f"Player retired: {player.id} ({player.name}, age={current_season_number + abs(player.birth_offset)})")
 
     # =====================================================================
@@ -227,6 +243,7 @@ class RosterLifecycleService:
 
         expired_count = 0
         listings_created = 0
+        expired_by_team: dict[str, list[dict]] = {}
 
         for contract in contracts:
             if contract.end_season_number <= current_season_number:
@@ -256,7 +273,28 @@ class RosterLifecycleService:
                     if listing:
                         listings_created += 1
 
+                # 记录到期球员
+                if contract.team_id:
+                    expired_by_team.setdefault(contract.team_id, []).append({
+                        "id": player.id,
+                        "name": player.name,
+                    })
+
                 expired_count += 1
+
+        # 发送合同到期通知（按球队聚合）
+        if expired_by_team:
+            notify = NotificationService(self.db)
+            for team_id, players in expired_by_team.items():
+                for player_info in players:
+                    await notify.send_contract_expiring(
+                        team_id=team_id,
+                        season_id=season_id,
+                        player_name=player_info["name"],
+                        player_id=player_info["id"],
+                        end_season=current_season_number,
+                        current_season=current_season_number,
+                    )
 
         await self.db.flush()
         logger.info(f"Expired {expired_count} contracts, created {listings_created} listings")
@@ -419,6 +457,13 @@ class RosterLifecycleService:
 
         if filled > 0:
             logger.info(f"Auto-filled {filled} players for team {team.id}")
+            notify = NotificationService(self.db)
+            await notify.send_auto_fill(
+                team_id=team.id,
+                season_id=season_id,
+                filled_count=filled,
+                player_names=[],
+            )
 
         return filled
 

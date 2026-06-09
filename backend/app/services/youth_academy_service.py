@@ -33,6 +33,7 @@ from app.models.league import League
 from app.services.contract_service import ContractService
 from app.services.player_generator import PlayerGenerator
 from app.services.player_number_service import assign_squad_number
+from app.services.notification_service import NotificationService
 from app.core.logging import get_logger
 
 logger = get_logger("app.youth_academy")
@@ -73,14 +74,27 @@ class YouthAcademyService:
 
         total_created = 0
         errors = []
+        team_new_counts: Dict[str, int] = {}
 
         for team in teams:
             try:
                 created = await self._refresh_team_academy(team, season, day)
                 total_created += created
+                if created > 0:
+                    team_new_counts[team.id] = created
             except Exception as e:
                 logger.exception(f"Failed to refresh academy for team {team.id}")
                 errors.append(f"Team {team.id}: {e}")
+
+        # 发送青训刷新通知
+        notify = NotificationService(self.db)
+        for team_id, new_count in team_new_counts.items():
+            await notify.send_youth_refresh(
+                team_id=team_id,
+                season_id=season_id,
+                day=day,
+                new_count=new_count,
+            )
 
         await self.db.commit()
         logger.info(f"Youth refresh completed: {total_created} players created for season {season_id} day {day}")
@@ -239,6 +253,7 @@ class YouthAcademyService:
         day: int,
     ) -> None:
         """训练单个青训球员"""
+        old_ovr = player.ovr
         age = season.season_number + abs(player.birth_offset)
 
         # 成长系数
@@ -254,6 +269,18 @@ class YouthAcademyService:
 
         # 应用属性增长
         attrs_gained = await self._apply_growth(player, growth_budget)
+
+        # 检查 OVR 整数突破
+        if player.ovr > old_ovr:
+            notify = NotificationService(self.db)
+            await notify.send_youth_breakthrough(
+                team_id=academy_player.team_id,
+                season_id=season.id,
+                player_name=player.name,
+                player_id=player.id,
+                old_ovr=old_ovr,
+                new_ovr=player.ovr,
+            )
 
         # 更新快照
         snapshot = YouthAcademySnapshot(
@@ -457,6 +484,19 @@ class YouthAcademyService:
             player.joined_first_team_season = (await self._get_current_season()).season_number
             # 分配队内号码
             await assign_squad_number(self.db, player, team_id)
+
+        # 发送青训签约通知
+        current_season = await self._get_current_season()
+        season_id_for_notify = current_season.id if current_season else None
+        notify = NotificationService(self.db)
+        await notify.send_youth_signed(
+            team_id=team_id,
+            season_id=season_id_for_notify,
+            player_name=player.name if player else "未知球员",
+            player_id=academy_player.player_id,
+            years=years,
+            wage=float(wage),
+        )
 
         await self.db.commit()
 

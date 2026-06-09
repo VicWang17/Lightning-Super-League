@@ -25,6 +25,7 @@ from app.models.season import Season, SeasonStatus
 from app.services.player_state_service import PlayerStateService
 from app.services.finance_service import FinanceService
 from app.services.player_number_service import assign_squad_number
+from app.services.notification_service import NotificationService
 from app.core.logging import get_logger
 
 logger = get_logger("app.contract")
@@ -274,6 +275,20 @@ class ContractService:
 
         await self.db.flush()
         logger.info(f"Contract signed: player={player_id}, team={team_id}, wage={wage}, years={years}, end={end_season}")
+
+        # 发送新签约通知（排除续约和自动补员的静默签约）
+        if source not in ("normal", "auto_fill"):
+            notify = NotificationService(self.db)
+            await notify.send_new_signing(
+                team_id=team_id,
+                season_id=season_id,
+                player_name=player.name,
+                player_id=player_id,
+                source=source,
+                years=years,
+                wage=float(wage),
+            )
+
         return contract
 
     async def renew_contract(
