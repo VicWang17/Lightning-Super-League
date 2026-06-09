@@ -436,3 +436,13 @@ class TeamPlayerStatesResponse(BaseSchema):
     """全队球员状态列表"""
     team_id: str
     players: List[PlayerStateResponse]
+
+
+class PlayerFeedbackResponse(BaseSchema):
+    """球员每日反馈响应"""
+    id: str
+    player_id: str
+    day_number: int
+    content: str
+    tags: List[str] = Field(default_factory=list)
+    created_at: datetime

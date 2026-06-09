@@ -30,10 +30,12 @@ from app.schemas import (
     PlayerGrowthResponse,
     GrowthCurvePoint,
     AttributeProgressItem,
+    PlayerFeedbackResponse,
 )
 from app.models import Player, PlayerSeasonStats, Season, Team, SeasonStatus
 from app.services.contract_service import ContractService
 from app.services.player_state_service import PlayerStateService
+from app.services.player_feedback_service import PlayerFeedbackService
 
 router = APIRouter(prefix="/players", tags=["球员"])
 
@@ -878,6 +880,72 @@ async def get_player_state(
             match_rust_score=player.match_rust_score,
         ),
     )
+
+
+@router.get(
+    "/{player_id}/feedback",
+    response_model=ResponseSchema[list[PlayerFeedbackResponse]],
+    summary="获取球员每日反馈",
+    description="获取球员最近 N 天的每日反馈记录，每天只生成一次。",
+)
+async def get_player_feedback(
+    player_id: str,
+    limit: int = Query(7, ge=1, le=30, description="返回最近几天的反馈"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取球员每日反馈"""
+    # 验证球员存在
+    player_result = await db.execute(select(Player).where(Player.id == player_id))
+    player = player_result.scalar_one_or_none()
+    if not player:
+        return ResponseSchema(success=False, message="球员不存在", code=404)
+    
+    # 查询现有反馈记录
+    feedback_service = PlayerFeedbackService(db)
+    feedbacks = await feedback_service.get_player_feedbacks(player_id, limit=limit)
+    
+    # 如果没有记录，尝试生成今天的反馈
+    if not feedbacks:
+        # 获取当前赛季和球队
+        season = None
+        team = None
+        day_number = 1
+        
+        if player.team_id:
+            team_result = await db.execute(select(Team).where(Team.id == player.team_id))
+            team = team_result.scalar_one_or_none()
+        
+        season_result = await db.execute(
+            select(Season)
+            .where(Season.status == SeasonStatus.ONGOING)
+            .order_by(Season.season_number.desc())
+            .limit(1)
+        )
+        season = season_result.scalar_one_or_none()
+        if season:
+            day_number = season.current_day
+        
+        feedback = await feedback_service.get_or_create_daily_feedback(
+            player=player,
+            team=team,
+            season=season,
+            day_number=day_number,
+        )
+        feedbacks = [feedback]
+    
+    data = [
+        PlayerFeedbackResponse(
+            id=f.id,
+            player_id=f.player_id,
+            day_number=f.day_number,
+            content=f.content,
+            tags=f.tags or [],
+            created_at=f.created_at,
+        )
+        for f in feedbacks
+    ]
+    
+    return ResponseSchema(success=True, data=data)
 
 
 # =====================================================================

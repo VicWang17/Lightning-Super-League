@@ -35,6 +35,9 @@ from app.models.player_contract import (
     PlayerContract,
     ContractStatus,
 )
+from app.models.player_feedback import (
+    PlayerFeedback,
+)
 from app.models.player_state_snapshot import (
     PlayerStateSnapshot,
 )
@@ -148,6 +151,8 @@ __all__ = [
     # Player Contract
     "PlayerContract",
     "ContractStatus",
+    # Player Feedback
+    "PlayerFeedback",
     # Player State Snapshot
     "PlayerStateSnapshot",
     # Wage Config

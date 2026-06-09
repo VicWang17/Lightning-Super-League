@@ -16,6 +16,7 @@ from app.schemas.player import (
     PlayerListItem, SquadRole,
     PlayerContractResponse, ContractPreviewRequest, ContractPreviewResponse,
     ContractSignRequest, PlayerStateResponse, TeamPlayerStatesResponse,
+    PlayerFeedbackResponse,
 )
 from app.schemas.league import (
     LeagueResponse, LeagueDetailResponse, LeagueSystemResponse,
@@ -120,6 +121,7 @@ __all__ = [
     "ContractSignRequest",
     "PlayerStateResponse",
     "TeamPlayerStatesResponse",
+    "PlayerFeedbackResponse",
     # League
     "LeagueResponse",
     "LeagueDetailResponse",

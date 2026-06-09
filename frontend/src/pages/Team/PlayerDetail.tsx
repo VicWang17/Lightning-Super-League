@@ -23,10 +23,11 @@ import {
   type PlayerContract,
   type PlayerState,
   type PlayerHistoryResponse,
+  type PlayerFeedback,
 } from '../../types/player'
 import { api } from '../../api/client'
 
-type ProfileTab = 'overview' | 'abilities' | 'career' | 'records'
+type ProfileTab = 'overview' | 'abilities' | 'career' | 'timeline' | 'records'
 
 interface AttributeItem {
   key: keyof Player
@@ -43,7 +44,8 @@ const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
   { id: 'abilities', label: '能力', icon: Chart },
   { id: 'overview', label: '档案', icon: User },
   { id: 'career', label: '生涯', icon: Calendar },
-  { id: 'records', label: '纪录', icon: Trophy },
+  { id: 'timeline', label: '轨迹', icon: Trophy },
+  { id: 'records', label: '纪录', icon: Award },
 ]
 
 const FOOT_NAMES: Record<string, string> = {
@@ -97,15 +99,6 @@ const FORM_NAMES: Record<string, string> = {
   LOW: '低迷',
 }
 
-const ROLE_NAMES: Record<string, string> = {
-  key_player: '核心球员',
-  first_team: '一线队',
-  rotation: '轮换',
-  backup: '替补',
-  hot_prospect: '希望之星',
-  youngster: '青训球员',
-  not_needed: '不在计划',
-}
 
 const FIELD_ATTRIBUTE_GROUPS: AttributeGroup[] = [
   {
@@ -215,6 +208,7 @@ function PlayerDetail() {
   const [contract, setContract] = useState<PlayerContract | null>(null)
   const [playerState, setPlayerState] = useState<PlayerState | null>(null)
   const [history, setHistory] = useState<PlayerHistoryResponse | null>(null)
+  const [feedbacks, setFeedbacks] = useState<PlayerFeedback[]>([])
   const [activeTab, setActiveTab] = useState<ProfileTab>('abilities')
   const [showContractModal, setShowContractModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -223,16 +217,18 @@ function PlayerDetail() {
     if (!id) return
     setLoading(true)
     try {
-      const [playerRes, contractRes, stateRes, historyRes] = await Promise.all([
+      const [playerRes, contractRes, stateRes, historyRes, feedbackRes] = await Promise.all([
         api.get<Player>(`/players/${id}`),
         api.get<PlayerContract>(`/players/${id}/contract`).catch(() => null),
         api.get<PlayerState>(`/players/${id}/state`).catch(() => null),
         api.get<PlayerHistoryResponse>(`/players/${id}/history`).catch(() => null),
+        api.get<PlayerFeedback[]>(`/players/${id}/feedback`).catch(() => null),
       ])
       if (playerRes.success) setPlayer(playerRes.data)
       if (contractRes?.success) setContract(contractRes.data)
       if (stateRes?.success) setPlayerState(stateRes.data)
       if (historyRes?.success) setHistory(historyRes.data)
+      if (feedbackRes?.success) setFeedbacks(feedbackRes.data)
     } catch {
       setPlayer(null)
     } finally {
@@ -283,12 +279,54 @@ function PlayerDetail() {
   const highlightedAttributes = attributeGroups
     .flatMap(group => group.items.map(item => ({ ...item, value: getAbilityValue(player, item.key) })))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 6)
+    .slice(0, 5)
 
   const weakAttributes = attributeGroups
     .flatMap(group => group.items.map(item => ({ ...item, value: getAbilityValue(player, item.key) })))
     .sort((a, b) => a.value - b.value)
-    .slice(0, 4)
+    .slice(0, 5)
+
+  const personalRecords = (() => {
+    if (!history) return []
+    const recs: { label: string; value: string; season?: number }[] = []
+    const s = history.seasons
+
+    if (history.summary) {
+      recs.push({ label: '生涯总出场', value: String(history.summary.total_matches) })
+      recs.push({ label: '生涯总进球', value: String(history.summary.total_goals) })
+      recs.push({ label: '生涯总助攻', value: String(history.summary.total_assists) })
+      recs.push({ label: '生涯场均评分', value: history.summary.overall_average_rating?.toFixed(2) ?? '-' })
+    }
+
+    if (s.length > 0) {
+      const maxGoals = s.reduce((a, b) => (a.goals > b.goals ? a : b))
+      recs.push({ label: '单赛季最多进球', value: String(maxGoals.goals), season: maxGoals.season_number })
+
+      const maxAssists = s.reduce((a, b) => (a.assists > b.assists ? a : b))
+      recs.push({ label: '单赛季最多助攻', value: String(maxAssists.assists), season: maxAssists.season_number })
+
+      const maxRating = s.reduce((a, b) => ((a.average_rating || 0) > (b.average_rating || 0) ? a : b))
+      recs.push({ label: '单赛季最高评分', value: maxRating.average_rating?.toFixed(2) ?? '-', season: maxRating.season_number })
+
+      const maxApps = s.reduce((a, b) => (a.matches_played > b.matches_played ? a : b))
+      recs.push({ label: '单赛季最多出场', value: String(maxApps.matches_played), season: maxApps.season_number })
+
+      const maxMinutes = s.reduce((a, b) => (a.minutes_played > b.minutes_played ? a : b))
+      recs.push({ label: '单赛季最多分钟', value: String(maxMinutes.minutes_played), season: maxMinutes.season_number })
+
+      const maxSaves = s.reduce((a, b) => ((a.saves || 0) > (b.saves || 0) ? a : b))
+      if (maxSaves.saves > 0) {
+        recs.push({ label: '单赛季最多扑救', value: String(maxSaves.saves), season: maxSaves.season_number })
+      }
+
+      const maxCS = s.reduce((a, b) => ((a.clean_sheets || 0) > (b.clean_sheets || 0) ? a : b))
+      if (maxCS.clean_sheets > 0) {
+        recs.push({ label: '单赛季最多零封', value: String(maxCS.clean_sheets), season: maxCS.season_number })
+      }
+    }
+
+    return recs
+  })()
 
   const contractEnd = contract?.end_season_number ?? player.contract_end_season
   const releaseClause = contract?.release_clause ?? player.release_clause
@@ -336,8 +374,10 @@ function PlayerDetail() {
             <strong>{player.potential_letter}</strong>
           </div>
           <div className="dossier-status">
-            <ProfileDataLine label="状态" value={formName} />
-            <ProfileDataLine label="体能" value={`${fitness}%`} />
+            <div className="dossier-status-tags">
+              <span className={`fm-tag fm-tag--${(playerState?.visible_form || player.match_form || 'NEUTRAL').toLowerCase()}`}>{formName}</span>
+              <span className={`fm-tag fm-tag--fitness${fitness >= 80 ? '-good' : fitness >= 50 ? '-mid' : '-bad'}`}>体能 {fitness}%</span>
+            </div>
           </div>
         </section>
 
@@ -368,7 +408,20 @@ function PlayerDetail() {
                 </div>
                 <strong>{played} 场 · {minutes} 分钟</strong>
               </div>
-              <div className="desk-overview-grid">
+              <div className="desk-overview-grid has-radar">
+                <div className="desk-radar-card">
+                  <h3><Chart className="h-4 w-4" />能力概览</h3>
+                  <AbilityRadar
+                    values={[
+                      { label: '进攻', value: player.position === 'GK' ? getAbilityValue(player, 'sav') : Math.round((getAbilityValue(player, 'sho') + getAbilityValue(player, 'fin')) / 2) },
+                      { label: '传控', value: Math.round((getAbilityValue(player, 'pas') + getAbilityValue(player, 'con') + getAbilityValue(player, 'vis')) / 3) },
+                      { label: '速度', value: Math.round((getAbilityValue(player, 'spd') + getAbilityValue(player, 'acc')) / 2) },
+                      { label: '身体', value: Math.round((getAbilityValue(player, 'str') + getAbilityValue(player, 'sta') + getAbilityValue(player, 'bal')) / 3) },
+                      { label: '防守', value: player.position === 'GK' ? getAbilityValue(player, 'pos') : Math.round((getAbilityValue(player, 'defe') + getAbilityValue(player, 'tkl')) / 2) },
+                      { label: '心智', value: Math.round((getAbilityValue(player, 'dec') + getAbilityValue(player, 'com')) / 2) },
+                    ]}
+                  />
+                </div>
                 <div className="desk-ability-summary">
                   <h3><Chart className="h-4 w-4" />最强能力</h3>
                   {highlightedAttributes.map(item => (
@@ -380,7 +433,6 @@ function PlayerDetail() {
                   {weakAttributes.map(item => (
                     <AbilityRow key={String(item.key)} label={item.label} value={item.value} />
                   ))}
-                  <div className="profile-hints muted">这里按当前能力低项排序，不代表战术必然弱点。</div>
                 </div>
               </div>
               <div className="performance-strip desk-performance-strip">
@@ -424,27 +476,6 @@ function PlayerDetail() {
                   <h2>位置化能力</h2>
                 </div>
                 <strong>OVR {player.ovr}</strong>
-              </div>
-              <div className="ability-overview">
-                <AbilityRadar
-                  values={[
-                    { label: '进攻', value: player.position === 'GK' ? getAbilityValue(player, 'sav') : Math.round((getAbilityValue(player, 'sho') + getAbilityValue(player, 'fin')) / 2) },
-                    { label: '传控', value: Math.round((getAbilityValue(player, 'pas') + getAbilityValue(player, 'con') + getAbilityValue(player, 'vis')) / 3) },
-                    { label: '速度', value: Math.round((getAbilityValue(player, 'spd') + getAbilityValue(player, 'acc')) / 2) },
-                    { label: '身体', value: Math.round((getAbilityValue(player, 'str') + getAbilityValue(player, 'sta') + getAbilityValue(player, 'bal')) / 3) },
-                    { label: '防守', value: player.position === 'GK' ? getAbilityValue(player, 'pos') : Math.round((getAbilityValue(player, 'defe') + getAbilityValue(player, 'tkl')) / 2) },
-                    { label: '心智', value: Math.round((getAbilityValue(player, 'dec') + getAbilityValue(player, 'com')) / 2) },
-                  ]}
-                />
-                <div className="ability-radar-notes">
-                  <h3>能力概览</h3>
-                  <p>雷达图按位置汇总能力，不替代下方 1-20 单项数值。颜色规则：白色为基础，绿色为可靠，金色为精英。</p>
-                  <div>
-                    <span><i className="is-basic" />1-10</span>
-                    <span><i className="is-good" />11-15</span>
-                    <span><i className="is-elite" />16-20</span>
-                  </div>
-                </div>
               </div>
               <div className="ability-board">
                 {attributeGroups.map(group => (
@@ -516,66 +547,112 @@ function PlayerDetail() {
             </section>
           )}
 
-          {activeTab === 'records' && (
+          {activeTab === 'timeline' && (
             <section className="profile-panel">
               <div className="profile-panel-heading">
                 <div>
-                  <h2>生涯里程碑</h2>
+                  <h2>生涯轨迹</h2>
                 </div>
                 <strong>{milestones.length}</strong>
               </div>
               {milestones.length > 0 ? (
-                <div className="record-grid">
+                <div className="career-timeline">
                   {milestones.map((m, i) => (
-                    <div key={`${m.milestone_type}-${i}`} className="record-tile">
-                      <span>{m.description}</span>
-                      <strong>第 {m.season_number} 赛季</strong>
+                    <div key={`${m.milestone_type}-${i}`} className="timeline-node">
+                      <div className="timeline-event">
+                        <span className="timeline-season">第 {m.season_number} 赛季</span>
+                        <strong className="timeline-desc">{m.description}</strong>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="career-empty-note">暂无生涯里程碑</div>
+                <div className="career-empty-note">暂无生涯轨迹</div>
+              )}
+            </section>
+          )}
+
+          {activeTab === 'records' && (
+            <section className="profile-panel">
+              <div className="profile-panel-heading">
+                <div>
+                  <h2>生涯纪录</h2>
+                </div>
+                <strong>{personalRecords.length} 项</strong>
+              </div>
+              {personalRecords.length > 0 ? (
+                <div className="record-grid">
+                  {personalRecords.map((r, i) => (
+                    <div key={i} className="record-tile">
+                      <span>{r.label}</span>
+                      <strong>{r.value}</strong>
+                      {r.season && <p>第 {r.season} 赛季</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="career-empty-note">暂无生涯纪录</div>
               )}
             </section>
           )}
           </main>
 
           <aside className="player-intel-rail">
-          <div className="intel-card-scene">
-            <img src={avatarSrc} alt={player.name} />
-            <div>
-              <span>{POSITION_NAMES[player.position]}</span>
-              <strong>{ROLE_NAMES[player.squad_role] || player.squad_role || '-'}</strong>
-            </div>
-          </div>
-          <section className="profile-panel profile-status-panel">
-            <div className="profile-panel-heading compact">
-              <div>
-                <h2>情报栏</h2>
+            <section className="intel-panel">
+              <div className="intel-panel-header">
+                <h3>情报栏</h3>
               </div>
-            </div>
-            <div className="fitness-gauge">
-              <div style={{ height: `${Math.max(0, Math.min(fitness, 100))}%` }} />
-              <strong>{fitness}%</strong>
-            </div>
-            <ProfileDataLine
-              label="可用状态"
-              value={<StatusBadge status={player.status} current_suspension={player.current_suspension} />}
-            />
-            <ProfileDataLine label="比赛状态" value={formName} />
-            <ProfileDataLine label="趋势" value={playerState?.trend || '-'} />
-            <ProfileDataLine label="市场价值" value={formatMoney(player.market_value)} />
-            <ProfileDataLine label="工资" value={formatMoney(player.wage)} />
-            <ProfileDataLine label="合同到期" value={contractEnd ? `第 ${contractEnd} 赛季` : '自由身'} />
-            <ProfileDataLine label="解约金" value={formatMoney(releaseClause)} />
-            {playerState?.hints?.length ? (
-              <div className="profile-hints">
-                {playerState.hints.map((hint, index) => <p key={index}>{hint}</p>)}
+              {feedbacks.length > 0 && (
+                <div className="player-voice">
+                  <div className="player-voice-bubble">
+                    <p>{feedbacks[0].content}</p>
+                  </div>
+                  <span className="player-voice-name">—— {player.name}</span>
+                </div>
+              )}
+              <div className="intel-data-rows">
+                <div className="intel-row">
+                  <span>可用状态</span>
+                  <strong><StatusBadge status={player.status} current_suspension={player.current_suspension} /></strong>
+                </div>
+                <div className="intel-row">
+                  <span>比赛状态</span>
+                  <strong className={`fm-text--${(playerState?.visible_form || player.match_form || 'NEUTRAL').toLowerCase()}`}>{formName}</strong>
+                </div>
+                <div className="intel-row">
+                  <span>体能</span>
+                  <strong className={`fm-text--fitness${fitness >= 80 ? '-good' : fitness >= 50 ? '-mid' : '-bad'}`}>{fitness}%</strong>
+                </div>
+                <div className="intel-row">
+                  <span>趋势</span>
+                  <strong>{playerState?.trend || '-'}</strong>
+                </div>
+                <div className="intel-divider" />
+                <div className="intel-row">
+                  <span>市场价值</span>
+                  <strong className="intel-value-default">{formatMoney(player.market_value)}</strong>
+                </div>
+                <div className="intel-row">
+                  <span>工资</span>
+                  <strong className="intel-value-default">{formatMoney(player.wage)}</strong>
+                </div>
+                <div className="intel-row">
+                  <span>合同到期</span>
+                  <strong className="intel-value-default">{contractEnd ? `第 ${contractEnd} 赛季` : '自由身'}</strong>
+                </div>
+                <div className="intel-row">
+                  <span>解约金</span>
+                  <strong className="intel-value-default">{formatMoney(releaseClause)}</strong>
+                </div>
               </div>
-            ) : (
-              <div className="profile-hints muted">暂无状态提示</div>
-            )}
-          </section>
+              {playerState?.hints?.length ? (
+                <div className="intel-hints">
+                  {playerState.hints.map((hint, index) => <p key={index}>{hint}</p>)}
+                </div>
+              ) : (
+                <div className="intel-hints muted">暂无状态提示</div>
+              )}
+            </section>
           </aside>
         </div>
       </div>

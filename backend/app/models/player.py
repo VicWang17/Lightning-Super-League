@@ -268,6 +268,7 @@ class Player(Base):
     contracts: Mapped[list["PlayerContract"]] = relationship("PlayerContract", back_populates="player")
     state_snapshots: Mapped[list["PlayerStateSnapshot"]] = relationship("PlayerStateSnapshot", back_populates="player")
     injury_treatments: Mapped[list["InjuryTreatment"]] = relationship("InjuryTreatment", back_populates="player")
+    feedbacks: Mapped[list["PlayerFeedback"]] = relationship("PlayerFeedback", back_populates="player")
     
     @property
     def age(self, current_season: int = 0) -> int:

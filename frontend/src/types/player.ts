@@ -460,3 +460,12 @@ export function getPositionColor(position: PlayerPosition): string {
 export function getPositionGroup(position: PlayerPosition): PlayerPosition {
   return position
 }
+
+export interface PlayerFeedback {
+  id: string
+  player_id: string
+  day_number: number
+  content: string
+  tags: string[]
+  created_at: string
+}
