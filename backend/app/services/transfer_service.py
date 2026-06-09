@@ -51,6 +51,7 @@ from app.services.contract_service import ContractService
 from app.services.finance_service import FinanceService
 from app.services.player_state_service import PlayerStateService
 from app.services.game_clock_state import GameClockStateService
+from app.services.notification_service import NotificationService
 
 logger = get_logger("app.transfer")
 
@@ -144,6 +145,7 @@ class TransferService:
         self.finance_service = FinanceService(db)
         self.state_service = PlayerStateService(db)
         self.clock_service = GameClockStateService(db)
+        self.notify = NotificationService(db)
 
     # =====================================================================
     # 基础查询
@@ -209,15 +211,6 @@ class TransferService:
         level = result.scalar_one_or_none()
         return level or 3
 
-    async def _is_ai_team(self, team_id: str) -> bool:
-        with self.db.no_autoflush:
-            result = await self.db.execute(
-                select(User.is_ai)
-                .join(Team, Team.user_id == User.id)
-                .where(Team.id == team_id)
-            )
-        return bool(result.scalar_one_or_none())
-
     async def _schedule_ai_offer_response(
         self,
         receiver_team_id: str,
@@ -225,7 +218,7 @@ class TransferService:
         season_id: str,
         now: datetime,
     ) -> None:
-        if not await self._is_ai_team(receiver_team_id):
+        if not await self.notify.is_ai_team(receiver_team_id):
             return
         EventQueue.add_pending(
             self.db,
@@ -383,12 +376,14 @@ class TransferService:
             scheduled_at=deadline,
         )
 
-        await self._notify_team(
-            seller_team_id,
-            season.id,
-            "球员挂牌",
-            f"你已将 {player.name} 挂牌出售，挂牌价 {float(list_price) / 10000:.1f}万。",
-            MailPriority.NORMAL,
+        await self.notify.send_mail(
+            team_id=seller_team_id,
+            season_id=season.id,
+            category=MailCategory.TRANSFER,
+            priority=MailPriority.NORMAL,
+            sender_name="转会总监",
+            subject="球员挂牌",
+            body=f"你已将 {player.name} 挂牌出售，挂牌价 {float(list_price) / 10000:.1f}万。",
         )
         return listing
 
@@ -575,12 +570,14 @@ class TransferService:
         await self._schedule_ai_offer_response(seller_team_id, negotiation.id, season.id, now)
 
         # 通知
-        await self._notify_team(
-            seller_team_id,
-            season.id,
-            "收到转会报价",
-            f"{player.name} 收到来自某球队的报价 {float(amount) / 10000:.1f}万。",
-            MailPriority.NORMAL,
+        await self.notify.send_mail(
+            team_id=seller_team_id,
+            season_id=season.id,
+            category=MailCategory.TRANSFER,
+            priority=MailPriority.NORMAL,
+            sender_name="转会总监",
+            subject="收到转会报价",
+            body=f"{player.name} 收到来自某球队的报价 {float(amount) / 10000:.1f}万。",
         )
 
         return offer
@@ -658,12 +655,14 @@ class TransferService:
         )
         await self._schedule_ai_offer_response(initial_offer.buyer_team_id, negotiation.id, initial_offer.season_id, now)
 
-        await self._notify_team(
-            initial_offer.buyer_team_id,
-            initial_offer.season_id,
-            "收到反报价",
-            f"你对 {player_name} 的报价收到反报价 {float(amount) / 10000:.1f}万。",
-            MailPriority.NORMAL,
+        await self.notify.send_mail(
+            team_id=initial_offer.buyer_team_id,
+            season_id=initial_offer.season_id,
+            category=MailCategory.TRANSFER,
+            priority=MailPriority.NORMAL,
+            sender_name="转会总监",
+            subject="收到反报价",
+            body=f"你对 {player_name} 的报价收到反报价 {float(amount) / 10000:.1f}万。",
         )
 
         return counter
@@ -747,12 +746,14 @@ class TransferService:
         )
         await self._schedule_ai_offer_response(counter_offer.seller_team_id, negotiation.id, counter_offer.season_id, now)
 
-        await self._notify_team(
-            counter_offer.seller_team_id,
-            counter_offer.season_id,
-            "收到最终报价",
-            f"某球队对 {player_name} 提交最终报价 {float(amount) / 10000:.1f}万。",
-            MailPriority.NORMAL,
+        await self.notify.send_mail(
+            team_id=counter_offer.seller_team_id,
+            season_id=counter_offer.season_id,
+            category=MailCategory.TRANSFER,
+            priority=MailPriority.NORMAL,
+            sender_name="转会总监",
+            subject="收到最终报价",
+            body=f"某球队对 {player_name} 提交最终报价 {float(amount) / 10000:.1f}万。",
         )
 
         return final
@@ -946,19 +947,23 @@ class TransferService:
         await self.state_service.recalculate_player_state(player_id, source_event="transfer_completed")
 
         # 通知
-        await self._notify_team(
-            buyer_team_id,
-            season.id,
-            "转会成交",
-            f"你已成功签下 {player.name}，支出 {float(amount) / 10000:.1f}万。",
-            MailPriority.HIGH,
+        await self.notify.send_mail(
+            team_id=buyer_team_id,
+            season_id=season.id,
+            category=MailCategory.TRANSFER,
+            priority=MailPriority.HIGH,
+            sender_name="转会总监",
+            subject="转会成交",
+            body=f"你已成功签下 {player.name}，支出 {float(amount) / 10000:.1f}万。",
         )
-        await self._notify_team(
-            seller_team_id,
-            season.id,
-            "转会成交",
-            f"{player.name} 已出售，收入 {float(seller_income) / 10000:.1f}万 (扣税 {float(tax) / 10000:.1f}万)。",
-            MailPriority.HIGH,
+        await self.notify.send_mail(
+            team_id=seller_team_id,
+            season_id=season.id,
+            category=MailCategory.TRANSFER,
+            priority=MailPriority.HIGH,
+            sender_name="转会总监",
+            subject="转会成交",
+            body=f"{player.name} 已出售，收入 {float(seller_income) / 10000:.1f}万 (扣税 {float(tax) / 10000:.1f}万)。",
         )
 
         return record
@@ -1097,12 +1102,14 @@ class TransferService:
         self.db.add(record)
         await self.db.flush()
 
-        await self._notify_team(
-            team_id,
-            season.id,
-            "球员解约",
-            f"{player.name} 已解约，支付违约金 {float(penalty) / 10000:.1f}万。球员进入自由市场。",
-            MailPriority.NORMAL,
+        await self.notify.send_mail(
+            team_id=team_id,
+            season_id=season.id,
+            category=MailCategory.TRANSFER,
+            priority=MailPriority.NORMAL,
+            sender_name="转会总监",
+            subject="球员解约",
+            body=f"{player.name} 已解约，支付违约金 {float(penalty) / 10000:.1f}万。球员进入自由市场。",
         )
 
         return record
@@ -1216,35 +1223,4 @@ class TransferService:
         await self.db.flush()
         return stats
 
-    # =====================================================================
-    # 通知
-    # =====================================================================
 
-    async def _notify_team(
-        self,
-        team_id: str,
-        season_id: str,
-        subject: str,
-        body: str,
-        priority: MailPriority,
-        related_id: Optional[str] = None,
-        related_type: Optional[str] = None,
-    ) -> None:
-        team = await self._get_team(team_id)
-        if not team or not team.user_id:
-            return
-        mail = Mail(
-            user_id=team.user_id,
-            team_id=team_id,
-            season_id=season_id,
-            category=MailCategory.TRANSFER,
-            priority=priority,
-            sender_name="转会总监",
-            subject=subject,
-            body=body,
-            is_read=False,
-            has_action=False,
-            related_id=related_id,
-            related_type=related_type,
-        )
-        self.db.add(mail)

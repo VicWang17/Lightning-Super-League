@@ -25,8 +25,9 @@ from app.models.team import TeamFinance, Team
 from app.models.season import Season, Fixture, FixtureType, FixtureStatus
 from app.models.league import League, LeagueStanding
 from app.models.player import Player, PlayerStatus
-from app.models.mail import Mail, MailCategory, MailPriority
+from app.models.mail import MailCategory, MailPriority
 from app.models.user import User
+from app.services.notification_service import NotificationService
 from app.core.logging import get_logger
 from app.core.economy_config import get_economy_config
 import random
@@ -61,6 +62,7 @@ class FinanceService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.economy = get_economy_config()
+        self.notify = NotificationService(db)
     
     # =====================================================================
     # Phase 1: 核心交易与概览
@@ -179,6 +181,13 @@ class FinanceService:
             "overspend_level": season_finance.overspend_level.value,
             "budget_locked": season_finance.budget_locked_at is not None,
             "budget_locked_at": season_finance.budget_locked_at,
+            "reserve_spent": season_finance.reserve_spent,
+            "reserve_available": max(Decimal("0"), season_finance.reserve_budget - season_finance.reserve_spent),
+            "reserve_usage_pct": float(season_finance.reserve_spent / season_finance.reserve_budget) if season_finance.reserve_budget > 0 else 0.0,
+            "reserve_auto_used": season_finance.reserve_auto_used,
+            "reserve_medical_used": season_finance.reserve_medical_used,
+            "reserve_events_used": season_finance.reserve_events_used,
+            "risk_level": self._calc_risk_level(season_finance.reserve_budget, season_finance.locked_budget_total),
             "budget_plan": {
                 "team_id": team_id,
                 "target_season_id": target_season_id,
@@ -496,6 +505,11 @@ class FinanceService:
             season_finance.financial_health = health
             await self._update_overspend_level(season_finance)
             
+            # 准备金赛季末结转
+            from app.services.injury_treatment_service import InjuryTreatmentService
+            treatment_service = InjuryTreatmentService(self.db)
+            await treatment_service.settle_reserve_carryover(team_id, season_id)
+            
             # Phase 4: 发送赛季财务总结邮件
             await self._send_season_summary_mail(team_id, season_id, season_finance, stats)
         
@@ -574,17 +588,18 @@ class FinanceService:
                 self.db.add(sponsor)
                 created_sponsors += 1
             
-            is_ai = await self._is_ai_team(team_id)
-            if is_ai:
+            if await self.notify.is_ai_team(team_id):
                 # AI 自动决策
                 await self._auto_ai_budget_decision(team_id, season_id)
                 ai_auto_decisions += 1
             else:
                 # 人类玩家发送通知邮件
-                await self._send_finance_mail(
-                    team_id, season_id,
+                await self.notify.send_mail(
+                    team_id=team_id,
+                    season_id=season_id,
                     category=MailCategory.FINANCE,
                     priority=MailPriority.HIGH,
+                    sender_name="财务总监",
                     subject="【重要】下赛季预算规划窗口已开启",
                     body="董事会已开启下赛季预算规划窗口，请尽快前往财务中心制定预算分配方案。\n\n"
                          "默认方案为「均衡发展」：转会25% / 青训10% / 工资55% / 储备10%。\n\n"
@@ -657,12 +672,13 @@ class FinanceService:
         
         # 向被自动处理的人类玩家发送通知
         for team_id in auto_locked_teams:
-            is_ai = await self._is_ai_team(team_id)
-            if not is_ai:
-                await self._send_finance_mail(
-                    team_id, season_id,
+            if not await self.notify.is_ai_team(team_id):
+                await self.notify.send_mail(
+                    team_id=team_id,
+                    season_id=season_id,
                     category=MailCategory.FINANCE,
                     priority=MailPriority.NORMAL,
+                    sender_name="财务总监",
                     subject="下赛季预算计划已自动锁定",
                     body="预算规划窗口已关闭。由于您未在截止前确认方案，系统已自动为您应用推荐方案：\n\n"
                          "预算策略：均衡发展（转会25% / 青训10% / 工资55% / 储备10%）\n"
@@ -935,6 +951,21 @@ class FinanceService:
             season_finance.overspend_level = OverspendLevel.WARNING
         else:
             season_finance.overspend_level = OverspendLevel.NONE
+    
+    @staticmethod
+    def _calc_risk_level(reserve_budget: Decimal, locked_budget_total: Decimal) -> str:
+        """计算风险等级"""
+        if locked_budget_total <= 0:
+            return "标准"
+        reserve_pct = int((reserve_budget / locked_budget_total) * 100)
+        if reserve_pct <= 4:
+            return "激进"
+        elif reserve_pct <= 9:
+            return "标准"
+        elif reserve_pct <= 14:
+            return "稳健"
+        else:
+            return "保守"
     
     async def _get_current_season_for_team(self, team_id: str) -> Optional[Season]:
         result = await self.db.execute(select(Team).where(Team.id == team_id))
@@ -1267,16 +1298,6 @@ class FinanceService:
     # =====================================================================
     # Phase 4: AI 决策与邮件通知
     # =====================================================================
-    
-    async def _is_ai_team(self, team_id: str) -> bool:
-        """检查球队是否为 AI 控制"""
-        result = await self.db.execute(
-            select(User.is_ai)
-            .join(Team, Team.user_id == User.id)
-            .where(Team.id == team_id)
-        )
-        is_ai = result.scalar_one_or_none()
-        return bool(is_ai)
 
     async def _ensure_budget_and_sponsor_before_finance_init(
         self,
@@ -1303,7 +1324,7 @@ class FinanceService:
             self.db.add(sponsor)
             await self.db.flush()
 
-        if await self._is_ai_team(team_id):
+        if await self.notify.is_ai_team(team_id):
             await self._auto_ai_budget_decision(team_id, season_id)
             return
 
@@ -1435,6 +1456,71 @@ class FinanceService:
             reason = "mid_table_youth_bet"
 
         preset = dict(BUDGET_PRESETS[policy])
+
+        # =====================================================================
+        # EMERGENCY-FUND-INJURY-FINANCE: AI reserve_pct 按球队状态微调
+        # =====================================================================
+        from app.models.player import Player, PlayerStatus
+        from sqlalchemy import func
+
+        # 计算球队平均年龄和人数
+        age_result = await self.db.execute(
+            select(func.avg(abs(Player.birth_offset)), func.count(Player.id))
+            .where(Player.team_id == team_id)
+            .where(Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]))
+        )
+        avg_age_row = age_result.one_or_none()
+        avg_age = float(avg_age_row[0] or 24)
+        roster_count = int(avg_age_row[1] or 0)
+
+        # 计算 30+ 球员比例（老龄化指标）
+        old_count_result = await self.db.execute(
+            select(func.count(Player.id))
+            .where(Player.team_id == team_id)
+            .where(Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]))
+            .where(abs(Player.birth_offset) >= 30)
+        )
+        old_count = old_count_result.scalar() or 0
+        old_ratio = old_count / max(roster_count, 1)
+
+        # 基础 reserve_pct 由 policy 决定
+        base_reserve = preset["reserve"]
+
+        # 规则应用（设计文档 10.2）
+        if health == FinancialHealth.D:
+            target_reserve = random.randint(5, 8)
+        elif old_ratio >= 0.4 or roster_count < 12:
+            # 老龄化阵容 或 阵容深度不足 → 稳健
+            target_reserve = random.randint(10, 14)
+        elif high_hope and health in (FinancialHealth.A, FinancialHealth.B):
+            # 冲冠强队 → 激进
+            target_reserve = random.randint(5, 10)
+        elif policy == BudgetPolicy.YOUTH_FOCUS:
+            # 青训重建队
+            target_reserve = random.randint(8, 12)
+        else:
+            target_reserve = base_reserve
+
+        # 调整其他预算项以吸收 reserve 的变化
+        delta = target_reserve - preset["reserve"]
+        if delta != 0:
+            # 优先从 transfer 吸收，其次 wage
+            transfer_absorb = min(max(delta, -preset["transfer"]), 0) if delta < 0 else max(-preset["transfer"], delta)
+            preset["transfer"] += transfer_absorb
+            delta -= transfer_absorb
+            if delta != 0:
+                wage_absorb = min(max(delta, -preset["wage"]), 0) if delta < 0 else max(-preset["wage"], delta)
+                preset["wage"] += wage_absorb
+                delta -= wage_absorb
+            # 最终余量由 youth 吸收
+            preset["youth"] += delta
+            # 确保各项非负
+            for k in preset:
+                preset[k] = max(0, preset[k])
+            # 最终用 reserve 吸收四舍五入误差，保证总和 100
+            total = sum(preset.values())
+            preset["reserve"] += 100 - total
+
         detail = {
             "reason": reason,
             "roll": float(roll),
@@ -1444,6 +1530,10 @@ class FinanceService:
             "strength_edge": float(strength_edge),
             "position_ratio": float(position_ratio) if position_ratio is not None else None,
             "wage_pressure": float(wage_pressure),
+            "avg_age": round(avg_age, 1),
+            "roster_count": roster_count,
+            "old_ratio": round(old_ratio, 2),
+            "health": health.value,
             "preset": preset,
         }
         return policy, preset, detail
@@ -1565,23 +1655,14 @@ class FinanceService:
         if level == OverspendLevel.NONE:
             return
         
-        is_ai = await self._is_ai_team(team_id)
-        if is_ai:
+        if await self.notify.is_ai_team(team_id):
             return
-        
+
         # 检查是否已经发送过同级别的警告（避免重复）
-        # 使用 related_type 标记为 overspend_{level} 以便精确去重
         related_type = f"overspend_{level.value}"
-        existing = await self.db.execute(
-            select(Mail)
-            .where(Mail.team_id == team_id)
-            .where(Mail.season_id == season_id)
-            .where(Mail.category == MailCategory.FINANCE)
-            .where(Mail.related_type == related_type)
-        )
-        if existing.scalar_one_or_none():
+        if await self.notify.check_duplicate(team_id, season_id, related_type):
             return
-        
+
         if level == OverspendLevel.WARNING:
             subject = "【注意】超支警告：工资支出接近工资帽上限"
             body = f"您的球队工资支出已超过工资帽的 90%，目前处于警告状态。[{level.value}]\n\n"
@@ -1600,11 +1681,13 @@ class FinanceService:
             priority = MailPriority.URGENT
         else:
             return
-        
-        await self._send_finance_mail(
-            team_id, season_id,
+
+        await self.notify.send_mail(
+            team_id=team_id,
+            season_id=season_id,
             category=MailCategory.FINANCE,
             priority=priority,
+            sender_name="财务总监",
             subject=subject,
             body=body,
             related_url="/finance",
@@ -1620,10 +1703,9 @@ class FinanceService:
         stats: Dict,
     ) -> None:
         """发送赛季财务总结邮件"""
-        is_ai = await self._is_ai_team(team_id)
-        if is_ai:
+        if await self.notify.is_ai_team(team_id):
             return
-        
+
         net_income = stats["total_income"] - stats["total_expense"]
         health_label = {
             FinancialHealth.A: "A 级（优秀）",
@@ -1631,14 +1713,14 @@ class FinanceService:
             FinancialHealth.C: "C 级（一般）",
             FinancialHealth.D: "D 级（困难）",
         }.get(season_finance.financial_health, "未知")
-        
+
         body = f"本赛季财务结算已完成，以下是您的财务总结：\n\n"
         body += f"赛季净收入：{int(net_income / 10000)} 万\n"
         body += f"总支出：{int(stats['total_expense'] / 10000)} 万\n"
         body += f"总收入：{int(stats['total_income'] / 10000)} 万\n"
         body += f"当前余额：{int(season_finance.current_balance / 10000)} 万\n"
         body += f"财务健康评级：{health_label}\n\n"
-        
+
         if season_finance.financial_health == FinancialHealth.A:
             body += "恭喜！您的财务管理非常出色，下赛季将获得赞助商收入和工资帽加成。"
         elif season_finance.financial_health == FinancialHealth.B:
@@ -1647,49 +1729,15 @@ class FinanceService:
             body += "您的财务状况一般，下赛季赞助商收入将减少 10%，建议加强成本控制。"
         elif season_finance.financial_health == FinancialHealth.D:
             body += "您的球队面临严重的财务困难，下赛季赞助商收入将减少 30%，且转会将受到限制。请尽快改善财务状况。"
-        
-        await self._send_finance_mail(
-            team_id, season_id,
+
+        await self.notify.send_mail(
+            team_id=team_id,
+            season_id=season_id,
             category=MailCategory.FINANCE,
             priority=MailPriority.NORMAL,
+            sender_name="财务总监",
             subject="赛季财务总结报告",
             body=body,
             related_url="/finance",
             action_label="查看详情",
         )
-    
-    async def _send_finance_mail(
-        self,
-        team_id: str,
-        season_id: str,
-        category: MailCategory,
-        priority: MailPriority,
-        subject: str,
-        body: str,
-        related_url: Optional[str] = None,
-        related_type: Optional[str] = None,
-        action_label: Optional[str] = None,
-    ) -> None:
-        """发送财务相关邮件通知"""
-        team = await self._get_team(team_id)
-        if not team:
-            return
-        
-        mail = Mail(
-            user_id=team.user_id,
-            team_id=team_id,
-            season_id=season_id,
-            category=category,
-            priority=priority,
-            sender_name="财务总监",
-            subject=subject,
-            body=body,
-            is_read=False,
-            has_action=bool(related_url),
-            action_label=action_label,
-            related_id=None,
-            related_type=related_type,
-            related_url=related_url,
-        )
-        self.db.add(mail)
-        await self.db.flush()
