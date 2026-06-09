@@ -339,6 +339,7 @@ class ContractService:
         player = await self._get_player(player_id)
         if player:
             player.team_id = None
+            player.squad_number = None
             player.contract_type = ContractType.FREE
             player.contract_end_season = None
             player.wage = Decimal("0")
@@ -380,6 +381,7 @@ class ContractService:
                     player.contract_type = ContractType.FREE
                     player.contract_end_season = None
                     player.team_id = None
+                    player.squad_number = None
                     player.wage = Decimal("0")
                 expired_count += 1
 

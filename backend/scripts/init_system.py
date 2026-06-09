@@ -16,6 +16,7 @@
 """
 import asyncio
 import os
+import random
 import sys
 from datetime import datetime, date
 from decimal import Decimal
@@ -308,24 +309,38 @@ async def init_teams_and_users(db: AsyncSession, leagues: dict) -> tuple:
 async def init_players(db: AsyncSession, teams: list) -> list:
     """为每支球队创建球员（15人 squad）"""
     print("\n⚽ 初始化球员...")
-    
+
     generator = PlayerGenerator()
     all_players = []
     league_levels = dict((await db.execute(select(League.id, League.level))).all())
-    
+
     for idx, team in enumerate(teams):
         players = generator.generate_squad(
             team,
             size=15,
             league_level=league_levels.get(team.current_league_id, 4),
         )
+        used_numbers = set()
         for p in players:
+            preferred = p.preferred_number
+            if preferred not in used_numbers:
+                p.squad_number = preferred
+                used_numbers.add(preferred)
+            else:
+                available = [n for n in range(12, 36) if n not in used_numbers]
+                if available:
+                    number = random.choice(available)
+                    p.squad_number = number
+                    used_numbers.add(number)
+                else:
+                    p.squad_number = preferred
+                    used_numbers.add(preferred)
             db.add(p)
             all_players.append(p)
-        
+
         if (idx + 1) % 32 == 0:
             print(f"   🔄 已创建 {idx + 1}/{len(teams)} 支球队球员...")
-    
+
     await db.commit()
     print(f"✅ 已创建 {len(all_players)} 名球员")
     return all_players

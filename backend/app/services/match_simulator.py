@@ -796,6 +796,7 @@ class MatchSimulator:
             
             # 伤病恢复倒计时（比赛日也算一天）
             if player.current_injury is not None:
+                body_part = player.current_injury.get("body_part", "")
                 recovered = InjuryService.tick_injury_recovery(player)
                 if recovered:
                     from app.services.notification_service import NotificationService
@@ -805,7 +806,7 @@ class MatchSimulator:
                         season_id=fixture.season_id,
                         player_name=player.name,
                         player_id=player.id,
-                        body_part=player.current_injury.get("body_part", ""),
+                        body_part=body_part,
                     )
 
             if player.status in (PlayerStatus.INJURED, PlayerStatus.SUSPENDED):

@@ -3,6 +3,10 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ChevronLeft,
   Trophy,
+  ArrowUp,
+  ArrowBigUpDash,
+  ArrowBigDown,
+  ArrowsHorizontal,
 } from '../../components/ui/pixel-icons'
 import { getPositionColor, type PlayerListItem, type PlayerState } from '../../types/player'
 import { api } from '../../api/client'
@@ -31,13 +35,6 @@ const formLabel: Record<string, string> = {
   LOW: '低迷',
 }
 
-const availabilityLabel: Record<string, string> = {
-  ACTIVE: '可用',
-  INJURED: '伤停',
-  SUSPENDED: '停赛',
-  RETIRED: '退役',
-}
-
 const formColor: Record<string, string> = {
   HOT: 'text-red-400',
   GOOD: 'text-[#9ECF45]',
@@ -55,9 +52,7 @@ function ratingValue(value: unknown) {
 
 function fitnessTone(fitness?: number) {
   if (typeof fitness !== 'number') return 'bg-[#3A3F4A]'
-  if (fitness >= 80) return 'bg-[#9ECF45]'
-  if (fitness >= 55) return 'bg-amber-500'
-  return 'bg-red-500'
+  return 'bg-[#8A927B]'
 }
 
 function TeamMetric({ label, value }: { label: string; value?: number }) {
@@ -290,8 +285,17 @@ function TeamDetail() {
                         </td>
                         <td>{player.age}</td>
                         <td className="font-black text-[var(--skin-accent)]">{player.ovr}</td>
-                        <td className={formColor[state?.visible_form || 'NEUTRAL']}>
-                          {state ? `${formLabel[state.visible_form]} · ${availabilityLabel[state.availability] || state.availability}` : '-'}
+                        <td>
+                          {state ? (
+                            <span className={formColor[state.visible_form]} title={formLabel[state.visible_form]}>
+                              {state.visible_form === 'HOT' && <ArrowBigUpDash className="h-4 w-4" />}
+                              {state.visible_form === 'GOOD' && <ArrowUp className="h-4 w-4" />}
+                              {state.visible_form === 'NEUTRAL' && <ArrowsHorizontal className="h-4 w-4" />}
+                              {state.visible_form === 'LOW' && <ArrowBigDown className="h-4 w-4" />}
+                            </span>
+                          ) : (
+                            '-'
+                          )}
                         </td>
                         <td>
                           <div className="fitness-cell">

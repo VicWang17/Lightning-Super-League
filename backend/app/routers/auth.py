@@ -191,7 +191,7 @@ async def refresh_token(
     
     # 查询用户是否存在
     user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(int(user_id))
+    user = await user_repo.get_by_id(user_id)
     
     if not user:
         raise HTTPException(
@@ -268,7 +268,7 @@ async def get_current_user(
         )
     
     user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(int(user_id))
+    user = await user_repo.get_by_id(user_id)
     
     if not user:
         raise HTTPException(

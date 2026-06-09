@@ -52,6 +52,7 @@ from app.services.finance_service import FinanceService
 from app.services.player_state_service import PlayerStateService
 from app.services.game_clock_state import GameClockStateService
 from app.services.notification_service import NotificationService
+from app.services.player_number_service import assign_squad_number
 
 logger = get_logger("app.transfer")
 
@@ -883,6 +884,8 @@ class TransferService:
 
         # 球员转队 + 合同继承 (PRD 9.3, 16.3)
         player.team_id = buyer_team_id
+        player.squad_number = None
+        await assign_squad_number(self.db, player, buyer_team_id)
         # 保留原合同字段
         # 同步 active player_contracts.team_id
         active_contract = await self._get_active_contract(player_id)

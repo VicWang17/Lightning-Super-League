@@ -19,6 +19,7 @@ import {
   type Player,
   type PlayerContract,
   type PlayerState,
+  type PlayerHistoryResponse,
 } from '../../types/player'
 import { api } from '../../api/client'
 
@@ -179,6 +180,7 @@ function PlayerDetail() {
   const [player, setPlayer] = useState<Player | null>(null)
   const [contract, setContract] = useState<PlayerContract | null>(null)
   const [playerState, setPlayerState] = useState<PlayerState | null>(null)
+  const [history, setHistory] = useState<PlayerHistoryResponse | null>(null)
   const [activeTab, setActiveTab] = useState<ProfileTab>('abilities')
   const [showContractModal, setShowContractModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -187,14 +189,16 @@ function PlayerDetail() {
     if (!id) return
     setLoading(true)
     try {
-      const [playerRes, contractRes, stateRes] = await Promise.all([
+      const [playerRes, contractRes, stateRes, historyRes] = await Promise.all([
         api.get<Player>(`/players/${id}`),
         api.get<PlayerContract>(`/players/${id}/contract`).catch(() => null),
         api.get<PlayerState>(`/players/${id}/state`).catch(() => null),
+        api.get<PlayerHistoryResponse>(`/players/${id}/history`).catch(() => null),
       ])
       if (playerRes.success) setPlayer(playerRes.data)
       if (contractRes?.success) setContract(contractRes.data)
       if (stateRes?.success) setPlayerState(stateRes.data)
+      if (historyRes?.success) setHistory(historyRes.data)
     } catch {
       setPlayer(null)
     } finally {
@@ -240,26 +244,8 @@ function PlayerDetail() {
     { label: '场均触球', value: played ? ((player.touches || 0) / played).toFixed(1) : '0.0' },
   ]
 
-  const careerRows = [
-    {
-      season: '当前赛季',
-      team: player.team_id ? '当前球队' : '自由球员',
-      apps: player.matches_played,
-      goals: player.goals,
-      assists: player.assists,
-      rating: player.average_rating,
-      note: '来自球员当前统计',
-    },
-  ]
-
-  const records = [
-    { label: '个人最多进球', value: player.goals || '-', note: '等待历史纪录接口拆分单场/赛季' },
-    { label: '赛季最多进球', value: player.goals || '-', note: '当前仅有本赛季累计' },
-    { label: '赛季最多助攻', value: player.assists || '-', note: '当前仅有本赛季累计' },
-    { label: '连续进球场次', value: '-', note: '等待比赛序列接口' },
-    { label: '最佳球员次数', value: '-', note: '等待奖项接口' },
-    { label: '零封场次', value: player.position === 'GK' ? player.clean_sheets || '-' : '-', note: '门将有效' },
-  ]
+  const seasons = history?.seasons ?? []
+  const milestones = history?.milestones ?? []
 
   const highlightedAttributes = attributeGroups
     .flatMap(group => group.items.map(item => ({ ...item, value: getAbilityValue(player, item.key) })))
@@ -462,38 +448,37 @@ function PlayerDetail() {
                 <div>
                   <h2>生涯赛季</h2>
                 </div>
-                <strong>等待历史接口</strong>
+                <strong>{seasons.length} 个赛季</strong>
               </div>
               <div className="career-table-wrap">
-                <table className="career-table">
-                  <thead>
-                    <tr>
-                      <th>赛季</th>
-                      <th>球队</th>
-                      <th>出场</th>
-                      <th>进球</th>
-                      <th>助攻</th>
-                      <th>评分</th>
-                      <th>备注</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {careerRows.map(row => (
-                      <tr key={row.season}>
-                        <td>{row.season}</td>
-                        <td>{row.team}</td>
-                        <td>{row.apps}</td>
-                        <td>{row.goals}</td>
-                        <td>{row.assists}</td>
-                        <td>{row.rating || '-'}</td>
-                        <td>{row.note}</td>
+                {seasons.length > 0 ? (
+                  <table className="career-table">
+                    <thead>
+                      <tr>
+                        <th>赛季</th>
+                        <th>球队</th>
+                        <th>出场</th>
+                        <th>进球</th>
+                        <th>助攻</th>
+                        <th>评分</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="career-empty-note">
-                后续接入按赛季返回的球队与数据后，这里会自然扩展为完整履历表，不需要再改变页面结构。
+                    </thead>
+                    <tbody>
+                      {seasons.map(row => (
+                        <tr key={row.season_number}>
+                          <td>第 {row.season_number} 赛季</td>
+                          <td>{row.team_name}</td>
+                          <td>{row.matches_played}</td>
+                          <td>{row.goals}</td>
+                          <td>{row.assists}</td>
+                          <td>{row.average_rating || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="career-empty-note">暂无生涯数据</div>
+                )}
               </div>
             </section>
           )}
@@ -502,19 +487,22 @@ function PlayerDetail() {
             <section className="profile-panel">
               <div className="profile-panel-heading">
                 <div>
-                  <h2>个人历史纪录</h2>
+                  <h2>生涯里程碑</h2>
                 </div>
-                <strong>{player.name}</strong>
+                <strong>{milestones.length}</strong>
               </div>
-              <div className="record-grid">
-                {records.map(record => (
-                  <div key={record.label} className="record-tile">
-                    <span>{record.label}</span>
-                    <strong>{record.value}</strong>
-                    <p>{record.note}</p>
-                  </div>
-                ))}
-              </div>
+              {milestones.length > 0 ? (
+                <div className="record-grid">
+                  {milestones.map((m, i) => (
+                    <div key={`${m.milestone_type}-${i}`} className="record-tile">
+                      <span>{m.description}</span>
+                      <strong>第 {m.season_number} 赛季</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="career-empty-note">暂无生涯里程碑</div>
+              )}
             </section>
           )}
           </main>

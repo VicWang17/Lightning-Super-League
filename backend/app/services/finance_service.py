@@ -1465,7 +1465,7 @@ class FinanceService:
 
         # 计算球队平均年龄和人数
         age_result = await self.db.execute(
-            select(func.avg(abs(Player.birth_offset)), func.count(Player.id))
+            select(func.avg(func.abs(Player.birth_offset)), func.count(Player.id))
             .where(Player.team_id == team_id)
             .where(Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]))
         )
@@ -1478,7 +1478,7 @@ class FinanceService:
             select(func.count(Player.id))
             .where(Player.team_id == team_id)
             .where(Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]))
-            .where(abs(Player.birth_offset) >= 30)
+            .where(func.abs(Player.birth_offset) >= 30)
         )
         old_count = old_count_result.scalar() or 0
         old_ratio = old_count / max(roster_count, 1)

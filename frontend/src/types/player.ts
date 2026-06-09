@@ -33,36 +33,37 @@ export interface Player {
   birth_offset: number
   age: number
 
-  // 23项属性 (1-20) - 兼容平铺和嵌套两种格式
+  // 23项属性 (1-20) - 后端只通过 abilities 嵌套返回
   abilities?: {
     sho: number; pas: number; dri: number; spd: number; str: number; sta: number
     acc: number; hea: number; bal: number; defe: number; tkl: number; vis: number
     cro: number; con: number; fin: number; com: number; sav: number; ref: number
     pos: number; rus: number; dec: number; fk: number; pk: number
   }
-  sho: number   // 射门
-  pas: number   // 传球
-  dri: number   // 盘带
-  spd: number   // 速度
-  str: number   // 力量
-  sta: number   // 体能
-  acc: number   // 爆发力
-  hea: number   // 头球
-  bal: number   // 平衡
-  defe: number  // 防守意识
-  tkl: number   // 抢断
-  vis: number   // 视野
-  cro: number   // 传中
-  con: number   // 控球
-  fin: number   // 远射
-  com: number   // 镇定
-  sav: number   // 扑救
-  ref: number   // 反应
-  pos: number   // 站位
-  rus: number   // 出击
-  dec: number   // 球商
-  fk: number    // 任意球
-  pk: number    // 点球
+  // 根平铺能力值后端不返回，仅作兼容可选
+  sho?: number
+  pas?: number
+  dri?: number
+  spd?: number
+  str?: number
+  sta?: number
+  acc?: number
+  hea?: number
+  bal?: number
+  defe?: number
+  tkl?: number
+  vis?: number
+  cro?: number
+  con?: number
+  fin?: number
+  com?: number
+  sav?: number
+  ref?: number
+  pos?: number
+  rus?: number
+  dec?: number
+  fk?: number
+  pk?: number
 
   ovr: number
   potential_letter: PotentialLetter
@@ -330,6 +331,95 @@ export interface PlayerGrowthData {
   late_bloom_factor: number
   projected_curve: GrowthCurvePoint[]
   attribute_progress: AttributeProgressItem[]
+}
+
+// =====================================================================
+// Player History types (接入后端 /players/{id}/history)
+// =====================================================================
+
+export interface CompetitionBreakdown {
+  competition: string
+  matches_played: number
+  goals: number
+  assists: number
+  minutes_played: number
+  average_rating: number
+}
+
+export interface PlayerSeasonHistoryItem {
+  season_number: number
+  team_name: string
+  team_id: string
+  matches_played: number
+  minutes_played: number
+  goals: number
+  assists: number
+  yellow_cards: number
+  red_cards: number
+  clean_sheets: number
+  average_rating: number
+  shots: number
+  shots_on_target: number
+  shot_accuracy: number
+  dribbles: number
+  dribbles_succ: number
+  dribble_accuracy: number
+  headers: number
+  headers_succ: number
+  header_accuracy: number
+  passes: number
+  passes_succ: number
+  pass_accuracy: number
+  key_passes: number
+  crosses: number
+  crosses_succ: number
+  cross_accuracy: number
+  tackles: number
+  tackles_succ: number
+  tackle_accuracy: number
+  interceptions: number
+  clearances: number
+  blocks: number
+  saves: number
+  fouls: number
+  fouls_drawn: number
+  offsides: number
+  turnovers: number
+  touches: number
+  free_kicks: number
+  free_kick_goals: number
+  penalties: number
+  penalty_goals: number
+  competition_breakdown?: CompetitionBreakdown[]
+}
+
+export interface PlayerCareerSummary {
+  total_seasons: number
+  total_matches: number
+  total_goals: number
+  total_assists: number
+  total_minutes: number
+  total_yellow_cards: number
+  total_red_cards: number
+  overall_average_rating: number
+  best_season: {
+    season_number: number
+    goals: number
+    assists: number
+    average_rating: number
+  } | null
+}
+
+export interface PlayerMilestone {
+  milestone_type: string
+  season_number: number
+  description: string
+}
+
+export interface PlayerHistoryResponse {
+  seasons: PlayerSeasonHistoryItem[]
+  summary: PlayerCareerSummary
+  milestones: PlayerMilestone[]
 }
 
 // Position display names
