@@ -280,11 +280,50 @@ class TeamSeasonHistoryItem(BaseSchema):
     top_scorer_goals: int = 0
 
 
+class TeamHonorItem(BaseSchema):
+    """单条荣誉记录"""
+    season_number: int
+    honor_type: str = Field(..., description="league_champion 或 cup_champion")
+    competition_name: str
+    competition_level: Optional[int] = None
+
+
+class TeamHonorsResponse(BaseSchema):
+    """球队荣誉列表响应"""
+    honors: List[TeamHonorItem] = Field(default_factory=list)
+    total_league_titles: int = 0
+    total_cup_titles: int = 0
+
+
+class WorldRankingItem(BaseSchema):
+    """世界排名单项"""
+    rank: int
+    team_id: str
+    team_name: str
+    total_score: float
+    league_score: float
+    cup_score: float
+    cup_titles: int
+
+
+class TopPlayerItem(BaseSchema):
+    """球员OVR排行单项"""
+    rank: int
+    player_id: str
+    player_name: str
+    avatar_url: Optional[str] = None
+    position: str
+    age: int
+    ovr: int
+    team_name: str
+    team_id: str
+
+
 class TeamHistoryResponse(BaseSchema):
     """球队历史页完整响应"""
     seasons: List[TeamSeasonHistoryItem] = Field(default_factory=list)
     record_count: int = 0
-    trophies: List[dict] = Field(default_factory=list)
+    trophies: List[TeamHonorItem] = Field(default_factory=list)
 
 
 class GrowthCurvePoint(BaseSchema):

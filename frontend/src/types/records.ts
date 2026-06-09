@@ -62,6 +62,34 @@ export interface RecordItem {
   updated_at?: string
 }
 
+export interface TeamSeasonHistoryItem {
+  season_number: number
+  league_name: string
+  league_level: number
+  position: number
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goals_for: number
+  goals_against: number
+  goal_difference: number
+  points: number
+  top_scorer_name?: string
+  top_scorer_goals: number
+}
+
+export interface TeamHistoryResponse {
+  seasons: TeamSeasonHistoryItem[]
+  record_count: number
+  trophies: Array<{
+    season_number: number
+    honor_type: string
+    competition_name: string
+    competition_level: number | null
+  }>
+}
+
 export interface RecordsByCategory {
   team: RecordItem[]
   player: RecordItem[]

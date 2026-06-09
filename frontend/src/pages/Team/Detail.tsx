@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { clsx } from 'clsx'
 import {
   ChevronLeft,
   Trophy,
@@ -10,9 +11,21 @@ import {
   Thermometer,
   SquareAlert,
   Skull,
+  Users,
+  Chart,
+  Award,
+  Target,
 } from '../../components/ui/pixel-icons'
 import { getPositionColor, type PlayerListItem, type PlayerState } from '../../types/player'
 import { api } from '../../api/client'
+import { useTeamHistory, useTeamHonors, useTeamRecords } from '../../hooks/useTeamOverview'
+import {
+  RecordCategory,
+  RecordType,
+  RECORD_TYPE_LABELS,
+  RECORD_TYPES_BY_CATEGORY,
+} from '../../types/records'
+import { Card } from '../../components/ui/Card'
 
 interface TeamSummary {
   id: string
@@ -28,6 +41,15 @@ interface TeamSummary {
 }
 
 type LockerPlayer = PlayerListItem
+
+type TeamTab = 'locker' | 'history' | 'honors' | 'records'
+
+const TEAM_TABS = [
+  { value: 'locker' as TeamTab, label: '更衣室', icon: Users },
+  { value: 'history' as TeamTab, label: '历年战绩', icon: Chart },
+  { value: 'honors' as TeamTab, label: '荣誉室', icon: Award },
+  { value: 'records' as TeamTab, label: '球队纪录', icon: Target },
+]
 
 const positionOrder = { GK: 0, DF: 1, MF: 2, FW: 3 }
 
@@ -111,6 +133,7 @@ function PlayerAvatar({ player, size = 'sm' }: { player: LockerPlayer; size?: 's
 
 function TeamDetail() {
   const { id: routeTeamId } = useParams<{ id: string }>()
+  const [activeTab, setActiveTab] = useState<TeamTab>('locker')
   const [team, setTeam] = useState<TeamSummary | null>(null)
   const [players, setPlayers] = useState<LockerPlayer[]>([])
   const [playerStates, setPlayerStates] = useState<Record<string, PlayerState>>({})
@@ -221,7 +244,13 @@ function TeamDetail() {
     }
   }, [players, playerStates])
 
+  const teamId = team?.id
   const leagueId = team?.league_id || team?.current_league_id
+
+  // 其他Tab数据
+  const { history: teamHistory, loading: historyLoading } = useTeamHistory(teamId)
+  const { honors: teamHonors, loading: honorsLoading } = useTeamHonors(teamId)
+  const { records: teamRecords, loading: recordsLoading } = useTeamRecords(teamId)
 
   return (
     <div className="locker-room-page">
@@ -241,6 +270,27 @@ function TeamDetail() {
         )}
       </div>
 
+      {/* Tab 导航 */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {TEAM_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            className={clsx(
+              'px-4 py-2 text-sm font-medium border-2 transition-all flex items-center gap-2',
+              activeTab === tab.value
+                ? 'bg-[#C6F135] text-[#0A0A0F] border-[#C6F135]'
+                : 'bg-[#12121A] text-[#8B8BA7] border-[#2D2D44] hover:border-[#0D7377] hover:text-white'
+            )}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'locker' && (
+      <>
       <section className="locker-hero">
         <div>
           <h1 className="text-3xl font-black text-[var(--skin-text)]">{team?.name || '更衣室'}</h1>
@@ -480,6 +530,178 @@ function TeamDetail() {
           <strong>{squadSummary.fatigueRisk}</strong>
         </div>
       </section>
+      </>
+      )}
+
+      {activeTab === 'history' && (
+        <div className="card">
+          <h3 className="text-lg font-semibold mb-4">历年战绩</h3>
+          {historyLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-12 bg-[#1E1E2D] animate-pulse" />
+              ))}
+            </div>
+          ) : !teamHistory || teamHistory.seasons.length === 0 ? (
+            <div className="text-center py-12">
+              <Chart className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+              <p className="text-[#8B8BA7]">暂无历史战绩数据</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+                    <th className="py-2 px-4 font-medium">赛季</th>
+                    <th className="py-2 px-4 font-medium">联赛</th>
+                    <th className="py-2 px-4 font-medium text-center">排名</th>
+                    <th className="py-2 px-4 font-medium text-center">赛</th>
+                    <th className="py-2 px-4 font-medium text-center">胜/平/负</th>
+                    <th className="py-2 px-4 font-medium text-center">进球</th>
+                    <th className="py-2 px-4 font-medium text-center">失球</th>
+                    <th className="py-2 px-4 font-medium text-center">净胜</th>
+                    <th className="py-2 px-4 font-medium text-center">积分</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamHistory.seasons.map((season) => (
+                    <tr key={season.season_number} className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+                      <td className="py-3 px-4 text-[#8B8BA7]">第 {season.season_number} 赛季</td>
+                      <td className="py-3 px-4">{season.league_name}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`font-bold pixel-number ${season.position === 1 ? 'text-amber-400' : season.position <= 3 ? 'text-slate-300' : 'text-[#8B8BA7]'}`}>
+                          {season.position}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center stat-number">{season.played}</td>
+                      <td className="py-3 px-4 text-center text-sm">
+                        <span className="text-emerald-400">{season.won}</span>
+                        <span className="text-[#4B4B6A]">/</span>
+                        <span className="text-[#8B8BA7]">{season.drawn}</span>
+                        <span className="text-[#4B4B6A]">/</span>
+                        <span className="text-red-400">{season.lost}</span>
+                      </td>
+                      <td className="py-3 px-4 text-center stat-number text-emerald-400">{season.goals_for}</td>
+                      <td className="py-3 px-4 text-center stat-number text-red-400">{season.goals_against}</td>
+                      <td className="py-3 px-4 text-center stat-number">{season.goal_difference > 0 ? '+' : ''}{season.goal_difference}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="font-bold pixel-number text-lg">{season.points}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'honors' && (
+        <div className="card">
+          <h3 className="text-lg font-semibold mb-4">荣誉室</h3>
+          {honorsLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-24 bg-[#1E1E2D] animate-pulse" />
+              ))}
+            </div>
+          ) : !teamHonors || teamHonors.honors.length === 0 ? (
+            <div className="text-center py-16">
+              <Award className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
+              <h4 className="text-xl font-bold text-white mb-2">还没有冠军奖杯</h4>
+              <p className="text-[#8B8BA7] mb-2">这支球队尚未获得任何冠军荣誉</p>
+              <p className="text-[#C6F135] text-sm font-medium">继续加油，冠军就在前方！🏆</p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-6 mb-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  <span className="text-[#8B8BA7]">联赛冠军:</span>
+                  <span className="font-bold text-white">{teamHonors.total_league_titles}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-[#C6F135]" />
+                  <span className="text-[#8B8BA7]">杯赛冠军:</span>
+                  <span className="font-bold text-white">{teamHonors.total_cup_titles}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {teamHonors.honors.map((honor, idx) => (
+                  <Card key={idx} className="bg-[#12121A] border-2 border-[#2D2D44] p-4 text-center hover:border-amber-500/50 transition-all">
+                    <div className="text-3xl mb-2">{honor.honor_type === 'league_champion' ? '🏆' : '🥇'}</div>
+                    <h4 className="font-bold text-white text-sm mb-1">{honor.competition_name}</h4>
+                    <p className="text-xs text-[#8B8BA7]">第 {honor.season_number} 赛季</p>
+                    {honor.competition_level && honor.competition_level > 0 && (
+                      <span className="inline-block mt-2 px-2 py-0.5 text-[10px] bg-[#1E1E2D] border border-[#2D2D44] text-[#8B8BA7]">
+                        L{honor.competition_level}
+                      </span>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'records' && (
+        <div className="card">
+          <h3 className="text-lg font-semibold mb-4">球队纪录</h3>
+          {recordsLoading ? (
+            <div className="text-center py-16 text-[#8B8BA7]">加载中...</div>
+          ) : !teamRecords ? (
+            <div className="text-center py-12">
+              <Target className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+              <p className="text-[#8B8BA7]">暂无纪录数据</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {RECORD_TYPES_BY_CATEGORY[RecordCategory.TEAM].map((type: RecordType) => {
+                const record = teamRecords.team.find((r) => r.record_type === type)
+                return record ? (
+                  <Card key={type} className="bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all">
+                    <div className="flex items-start gap-4">
+                      <div className="shrink-0">
+                        <div className="w-12 h-12 bg-[#0D4A4D]/30 border-2 border-[#0D7377]/30 flex items-center justify-center">
+                          <Target className="w-6 h-6 text-[#0D7377]" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-bold text-white truncate">{record.record_type_label}</h3>
+                          <span className="text-lg font-bold stat-number pixel-number text-[#C6F135]">{record.record_value}</span>
+                        </div>
+                        <div className="mt-1 text-sm text-[#8B8BA7]">{record.holder_name}</div>
+                        {record.season_number !== undefined && (
+                          <div className="mt-1 text-xs text-[#4B4B6A]">第 {record.season_number} 赛季</div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ) : (
+                  <Card key={type} className="bg-[#12121A] border-2 border-[#2D2D44]/60 opacity-60">
+                    <div className="flex items-start gap-4">
+                      <div className="shrink-0">
+                        <div className="w-12 h-12 bg-[#0D4A4D]/20 border-2 border-[#0D7377]/20 flex items-center justify-center">
+                          <Target className="w-6 h-6 text-[#0D7377]/50" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-bold text-[#8B8BA7] truncate">{RECORD_TYPE_LABELS[type]}</h3>
+                          <span className="text-lg font-bold stat-number pixel-number text-[#4B4B6A]">—</span>
+                        </div>
+                        <div className="mt-1 text-sm text-[#4B4B6A]">暂无该纪录</div>
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

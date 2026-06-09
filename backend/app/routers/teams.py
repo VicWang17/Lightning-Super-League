@@ -26,8 +26,14 @@ from app.schemas import (
     PlayerStateResponse,
     TeamPlayerStatesResponse,
 )
+from app.schemas.records import (
+    TeamHonorItem,
+    TeamHonorsResponse,
+    RecordsByCategory,
+    RecordCategory as RecordCategoryEnum,
+)
 from app.dependencies import get_db, get_current_user
-from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season, LeagueSystem, PlayerSeasonStats, Player
+from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season, LeagueSystem, PlayerSeasonStats, Player, TeamHonor, HonorType
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/teams", tags=["球队"])
@@ -799,13 +805,78 @@ async def get_team_history(
             top_scorer_goals=top_scorer[1] if top_scorer else 0,
         ))
 
+    # 查询球队荣誉
+    honors_result = await db.execute(
+        select(TeamHonor, Season)
+        .join(Season, TeamHonor.season_id == Season.id)
+        .where(TeamHonor.team_id == team_id)
+        .order_by(desc(Season.season_number))
+    )
+    honor_rows = honors_result.all()
+    trophies = [
+        TeamHonorItem(
+            season_number=season.season_number,
+            honor_type=honor.honor_type.value,
+            competition_name=honor.competition_name or "",
+            competition_level=honor.competition_level,
+        )
+        for honor, season in honor_rows
+    ]
+
     return ResponseSchema(
         success=True,
         data=TeamHistoryResponse(
             seasons=seasons,
             record_count=len(seasons),
-            trophies=[],
+            trophies=trophies,
         ),
+    )
+
+
+@router.get(
+    "/{team_id}/honors",
+    response_model=ResponseSchema[TeamHonorsResponse],
+    summary="获取球队荣誉",
+    description="获取球队获得的所有冠军荣誉（联赛冠军、杯赛冠军）",
+)
+async def get_team_honors(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取球队荣誉列表"""
+    from app.services.honor_service import HonorService
+
+    # 验证球队存在
+    team_result = await db.execute(select(Team).where(Team.id == team_id))
+    team = team_result.scalar_one_or_none()
+    if not team:
+        return ResponseSchema(success=False, message="球队不存在", code=404)
+
+    service = HonorService(db)
+    honors = await service.get_team_honors(team_id)
+    return ResponseSchema(success=True, data=honors)
+
+
+@router.get(
+    "/{team_id}/records",
+    response_model=ResponseSchema[RecordsByCategory],
+    summary="获取球队纪录",
+    description="获取指定球队的所有纪录",
+)
+async def get_team_records(
+    team_id: str,
+    category: Optional[RecordCategoryEnum] = Query(None, description="分类筛选: team/player/match"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取指定球队的所有纪录"""
+    from app.routers.records import list_records
+    from app.schemas.records import RecordScope as RecordScopeEnum
+
+    return await list_records(
+        scope=RecordScopeEnum.TEAM,
+        scope_target_id=team_id,
+        category=category,
+        db=db,
     )
 
 

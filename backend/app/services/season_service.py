@@ -858,6 +858,9 @@ class SeasonService:
         cup_days = list(template.lightning_cup_days)
         if day in cup_days:
             season.current_cup_round = cup_days.index(day) + 1
+        
+        # 尽早 commit 赛季状态，减少锁持有时间，避免与财务结算死锁
+        await self.db.commit()
 
         # Phase 2: 比赛财务结算
         from app.services.finance_service import FinanceService
@@ -1000,6 +1003,26 @@ class SeasonService:
         season.end_date = end_date
         await self.db.commit()
 
+        # 授予联赛冠军荣誉
+        from app.services.honor_service import HonorService
+        honor_service = HonorService(self.db)
+        # 查询所有联赛的最终积分榜冠军
+        league_champions_result = await self.db.execute(
+            select(LeagueStanding, League)
+            .join(League, LeagueStanding.league_id == League.id)
+            .where(LeagueStanding.season_id == season_id)
+            .where(LeagueStanding.position == 1)
+        )
+        for standing, league in league_champions_result.all():
+            await honor_service.award_league_champion(
+                team_id=standing.team_id,
+                season_id=season_id,
+                league_id=league.id,
+                league_name=league.name,
+                league_level=league.level,
+            )
+        await self.db.commit()
+
         # 发送赛季结束通知
         result = await self.db.execute(
             select(Fixture.home_team_id, Fixture.away_team_id)
@@ -1128,6 +1151,15 @@ class SeasonService:
                     if winner:
                         comp.winner_team_id = winner
                         results["lightning_cup_winner"] = f"Winner set: {winner}"
+                        # 授予杯赛冠军荣誉
+                        from app.services.honor_service import HonorService
+                        honor_service = HonorService(self.db)
+                        await honor_service.award_cup_champion(
+                            team_id=winner,
+                            season_id=season.id,
+                            cup_competition_id=comp.id,
+                            cup_name=comp.name,
+                        )
 
             elif comp.code.startswith("JENNY_CUP_"):
                 # 杰尼杯晋级处理（JENNY_CUP_EAST, JENNY_CUP_NORTH, JENNY_CUP_SOUTH, JENNY_CUP_WEST）
@@ -1154,6 +1186,15 @@ class SeasonService:
                     if winner:
                         comp.winner_team_id = winner
                         results[f"jenny_cup_{system_code.lower()}_winner"] = f"Winner set: {winner}"
+                        # 授予杯赛冠军荣誉
+                        from app.services.honor_service import HonorService
+                        honor_service = HonorService(self.db)
+                        await honor_service.award_cup_champion(
+                            team_id=winner,
+                            season_id=season.id,
+                            cup_competition_id=comp.id,
+                            cup_name=comp.name,
+                        )
 
         return results
 

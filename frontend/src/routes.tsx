@@ -53,7 +53,7 @@ import FinanceOverview from './pages/Finance/Overview'
 import BudgetPlanning from './pages/Finance/BudgetPlanning'
 import IncomeDetails from './pages/Finance/Income'
 import ExpenseDetails from './pages/Finance/Expense'
-import RecordsPage from './pages/Records/Index'
+import WorldPage from './pages/World/Index'
 
 // 邮件中心
 import MailPage from './pages/Mail/Index'
@@ -327,10 +327,10 @@ export const router = createBrowserRouter([
             ],
           },
           
-          // 纪录中心
+          // 世界排名
           {
-            path: 'records',
-            element: <RecordsPage />,
+            path: 'world',
+            element: <WorldPage />,
           },
           
           // 邮件中心

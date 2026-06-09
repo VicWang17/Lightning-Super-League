@@ -69,6 +69,10 @@ from app.models.record import (
     RecordCategory,
     RecordType,
 )
+from app.models.team_honor import (
+    TeamHonor,
+    HonorType,
+)
 from app.models.mail import (
     Mail,
     MailCategory,
@@ -178,6 +182,9 @@ __all__ = [
     "RecordScope",
     "RecordCategory",
     "RecordType",
+    # Team Honor
+    "TeamHonor",
+    "HonorType",
     # Mail
     "Mail",
     "MailCategory",

@@ -23,6 +23,7 @@ from app.routers.internal import router as internal_router
 from app.routers.dev import router as dev_router
 from app.routers.clock import router as clock_router
 from app.routers.records import router as records_router
+from app.routers.world import router as world_router
 from app.routers.mail import router as mail_router
 from app.routers.finance import router as finance_router
 from app.routers.injuries import router as injuries_router
@@ -105,6 +106,7 @@ app.include_router(internal_router, prefix="/api/v1")
 app.include_router(dev_router, prefix="/api/v1")
 app.include_router(clock_router, prefix="/api/v1")
 app.include_router(records_router, prefix="/api/v1")
+app.include_router(world_router, prefix="/api/v1")
 app.include_router(mail_router, prefix="/api/v1")
 app.include_router(finance_router, prefix="/api/v1")
 app.include_router(injuries_router, prefix="/api/v1")

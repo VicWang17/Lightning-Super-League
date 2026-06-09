@@ -639,6 +639,36 @@ async def get_top_scorers(
 
 
 @router.get(
+    "/{league_id}/records",
+    response_model=ResponseSchema[dict],
+    summary="获取联赛纪录",
+    description="获取指定联赛的所有纪录",
+)
+async def get_league_records(
+    league_id: str,
+    category: Optional[str] = Query(None, description="分类筛选: team/player/match"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取指定联赛的所有纪录"""
+    from app.routers.records import list_records
+    from app.schemas.records import RecordScope as RecordScopeEnum, RecordCategory as RecordCategoryEnum
+
+    cat_enum = None
+    if category:
+        try:
+            cat_enum = RecordCategoryEnum(category)
+        except ValueError:
+            pass
+
+    return await list_records(
+        scope=RecordScopeEnum.LEAGUE,
+        scope_target_id=league_id,
+        category=cat_enum,
+        db=db,
+    )
+
+
+@router.get(
     "/{league_id}/top-assists",
     response_model=ResponseSchema[List[TopAssistItem]],
     summary="获取助攻榜",

@@ -9,8 +9,9 @@ import {
   Calendar,
   TrendingUp,
   Sword as Swords,
-  Medal
+  Medal,
 } from '../../components/ui/pixel-icons'
+import { api } from '../../api/client'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useTopScorers, useTopAssists } from '../../hooks/useLeagues'
 import { useSeasons } from '../../hooks/useSeasons'
 import type { League, LeagueStanding, Match, PlayoffMatch } from '../../types/league'
@@ -344,7 +345,7 @@ function StatsRow({ rank, name, team, value, label, playerId }: { rank: number; 
 
 function LeagueDetail() {
  const { id } = useParams<{ id: string }>()
- const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'scorers' | 'assists'>('standings')
+ const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'scorers' | 'assists' | 'records'>('standings')
  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined)
  
  const { league, loading: leagueLoading, error: leagueError } = useLeagueDetail(id)
@@ -499,6 +500,12 @@ function LeagueDetail() {
  助攻榜
  </div>
  </TabButton>
+ <TabButton active={activeTab === 'records'} onClick={() => setActiveTab('records')}>
+ <div className="flex items-center gap-2">
+ <Target className="w-4 h-4" />
+ 联赛纪录
+ </div>
+ </TabButton>
  </div>
  
  {!seasonsLoading && seasons.length > 0 && (
@@ -645,9 +652,87 @@ function LeagueDetail() {
  )}
  </div>
  )}
+
+ {activeTab === 'records' && (
+ <div>
+ <h3 className="text-lg font-semibold mb-4">联赛纪录</h3>
+ <LeagueRecordsTab leagueId={id} />
+ </div>
+ )}
  </div>
  </div>
  )
+}
+
+function LeagueRecordsTab({ leagueId }: { leagueId: string | undefined }) {
+  const [records, setRecords] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!leagueId) return
+    const fetchRecords = async () => {
+      try {
+        setLoading(true)
+        const res = await api.get(`/leagues/${leagueId}/records`)
+        if (res.success) {
+          setRecords(res.data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch league records:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRecords()
+  }, [leagueId])
+
+  if (loading) {
+    return <div className="text-center py-16 text-[#8B8BA7]">加载中...</div>
+  }
+
+  if (!records || (records.team.length === 0 && records.player.length === 0 && records.match.length === 0)) {
+    return (
+      <div className="text-center py-12">
+        <Target className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+        <p className="text-[#8B8BA7]">暂无联赛纪录</p>
+      </div>
+    )
+  }
+
+  const allRecords = [
+    ...records.team.map((r: any) => ({ ...r, category: '球队' })),
+    ...records.player.map((r: any) => ({ ...r, category: '球员' })),
+    ...records.match.map((r: any) => ({ ...r, category: '比赛' })),
+  ]
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {allRecords.map((record, idx) => (
+        <div key={idx} className="p-4 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/30 transition-all">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0">
+              <div className="w-12 h-12 bg-[#0D4A4D]/30 border-2 border-[#0D7377]/30 flex items-center justify-center">
+                <Target className="w-6 h-6 text-[#0D7377]" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-white truncate">{record.record_type_label}</h3>
+                <span className="text-lg font-bold stat-number pixel-number text-[#C6F135]">{record.record_value}</span>
+              </div>
+              <div className="mt-1 text-sm text-white font-medium">{record.holder_name}</div>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs text-[#4B4B6A]">{record.category}</span>
+                {record.season_number !== undefined && (
+                  <span className="text-xs text-[#4B4B6A]">第 {record.season_number} 赛季</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export default LeagueDetail

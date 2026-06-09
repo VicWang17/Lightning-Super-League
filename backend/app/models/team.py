@@ -88,6 +88,7 @@ class Team(Base):
     sponsor_contracts: Mapped[list["SponsorContract"]] = relationship("SponsorContract", back_populates="team")
     player_contracts: Mapped[list["PlayerContract"]] = relationship("PlayerContract", back_populates="team")
     injury_treatments: Mapped[list["InjuryTreatment"]] = relationship("InjuryTreatment", back_populates="team")
+    honors: Mapped[list["TeamHonor"]] = relationship("TeamHonor", back_populates="team")
     
     def __repr__(self) -> str:
         return f"<Team(id={self.id}, name={self.name}, user_id={self.user_id})>"

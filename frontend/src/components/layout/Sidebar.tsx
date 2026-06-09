@@ -11,7 +11,7 @@ import {
   Sword as Swords,
   Wallet,
   Zap,
-  Crown,
+  Globe,
   Mailbox,
 } from '../ui/pixel-icons'
 import { useAuthStore } from '../../stores/auth'
@@ -27,7 +27,7 @@ const menuItems = [
   { path: '/transfer', label: '转会市场', icon: ArrowLeftRight },
   { path: '/youth', label: '青训营', icon: Sprout },
   { path: '/finance', label: '董事会', icon: Wallet },
-  { path: '/records', label: '荣誉室', icon: Crown },
+  { path: '/world', label: '世界', icon: Globe },
 ]
 
 function Sidebar() {
