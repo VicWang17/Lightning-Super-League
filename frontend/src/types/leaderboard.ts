@@ -45,6 +45,9 @@ export interface LeaderboardItem {
   value: number
   value_label: string
   matches: number
+  // OVR 排名专用字段
+  age?: number
+  ovr?: number
 }
 
 export interface LeaderboardConfig {

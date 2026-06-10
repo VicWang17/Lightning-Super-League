@@ -188,3 +188,22 @@ async def get_team_records(
         category=category,
         db=db,
     )
+
+
+@router.get(
+    "/cup/{cup_id}",
+    response_model=ResponseSchema[RecordsByCategory],
+    summary="获取杯赛纪录",
+)
+async def get_cup_records(
+    cup_id: str,
+    category: Optional[RecordCategoryEnum] = Query(None, description="分类筛选"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取指定杯赛的所有纪录"""
+    return await list_records(
+        scope=RecordScopeEnum.CUP,
+        scope_target_id=cup_id,
+        category=category,
+        db=db,
+    )

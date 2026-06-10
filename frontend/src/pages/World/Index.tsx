@@ -11,7 +11,8 @@ import {
 } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 import { useWorldRankings, useTopPlayers, useWorldRecords, useWorldLeaderboard } from '../../hooks/useWorld'
-import type { LeaderboardType } from '../../types/leaderboard'
+import type { LeaderboardType, LeaderboardItem } from '../../types/leaderboard'
+import type { TopPlayer } from '../../types/world'
 import { LeaderboardValue } from '../../components/leaderboard/LeaderboardValue'
 import {
   type RecordItem,
@@ -484,10 +485,10 @@ function WorldPage() {
                   </thead>
                   <tbody>
                     {isOvrSort
-                      ? (players as any[]).map((player) => (
+                      ? (players as TopPlayer[]).map((player) => (
                           <PlayerRow key={player.player_id} player={player} />
                         ))
-                      : (players as any[]).map((item: any) => (
+                      : (players as LeaderboardItem[]).map((item) => (
                           <LeaderboardPlayerRow
                             key={item.player_id}
                             item={item}

@@ -41,9 +41,22 @@ export function useTopPlayers(limit = 100, position?: string) {
         setLoading(true)
         let url = `/world/top-players?limit=${limit}`
         if (position) url += `&position=${position}`
-        const response = await api.get<TopPlayer[]>(url)
+        // 后端 /world/top-players 返回 LeaderboardItem（字段为 value 而非 ovr），
+        // 需要在前端映射为 TopPlayer 以兼容现有 PlayerRow 组件。
+        const response = await api.get<LeaderboardItem[]>(url)
         if (response.success) {
-          setPlayers(response.data)
+          const mapped: TopPlayer[] = response.data.map((item) => ({
+            rank: item.rank,
+            player_id: item.player_id,
+            player_name: item.player_name,
+            avatar_url: item.avatar_url,
+            position: item.position,
+            age: item.age ?? 0,
+            ovr: item.value,
+            team_name: item.team_name,
+            team_id: item.team_id,
+          }))
+          setPlayers(mapped)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : '获取球员排名失败')

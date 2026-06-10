@@ -3,7 +3,7 @@
 export interface CupCompetition {
   id: string
   name: string
-  code: 'LIGHTNING_CUP' | 'JENNY_CUP'
+  code: string
   season_id: string
   season_number: number
   status: 'pending' | 'ongoing' | 'finished'
@@ -47,7 +47,7 @@ export interface CupFixture {
   id: string
   season_day: number
   round_number: number
-  fixture_type: 'cup_lightning_group' | 'cup_lightning_knockout' | 'cup_jenny'
+  fixture_type: string
   home_team: {
     id: string
     name: string
@@ -62,33 +62,6 @@ export interface CupFixture {
   cup_stage?: string  // GROUP, ROUND_32, ROUND_16, QUARTER, SEMI, FINAL
   cup_group_name?: string
   scheduled_at: string
-}
-
-export interface CupTopScorer {
-  rank: number
-  player_id: string
-  player_name: string
-  team_name: string
-  goals: number
-  matches: number
-}
-
-export interface CupTopAssist {
-  rank: number
-  player_id: string
-  player_name: string
-  team_name: string
-  assists: number
-  matches: number
-}
-
-export interface CupCleanSheet {
-  rank: number
-  player_id: string
-  player_name: string
-  team_name: string
-  clean_sheets: number
-  matches: number
 }
 
 export interface CupDetail extends CupCompetition {
@@ -126,6 +99,14 @@ export const CUP_CONFIG: Record<string, { description: string }> = {
   JENNY_CUP: {
     description: '次级联赛杯赛，192支球队参赛，纯淘汰赛制'
   },
+}
+
+// 提取杯赛基础 code（处理 JENNY_CUP_west → JENNY_CUP）
+export function getCupBaseCode(code: string): string {
+  const upper = code.toUpperCase()
+  if (upper.startsWith('JENNY_CUP')) return 'JENNY_CUP'
+  if (upper.startsWith('LIGHTNING_CUP')) return 'LIGHTNING_CUP'
+  return code
 }
 
 // 小组名列表（闪电杯16个小组）

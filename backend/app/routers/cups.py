@@ -9,6 +9,8 @@ from sqlalchemy import select, and_, or_
 from app.dependencies import get_db, get_current_user
 from app.schemas import ResponseSchema
 from app.schemas.league import TopScorerItem, TopAssistItem, CleanSheetItem
+from app.schemas.leaderboard import LeaderboardType, LeaderboardItem
+from app.services.leaderboard_service import LeaderboardService
 from app.models.season import CupCompetition, CupGroup, Fixture, FixtureStatus, Season
 from app.models.team import Team
 from app.models.user import User
@@ -687,4 +689,76 @@ async def get_cup_clean_sheets(
             )
             for idx, row in enumerate(rows)
         ]
+    )
+
+
+
+@router.get(
+    "/{cup_id}/leaderboard",
+    response_model=ResponseSchema[List[LeaderboardItem]],
+    summary="获取杯赛排行榜",
+    description="获取指定杯赛的通用排行榜，支持进球、助攻、抢断、评分等30+维度",
+)
+async def get_cup_leaderboard(
+    cup_id: str,
+    type: LeaderboardType = Query(LeaderboardType.GOALS, description="排行榜类型"),
+    limit: int = Query(20, ge=1, le=50, description="返回数量"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取杯赛通用排行榜
+    
+    - **cup_id**: 杯赛ID
+    - **type**: 排行榜类型，如 goals/assists/tackles/rating/shot_accuracy 等
+    - **limit**: 返回数量
+    """
+    # 获取杯赛信息以拿到 season_id
+    result = await db.execute(
+        select(CupCompetition).where(CupCompetition.id == cup_id)
+    )
+    cup = result.scalar_one_or_none()
+    
+    if not cup:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="杯赛不存在"
+        )
+    
+    service = LeaderboardService(db)
+    items = await service.get_cup_leaderboard(
+        cup_id=cup_id,
+        season_id=str(cup.season_id),
+        lb_type=type,
+        limit=limit,
+    )
+    return ResponseSchema(success=True, data=items)
+
+
+@router.get(
+    "/{cup_id}/records",
+    response_model=ResponseSchema[dict],
+    summary="获取杯赛纪录",
+    description="获取指定杯赛的所有纪录",
+)
+async def get_cup_records(
+    cup_id: str,
+    category: Optional[str] = Query(None, description="分类筛选: team/player/match"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取指定杯赛的所有纪录"""
+    from app.routers.records import list_records
+    from app.schemas.records import RecordScope as RecordScopeEnum, RecordCategory as RecordCategoryEnum
+
+    cat_enum = None
+    if category:
+        try:
+            cat_enum = RecordCategoryEnum(category)
+        except ValueError:
+            pass
+
+    return await list_records(
+        scope=RecordScopeEnum.CUP,
+        scope_target_id=cup_id,
+        category=cat_enum,
+        db=db,
     )

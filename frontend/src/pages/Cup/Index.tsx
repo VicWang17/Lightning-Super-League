@@ -1,13 +1,15 @@
+import { useState, useEffect } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { Trophy, ChevronRight, Users, Zap, Sword as Swords } from '../../components/ui/pixel-icons'
 import { CupBadge } from '../../components/cup/CupBadge'
-import { useCups, useMyTeamCup } from '../../hooks/useCups'
+import { useCups } from '../../hooks/useCups'
+import api from '../../api/client'
 import type { CupCompetition } from '../../types/cup'
-import { CUP_CONFIG } from '../../types/cup'
+import { CUP_CONFIG, getCupBaseCode } from '../../types/cup'
 
 // 杯赛卡片组件
 function CupCard({ cup }: { cup: CupCompetition }) {
- const config = CUP_CONFIG[cup.code] || CUP_CONFIG.LIGHTNING_CUP
+ const config = CUP_CONFIG[getCupBaseCode(cup.code)] || CUP_CONFIG.LIGHTNING_CUP
  const isFinished = cup.status === 'finished'
  const isOngoing = cup.status === 'ongoing'
  
@@ -85,15 +87,28 @@ function CupCardSkeleton() {
 
 function CupList() {
  const { cups, loading: cupsLoading } = useCups()
- const { myCup, loading: myCupLoading } = useMyTeamCup()
+ const [myCup, setMyCup] = useState<CupCompetition | null>(null)
+ const [myCupId, setMyCupId] = useState<string | null>(null)
  const location = useLocation()
  
  // 判断是否是"所有杯赛"页面
  const isAllCupsPage = location.pathname === '/cups/all'
  
- // 如果不是"所有杯赛"页面，且已获取到用户杯赛，直接导航到用户杯赛
- if (!isAllCupsPage && myCup && !myCupLoading) {
- return <Navigate to={`/cups/${myCup.id}`} replace />
+ // 获取用户球队参加的杯赛（和联赛页面保持一致的方式）
+ useEffect(() => {
+   api.get<CupCompetition>('/cups/my-team').then(response => {
+     if (response.success && response.data) {
+       setMyCup(response.data)
+       setMyCupId(response.data.id)
+     }
+   }).catch(() => {
+     // 用户可能没有参加杯赛，静默处理
+   })
+ }, [])
+ 
+ // 如果不是"所有杯赛"页面，且已获取到杯赛ID，直接导航到该杯赛
+ if (!isAllCupsPage && myCupId) {
+   return <Navigate to={`/cups/${myCupId}`} replace />
  }
 
  return (

@@ -13,6 +13,7 @@ class RecordScope(str, Enum):
     WORLD = "world"
     LEAGUE = "league"
     TEAM = "team"
+    CUP = "cup"
 
 
 class RecordCategory(str, Enum):

@@ -87,13 +87,20 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 		zw := zoneWeight(p.Position, zone[0], zone[1])
 		defBonus := 1.0
 		if p.Position == config.PosDF {
-			defBonus = 1.5
+			// 大幅提升后卫在防守事件中的出场权重，使抢断/拦截榜单更 realistic
+			defBonus = 2.5
 			if manMarking {
-				defBonus = 2.2 // Man marking boosts defenders significantly
+				defBonus = 3.5 // Man marking boosts defenders significantly
 			}
-		}
-		if manMarking && p.Position == config.PosMF {
-			defBonus = 1.3 // Midfielders also involved in marking
+		} else if p.Position == config.PosMF {
+			// 降低中场在防守事件中的权重，避免 MF 霸榜
+			defBonus = 0.7
+			if manMarking {
+				defBonus = 0.9
+			}
+		} else if p.Position == config.PosFW {
+			// 前锋极少深度参与纯防守动作
+			defBonus = 0.5
 		}
 		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
 		weights[i] = zw * defBonus * staminaFactor
@@ -262,9 +269,12 @@ func SelectSecondDefender(team *domain.TeamRuntime, primary *domain.PlayerRuntim
 		zw := zoneWeight(p.Position, zone[0], zone[1])
 		defBonus := 1.0
 		if p.Position == config.PosDF {
-			defBonus = 1.6
+			// 第二防守人也优先是后卫
+			defBonus = 2.5
 		} else if p.Position == config.PosMF {
-			defBonus = 1.2
+			defBonus = 0.8
+		} else if p.Position == config.PosFW || p.Position == config.PosGK {
+			defBonus = 0.4
 		}
 		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
 		weights[i] = zw * defBonus * staminaFactor

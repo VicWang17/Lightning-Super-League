@@ -33,12 +33,14 @@ const CUP_PALETTE = {
 } as const
 
 function getPalette(code?: string) {
-  return CUP_PALETTE[(code || 'LIGHTNING_CUP') as keyof typeof CUP_PALETTE] || CUP_PALETTE.LIGHTNING_CUP
+  const upper = (code || 'LIGHTNING_CUP').toUpperCase()
+  if (upper.startsWith('JENNY_CUP')) return CUP_PALETTE.JENNY_CUP
+  return CUP_PALETTE.LIGHTNING_CUP
 }
 
 export function CupBadge({ code, size = 'md', className = '', title }: CupBadgeProps) {
   const colors = getPalette(code)
-  const isLightning = code !== 'JENNY_CUP'
+  const isLightning = !code?.toUpperCase().startsWith('JENNY_CUP')
   const badgeTitle = title || `${code || 'LIGHTNING_CUP'} cup badge`
 
   return (

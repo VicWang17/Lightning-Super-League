@@ -59,6 +59,9 @@ class LeaderboardItem(BaseSchema):
     value: float
     value_label: str
     matches: int
+    # OVR 排名专用字段（兼容旧 TopPlayerItem 接口）
+    age: Optional[int] = None
+    ovr: Optional[int] = None
 
 
 @dataclass

@@ -16,6 +16,7 @@ class RecordScope(str, PyEnum):
     WORLD = "world"      # 世界纪录（全服）
     LEAGUE = "league"    # 联赛纪录（scope_target_id = league_id）
     TEAM = "team"        # 队伍纪录（scope_target_id = team_id）
+    CUP = "cup"          # 杯赛纪录（scope_target_id = cup_competition_id）
 
 
 class RecordCategory(str, PyEnum):

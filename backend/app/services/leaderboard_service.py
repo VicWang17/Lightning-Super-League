@@ -165,6 +165,88 @@ class LeaderboardService:
         )
         return [str(r[0]) for r in result.all()]
 
+    # ==================== 杯赛级排行榜 ====================
+
+    async def get_cup_leaderboard(
+        self,
+        cup_id: str,
+        season_id: str,
+        lb_type: LeaderboardType,
+        limit: int = 20,
+    ) -> List[LeaderboardItem]:
+        """获取杯赛级排行榜"""
+        config = LEADERBOARD_CONFIGS.get(lb_type)
+        if not config:
+            return []
+        
+        ps = PlayerSeasonStats
+        player = Player
+        team = Team
+        
+        # 构建排序表达式
+        if config.is_rate:
+            order_expr = self._build_league_rate_expr(lb_type)
+            value_expr = order_expr
+        else:
+            order_expr = config.order_expr
+            value_expr = config.value_expr
+        
+        # 基础查询：按 cup_competition_id 过滤
+        query = (
+            select(
+                player,
+                team,
+                value_expr.label("stat_value"),
+                ps.matches_played.label("matches"),
+            )
+            .join(ps, player.id == ps.player_id)
+            .outerjoin(team, ps.team_id == team.id)
+            .where(
+                and_(
+                    ps.cup_competition_id == cup_id,
+                    ps.season_id == season_id,
+                )
+            )
+        )
+        
+        # 位置过滤
+        if config.position_filter:
+            query = query.where(player.position == PlayerPosition(config.position_filter))
+        
+        # 场次门槛（杯赛使用联赛级门槛）
+        min_matches = config.min_matches_league
+        if min_matches > 0:
+            query = query.where(ps.matches_played >= min_matches)
+        
+        # 对于率类，需要额外过滤分母 > 0
+        if config.is_rate:
+            den_field = self._get_rate_denominator_field(lb_type)
+            if den_field:
+                query = query.where(den_field > 0)
+        
+        # 排序
+        query = query.order_by(desc(order_expr)).limit(limit)
+        
+        result = await self.db.execute(query)
+        rows = result.all()
+        
+        items = []
+        for idx, (p, t, stat_value, matches) in enumerate(rows):
+            items.append(LeaderboardItem(
+                rank=idx + 1,
+                player_id=str(p.id),
+                player_name=p.name,
+                avatar_url=p.avatar_url,
+                position=p.position.value if hasattr(p.position, "value") else str(p.position),
+                team_name=t.name if t else "未知球队",
+                team_id=str(t.id) if t else "",
+                value=self._format_value(stat_value, config.value_format),
+                value_label=config.value_label,
+                matches=matches or 0,
+            ))
+        
+        return items
+
     # ==================== 联赛级排行榜 ====================
 
     async def get_league_leaderboard(
@@ -367,6 +449,8 @@ class LeaderboardService:
                 value=float(p.ovr),
                 value_label="OVR",
                 matches=0,
+                age=p.age,
+                ovr=int(p.ovr),
             ))
         
         return items
