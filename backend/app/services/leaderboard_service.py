@@ -259,13 +259,9 @@ class LeaderboardService:
         limit: int = 100,
         position: Optional[str] = None,
     ) -> List[LeaderboardItem]:
-        """获取世界级排行榜"""
+        """获取世界级排行榜（ career 累计，跨赛季、跨赛事）"""
         config = LEADERBOARD_CONFIGS.get(lb_type)
         if not config:
-            return []
-        
-        season_ids = await self._resolve_current_season_ids()
-        if not season_ids:
             return []
         
         ps = PlayerSeasonStats
@@ -282,7 +278,7 @@ class LeaderboardService:
             order_expr = value_expr
             matches_expr = func.coalesce(func.sum(ps.matches_played), 0).label("matches")
         
-        # 基础聚合查询
+        # 基础聚合查询：世界榜统计所有赛季、所有赛事的 career 累计
         query = (
             select(
                 player,
@@ -292,12 +288,6 @@ class LeaderboardService:
             )
             .outerjoin(team, player.team_id == team.id)
             .join(ps, player.id == ps.player_id)
-            .where(
-                and_(
-                    ps.season_id.in_(season_ids),
-                    ps.league_id.is_not(None),
-                )
-            )
             .group_by(player.id, team.id)
         )
         

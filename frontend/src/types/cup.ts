@@ -108,28 +108,22 @@ export interface KnockoutMatchNode {
 }
 
 // 杯赛阶段配置
-export const CUP_STAGE_CONFIG: Record<string, { name: string; icon: string; color: string }> = {
-  GROUP: { name: '小组赛', icon: '⚔️', color: 'bg-blue-500' },
-  ROUND_48: { name: '预选赛', icon: '🎯', color: 'bg-slate-500' },
-  ROUND_32: { name: '32强', icon: '🏆', color: 'bg-emerald-500' },
-  ROUND_16: { name: '16强', icon: '🏆', color: 'bg-violet-500' },
-  QUARTER: { name: '1/4决赛', icon: '⚡', color: 'bg-amber-500' },
-  SEMI: { name: '半决赛', icon: '🔥', color: 'bg-rose-500' },
-  FINAL: { name: '决赛', icon: '👑', color: 'bg-yellow-400' },
+export const CUP_STAGE_CONFIG: Record<string, { name: string; color: string }> = {
+  GROUP: { name: '小组赛', color: 'bg-blue-500' },
+  ROUND_48: { name: '预选赛', color: 'bg-slate-500' },
+  ROUND_32: { name: '32强', color: 'bg-emerald-500' },
+  ROUND_16: { name: '16强', color: 'bg-violet-500' },
+  QUARTER: { name: '1/4决赛', color: 'bg-amber-500' },
+  SEMI: { name: '半决赛', color: 'bg-rose-500' },
+  FINAL: { name: '决赛', color: 'bg-yellow-400' },
 }
 
 // 杯赛配置
-export const CUP_CONFIG: Record<string, { icon: string; color: string; gradient: string; description: string }> = {
+export const CUP_CONFIG: Record<string, { description: string }> = {
   LIGHTNING_CUP: {
-    icon: '⚡',
-    color: 'text-yellow-400',
-    gradient: 'bg-yellow-500/20',
     description: '顶级杯赛，64支球队参赛，小组赛+淘汰赛制'
   },
   JENNY_CUP: {
-    icon: '🏆',
-    color: 'text-emerald-400',
-    gradient: 'bg-emerald-500/20',
     description: '次级联赛杯赛，192支球队参赛，纯淘汰赛制'
   },
 }

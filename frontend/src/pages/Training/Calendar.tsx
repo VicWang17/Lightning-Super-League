@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Calendar, Clock, Zap, Shield, Target } from '../../components/ui/pixel-icons'
+import { Calendar } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import type { TrainingPlanSlot, TrainingResultItem } from '../../types/training'
-import { Card } from '../../components/ui/Card'
 import { TRAINING_CATEGORY_BG } from '../../types/training'
+import { TrainingPageShell } from './components/TrainingPageShell'
 
 const SLOT_LABELS: Record<string, string> = {
   morning: '上午',
@@ -51,7 +51,10 @@ export default function TrainingCalendar() {
   }, [])
 
   const weeks = useMemo(() => {
-    if (plans.length === 0) return [] as Array<{ label: string; startDay: number }>
+    if (plans.length === 0) {
+      // 如果没有计划数据，至少显示当前周
+      return [{ label: '本周', startDay: 1 }]
+    }
     const minDay = Math.min(...plans.map(p => p.season_day))
     const start = Math.floor((minDay - 1) / 7) * 7 + 1
     const list: Array<{ label: string; startDay: number }> = []
@@ -89,86 +92,68 @@ export default function TrainingCalendar() {
   const avgIntensity = useMemo(() => {
     const completed = weekResults.length
     if (completed === 0) return 0
-    // 用疲劳变化作为强度指标
     const totalFatigue = weekResults.reduce((s, r) => s + Math.max(0, r.fatigue_after - r.fatigue_before), 0)
     return Math.min(100, Math.round(totalFatigue / completed * 3))
   }, [weekResults])
 
   if (loading) {
-    return <div className="max-w-[1400px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return (
+      <TrainingPageShell title="训练日历" subtitle="查看训练计划与执行记录">
+        <div className="training-panel" style={{ padding: 36, textAlign: 'center', color: 'var(--tr-muted)', fontWeight: 900 }}>
+          加载中…
+        </div>
+      </TrainingPageShell>
+    )
   }
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      <div>
-        <h1 className="text-2xl font-bold text-white">训练日历</h1>
-        <p className="text-sm text-[#8B8BA7] mt-1">查看训练计划与执行记录</p>
-      </div>
-
-      <div className="flex gap-2 flex-wrap">
+    <TrainingPageShell title="训练日历" subtitle="查看训练计划与执行记录">
+      <div className="training-category-tabs" style={{ marginBottom: 14 }}>
         {weeks.map((w, idx) => (
           <button
             key={w.startDay}
             onClick={() => setSelectedWeek(idx)}
-            className={`px-4 py-2 border-2 text-sm font-medium transition-all duration-200 ${
-              selectedWeek === idx
-                ? 'bg-[#0D7377] border-[#0A5A5D] text-white shadow-pixel-green'
-                : 'bg-[#0A0A0F] border-[#2D2D44] text-[#8B8BA7] hover:border-[#0D7377]/50 hover:text-white'
-            }`}
+            className={selectedWeek === idx ? 'is-active' : ''}
           >
             {w.label}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <div className="flex items-center gap-2 mb-2">
-            <Zap className="w-4 h-4 text-yellow-500" />
-            <span className="text-sm text-[#8B8BA7]">该周训练人次</span>
-          </div>
-          <p className="text-2xl font-bold text-white">{weekResults.length} 次</p>
-        </Card>
-        <Card>
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="w-4 h-4 text-blue-400" />
-            <span className="text-sm text-[#8B8BA7]">计划项</span>
-          </div>
-          <p className="text-2xl font-bold text-white">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 16 }}>
+        <div className="training-stat-tile is-amber">
+          <span>该周训练人次</span>
+          <strong>{weekResults.length} 次</strong>
+        </div>
+        <div className="training-stat-tile is-blue">
+          <span>计划项</span>
+          <strong>
             {Object.values(weekPlans).reduce((s, d) => s + (d.am ? 1 : 0) + (d.pm ? 1 : 0) + (d.eve ? 1 : 0), 0)} 项
-          </p>
-        </Card>
-        <Card>
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm text-[#8B8BA7]">平均强度</span>
-          </div>
-          <p className="text-2xl font-bold text-white">{avgIntensity}%</p>
-        </Card>
-        <Card>
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="w-4 h-4 text-red-400" />
-            <span className="text-sm text-[#8B8BA7]">属性突破</span>
-          </div>
-          <p className="text-2xl font-bold text-white">
-            {weekResults.reduce((s, r) => s + (r.breakthroughs?.length ?? 0), 0)} 次
-          </p>
-        </Card>
+          </strong>
+        </div>
+        <div className="training-stat-tile is-green">
+          <span>平均强度</span>
+          <strong>{avgIntensity}%</strong>
+        </div>
+        <div className="training-stat-tile is-red">
+          <span>属性突破</span>
+          <strong>{weekResults.reduce((s, r) => s + (r.breakthroughs?.length ?? 0), 0)} 次</strong>
+        </div>
       </div>
 
-      <Card>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-[#0D7377]" />
+      <div className="training-panel" style={{ padding: 16, marginBottom: 16 }}>
+        <h3 style={{ color: 'var(--tr-text)', fontSize: 18, fontWeight: 1000, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Calendar className="w-4 h-4" style={{ color: 'var(--tr-accent)' }} />
           训练明细
         </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="border-b-2 border-[#2D2D44]">
-                <th className="text-left text-xs text-[#4B4B6A] py-2 pr-4">日期</th>
-                <th className="text-left text-xs text-[#4B4B6A] py-2 px-3">上午</th>
-                <th className="text-left text-xs text-[#4B4B6A] py-2 px-3">下午</th>
-                <th className="text-left text-xs text-[#4B4B6A] py-2 px-3">晚上</th>
+              <tr style={{ borderBottom: '2px solid var(--tr-border)' }}>
+                <th style={{ textAlign: 'left', color: 'var(--tr-muted)', fontSize: 12, fontWeight: 900, padding: '8px 12px 8px 0' }}>日期</th>
+                <th style={{ textAlign: 'left', color: 'var(--tr-muted)', fontSize: 12, fontWeight: 900, padding: '8px 12px' }}>上午</th>
+                <th style={{ textAlign: 'left', color: 'var(--tr-muted)', fontSize: 12, fontWeight: 900, padding: '8px 12px' }}>下午</th>
+                <th style={{ textAlign: 'left', color: 'var(--tr-muted)', fontSize: 12, fontWeight: 900, padding: '8px 12px' }}>晚上</th>
               </tr>
             </thead>
             <tbody>
@@ -177,64 +162,81 @@ export default function TrainingCalendar() {
                 const dayData = weekPlans[String(dayNum)] || {}
                 const dayResults = results.filter(r => r.season_day === dayNum)
                 return (
-                  <tr key={dayNum} className="border-b border-[#2D2D44]/50">
-                    <td className="py-3 pr-4 text-sm text-white font-medium">
+                  <tr key={dayNum} style={{ borderBottom: '1px solid var(--tr-border)' }}>
+                    <td style={{ padding: '10px 12px 10px 0', color: 'var(--tr-text)', fontSize: 13, fontWeight: 800 }}>
                       第 {dayNum} 天
-                      <span className="text-[#4B4B6A] ml-1">({DAYS[i]})</span>
+                      <span style={{ color: 'var(--tr-muted)', marginLeft: 6 }}>({DAYS[i]})</span>
                       {dayResults.length > 0 && (
-                        <span className="ml-2 text-[10px] text-emerald-400">✓ 已执行</span>
+                        <span style={{ marginLeft: 8, color: '#9ECF45', fontSize: 11, fontWeight: 1000 }}>✓ 已执行</span>
                       )}
                     </td>
-                    <td className="py-3 px-3">
-                      <SlotCell slot={dayData.am} />
-                    </td>
-                    <td className="py-3 px-3">
-                      <SlotCell slot={dayData.pm} />
-                    </td>
-                    <td className="py-3 px-3">
-                      <SlotCell slot={dayData.eve} />
-                    </td>
+                    <td style={{ padding: '10px 12px' }}><SlotCell slot={dayData.am} /></td>
+                    <td style={{ padding: '10px 12px' }}><SlotCell slot={dayData.pm} /></td>
+                    <td style={{ padding: '10px 12px' }}><SlotCell slot={dayData.eve} /></td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
 
       {weekResults.length > 0 && (
-        <Card>
-          <h3 className="text-lg font-semibold mb-4">该周训练成果</h3>
-          <div className="space-y-2">
+        <div className="training-panel" style={{ padding: 16 }}>
+          <h3 style={{ color: 'var(--tr-text)', fontSize: 18, fontWeight: 1000, marginBottom: 14 }}>
+            该周训练成果
+          </h3>
+          <div style={{ display: 'grid', gap: 8 }}>
             {weekResults.slice(0, 20).map(r => (
-              <div key={r.id} className="flex items-center gap-3 text-sm bg-[#0A0A0F] p-2 border border-[#2D2D44]">
-                <span className="text-white w-20 truncate">{r.player_name || r.player_id}</span>
-                <span className="text-[#8B8BA7] w-24 truncate">{r.training_item_name || r.training_item_id}</span>
-                <span className="text-[#4B4B6A]">第{r.season_day}天 · {SLOT_LABELS[r.slot] || r.slot}</span>
-                <span className="text-amber-400 ml-auto">效率 {r.efficiency}%</span>
+              <div
+                key={r.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: 10,
+                  background: 'rgba(5,6,9,0.86)',
+                  border: '2px solid var(--tr-border)',
+                  fontSize: 13,
+                }}
+              >
+                <span style={{ color: 'var(--tr-text)', width: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 800 }}>
+                  {r.player_name || r.player_id}
+                </span>
+                <span style={{ color: 'var(--tr-muted)', width: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.training_item_name || r.training_item_id}
+                </span>
+                <span style={{ color: 'var(--tr-muted)', fontSize: 12 }}>
+                  第{r.season_day}天 · {SLOT_LABELS[r.slot] || r.slot}
+                </span>
+                <span style={{ color: '#D7A94A', marginLeft: 'auto', fontWeight: 1000 }}>效率 {r.efficiency}%</span>
                 {r.breakthroughs && r.breakthroughs.length > 0 && (
-                  <span className="text-emerald-400 text-xs">突破 {r.breakthroughs.length} 项</span>
+                  <span style={{ color: '#9ECF45', fontSize: 11, fontWeight: 1000 }}>突破 {r.breakthroughs.length} 项</span>
                 )}
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       )}
-    </div>
+    </TrainingPageShell>
   )
 }
 
 function SlotCell({ slot }: { slot?: TrainingPlanSlot }) {
-  if (!slot?.training_item) return <span className="text-[#4B4B6A] text-sm">-</span>
+  if (!slot?.training_item) return <span style={{ color: 'var(--tr-muted)', fontSize: 13 }}>-</span>
   const style = TRAINING_CATEGORY_BG[slot.training_item.category]
   return (
     <span
-      className="text-xs px-2 py-1 border inline-block"
-      style={style ? {
-        backgroundColor: style.bg,
-        borderColor: style.border,
-        color: style.text.replace('text-', ''),
-      } : {}}
+      style={{
+        display: 'inline-block',
+        fontSize: 12,
+        padding: '4px 8px',
+        border: `2px solid ${style?.border || 'var(--tr-border)'}`,
+        background: style?.bg || 'rgba(5,6,9,0.86)',
+        color: style?.text ? undefined : 'var(--tr-text)',
+        fontWeight: 900,
+      }}
+      className={style?.text || ''}
     >
       {slot.training_item.name}
     </span>

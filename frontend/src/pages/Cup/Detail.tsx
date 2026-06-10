@@ -3,9 +3,10 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../../api/client'
 import { ArrowUpRight } from 'lucide-react'
 import { 
-  Trophy, ChevronLeft, Users, Calendar, Grid3x3 as Grid3X3, 
+  Trophy, ChevronLeft, Calendar, Grid3x3 as Grid3X3, 
   GitBranch, ListBox as List, Target, Shield 
 } from '../../components/ui/pixel-icons'
+import { CupBadge } from '../../components/cup/CupBadge'
 import { 
  useCupDetail, 
  useCupGroups, 
@@ -17,7 +18,7 @@ import {
 import { useSeasons } from '../../hooks/useSeasons'
 import type { CupFixture, CupGroup } from '../../types/cup'
 import type { Season } from '../../types/season'
-import { CUP_CONFIG, CUP_STAGE_CONFIG } from '../../types/cup'
+import { CUP_STAGE_CONFIG } from '../../types/cup'
 
 type TabType = 'groups' | 'knockout' | 'fixtures' | 'scorers' | 'assists' | 'clean-sheets'
 
@@ -297,66 +298,60 @@ function StatsRow({ rank, name, team, value, label, playerId }: { rank: number; 
  )
 }
 
-// 树状图比赛卡片
-function TreeMatchCard({ match, showTBD }: { match?: CupFixture; showTBD?: boolean }) {
- if (showTBD || !match) {
- return (
- <div className="w-28 p-2 bg-[#1A1A25]/50 border-2 border-dashed border-[#3D3D55] shadow-pixel-sm">
- <div className="space-y-1">
- <div className="flex items-center justify-between text-xs text-[#4B4B6A]">
- <span className="truncate flex-1">待定</span>
- <span className="ml-1 font-bold stat-number min-w-[16px] text-right">-</span>
- </div>
- <div className="flex items-center justify-between text-xs text-[#4B4B6A]">
- <span className="truncate flex-1">待定</span>
- <span className="ml-1 font-bold stat-number min-w-[16px] text-right">-</span>
- </div>
- </div>
- </div>
- )
- }
-
+// 淘汰赛比赛行
+function KnockoutMatchRow({ match }: { match: CupFixture }) {
  const isFinished = match.status === 'finished'
+ const isLive = match.status === 'ongoing'
  const winner = isFinished && match.home_score != null && match.away_score != null
  ? match.home_score > match.away_score ? 'home' : match.away_score > match.home_score ? 'away' : null
  : null
 
  return (
- <div className="w-28 p-2 bg-[#1A1A25] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/50 hover:-translate-y-1 transition-all">
- <div className="space-y-1">
- <div className={`flex items-center justify-between text-xs ${winner === 'home' ? 'text-emerald-400 font-medium' : 'text-white'}`}>
+ <div className="bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/50 transition-colors">
+ <div className="grid grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] items-center gap-3 px-4 py-3">
+ <div className={`min-w-0 ${winner === 'home' ? 'text-[#C6F135]' : 'text-white'}`}>
  <Link
  to={`/teams/${match.home_team.id}`}
- className="truncate flex-1 hover:text-[#C6F135] transition-colors"
+ className="block truncate font-bold hover:text-[#C6F135] transition-colors"
  onClick={(e) => e.stopPropagation()}
  >
  {match.home_team.name}
  </Link>
- <span className="ml-1 font-bold stat-number min-w-[16px] text-right">
- {isFinished ? match.home_score : '-'}
- </span>
  </div>
- <div className={`flex items-center justify-between text-xs ${winner === 'away' ? 'text-emerald-400 font-medium' : 'text-white'}`}>
+
+ <div className="text-center">
+ {isFinished || isLive ? (
+ <div className={`text-lg font-black stat-number ${isLive ? 'text-red-400' : 'text-white'}`}>
+ {match.home_score ?? '-'}:{match.away_score ?? '-'}
+ </div>
+ ) : (
+ <div className="text-xs font-black pixel-number text-[#4B4B6A]">VS</div>
+ )}
+ <div className="mt-1 text-[10px] font-bold text-[#4B4B6A]">第{match.season_day}天</div>
+ </div>
+
+ <div className={`min-w-0 text-right ${winner === 'away' ? 'text-[#C6F135]' : 'text-white'}`}>
  <Link
  to={`/teams/${match.away_team.id}`}
- className="truncate flex-1 hover:text-[#C6F135] transition-colors"
+ className="block truncate font-bold hover:text-[#C6F135] transition-colors"
  onClick={(e) => e.stopPropagation()}
  >
  {match.away_team.name}
  </Link>
- <span className="ml-1 font-bold stat-number min-w-[16px] text-right">
- {isFinished ? match.away_score : '-'}
- </span>
  </div>
  </div>
+ {isLive && (
+ <div className="border-t border-[#2D2D44] px-4 py-1 text-xs font-bold text-red-400">进行中</div>
+ )}
  </div>
  )
 }
 
-// 树状淘汰赛对阵组件
-function KnockoutTreeBracket({ fixtures }: { fixtures: CupFixture[] }) {
- // 按阶段分组
+// 赛程轮次列表
+function CupScheduleList({ fixtures }: { fixtures: CupFixture[] }) {
  const fixturesByStage: Record<string, CupFixture[]> = {
+ GROUP: [],
+ ROUND_48: [],
  ROUND_32: [],
  ROUND_16: [],
  QUARTER: [],
@@ -370,13 +365,364 @@ function KnockoutTreeBracket({ fixtures }: { fixtures: CupFixture[] }) {
  }
  })
 
- // 确定树状图包含哪些阶段（从最早有数据的阶段开始，如果没有则从32强开始）
- const allStages = ['ROUND_32', 'ROUND_16', 'QUARTER', 'SEMI', 'FINAL'] as const
- const firstStageWithData = allStages.find(s => fixturesByStage[s].length > 0)
- const startStageIndex = firstStageWithData ? allStages.indexOf(firstStageWithData) : 0
- const stageOrder = allStages.slice(startStageIndex)
+ const stageOrder = ['GROUP', 'ROUND_48', 'ROUND_32', 'ROUND_16', 'QUARTER', 'SEMI', 'FINAL']
+ const visibleStages = stageOrder.filter(stage => fixturesByStage[stage].length > 0)
  
- if (stageOrder.length === 0) {
+ if (visibleStages.length === 0) {
+ return (
+ <div className="text-center py-12">
+ <Calendar className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+ <p className="text-[#8B8BA7]">暂无赛程数据</p>
+ </div>
+ )
+ }
+
+ return (
+ <div className="space-y-6">
+ {visibleStages.map((stage, stageIndex) => {
+ const config = CUP_STAGE_CONFIG[stage]
+ const matches = fixturesByStage[stage]
+
+ return (
+ <section key={stage} className="border-2 border-[#2D2D44] bg-[#0B0D14] shadow-pixel-sm overflow-hidden">
+ <div className="flex items-center justify-between border-b-2 border-[#2D2D44] bg-[#12121A] px-4 py-3">
+ <div className="flex items-center gap-3">
+ <div className={`h-6 w-2 ${config.color}`} />
+ <h4 className="text-lg font-black text-white">{config.name}</h4>
+ </div>
+ <span className="text-xs font-bold text-[#8B8BA7]">{matches.length} 场</span>
+ </div>
+ <div className="divide-y divide-[#2D2D44]">
+ {matches.map(match => (
+ <KnockoutMatchRow key={match.id} match={match} />
+ ))}
+ </div>
+ {stageIndex < visibleStages.length - 1 && (
+ <div className="border-t border-[#2D2D44] px-4 py-2 text-xs text-[#4B4B6A]">
+ 下一阶段：{CUP_STAGE_CONFIG[visibleStages[stageIndex + 1]].name}
+ </div>
+ )}
+ </section>
+ )
+ })}
+ </div>
+ )
+}
+
+function TeamMark({ name, muted = false }: { name: string; muted?: boolean }) {
+ const letters = name
+ .replace(/\s+/g, '')
+ .slice(0, 2)
+ .toUpperCase()
+
+ return (
+ <div className={`w-9 h-9 shrink-0 rounded-full border-2 flex items-center justify-center text-[11px] font-black ${
+ muted
+ ? 'bg-[#10131C] border-[#30334D] text-[#596070]'
+ : 'bg-[#07191B] border-[#0D7377] text-[#7DE6DF]'
+ }`}>
+ {letters}
+ </div>
+ )
+}
+
+type BracketSlot = CupFixture | null
+
+const EXPECTED_STAGE_MATCHES: Record<string, number> = {
+ ROUND_32: 16,
+ ROUND_16: 8,
+ QUARTER: 4,
+ SEMI: 2,
+ FINAL: 1,
+}
+
+function getExpectedStageCount(stage: string, fallback: number) {
+ return Math.max(EXPECTED_STAGE_MATCHES[stage] || fallback, fallback)
+}
+
+function BracketMatchPill({ match, final = false }: { match: BracketSlot; final?: boolean }) {
+ const isPlaceholder = !match
+ const isFinished = Boolean(match && match.status === 'finished')
+ const winner = match && isFinished && match.home_score != null && match.away_score != null
+ ? match.home_score > match.away_score ? 'home' : match.away_score > match.home_score ? 'away' : null
+ : null
+
+ if (isPlaceholder) {
+ return (
+ <div className={`relative mx-auto ${
+ final ? 'w-full max-w-[420px] px-3 py-2' : 'w-full max-w-[320px] px-2 py-1.5'
+ }`}>
+ <div className={`grid items-center gap-3 border-y-2 border-dashed ${
+ final ? 'grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] border-[#D6A619]/60 py-2' : 'grid-cols-[minmax(0,1fr)_62px_minmax(0,1fr)] border-[#30334D] py-1.5'
+ }`}>
+ <div className="flex min-w-0 items-center gap-2 text-[#596070]">
+ <TeamMark name="待定" muted />
+ <span className={`truncate font-black ${final ? 'text-base' : 'text-sm'}`}>待定</span>
+ </div>
+ <div className="text-center">
+ <div className={`${final ? 'text-sm' : 'text-xs'} font-black pixel-number text-[#4B4B6A]`}>VS</div>
+ <div className="mt-1 text-[10px] font-bold text-[#4B4B6A]">未定</div>
+ </div>
+ <div className="flex min-w-0 items-center justify-end gap-2 text-right text-[#596070]">
+ <span className={`truncate font-black ${final ? 'text-base' : 'text-sm'}`}>待定</span>
+ <TeamMark name="待定" muted />
+ </div>
+ </div>
+ </div>
+ )
+ }
+
+ return (
+ <div className={`relative mx-auto ${
+ final ? 'w-full max-w-[420px] px-3 py-2' : 'w-full max-w-[320px] px-2 py-1.5'
+ }`}>
+ <div className={`grid items-center gap-3 border-y-2 ${
+ final ? 'grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] border-[#D6A619] py-2' : 'grid-cols-[minmax(0,1fr)_62px_minmax(0,1fr)] border-[#30334D] py-1.5'
+ }`}>
+ <Link
+ to={`/teams/${match.home_team.id}`}
+ className={`flex min-w-0 items-center gap-2 hover:text-[#C6F135] transition-colors ${
+ winner === 'home' ? 'text-white' : winner === 'away' ? 'text-[#69708A]' : 'text-[#E8EAD8]'
+ }`}
+ >
+ <TeamMark name={match.home_team.name} muted={winner === 'away'} />
+ <span className={`truncate font-black ${final ? 'text-base' : 'text-sm'}`}>{match.home_team.name}</span>
+ </Link>
+
+ <div className="text-center">
+ {isFinished || match.status === 'ongoing' ? (
+ <div className={`${final ? 'text-xl' : 'text-base'} font-black stat-number text-white`}>
+ {match.home_score ?? '-'}:{match.away_score ?? '-'}
+ </div>
+ ) : (
+ <div className={`${final ? 'text-sm' : 'text-xs'} font-black pixel-number text-[#4B4B6A]`}>VS</div>
+ )}
+ <div className="mt-1 text-[10px] font-bold text-[#4B4B6A]">第{match.season_day}天</div>
+ </div>
+
+ <Link
+ to={`/teams/${match.away_team.id}`}
+ className={`flex min-w-0 items-center justify-end gap-2 text-right hover:text-[#C6F135] transition-colors ${
+ winner === 'away' ? 'text-white' : winner === 'home' ? 'text-[#69708A]' : 'text-[#E8EAD8]'
+ }`}
+ >
+ <span className={`truncate font-black ${final ? 'text-base' : 'text-sm'}`}>{match.away_team.name}</span>
+ <TeamMark name={match.away_team.name} muted={winner === 'home'} />
+ </Link>
+ </div>
+ </div>
+ )
+}
+
+function fillSlots(matches: CupFixture[], count: number): BracketSlot[] {
+ return Array.from({ length: count }, (_, index) => matches[index] || null)
+}
+
+function getStageSlots(fixturesByStage: Record<string, CupFixture[]>, stage: string) {
+ const matches = fixturesByStage[stage] || []
+ return fillSlots(matches, getExpectedStageCount(stage, matches.length))
+}
+
+function getHalfSlots(fixturesByStage: Record<string, CupFixture[]>, stage: string, half: 'upper' | 'lower') {
+ const slots = getStageSlots(fixturesByStage, stage)
+ const splitAt = Math.ceil(slots.length / 2)
+ return half === 'upper' ? slots.slice(0, splitAt) : slots.slice(splitAt)
+}
+
+function getWinnerTeamId(match: BracketSlot) {
+ if (!match || match.status !== 'finished' || match.home_score == null || match.away_score == null) return null
+ if (match.home_score > match.away_score) return match.home_team.id
+ if (match.away_score > match.home_score) return match.away_team.id
+ return null
+}
+
+function matchIncludesTeam(match: CupFixture, teamIds: Set<string>) {
+ return teamIds.has(match.home_team.id) || teamIds.has(match.away_team.id)
+}
+
+type BracketRow = { stage: string; matches: BracketSlot[] }
+
+function buildRowsForHalf(
+ fixturesByStage: Record<string, CupFixture[]>,
+ stages: string[],
+ half: 'upper' | 'lower',
+ usedByStage: Record<string, Set<string>>
+) {
+ const rows: BracketRow[] = []
+ if (stages.length === 0) return rows
+
+ let previousSlots = getHalfSlots(fixturesByStage, stages[0], half)
+ rows.push({ stage: stages[0], matches: previousSlots })
+
+ for (let stageIndex = 1; stageIndex < stages.length; stageIndex += 1) {
+ const stage = stages[stageIndex]
+ const candidates = [...(fixturesByStage[stage] || [])]
+ const fallbackSlots = getHalfSlots(fixturesByStage, stage, half)
+ const used = usedByStage[stage] || new Set<string>()
+ usedByStage[stage] = used
+ const expectedCount = Math.max(1, Math.ceil(previousSlots.length / 2))
+ const nextSlots: BracketSlot[] = []
+
+ for (let slotIndex = 0; slotIndex < expectedCount; slotIndex += 1) {
+ const sourceSlots = previousSlots.slice(slotIndex * 2, slotIndex * 2 + 2)
+ const sourceWinnerIds = new Set(sourceSlots.map(getWinnerTeamId).filter(Boolean) as string[])
+ const matchedByWinner = sourceWinnerIds.size > 0
+ ? candidates.find(candidate => !used.has(candidate.id) && matchIncludesTeam(candidate, sourceWinnerIds))
+ : undefined
+ const fallbackMatch = fallbackSlots[slotIndex]
+ const matched = matchedByWinner || (fallbackMatch && !used.has(fallbackMatch.id) ? fallbackMatch : undefined)
+
+ if (matched) {
+ used.add(matched.id)
+ nextSlots.push(matched)
+ } else {
+ nextSlots.push(null)
+ }
+ }
+
+ previousSlots = nextSlots
+ rows.push({ stage, matches: previousSlots })
+ }
+
+ return rows
+}
+
+function buildBracketRows(fixturesByStage: Record<string, CupFixture[]>, stages: string[]) {
+ const usedByStage: Record<string, Set<string>> = {}
+ const upperRows = buildRowsForHalf(fixturesByStage, stages, 'upper', usedByStage)
+ const lowerRows = buildRowsForHalf(fixturesByStage, stages, 'lower', usedByStage)
+ return { upperRows, lowerRows }
+}
+
+function buildBranchPath(fromX: number, fromY: number, toX: number, toY: number) {
+ const midY = (fromY + toY) / 2
+ return `M ${fromX} ${fromY} V ${midY} H ${toX} V ${toY}`
+}
+
+function BracketHalf({
+ half,
+ rows: inputRows,
+}: {
+ half: 'upper' | 'lower'
+ rows: BracketRow[]
+}) {
+ const rows = half === 'upper' ? inputRows : [...inputRows].reverse()
+
+ if (rows.length === 0) return null
+
+ const rowGap = 132
+ const canvasHeight = rows.length === 1 ? 118 : (rows.length - 1) * rowGap + 118
+ const nodeY = (index: number) => 54 + index * rowGap
+ const nodeX = (index: number, count: number) => ((index + 0.5) / count) * 1000
+ const paths: { d: string; key: string }[] = []
+
+ for (let rowIndex = 0; rowIndex < rows.length - 1; rowIndex += 1) {
+ const current = rows[rowIndex]
+ const next = rows[rowIndex + 1]
+ const currentCount = current.matches.length
+ const nextCount = next.matches.length
+
+ if (half === 'upper') {
+ current.matches.forEach((_, matchIndex) => {
+ const parentIndex = Math.min(Math.floor(matchIndex / 2), nextCount - 1)
+ paths.push({
+ key: `${current.stage}-${matchIndex}-${next.stage}-${parentIndex}`,
+ d: buildBranchPath(
+ nodeX(matchIndex, currentCount),
+ nodeY(rowIndex) + 38,
+ nodeX(parentIndex, nextCount),
+ nodeY(rowIndex + 1) - 38
+ ),
+ })
+ })
+ } else {
+ next.matches.forEach((_, childIndex) => {
+ const parentIndex = Math.min(Math.floor(childIndex / 2), currentCount - 1)
+ paths.push({
+ key: `${current.stage}-${parentIndex}-${next.stage}-${childIndex}`,
+ d: buildBranchPath(
+ nodeX(parentIndex, currentCount),
+ nodeY(rowIndex) + 38,
+ nodeX(childIndex, nextCount),
+ nodeY(rowIndex + 1) - 38
+ ),
+ })
+ })
+ }
+ }
+
+ return (
+ <div className="relative" style={{ height: `${canvasHeight}px` }}>
+ <svg
+ className="absolute inset-0 h-full w-full pointer-events-none"
+ viewBox={`0 0 1000 ${canvasHeight}`}
+ preserveAspectRatio="none"
+ shapeRendering="crispEdges"
+ >
+ {paths.map(path => (
+ <path
+ key={path.key}
+ d={path.d}
+ fill="none"
+ stroke="#0D7377"
+ strokeWidth="3"
+ opacity="0.72"
+ />
+ ))}
+ {paths.map(path => (
+ <path
+ key={`${path.key}-glow`}
+ d={path.d}
+ fill="none"
+ stroke="#C6F135"
+ strokeWidth="1"
+ opacity="0.42"
+ />
+ ))}
+ </svg>
+
+ {rows.map((row, rowIndex) => {
+ return (
+ <div
+ key={`${half}-${row.stage}`}
+ className="absolute left-0 right-0"
+ style={{ top: `${nodeY(rowIndex) - 34}px` }}
+ >
+ <div
+ className="grid items-center gap-4"
+ style={{ gridTemplateColumns: `repeat(${row.matches.length}, minmax(0, 1fr))` }}
+ >
+ {row.matches.map((match, matchIndex) => (
+ <BracketMatchPill key={match?.id || `${half}-${row.stage}-${matchIndex}`} match={match} />
+ ))}
+ </div>
+ </div>
+ )
+ })}
+ </div>
+ )
+}
+
+// 上下半区向决赛收拢的淘汰赛对阵
+function KnockoutBracketTree({ fixtures }: { fixtures: CupFixture[] }) {
+ const fixturesByStage: Record<string, CupFixture[]> = {
+ ROUND_32: [],
+ ROUND_16: [],
+ QUARTER: [],
+ SEMI: [],
+ FINAL: [],
+ }
+
+ fixtures.forEach(f => {
+ if (f.cup_stage && fixturesByStage[f.cup_stage]) {
+ fixturesByStage[f.cup_stage].push(f)
+ }
+ })
+
+ const stageOrder = ['ROUND_32', 'ROUND_16', 'QUARTER', 'SEMI', 'FINAL']
+ const visibleStages = stageOrder.filter(stage => fixturesByStage[stage].length > 0)
+
+ if (visibleStages.length === 0) {
  return (
  <div className="text-center py-12">
  <GitBranch className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
@@ -386,132 +732,43 @@ function KnockoutTreeBracket({ fixtures }: { fixtures: CupFixture[] }) {
  )
  }
 
- // 计算每个阶段应该有多少场比赛
- const getExpectedMatchCount = (stage: string): number => {
- switch (stage) {
- case 'ROUND_32': return 16
- case 'ROUND_16': return 8
- case 'QUARTER': return 4
- case 'SEMI': return 2
- case 'FINAL': return 1
- default: return 0
- }
- }
-
- // 构建完整的对阵数据结构
- const buildBracketData = () => {
- const bracket: Record<string, (CupFixture | null)[]> = {}
- 
- stageOrder.forEach(stage => {
- const expectedCount = getExpectedMatchCount(stage)
- const existingMatches = fixturesByStage[stage]
- 
- // 创建完整数量的比赛槽位
- bracket[stage] = Array(expectedCount).fill(null)
- 
- // 填充已有的比赛数据
- existingMatches.forEach((match, index) => {
- if (index < expectedCount) {
- bracket[stage][index] = match
- }
- })
- })
- 
- return bracket
- }
-
- const bracketData = buildBracketData()
- const stageCount = stageOrder.length
- 
- // 计算每个阶段的间距
- const getSpacing = (stageIndex: number) => {
- return 60 * Math.pow(2, stageCount - stageIndex - 1)
- }
+ const firstStageIndex = stageOrder.findIndex(stage => fixturesByStage[stage].length > 0)
+ const bracketStages = stageOrder.slice(firstStageIndex, -1)
+ const { upperRows, lowerRows } = buildBracketRows(fixturesByStage, bracketStages)
 
  return (
- <div className="overflow-x-auto pb-4">
- <div className="inline-block">
- <div className="flex" style={{ minHeight: `${60 + 16 * 60}px` }}>
- {stageOrder.map((stage, stageIndex) => {
- const matches = bracketData[stage]
- const config = CUP_STAGE_CONFIG[stage]
- const spacing = getSpacing(stageIndex)
- const totalHeight = (matches.length - 1) * spacing + 40
- 
- return (
- <div 
- key={stage} 
- className="flex flex-col items-center relative"
- style={{ width: '140px', minHeight: `${totalHeight}px` }}
- >
- {/* 阶段标题 */}
- <div className={`mb-4 px-3 py-1 rounded-none ${config.color} text-white text-xs font-medium whitespace-nowrap`}>
- {config.icon} {config.name}
+ <div className="relative overflow-hidden border-2 border-[#2D2D44] bg-[#080B11] px-4 py-6 shadow-pixel-sm">
+ <div className="absolute inset-0 opacity-25 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:16px_16px]" />
+ <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[120px] font-black text-white/[0.025] md:text-[180px]">
+ CUP
  </div>
- 
- {/* 比赛列表容器 */}
- <div className="relative flex-1" style={{ width: '100%', height: `${totalHeight}px` }}>
- {matches.map((match, matchIndex) => {
- const top = matchIndex * spacing
- 
- return (
- <div
- key={`${stage}-${matchIndex}`}
- className="absolute left-1/2 -translate-x-1/2"
- style={{ top: `${top}px` }}
- >
- <TreeMatchCard match={match || undefined} showTBD={!match} />
- </div>
- )
- })}
- </div>
- 
- {/* 连接线（除了最后一个阶段） */}
- {stageIndex < stageCount - 1 && (
- <svg 
- className="absolute pointer-events-none"
- style={{
- left: '120px',
- top: '40px',
- width: '40px',
- height: `${totalHeight}px`,
- }}
- >
- {matches.map((_, matchIndex) => {
- if (matchIndex % 2 !== 0) return null
- 
- const y1 = matchIndex * spacing + 20
- const y2 = (matchIndex + 1) * spacing + 20
- const midY = (y1 + y2) / 2
- 
- return (
- <g key={`line-${matchIndex}`}>
- <line x1="0" y1={y1} x2="10" y2={y1} stroke="#3D3D55" strokeWidth="1" />
- <line x1="0" y1={y2} x2="10" y2={y2} stroke="#3D3D55" strokeWidth="1" />
- <line x1="10" y1={y1} x2="10" y2={y2} stroke="#3D3D55" strokeWidth="1" />
- <line x1="10" y1={midY} x2="30" y2={midY} stroke="#3D3D55" strokeWidth="1" />
- <circle cx="10" cy={midY} r="2" fill="#0D7377" />
- </g>
- )
- })}
+ <div className="relative space-y-4">
+ <BracketHalf half="upper" rows={upperRows} />
+
+ <div className="flex justify-center">
+ <svg width="120" height="42" viewBox="0 0 120 42" shapeRendering="crispEdges" className="pointer-events-none">
+ <path d="M60 0 V42" fill="none" stroke="#0D7377" strokeWidth="3" opacity="0.75" />
+ <path d="M60 0 V42" fill="none" stroke="#C6F135" strokeWidth="1" opacity="0.45" />
  </svg>
- )}
  </div>
- )
- })}
+
+ <div className="mx-auto max-w-[520px] border-2 border-[#D6A619] bg-[#0E111A]/95 px-4 py-3 shadow-pixel-sm">
+ <div className="mb-2 flex items-center justify-center gap-3 text-sm font-black text-[#D6A619]">
+ <span className="h-1 w-12 bg-[#D6A619]" />
+ 决赛
+ <span className="h-1 w-12 bg-[#D6A619]" />
  </div>
+ <BracketMatchPill match={fixturesByStage.FINAL[0] || null} final />
  </div>
- 
- {/* 图例 */}
- <div className="mt-4 flex items-center justify-center gap-6 text-xs text-[#8B8BA7]">
- <div className="flex items-center gap-2">
- <div className="w-3 h-3 bg-emerald-500" />
- <span>晋级球队</span>
+
+ <div className="flex justify-center">
+ <svg width="120" height="42" viewBox="0 0 120 42" shapeRendering="crispEdges" className="pointer-events-none">
+ <path d="M60 0 V42" fill="none" stroke="#0D7377" strokeWidth="3" opacity="0.75" />
+ <path d="M60 0 V42" fill="none" stroke="#C6F135" strokeWidth="1" opacity="0.45" />
+ </svg>
  </div>
- <div className="flex items-center gap-2">
- <div className="w-3 h-3 bg-[#1A1A25] border-2 border-dashed border-[#3D3D55]" />
- <span>待定</span>
- </div>
+
+ <BracketHalf half="lower" rows={lowerRows} />
  </div>
  </div>
  )
@@ -590,9 +847,6 @@ function CupDetail() {
  )
  }
 
- const config = CUP_CONFIG[cup.code] || CUP_CONFIG.LIGHTNING_CUP
- const isLightningCup = cup.code === 'LIGHTNING_CUP'
- 
  // 筛选淘汰赛比赛（包括闪电杯淘汰赛和杰尼杯比赛，不包括预选赛）
  const knockoutFixtures = fixtures.filter(f => 
  f.cup_stage && 
@@ -624,45 +878,18 @@ function CupDetail() {
  </div>
 
  {/* 杯赛信息头部 */}
- <div className="card mb-6 bg-[#0D4A4D]/30">
- <div className="flex items-start justify-between">
- <div className="flex items-center gap-4">
- <div className={`w-16 h-16 bg-${isLightningCup ? 'amber-500' : 'emerald-500'} flex items-center justify-center text-3xl shadow-pixel`}>
- {config.icon}
+ <div className="relative mb-6 overflow-hidden border-2 border-[#30334D] bg-[#080B11] shadow-pixel">
+ <div className="absolute inset-0 opacity-40 bg-[linear-gradient(90deg,rgba(13,115,119,0.28),rgba(8,11,17,0.15)_42%,rgba(198,241,53,0.08))]" />
+ <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:16px_16px]" />
+ <div className="absolute left-0 top-0 h-2 w-2 bg-[#C6F135]" />
+ <div className="absolute right-0 bottom-0 h-2 w-2 bg-[#C6F135]" />
+
+ <div className="relative flex items-center gap-6 p-6">
+ <div className="w-24 h-24 shrink-0 bg-[#050609] border-2 border-[#30334D] flex items-center justify-center shadow-pixel">
+ <CupBadge code={cup.code} size="lg" title={`${cup.name} 徽章`} />
  </div>
- <div>
- <h1 className="text-2xl font-bold text-white">{cup.name}</h1>
- <div className="flex items-center gap-3 mt-2">
- <span className="text-sm text-[#8B8BA7]">第{cup.season_number}赛季</span>
- <span className="text-[#4B4B6A]">·</span>
- <span className={`text-sm ${cup.status === 'ongoing' ? 'text-emerald-400' : cup.status === 'finished' ? 'text-[#8B8BA7]' : 'text-amber-400'}`}>
- {cup.status === 'ongoing' ? '进行中' : cup.status === 'finished' ? '已结束' : '未开始'}
- </span>
- {cup.winner_team_name && (
- <>
- <span className="text-[#4B4B6A]">·</span>
- <span className="text-sm text-amber-400">🏆 {cup.winner_team_name}</span>
- </>
- )}
- </div>
- </div>
- </div>
- <div className="text-right hidden md:block">
- <div className="flex items-center gap-4 text-sm">
- <div className="flex items-center gap-1.5">
- <Users className="w-4 h-4 text-[#8B8BA7]" />
- <span className="text-[#8B8BA7]">{cup.total_teams} 支球队</span>
- </div>
- {cup.has_group_stage && (
- <div className="flex items-center gap-1.5">
- <Grid3X3 className="w-4 h-4 text-[#8B8BA7]" />
- <span className="text-[#8B8BA7]">{cup.group_count} 个小组</span>
- </div>
- )}
- </div>
- <p className="text-xs text-[#4B4B6A] mt-2">
- {isLightningCup ? '小组赛3轮 + 淘汰赛5轮' : '预选赛 + 淘汰赛5轮'}
- </p>
+ <div className="min-w-0">
+ <h1 className="text-4xl font-black text-white leading-tight">{cup.name}</h1>
  </div>
  </div>
  </div>
@@ -781,10 +1008,10 @@ function CupDetail() {
  </div>
  )}
  
- {/* 树状图淘汰赛 */}
+ {/* 淘汰赛正赛 */}
  <div>
  <h3 className="text-lg font-semibold mb-4">
- {cup.has_group_stage ? '淘汰赛对阵' : '正赛对阵'}
+ {cup.has_group_stage ? '淘汰赛' : '正赛'}
  </h3>
  {fixturesLoading ? (
  <div className="h-64 bg-[#1E1E2D] animate-pulse" />
@@ -797,7 +1024,7 @@ function CupDetail() {
  </p>
  </div>
  ) : (
- <KnockoutTreeBracket fixtures={knockoutFixtures} />
+ <KnockoutBracketTree fixtures={knockoutFixtures} />
  )}
  </div>
  </div>
@@ -806,11 +1033,11 @@ function CupDetail() {
  {/* 赛程 */}
  {activeTab === 'fixtures' && (
  <div>
- <h3 className="text-lg font-semibold mb-4">全部赛程</h3>
+ <h3 className="text-lg font-semibold mb-4">赛程</h3>
  {fixturesLoading ? (
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+ <div className="space-y-4">
  {[1, 2, 3, 4].map(i => (
- <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-28 bg-[#1E1E2D] animate-pulse" />
  ))}
  </div>
  ) : fixtures.length === 0 ? (
@@ -819,11 +1046,7 @@ function CupDetail() {
  <p className="text-[#8B8BA7]">暂无赛程数据</p>
  </div>
  ) : (
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- {fixtures.slice(0, 20).map(match => (
- <MatchCard key={match.id} match={match} />
- ))}
- </div>
+ <CupScheduleList fixtures={fixtures} />
  )}
  </div>
  )}

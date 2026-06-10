@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react'
 import {
   Archive,
+  Brush,
   Check,
   Clock,
   Goal,
@@ -11,8 +12,13 @@ import {
   WarningDiamond,
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
-import type { PlayerFatigueItem, TrainingItem, TrainingMode } from '../../types/training'
+import type { PlayerFatigueItem, TrainingItem, TrainingMode, PlanGroup, PlanSlotData } from '../../types/training'
 import { getTemplateItemId, TRAINING_TEMPLATES, type TrainingTemplateDetail } from '../../types/training'
+import { checkSlotConflicts } from './components/ConflictEngine'
+import type { TrainingConflict } from './components/ConflictEngine'
+import TrainingPickerModal from './components/TrainingPickerModal'
+import GroupEditorModal from './components/GroupEditorModal'
+import '../../styles/training-system.css'
 
 const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const PERIODS = [
@@ -60,21 +66,7 @@ const INTENSITY_LABELS: Record<string, string> = {
   hard: '高',
 }
 
-interface PlanGroup {
-  group_id: string
-  name: string
-  player_ids: string[]
-  training_item_id: string | null
-}
-
-interface PlanSlotData {
-  mode: TrainingMode
-  training_item_id: string | null
-  groups: PlanGroup[] | null
-  isAutoSuggested: boolean
-  isUserModified: boolean
-  isMatchDay: boolean
-}
+// PlanGroup 和 PlanSlotData 已从 ../../types/training 导入
 
 interface MatchDayInfo {
   season_day: number
@@ -143,9 +135,12 @@ export default function WeeklyTraining() {
   const [activeTemplate, setActiveTemplate] = useState<TrainingTemplateDetail>(DEFAULT_TEMPLATE)
   const [hasUserChanges, setHasUserChanges] = useState(false)
   const [globalMode, setGlobalMode] = useState<TrainingMode>('team')
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [slotGroupSelection, setSlotGroupSelection] = useState<Map<string, string>>(new Map())
   const [groupConfig, setGroupConfig] = useState<PlanGroup[] | null>(null)
-  const [activeCategory, setActiveCategory] = useState('all')
+  const [brushItemId, setBrushItemId] = useState<string | null>(null)
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
+  const [pickerMode, setPickerMode] = useState<'replace' | 'brush'>('replace')
+  const [isGroupEditorOpen, setIsGroupEditorOpen] = useState(false)
 
   const startDay = currentDay
 
@@ -286,7 +281,6 @@ export default function WeeklyTraining() {
               training_item_id: null as string | null,
             }))
             setGroupConfig(backendGroups)
-            setSelectedGroupId(backendGroups[0]?.group_id || null)
             setLocalPlan(prev => {
               const next = new Map(prev)
               for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
@@ -320,7 +314,16 @@ export default function WeeklyTraining() {
   const selectedSlot = selectedCell ? PERIODS[selectedCell.periodIndex] : null
   const selectedDay = selectedCell ? startDay + selectedCell.dayOffset : null
   const selectedCellData = selectedCell && selectedSlot ? getCell(selectedCell.dayOffset, selectedSlot.key) : undefined
-  const activeGroup = selectedCellData?.groups?.find(group => group.group_id === selectedGroupId) || selectedCellData?.groups?.[0] || null
+  const selectedGroupId = useMemo(() => {
+    if (!selectedCell || !selectedCellData?.groups?.length) return null
+    const key = `${selectedCell.dayOffset}-${selectedCell.periodIndex}`
+    return slotGroupSelection.get(key) || selectedCellData.groups[0]?.group_id || null
+  }, [selectedCell, selectedCellData, slotGroupSelection])
+
+  const activeGroup = useMemo(() => {
+    if (!selectedCellData?.groups?.length) return null
+    return selectedCellData.groups.find(group => group.group_id === selectedGroupId) || selectedCellData.groups[0] || null
+  }, [selectedCellData, selectedGroupId])
   const focusedTrainingItem = selectedCellData?.mode === 'team'
     ? getItemById(selectedCellData.training_item_id)
     : getItemById(activeGroup?.training_item_id || null)
@@ -330,28 +333,7 @@ export default function WeeklyTraining() {
     return ['all', ...Array.from(seen)]
   }, [items])
 
-  const visibleItems = useMemo(() => {
-    const filtered = activeCategory === 'all' ? items : items.filter(item => item.category === activeCategory)
-    return filtered.sort((a, b) => {
-      if (a.is_recovery !== b.is_recovery) return a.is_recovery ? 1 : -1
-      return a.load_points - b.load_points
-    })
-  }, [activeCategory, items])
-
-  const selectedTrainingItems = useMemo(() => {
-    if (!selectedCellData || selectedCellData.isMatchDay) return []
-    if (selectedCellData.mode === 'team') {
-      const item = getItemById(selectedCellData.training_item_id)
-      return item ? [item] : []
-    }
-    return (selectedCellData.groups || [])
-      .map(group => getItemById(group.training_item_id))
-      .filter((item): item is TrainingItem => Boolean(item))
-  }, [getItemById, selectedCellData])
-
-  const selectedLoad = selectedTrainingItems.reduce((sum, item) => sum + item.load_points, 0)
-  const selectedFatigueDelta = selectedTrainingItems.reduce((sum, item) => sum + item.fatigue_delta, 0)
-  const avgFitness = fatigue.length ? Math.round(fatigue.reduce((sum, player) => sum + player.fitness, 0) / fatigue.length) : 0
+  // visibleItems 已迁移至 TrainingPickerModal 内部管理
 
   const stats = useMemo(() => {
     let planned = 0
@@ -372,12 +354,27 @@ export default function WeeklyTraining() {
     return { planned, modified, matchSlots }
   }, [getCell])
 
+  const conflictsMap = useMemo(() => {
+    const map = new Map<string, TrainingConflict[]>()
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      for (let periodIndex = 0; periodIndex < PERIODS.length; periodIndex++) {
+        const slot = PERIODS[periodIndex]
+        const cell = getCell(dayOffset, slot.key)
+        const list = checkSlotConflicts(dayOffset, periodIndex, cell, matchDays, fatigue, items, startDay, getCell)
+        if (list.length) map.set(`${dayOffset}-${periodIndex}`, list)
+      }
+    }
+    return map
+  }, [getCell, matchDays, fatigue, items, startDay])
+
+  // dailyOverloadDays 已移除（UI 中不再显示过载标记）
+
   const switchMode = useCallback(async (newMode: TrainingMode) => {
     if (newMode === globalMode || !teamId) return
     if (hasUserChanges && !confirm('切换分组方式会重新整理当前训练计划，未保存的手动微调可能失效。确定继续吗？')) return
 
     setGlobalMode(newMode)
-    setSelectedGroupId(null)
+    setSlotGroupSelection(new Map())
     setHasUserChanges(true)
 
     if (newMode === 'team') {
@@ -412,7 +409,6 @@ export default function WeeklyTraining() {
       training_item_id: null as string | null,
     }))
     setGroupConfig(backendGroups)
-    setSelectedGroupId(backendGroups[0]?.group_id || null)
     setLocalPlan(prev => {
       const next = new Map(prev)
       for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
@@ -434,29 +430,51 @@ export default function WeeklyTraining() {
     })
   }, [activeTemplate, getCellKey, globalMode, hasUserChanges, teamId])
 
-  const applyTrainingItem = useCallback((trainingId: string) => {
-    if (!selectedCell || !selectedSlot) return
-    const key = getCellKey(selectedCell.dayOffset, selectedSlot.key)
+  const applyTrainingItemToSlot = useCallback((trainingId: string, dayOffset: number, periodKey: string, groupId?: string | null) => {
+    const key = getCellKey(dayOffset, periodKey)
     const cell = localPlan.get(key)
-    if (!cell || cell.isMatchDay) return
+    if (!cell || cell.isMatchDay) return false
 
     const next = new Map(localPlan)
     if (cell.mode === 'team') {
       next.set(key, { ...cell, training_item_id: trainingId, isAutoSuggested: false, isUserModified: true })
     } else {
-      const targetGroupId = selectedGroupId || cell.groups?.[0]?.group_id
-      if (!targetGroupId || !cell.groups) return
+      const targetGroupId = groupId || cell.groups?.[0]?.group_id
+      if (!targetGroupId || !cell.groups) return false
       next.set(key, {
         ...cell,
         groups: cell.groups.map(group => group.group_id === targetGroupId ? { ...group, training_item_id: trainingId } : group),
         isAutoSuggested: false,
         isUserModified: true,
       })
-      setSelectedGroupId(targetGroupId)
     }
     setLocalPlan(next)
     setHasUserChanges(true)
-  }, [getCellKey, localPlan, selectedCell, selectedGroupId, selectedSlot])
+    return true
+  }, [getCellKey, localPlan])
+
+  const applyTrainingItem = useCallback((trainingId: string) => {
+    if (!selectedCell || !selectedSlot) return
+    applyTrainingItemToSlot(trainingId, selectedCell.dayOffset, selectedSlot.key, selectedGroupId)
+  }, [applyTrainingItemToSlot, selectedCell, selectedGroupId, selectedSlot])
+
+  const handleSlotClick = useCallback((dayOffset: number, periodIndex: number) => {
+    if (brushItemId) {
+      const period = PERIODS[periodIndex]
+      const didApply = applyTrainingItemToSlot(brushItemId, dayOffset, period.key)
+      if (didApply) return
+    }
+    setSelectedCell({ dayOffset, periodIndex })
+    const cell = getCell(dayOffset, PERIODS[periodIndex].key)
+    const firstGroup = cell?.groups?.[0]?.group_id || null
+    if (firstGroup) {
+      setSlotGroupSelection(prev => {
+        const next = new Map(prev)
+        next.set(`${dayOffset}-${periodIndex}`, firstGroup)
+        return next
+      })
+    }
+  }, [brushItemId, applyTrainingItemToSlot, getCell])
 
   const clearSelectedCell = useCallback(() => {
     if (!selectedCell || !selectedSlot) return
@@ -555,38 +573,6 @@ export default function WeeklyTraining() {
 
   return (
     <div className="training-console-page">
-      <section className="training-hero">
-        <div className="training-hero-copy">
-          <div className="training-chip">
-            <span />
-            第 {startDay} - {startDay + 6} 天训练指令
-          </div>
-          <h1>训练场指挥台</h1>
-        </div>
-        <div className="training-command-strip">
-          <div className="training-hud-note">
-            <span>计划 {stats.planned}/21</span>
-            <span>微调 {stats.modified}</span>
-            <span>比赛锁定 {stats.matchSlots}</span>
-            <span>体能 {avgFitness || '-'}%</span>
-          </div>
-          <button onClick={() => applyTemplate(activeTemplate, true)} className="training-ghost-btn">
-            <Reload className="h-4 w-4" />
-            重置模板
-          </button>
-          <button onClick={savePlan} disabled={saving} className="training-save-btn">
-            {saving ? <Clock className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
-            {hasUserChanges ? '保存修改' : '保存计划'}
-          </button>
-          {saveMsg && (
-            <span className={`training-save-msg ${saveMsg.includes('成功') ? 'is-ok' : 'is-bad'}`}>
-              {saveMsg.includes('成功') && <Check className="h-4 w-4" />}
-              {saveMsg}
-            </span>
-          )}
-        </div>
-      </section>
-
       <section className="training-mode-panel">
         {(['team', 'groups_2', 'groups_3'] as TrainingMode[]).map(mode => {
           const config = MODE_LABELS[mode]
@@ -605,70 +591,85 @@ export default function WeeklyTraining() {
         })}
       </section>
 
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        {globalMode !== 'team' && (
+          <button onClick={() => setIsGroupEditorOpen(true)} className="training-ghost-btn">
+            <Users className="h-4 w-4" />
+            调整分组
+          </button>
+        )}
+        <button onClick={() => applyTemplate(activeTemplate, true)} className="training-ghost-btn">
+          <Reload className="h-4 w-4" />
+          重置模板
+        </button>
+        <button onClick={savePlan} disabled={saving} className="training-save-btn">
+          {saving ? <Clock className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+          {hasUserChanges ? '保存修改' : '保存计划'}
+        </button>
+        {saveMsg && (
+          <span className={`training-save-msg ${saveMsg.includes('成功') ? 'is-ok' : 'is-bad'}`}>
+            {saveMsg.includes('成功') && <Check className="h-4 w-4" />}
+            {saveMsg}
+          </span>
+        )}
+      </div>
+
       <main className="training-workbench">
         <section className="training-board">
-          <div className="training-board-header">
-            <div>
-              <h2>本周计划板</h2>
-              <p>点击任意可训练时段，再从右侧选择训练内容。</p>
-            </div>
-            <select
-              value={activeTemplate.id}
-              onChange={event => {
-                const template = TRAINING_TEMPLATES.find(item => item.id === event.target.value)
-                if (template) applyTemplate(template)
-              }}
-            >
-              {TRAINING_TEMPLATES.map(template => (
-                <option key={template.id} value={template.id}>{template.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="training-week-grid">
+          <div className="training-week-grid" style={{ gridTemplateColumns: '40px repeat(7, minmax(0, 1fr))', gap: 6 }}>
+            {/* 左上角空白 */}
+            <div />
+            {/* 7 个日期 header */}
             {Array.from({ length: 7 }).map((_, dayOffset) => {
               const seasonDay = startDay + dayOffset
-              const matchInfo = matchDays.get(seasonDay)
               return (
-                <article key={seasonDay} className={`training-day-column ${isToday(dayOffset) ? 'is-today' : ''}`}>
-                  <header>
-                    <strong>{DAYS[(seasonDay - 1) % 7]}</strong>
-                    <span>第 {seasonDay} 天</span>
-                    {matchInfo && <em>{matchInfo.isHome ? '主场' : '客场'}比赛</em>}
-                  </header>
-                  <div className="training-slot-stack">
-                    {PERIODS.map((period, periodIndex) => {
-                      const cell = getCell(dayOffset, period.key)
-                      const selected = selectedCell?.dayOffset === dayOffset && selectedCell.periodIndex === periodIndex
-                      return (
-                        <button
-                          key={period.key}
-                          disabled={cell?.isMatchDay}
-                          onClick={() => {
-                            if (cell?.isMatchDay) return
-                            setSelectedCell({ dayOffset, periodIndex })
-                            const firstGroup = cell?.groups?.[0]?.group_id || null
-                            if (firstGroup) setSelectedGroupId(firstGroup)
-                          }}
-                          className={`training-slot-block ${selected ? 'is-selected' : ''} ${cell?.isMatchDay ? 'is-match' : ''} ${cell?.isUserModified ? 'is-edited' : ''}`}
-                        >
-                          <span className="slot-time">{period.label}</span>
-                          {cell?.isMatchDay ? (
-                            <MatchBlock match={matchInfo} />
-                          ) : cell?.mode === 'team' ? (
-                            <TeamBlock cell={cell} getItemById={getItemById} />
-                          ) : cell ? (
-                            <GroupBlock cell={cell} getItemById={getItemById} />
-                          ) : (
-                            <span className="slot-empty">未安排</span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </article>
+                <div key={`header-${seasonDay}`} className={`training-day-header ${isToday(dayOffset) ? 'is-today' : ''}`}>
+                  <strong>{DAYS[(seasonDay - 1) % 7]}</strong>
+                  <span>第 {seasonDay} 天</span>
+                </div>
               )
             })}
+            {/* 3 个时段 × 8 列 */}
+            {PERIODS.map((period, periodIndex) => (
+              <>
+                <div key={`label-${period.key}`} className="training-period-label">
+                  {period.label}
+                </div>
+                {Array.from({ length: 7 }).map((_, dayOffset) => {
+                  const seasonDay = startDay + dayOffset
+                  const matchInfo = matchDays.get(seasonDay)
+                  const cell = getCell(dayOffset, period.key)
+                  const selected = selectedCell?.dayOffset === dayOffset && selectedCell.periodIndex === periodIndex
+                  const slotConflicts = conflictsMap.get(`${dayOffset}-${periodIndex}`) || []
+                  const topConflict = slotConflicts[0]
+                  const isBrushTarget = brushItemId && !cell?.isMatchDay
+                  return (
+                    <button
+                      key={`${seasonDay}-${period.key}`}
+                      disabled={cell?.isMatchDay}
+                      onClick={() => handleSlotClick(dayOffset, periodIndex)}
+                      title={topConflict?.message || undefined}
+                      className={`training-slot-block ${selected ? 'is-selected' : ''} ${cell?.isMatchDay ? 'is-match' : ''} ${cell?.isUserModified ? 'is-edited' : ''} ${isBrushTarget ? 'is-brush-preview' : ''}`}
+                    >
+                      {topConflict && (
+                        <div className={`slot-warning ${topConflict.level}`}>
+                          {topConflict.level === 'error' ? '!' : '▲'}
+                        </div>
+                      )}
+                      {cell?.isMatchDay ? (
+                        <MatchBlock match={matchInfo} />
+                      ) : cell?.mode === 'team' ? (
+                        <TeamBlock cell={cell} getItemById={getItemById} />
+                      ) : cell ? (
+                        <GroupBlock cell={cell} getItemById={getItemById} />
+                      ) : (
+                        <span className="slot-empty">未安排</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </>
+            ))}
           </div>
         </section>
 
@@ -697,17 +698,35 @@ export default function WeeklyTraining() {
                     {selectedCellData.groups.map(group => (
                       <button
                         key={group.group_id}
-                        onClick={() => setSelectedGroupId(group.group_id)}
+                        onClick={() => {
+                          if (!selectedCell) return
+                          const key = `${selectedCell.dayOffset}-${selectedCell.periodIndex}`
+                          setSlotGroupSelection(prev => {
+                            const next = new Map(prev)
+                            next.set(key, group.group_id)
+                            return next
+                          })
+                        }}
                         className={selectedGroupId === group.group_id ? 'is-active' : ''}
+                        title={`${group.name} · ${group.player_ids.length}人`}
                       >
-                        <strong>{group.name}</strong>
-                        <span>{group.player_ids.length} 人</span>
+                        {group.name}
                       </button>
                     ))}
                   </div>
                 )}
 
-                <div className={`training-focus-card tone-${focusedTrainingItem ? getCategoryTone(focusedTrainingItem.category) : 'neutral'}`}>
+                <button
+                  onClick={() => {
+                    if (!selectedCellData || selectedCellData.isMatchDay) return
+                    setPickerMode('replace')
+                    setIsPickerOpen(true)
+                  }}
+                  className={`training-focus-card tone-${focusedTrainingItem ? getCategoryTone(focusedTrainingItem.category) : 'neutral'}`}
+                  style={{ width: '100%', cursor: selectedCellData && !selectedCellData.isMatchDay ? 'pointer' : 'default' }}
+                  disabled={!selectedCellData || selectedCellData.isMatchDay}
+                  title={selectedCellData && !selectedCellData.isMatchDay ? '点击更换训练' : undefined}
+                >
                   {focusedTrainingItem ? (
                     <>
                       <div className="training-focus-head">
@@ -726,81 +745,151 @@ export default function WeeklyTraining() {
                           </div>
                         ))}
                       </div>
+                      <div style={{ marginTop: 8, color: 'var(--tr-accent)', fontSize: 12, fontWeight: 1000 }}>↳ 点击更换训练</div>
                     </>
                   ) : (
                     <div className="training-empty-focus">
                       <strong>未安排训练</strong>
-                      <span>从下方训练库选择一个项目，写入当前时段。</span>
+                      <span>点击此处从训练库中选择项目。</span>
                     </div>
                   )}
-                </div>
+                </button>
 
-                <div className="training-slot-preview">
-                  <PreviewMetric label="训练负荷" value={selectedLoad || '-'} />
-                  <PreviewMetric label="疲劳变化" value={selectedTrainingItems.length ? `${selectedFatigueDelta > 0 ? '+' : ''}${selectedFatigueDelta}` : '-'} />
-                  <PreviewMetric label="模式" value={selectedCellData ? MODE_LABELS[selectedCellData.mode].label : '-'} />
-                </div>
               </>
             )}
           </section>
 
-          <section className="training-item-panel">
-            <div className="training-category-tabs">
-              {categories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => setActiveCategory(category)}
-                  className={activeCategory === category ? 'is-active' : ''}
-                >
-                  {category === 'all' ? '全部' : getCategoryLabel(category)}
-                </button>
-              ))}
-            </div>
-            <div className="training-item-list">
-              {visibleItems.map(item => (
-                <TrainingItemCard
-                  key={item.id}
-                  item={item}
-                  disabled={!selectedCellData || selectedCellData.isMatchDay}
-                  selected={selectedTrainingItems.some(selected => selected.id === item.id)}
-                  onSelect={() => applyTrainingItem(item.id)}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="training-fatigue-panel">
-            <div className="training-panel-heading">
-              <WarningDiamond className="h-4 w-4" />
-              <h2>球员负荷</h2>
-            </div>
-            {fatigue.length === 0 ? (
-              <p className="training-muted">暂无疲劳数据。</p>
-            ) : (
-              <div className="training-fatigue-list">
-                {fatigue.slice(0, 8).map(player => (
-                  <div key={player.player_id} className="training-fatigue-row">
-                    <span>{player.player_name}</span>
-                    <div>
-                      <i style={{ width: `${clampPercent(player.fatigue)}%` }} />
-                    </div>
-                    <strong className={player.fatigue > 70 ? 'is-danger' : player.fatigue > 45 ? 'is-warn' : ''}>{player.fatigue}</strong>
-                  </div>
-                ))}
-              </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => {
+                if (brushItemId) {
+                  setBrushItemId(null)
+                } else {
+                  setPickerMode('brush')
+                  setIsPickerOpen(true)
+                }
+              }}
+              className={`training-ghost-btn ${brushItemId ? 'is-active' : ''}`}
+              style={brushItemId ? { borderColor: 'var(--tr-accent)', color: 'var(--tr-accent)', flex: 1, padding: '7px 8px', fontSize: 12 } : { flex: 1, padding: '7px 8px', fontSize: 12 }}
+              title={brushItemId ? '点击取消画笔' : '选择训练后批量填入格子'}
+            >
+              <Brush className="h-4 w-4" />
+              {brushItemId ? `画笔: ${items.find(i => i.id === brushItemId)?.name?.slice(0, 8) || ''}` : '画笔'}
+            </button>
+            {selectedCellData && !selectedCellData.isMatchDay && (
+              <button onClick={clearSelectedCell} className="training-ghost-btn" style={{ flex: 1, padding: '7px 8px', fontSize: 12 }}>
+                清空
+              </button>
             )}
-          </section>
+          </div>
         </aside>
       </main>
-    </div>
-  )
-}
 
-function PreviewMetric({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
+      {/* 球员负荷横向条 */}
+      <section className="training-fatigue-strip">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: 'var(--tr-accent)' }}>
+          <WarningDiamond className="h-4 w-4" />
+          <h3 style={{ fontSize: 14, fontWeight: 1000, margin: 0 }}>球员负荷</h3>
+        </div>
+        {fatigue.length === 0 ? (
+          <p style={{ color: 'var(--tr-muted)', fontSize: 12, fontWeight: 800 }}>暂无疲劳数据。</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+            {fatigue.map(player => (
+              <div
+                key={player.player_id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 10px',
+                  background: 'rgba(5,6,9,0.88)',
+                  border: '1px solid var(--tr-border)',
+                }}
+              >
+                <span style={{ color: 'var(--tr-text)', fontSize: 12, fontWeight: 800, width: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {player.player_name}
+                </span>
+                <div style={{ flex: 1, height: 6, border: '1px solid var(--tr-border)', background: '#050609' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${clampPercent(player.fatigue)}%`,
+                      background: player.fatigue > 70 ? '#D75A4A' : player.fatigue > 45 ? '#D7A94A' : '#9ECF45',
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <TrainingPickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        items={items}
+        categories={categories}
+        onSelect={(itemId: string) => {
+          if (pickerMode === 'brush') {
+            setBrushItemId(itemId)
+          } else {
+            applyTrainingItem(itemId)
+          }
+          setIsPickerOpen(false)
+        }}
+        cellMode={selectedCellData?.mode}
+        activeGroupName={activeGroup?.name}
+        fatigue={fatigue}
+      />
+
+      <GroupEditorModal
+        isOpen={isGroupEditorOpen}
+        onClose={() => setIsGroupEditorOpen(false)}
+        groups={groupConfig}
+        fatigue={fatigue}
+        mode={globalMode}
+        onSave={(newGroups: PlanGroup[]) => {
+          setGroupConfig(newGroups)
+          setHasUserChanges(true)
+          // 同步更新所有已有 plan 中的 groups
+          setLocalPlan(prev => {
+            const next = new Map(prev)
+            for (const [key, cell] of next) {
+              if (cell.isMatchDay || cell.mode === 'team') continue
+              const templateItemId = cell.groups?.find(g => g.training_item_id)?.training_item_id || cell.training_item_id
+              next.set(key, {
+                ...cell,
+                groups: newGroups.map(g => ({
+                  ...g,
+                  training_item_id: cell.groups?.find(cg => cg.group_id === g.group_id)?.training_item_id || templateItemId || null,
+                })),
+                isUserModified: true,
+              })
+            }
+            return next
+          })
+        }}
+      />
+
+      {hasUserChanges && (
+        <div className="training-unsaved-bar">
+          <span>⚠ 你有未保存的修改（调整了 {stats.modified} 个时段）</span>
+          <button className="btn-primary" onClick={savePlan} disabled={saving}>
+            {saving ? '保存中…' : '保存修改'}
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => {
+              if (confirm('放弃所有未保存的修改？')) {
+                window.location.reload()
+              }
+            }}
+          >
+            放弃更改
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -829,7 +918,6 @@ function GroupBlock({ cell, getItemById }: { cell: PlanSlotData; getItemById: (i
         const item = getItemById(group.training_item_id)
         return (
           <div key={group.group_id}>
-            <span>{group.name}</span>
             <strong>{item?.name || '未安排'}</strong>
           </div>
         )
@@ -846,7 +934,6 @@ function TrainingBlock({ item, auto, edited }: { item: TrainingItem; auto: boole
   return (
     <div className={`training-block-content tone-${getCategoryTone(item.category)}`}>
       <strong>{item.name}</strong>
-      <span>{getCategoryLabel(item.category)} · 强度 {INTENSITY_LABELS[item.intensity] || item.intensity}</span>
       <div className="slot-markers">
         {auto && <MoreHorizontal className="h-3 w-3" />}
         {edited && <i />}
@@ -855,43 +942,4 @@ function TrainingBlock({ item, auto, edited }: { item: TrainingItem; auto: boole
   )
 }
 
-function TrainingItemCard({
-  item,
-  disabled,
-  selected,
-  onSelect,
-}: {
-  item: TrainingItem
-  disabled: boolean
-  selected: boolean
-  onSelect: () => void
-}) {
-  const attrs = getTopAttributes(item, 4)
-  const positions = getBestPositions(item).slice(0, 3)
-
-  return (
-    <button
-      disabled={disabled}
-      onClick={onSelect}
-      className={`training-item-card tone-${getCategoryTone(item.category)} ${selected ? 'is-selected' : ''}`}
-    >
-      <div className="training-item-main">
-        <strong>{item.name}</strong>
-        <span>{getCategoryLabel(item.category)}</span>
-      </div>
-      <p>{getTrainingEffectDesc(item)}</p>
-      <div className="training-attr-row">
-        {attrs.map(attr => (
-          <span key={attr.label}>{attr.label}</span>
-        ))}
-      </div>
-      <div className="training-numbers">
-        <span>强度 {INTENSITY_LABELS[item.intensity] || item.intensity}</span>
-        <span className={item.fitness_delta < 0 ? 'is-bad' : 'is-good'}>体能 {item.fitness_delta > 0 ? '+' : ''}{item.fitness_delta}</span>
-        <span className={item.fatigue_delta > 0 ? 'is-bad' : 'is-good'}>疲劳 {item.fatigue_delta > 0 ? '+' : ''}{item.fatigue_delta}</span>
-        <span>负荷 {item.load_points}</span>
-      </div>
-      {positions.length > 0 && <em>推荐：{positions.join('、')}</em>}
-    </button>
-  )
-}
+// TrainingItemCard 已迁移至 TrainingPickerModal 内部渲染

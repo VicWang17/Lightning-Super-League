@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { 
   Trophy, 
   ChevronLeft, 
-  Users,
   Target,
   Calendar,
   TrendingUp,
   Sword as Swords,
   Medal,
 } from '../../components/ui/pixel-icons'
+import { LeagueBadge } from '../../components/league/LeagueBadge'
 import { api } from '../../api/client'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useLeagueLeaderboard } from '../../hooks/useLeagues'
 import { useSeasons } from '../../hooks/useSeasons'
@@ -334,10 +334,6 @@ function LeagueDetail() {
  }
  }, [league?.current_season, selectedSeasonId])
  
- const selectedSeason = useMemo(() => {
- return seasons.find(s => s.id === selectedSeasonId) || league?.current_season
- }, [seasons, selectedSeasonId, league?.current_season])
- 
  if (leagueLoading) {
  return (
  <div className="max-w-[1200px]">
@@ -365,8 +361,6 @@ function LeagueDetail() {
  )
  }
 
- const levelNames = ['超级联赛', '甲级联赛', '乙级联赛A', '乙级联赛B']
-
  return (
  <div className="max-w-[1200px]">
  {/* 返回按钮和所有比赛链接 */}
@@ -388,44 +382,23 @@ function LeagueDetail() {
  </div>
 
  {/* 联赛信息头部 */}
- <div className="card mb-6 bg-[#0D4A4D]/30">
- <div className="flex items-start justify-between">
- <div className="flex items-center gap-4">
- <div className={`w-16 h-16 bg-[#2D2D44] flex items-center justify-center text-3xl shadow-pixel`}>
- {league.level === 1 ? '👑' : league.level === 2 ? '🥈' : league.level === 3 ? '🥉' : '🏅'}
+ <div className="relative mb-6 overflow-hidden border-2 border-[#30334D] bg-[#080B11] shadow-pixel">
+ <div className="absolute inset-0 opacity-40 bg-[linear-gradient(90deg,rgba(13,115,119,0.28),rgba(8,11,17,0.15)_42%,rgba(198,241,53,0.08))]" />
+ <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:16px_16px]" />
+ <div className="absolute left-0 top-0 h-2 w-2 bg-[#C6F135]" />
+ <div className="absolute right-0 bottom-0 h-2 w-2 bg-[#C6F135]" />
+
+ <div className="relative flex items-center gap-6 p-6">
+ <div className="w-24 h-24 shrink-0 bg-[#050609] border-2 border-[#30334D] flex items-center justify-center shadow-pixel">
+ <LeagueBadge
+ systemCode={league.system_code}
+ level={league.level}
+ size="lg"
+ title={`${league.name} 徽章`}
+ />
  </div>
- <div>
- <h1 className="text-2xl font-bold text-white">{league.name}</h1>
- <div className="flex items-center gap-3 mt-2">
- <span className="text-sm text-[#8B8BA7]">{league.system_name}</span>
- <span className="text-[#4B4B6A]">·</span>
- <span className="text-sm text-[#8B8BA7]">{levelNames[league.level - 1]}</span>
- {selectedSeason && (
- <>
- <span className="text-[#4B4B6A]">·</span>
- <span className="text-sm text-[#0D7377]">第 {selectedSeason.season_number} 赛季</span>
- </>
- )}
- </div>
- </div>
- </div>
- <div className="text-right hidden md:block">
- <div className="flex items-center gap-4 text-sm">
- <div className="flex items-center gap-1.5">
- <Users className="w-4 h-4 text-[#8B8BA7]" />
- <span className="text-[#8B8BA7]">{league.teams_count} 支球队</span>
- </div>
- <div className="flex items-center gap-1.5">
- <Calendar className="w-4 h-4 text-[#8B8BA7]" />
- <span className="text-[#8B8BA7]">30 轮</span>
- </div>
- </div>
- {selectedSeason && (
- <p className="text-xs text-[#4B4B6A] mt-2">
- 赛季时间: {new Date(selectedSeason.start_date).toLocaleDateString('zh-CN')}
- {selectedSeason.end_date && ` - ${new Date(selectedSeason.end_date).toLocaleDateString('zh-CN')}`}
- </p>
- )}
+ <div className="min-w-0">
+ <h1 className="text-4xl font-black text-white leading-tight">{league.name}</h1>
  </div>
  </div>
 

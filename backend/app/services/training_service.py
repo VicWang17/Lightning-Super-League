@@ -144,6 +144,7 @@ class TrainingService:
         for item in items:
             season_day = item["season_day"]
             slot = item["slot"]
+            slot_enum = TrainingSlot(slot) if isinstance(slot, str) else slot
             
             # 比赛日跳过 evening slot
             if season_day in match_days and slot == TrainingSlot.EVENING.value:
@@ -162,7 +163,7 @@ class TrainingService:
             )
             existing = result.scalar_one_or_none()
             
-            mode = item.get("mode", TrainingMode.TEAM.value)
+            mode = TrainingMode(item.get("mode", TrainingMode.TEAM.value))
             training_item_id = item.get("training_item_id")
             groups = item.get("groups")
             
@@ -178,7 +179,7 @@ class TrainingService:
                     team_id=team_id,
                     season_id=season_id,
                     season_day=season_day,
-                    slot=slot,
+                    slot=slot_enum,
                     mode=mode,
                     training_item_id=training_item_id,
                     groups=groups,

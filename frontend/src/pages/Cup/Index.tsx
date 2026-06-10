@@ -1,5 +1,6 @@
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { Trophy, ChevronRight, Users, Zap, Sword as Swords } from '../../components/ui/pixel-icons'
+import { CupBadge } from '../../components/cup/CupBadge'
 import { useCups, useMyTeamCup } from '../../hooks/useCups'
 import type { CupCompetition } from '../../types/cup'
 import { CUP_CONFIG } from '../../types/cup'
@@ -27,22 +28,22 @@ function CupCard({ cup }: { cup: CupCompetition }) {
  )}
  {isFinished && cup.winner_team_name && (
  <div className="absolute top-3 right-3 px-2 py-0.5 rounded-none bg-amber-500/20 text-amber-400 text-xs font-medium border-2 border-amber-500/30">
- 🏆 {cup.winner_team_name}
+ 冠军 {cup.winner_team_name}
  </div>
  )}
  
  <div className="relative">
  <div className="flex items-start justify-between">
  <div className="flex items-center gap-3">
- <div className={`w-12 h-12 bg-${cup.code === 'LIGHTNING_CUP' ? 'amber-500' : 'emerald-500'} flex items-center justify-center text-2xl shadow-pixel`}>
- {config.icon}
+ <div className="w-12 h-12 bg-[#050609] border-2 border-white/10 flex items-center justify-center shadow-pixel">
+ <CupBadge code={cup.code} title={`${cup.name} 徽章`} />
  </div>
  <div>
  <h3 className="text-lg font-bold text-white group-hover:text-[#0D7377] transition-colors">
  {cup.name}
  </h3>
  <div className="flex items-center gap-2 mt-1">
- <span className={`text-lg ${config.color}`}>{config.icon}</span>
+ <CupBadge code={cup.code} size="sm" title={`${cup.name} 徽章`} />
  <span className="text-sm text-[#8B8BA7]">第{cup.season_number}赛季</span>
  </div>
  </div>
@@ -154,7 +155,7 @@ function CupList() {
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
  <div className="p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:-translate-y-1 transition-all">
  <div className="flex items-center gap-2 mb-2">
- <span className="text-xl">⚡</span>
+ <CupBadge code="LIGHTNING_CUP" size="sm" title="闪电杯徽章" />
  <h4 className="font-medium text-white">闪电杯</h4>
  </div>
  <p className="text-sm text-[#8B8BA7]">
@@ -164,7 +165,7 @@ function CupList() {
  </div>
  <div className="p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm">
  <div className="flex items-center gap-2 mb-2">
- <span className="text-xl">🏆</span>
+ <CupBadge code="JENNY_CUP" size="sm" title="杰尼杯徽章" />
  <h4 className="font-medium text-white">杰尼杯</h4>
  </div>
  <p className="text-sm text-[#8B8BA7]">

@@ -62,6 +62,24 @@ export interface LocalPlanCell {
   isMatchDay: boolean
 }
 
+/** 训练计划分组（前端使用） */
+export interface PlanGroup {
+  group_id: string
+  name: string
+  player_ids: string[]
+  training_item_id: string | null
+}
+
+/** 训练计划时段数据（前端使用） */
+export interface PlanSlotData {
+  mode: TrainingMode
+  training_item_id: string | null
+  groups: PlanGroup[] | null
+  isAutoSuggested: boolean
+  isUserModified: boolean
+  isMatchDay: boolean
+}
+
 export interface TrainingResultItem {
   id: string
   player_id: string

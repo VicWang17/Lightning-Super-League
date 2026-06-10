@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 
 from app.models.season import Season, SeasonStatus, Fixture, FixtureType, FixtureStatus, CupCompetition
 from app.models.league import League, LeagueSystem, LeagueStanding
@@ -613,7 +613,7 @@ class SeasonService:
     # 选秀系统已在简化闭环设计中被移除
 
     async def _handle_season_start(self, event: GameEvent) -> Dict:
-        """SEASON_START: 赛季开始，发送通知"""
+        """SEASON_START: 赛季开始，发送通知并重置球员体力和疲劳"""
         season_id = event.payload.get("season_id")
 
         # 获取本赛季所有参赛球队
@@ -626,6 +626,15 @@ class SeasonService:
         for row in result.all():
             team_ids.add(row[0])
             team_ids.add(row[1])
+
+        # 重置所有参赛球员的体力和疲劳（休赛期恢复）
+        from app.models.player import Player
+        if team_ids:
+            await self.db.execute(
+                update(Player)
+                .where(Player.team_id.in_(list(team_ids)))
+                .values(fitness=100, fatigue=0)
+            )
 
         season = await self.db.execute(select(Season).where(Season.id == season_id))
         season = season.scalar_one_or_none()

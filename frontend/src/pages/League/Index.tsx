@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { Trophy, ChevronRight, Users, Sword as Swords } from '../../components/ui/pixel-icons'
+import { LeagueBadge } from '../../components/league/LeagueBadge'
 import { useLeagueSystems, useLeagues } from '../../hooks/useLeagues'
 import api from '../../api/client'
 import type { League } from '../../types/league'
@@ -14,24 +15,15 @@ interface UserTeam {
 
 // 联赛级别配置
 const LEVEL_CONFIG = [
- { name: '超级联赛', color: 'bg-amber-500', bgColor: 'bg-[#12121A]', borderColor: 'border-amber-500/30', icon: '👑' },
- { name: '甲级联赛', color: 'bg-slate-400', bgColor: 'bg-[#12121A]', borderColor: 'border-slate-400/30', icon: '🥈' },
- { name: '乙级联赛', color: 'bg-orange-600', bgColor: 'bg-[#12121A]', borderColor: 'border-orange-600/30', icon: '🥉' },
- { name: '丙级联赛', color: 'bg-stone-500', bgColor: 'bg-[#12121A]', borderColor: 'border-stone-500/30', icon: '🏅' },
+ { name: '超级联赛', color: 'bg-amber-500', bgColor: 'bg-[#12121A]', borderColor: 'border-amber-500/30' },
+ { name: '甲级联赛', color: 'bg-slate-400', bgColor: 'bg-[#12121A]', borderColor: 'border-slate-400/30' },
+ { name: '乙级联赛', color: 'bg-orange-600', bgColor: 'bg-[#12121A]', borderColor: 'border-orange-600/30' },
+ { name: '丙级联赛', color: 'bg-stone-500', bgColor: 'bg-[#12121A]', borderColor: 'border-stone-500/30' },
 ]
-
-// 体系图标和颜色
-const SYSTEM_CONFIG: Record<string, { icon: string; color: string; gradient: string }> = {
- EAST: { icon: '🐉', color: 'text-red-400', gradient: 'bg-red-500/20' },
- WEST: { icon: '🏜️', color: 'text-amber-400', gradient: 'bg-amber-500/20' },
- SOUTH: { icon: '🌴', color: 'text-emerald-400', gradient: 'bg-emerald-500/20' },
- NORTH: { icon: '⚔️', color: 'text-blue-400', gradient: 'bg-blue-500/20' },
-}
 
 // 联赛卡片组件
 function LeagueCard({ league }: { league: League }) {
  const config = LEVEL_CONFIG[league.level - 1]
- const systemConfig = SYSTEM_CONFIG[league.system_code] || SYSTEM_CONFIG.EAST
  
  return (
  <Link
@@ -45,15 +37,19 @@ function LeagueCard({ league }: { league: League }) {
  <div className="relative">
  <div className="flex items-start justify-between">
  <div className="flex items-center gap-3">
- <div className={`w-12 h-12 bg-[#2D2D44] flex items-center justify-center text-2xl shadow-pixel`}>
- {config.icon}
+ <div className="w-12 h-12 bg-[#050609] border-2 border-white/10 flex items-center justify-center shadow-pixel">
+ <LeagueBadge
+ systemCode={league.system_code}
+ level={league.level}
+ title={`${league.name} 徽章`}
+ />
  </div>
  <div>
  <h3 className="text-lg font-bold text-white group-hover:text-[#0D7377] transition-colors">
  {league.name}
  </h3>
  <div className="flex items-center gap-2 mt-1">
- <span className={`text-lg ${systemConfig.color}`}>{systemConfig.icon}</span>
+ <LeagueBadge systemCode={league.system_code} size="sm" title={`${league.system_name} 徽章`} />
  <span className="text-sm text-[#8B8BA7]">{league.system_name}</span>
  </div>
  </div>
@@ -85,13 +81,12 @@ function LeagueCard({ league }: { league: League }) {
 // 体系区块组件
 function SystemSection({ systemCode, systemName, description }: { systemCode: string; systemName: string; description?: string }) {
  const { leagues, loading } = useLeagues(systemCode)
- const config = SYSTEM_CONFIG[systemCode] || SYSTEM_CONFIG.EAST
  
  return (
  <div className="mb-8">
  <div className="flex items-center gap-3 mb-4">
- <div className={`w-10 h-10 bg-[#2D2D44] border-2 border-white/10 flex items-center justify-center text-xl`}>
- {config.icon}
+ <div className="w-10 h-10 bg-[#050609] border-2 border-white/10 flex items-center justify-center shadow-pixel-sm">
+ <LeagueBadge systemCode={systemCode} size="sm" title={`${systemName} 徽章`} />
  </div>
  <div>
  <h2 className="text-xl font-bold text-white">{systemName}</h2>
@@ -196,7 +191,7 @@ function LeagueList() {
  : 'bg-[#1E1E2D] text-[#8B8BA7] hover:text-white border-2 border-[#2D2D44] hover:border-[#0D7377]/50'
  }`}
  >
- <span>{SYSTEM_CONFIG[system.code]?.icon || '🏟️'}</span>
+ <LeagueBadge systemCode={system.code} size="sm" title={`${system.name} 徽章`} />
  {system.name}
  </button>
  ))}
