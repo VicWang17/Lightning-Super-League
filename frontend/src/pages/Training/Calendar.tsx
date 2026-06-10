@@ -37,8 +37,8 @@ export default function TrainingCalendar() {
           api.getTrainingResults(teamRes.data.id, seasonRes.data.id, { start_day: Math.max(1, currentDay - 14), days: 21, limit: 500 }),
         ])
         if (!cancelled) {
-          if (planRes.success) setPlans(planRes.data?.items || [])
-          if (resultRes.success) setResults(resultRes.data?.items || [])
+          if (planRes.success && Array.isArray(planRes.data)) setPlans(planRes.data)
+          if (resultRes.success && Array.isArray(resultRes.data)) setResults(resultRes.data)
         }
       } catch {
         // ignore
@@ -125,7 +125,7 @@ export default function TrainingCalendar() {
         <Card>
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-4 h-4 text-yellow-500" />
-            <span className="text-sm text-[#8B8BA7]">本周训练人次</span>
+            <span className="text-sm text-[#8B8BA7]">该周训练人次</span>
           </div>
           <p className="text-2xl font-bold text-white">{weekResults.length} 次</p>
         </Card>
@@ -204,7 +204,7 @@ export default function TrainingCalendar() {
 
       {weekResults.length > 0 && (
         <Card>
-          <h3 className="text-lg font-semibold mb-4">本周训练成果</h3>
+          <h3 className="text-lg font-semibold mb-4">该周训练成果</h3>
           <div className="space-y-2">
             {weekResults.slice(0, 20).map(r => (
               <div key={r.id} className="flex items-center gap-3 text-sm bg-[#0A0A0F] p-2 border border-[#2D2D44]">

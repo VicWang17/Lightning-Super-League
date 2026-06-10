@@ -357,11 +357,13 @@ INITIAL_TEAM_OVR_BY_LEVEL = {
 }
 
 INITIAL_SQUAD_OVR_TIERS = {
-    1: [(88, 94, 2), (82, 87, 4), (76, 81, 6), (68, 75, 3)],
-    2: [(84, 88, 1), (76, 83, 3), (66, 75, 6), (58, 65, 6)],
+    1: [(86, 88, 2), (82, 85, 4), (76, 81, 6), (68, 75, 3)],
+    2: [(84, 86, 1), (76, 83, 3), (66, 75, 6), (58, 65, 6)],
     3: [(70, 76, 1), (63, 69, 4), (56, 62, 6), (48, 55, 5)],
     4: [(62, 68, 1), (53, 61, 4), (45, 52, 6), (38, 47, 5)],
 }
+INITIAL_LEVEL_ONE_ELITE_PROBABILITY = 0.40
+INITIAL_LEVEL_ONE_ELITE_OVR_RANGE = (90, 94)
 
 
 # ==================== 工具函数 ====================
@@ -1185,6 +1187,10 @@ class PlayerGenerator:
         while len(targets) < size:
             low, high, _ = tiers[-1]
             targets.append(random.randint(low, high))
+        if league_level == 1 and targets and random.random() < INITIAL_LEVEL_ONE_ELITE_PROBABILITY:
+            low, high = INITIAL_LEVEL_ONE_ELITE_OVR_RANGE
+            strongest_idx = max(range(len(targets)), key=lambda idx: targets[idx])
+            targets[strongest_idx] = random.randint(low, high)
         random.shuffle(targets)
         return targets[:size]
 

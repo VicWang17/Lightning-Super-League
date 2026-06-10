@@ -1,7 +1,7 @@
 import random
 
 from app.models.player import PlayerPosition
-from app.services.player_generator import AttributeGenerator
+from app.services.player_generator import AttributeGenerator, PlayerGenerator
 
 
 class TestAttributeGeneratorDiversity:
@@ -33,6 +33,22 @@ class TestAttributeGeneratorDiversity:
 
         assert min(attrs["spd"] for attrs in samples) >= 12
         assert min(attrs["acc"] for attrs in samples) >= 12
+
+    def test_initial_top_league_elites_are_rare(self):
+        random.seed(20260610)
+        generator = PlayerGenerator()
+
+        elite_targets = sum(
+            sum(1 for target in generator._generate_initial_squad_targets(1, 15) if target >= 90)
+            for _ in range(32)
+        )
+        second_level_elite_targets = sum(
+            sum(1 for target in generator._generate_initial_squad_targets(2, 15) if target >= 90)
+            for _ in range(32)
+        )
+
+        assert 10 <= elite_targets <= 15
+        assert second_level_elite_targets == 0
 
     def test_mid_tier_forwards_can_have_clear_strengths_and_weaknesses(self):
         random.seed(20260605)

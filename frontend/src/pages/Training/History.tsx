@@ -49,8 +49,8 @@ export default function TrainingHistory() {
         if (!teamRes.success || !teamRes.data?.id) return
         if (!seasonRes.success || !seasonRes.data?.id) return
         const resultsRes = await api.getTrainingResults(teamRes.data.id, seasonRes.data.id, { limit: 200 })
-        if (!cancelled && resultsRes.success) {
-          setResults(resultsRes.data?.items || [])
+        if (!cancelled && resultsRes.success && Array.isArray(resultsRes.data)) {
+          setResults(resultsRes.data)
         }
       } catch {
         // ignore

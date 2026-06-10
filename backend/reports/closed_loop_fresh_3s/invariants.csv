@@ -1,0 +1,2 @@
+season_number,season_id,severity,name,count,detail
+1,455699c0-edca-4e58-9186-1ec5b18670d4,error,failed_events,1,event queue has failed events

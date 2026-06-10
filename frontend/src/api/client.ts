@@ -863,21 +863,22 @@ class ApiClient {
 
   async getTrainingItems(category?: string) {
     const query = category ? `?category=${category}` : ''
-    return this.requestWithAuth<{
-      items: import('../types/training').TrainingItem[]
-    }>(`/training/items${query}`, { method: 'GET' })
+    return this.requestWithAuth<import('../types/training').TrainingItem[]>(
+      `/training/items${query}`, { method: 'GET' }
+    )
   }
 
   async getTrainingTemplates() {
-    return this.requestWithAuth<{
-      items: import('../types/training').TrainingTemplate[]
-    }>('/training/templates', { method: 'GET' })
+    return this.requestWithAuth<import('../types/training').TrainingTemplate[]>(
+      '/training/templates', { method: 'GET' }
+    )
   }
 
   async getTeamTrainingPlan(teamId: string, seasonId: string, startDay: number, days = 7) {
-    return this.requestWithAuth<{
-      items: import('../types/training').TrainingPlanSlot[]
-    }>(`/training/teams/${teamId}/plan?season_id=${seasonId}&start_day=${startDay}&days=${days}`, { method: 'GET' })
+    return this.requestWithAuth<import('../types/training').TrainingPlanSlot[]>(
+      `/training/teams/${teamId}/plan?season_id=${seasonId}&start_day=${startDay}&days=${days}`,
+      { method: 'GET' }
+    )
   }
 
   async saveTeamTrainingPlan(teamId: string, seasonId: string, items: Array<{
@@ -887,23 +888,23 @@ class ApiClient {
     training_item_id?: string
     groups?: import('../types/training').TrainingGroup[]
   }>) {
-    return this.requestWithAuth<{
-      items: import('../types/training').TrainingPlanSlot[]
-    }>(`/training/teams/${teamId}/plan`, {
-      method: 'PUT',
-      body: JSON.stringify({ season_id: seasonId, items }),
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return this.requestWithAuth<import('../types/training').TrainingPlanSlot[]>(
+      `/training/teams/${teamId}/plan`, {
+        method: 'PUT',
+        body: JSON.stringify({ season_id: seasonId, items }),
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
   }
 
   async applyTrainingTemplate(teamId: string, templateId: string, seasonId: string, startDay: number) {
-    return this.requestWithAuth<{
-      items: import('../types/training').TrainingPlanSlot[]
-    }>(`/training/teams/${teamId}/templates/${templateId}/apply`, {
-      method: 'POST',
-      body: JSON.stringify({ season_id: seasonId, start_day: startDay }),
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return this.requestWithAuth<import('../types/training').TrainingPlanSlot[]>(
+      `/training/teams/${teamId}/templates/${templateId}/apply`, {
+        method: 'POST',
+        body: JSON.stringify({ season_id: seasonId, start_day: startDay }),
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
   }
 
   async autoGroupPlayers(teamId: string, mode = 'groups_3') {
@@ -932,9 +933,9 @@ class ApiClient {
     if (params?.start_day !== undefined) query.append('start_day', String(params.start_day))
     if (params?.days !== undefined) query.append('days', String(params.days))
     if (params?.limit !== undefined) query.append('limit', String(params.limit))
-    return this.requestWithAuth<{
-      items: import('../types/training').TrainingResultItem[]
-    }>(`/training/teams/${teamId}/results?${query.toString()}`, { method: 'GET' })
+    return this.requestWithAuth<import('../types/training').TrainingResultItem[]>(
+      `/training/teams/${teamId}/results?${query.toString()}`, { method: 'GET' }
+    )
   }
 
   async getPlayerFatigue(playerId: string) {

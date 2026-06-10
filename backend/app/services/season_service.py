@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from app.models.season import Season, SeasonStatus, Fixture, FixtureType, FixtureStatus, CupCompetition
-from app.models.league import League, LeagueSystem
+from app.models.league import League, LeagueSystem, LeagueStanding
 from app.models.team import Team, TeamStatus
 from app.models.user import User
 from app.services.scheduler import SeasonScheduler, ScheduleMerger
