@@ -13,6 +13,8 @@ from app.schemas.league import (
     LeagueStandingItem, StandingTeamInfo, MatchResponse, MatchTeamInfo,
     SeasonResponse, TopScorerItem, TopAssistItem, CleanSheetItem, PlayoffMatchItem
 )
+from app.schemas.leaderboard import LeaderboardType, LeaderboardItem
+from app.services.leaderboard_service import LeaderboardService
 from app.models import LeagueSystem, League, Season, SeasonStatus, LeagueStanding, Fixture, FixtureStatus, Team, Player, PlayerSeasonStats
 from app.models.season import FixtureType
 from app.dependencies import get_db
@@ -586,54 +588,27 @@ async def get_top_scorers(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    获取联赛射手榜
-    
-    - **league_id**: 联赛ID
-    - **season_id**: 赛季ID（可选）
-    - **limit**: 返回数量
+    获取联赛射手榜（兼容旧接口，内部调用通用排行榜）
     """
-    if not season_id:
-        zone_id = await _get_zone_id_by_league(db, league_id)
-        season_result = await db.execute(
-            select(Season)
-            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
-            .where(Season.zone_id == zone_id)
-            .order_by(Season.start_date)
-        )
-        season = season_result.scalar_one_or_none()
-        if season:
-            season_id = str(season.id)
-    
-    if not season_id:
-        return ResponseSchema(success=True, data=[])
-    
-    result = await db.execute(
-        select(PlayerSeasonStats, Player, Team)
-        .join(Player, PlayerSeasonStats.player_id == Player.id)
-        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
-        .where(
-            and_(
-                PlayerSeasonStats.league_id == league_id,
-                PlayerSeasonStats.season_id == season_id
-            )
-        )
-        .order_by(PlayerSeasonStats.goals.desc())
-        .limit(limit)
+    service = LeaderboardService(db)
+    items = await service.get_league_leaderboard(
+        league_id=league_id,
+        season_id=season_id,
+        lb_type=LeaderboardType.GOALS,
+        limit=limit,
     )
-    rows = result.all()
-    
     return ResponseSchema(
         success=True,
         data=[
             TopScorerItem(
-                rank=idx + 1,
-                player_id=str(row.Player.id),
-                player_name=row.Player.name,
-                team_name=row.Team.name if row.Team else "未知球队",
-                goals=row.PlayerSeasonStats.goals,
-                matches=row.PlayerSeasonStats.matches_played
+                rank=item.rank,
+                player_id=item.player_id,
+                player_name=item.player_name,
+                team_name=item.team_name,
+                goals=int(item.value),
+                matches=item.matches,
             )
-            for idx, row in enumerate(rows)
+            for item in items
         ]
     )
 
@@ -681,54 +656,27 @@ async def get_top_assists(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    获取联赛助攻榜
-    
-    - **league_id**: 联赛ID
-    - **season_id**: 赛季ID（可选）
-    - **limit**: 返回数量
+    获取联赛助攻榜（兼容旧接口，内部调用通用排行榜）
     """
-    if not season_id:
-        zone_id = await _get_zone_id_by_league(db, league_id)
-        season_result = await db.execute(
-            select(Season)
-            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
-            .where(Season.zone_id == zone_id)
-            .order_by(Season.start_date)
-        )
-        season = season_result.scalar_one_or_none()
-        if season:
-            season_id = str(season.id)
-    
-    if not season_id:
-        return ResponseSchema(success=True, data=[])
-    
-    result = await db.execute(
-        select(PlayerSeasonStats, Player, Team)
-        .join(Player, PlayerSeasonStats.player_id == Player.id)
-        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
-        .where(
-            and_(
-                PlayerSeasonStats.league_id == league_id,
-                PlayerSeasonStats.season_id == season_id
-            )
-        )
-        .order_by(PlayerSeasonStats.assists.desc())
-        .limit(limit)
+    service = LeaderboardService(db)
+    items = await service.get_league_leaderboard(
+        league_id=league_id,
+        season_id=season_id,
+        lb_type=LeaderboardType.ASSISTS,
+        limit=limit,
     )
-    rows = result.all()
-    
     return ResponseSchema(
         success=True,
         data=[
             TopAssistItem(
-                rank=idx + 1,
-                player_id=str(row.Player.id),
-                player_name=row.Player.name,
-                team_name=row.Team.name if row.Team else "未知球队",
-                assists=row.PlayerSeasonStats.assists,
-                matches=row.PlayerSeasonStats.matches_played
+                rank=item.rank,
+                player_id=item.player_id,
+                player_name=item.player_name,
+                team_name=item.team_name,
+                assists=int(item.value),
+                matches=item.matches,
             )
-            for idx, row in enumerate(rows)
+            for item in items
         ]
     )
 
@@ -746,56 +694,57 @@ async def get_clean_sheets(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    获取联赛零封榜
-    
-    - **league_id**: 联赛ID
-    - **season_id**: 赛季ID（可选）
-    - **limit**: 返回数量
+    获取联赛零封榜（兼容旧接口，内部调用通用排行榜）
     """
-    from app.models.player import PlayerPosition
-    
-    if not season_id:
-        zone_id = await _get_zone_id_by_league(db, league_id)
-        season_result = await db.execute(
-            select(Season)
-            .where(Season.status.in_([SeasonStatus.ONGOING, SeasonStatus.PENDING]))
-            .where(Season.zone_id == zone_id)
-            .order_by(Season.start_date)
-        )
-        season = season_result.scalar_one_or_none()
-        if season:
-            season_id = str(season.id)
-    
-    if not season_id:
-        return ResponseSchema(success=True, data=[])
-    
-    result = await db.execute(
-        select(PlayerSeasonStats, Player, Team)
-        .join(Player, PlayerSeasonStats.player_id == Player.id)
-        .outerjoin(Team, PlayerSeasonStats.team_id == Team.id)
-        .where(
-            and_(
-                PlayerSeasonStats.league_id == league_id,
-                PlayerSeasonStats.season_id == season_id,
-                Player.position == PlayerPosition.GK
-            )
-        )
-        .order_by(PlayerSeasonStats.clean_sheets.desc())
-        .limit(limit)
+    service = LeaderboardService(db)
+    items = await service.get_league_leaderboard(
+        league_id=league_id,
+        season_id=season_id,
+        lb_type=LeaderboardType.CLEAN_SHEETS,
+        limit=limit,
     )
-    rows = result.all()
-    
     return ResponseSchema(
         success=True,
         data=[
             CleanSheetItem(
-                rank=idx + 1,
-                player_id=str(row.Player.id),
-                player_name=row.Player.display_name or f"{row.Player.first_name} {row.Player.last_name}",
-                team_name=row.Team.name if row.Team else "未知球队",
-                clean_sheets=row.PlayerSeasonStats.clean_sheets,
-                matches=row.PlayerSeasonStats.matches_played
+                rank=item.rank,
+                player_id=item.player_id,
+                player_name=item.player_name,
+                team_name=item.team_name,
+                clean_sheets=int(item.value),
+                matches=item.matches,
             )
-            for idx, row in enumerate(rows)
+            for item in items
         ]
     )
+
+
+@router.get(
+    "/{league_id}/leaderboard",
+    response_model=ResponseSchema[List[LeaderboardItem]],
+    summary="获取联赛排行榜",
+    description="获取指定联赛的通用排行榜，支持进球、助攻、抢断、评分等30+维度",
+)
+async def get_league_leaderboard(
+    league_id: str,
+    type: LeaderboardType = Query(LeaderboardType.GOALS, description="排行榜类型"),
+    season_id: Optional[str] = Query(None, description="赛季ID（默认当前赛季）"),
+    limit: int = Query(20, ge=1, le=50, description="返回数量"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取联赛通用排行榜
+    
+    - **league_id**: 联赛ID
+    - **type**: 排行榜类型，如 goals/assists/tackles/rating/shot_accuracy 等
+    - **season_id**: 赛季ID（可选）
+    - **limit**: 返回数量
+    """
+    service = LeaderboardService(db)
+    items = await service.get_league_leaderboard(
+        league_id=league_id,
+        season_id=season_id,
+        lb_type=type,
+        limit=limit,
+    )
+    return ResponseSchema(success=True, data=items)

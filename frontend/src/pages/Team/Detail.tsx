@@ -67,6 +67,21 @@ const formColor: Record<string, string> = {
   LOW: 'text-amber-400',
 }
 
+const formOrder: Record<string, number> = {
+  HOT: 3,
+  GOOD: 2,
+  NEUTRAL: 1,
+  LOW: 0,
+}
+
+type SortField = 'squad_number' | 'position' | 'age' | 'ovr' | 'form' | 'fitness' | 'matches_played' | 'goals' | 'assists' | 'average_rating'
+type SortDirection = 'asc' | 'desc'
+
+interface SortConfig {
+  field: SortField
+  direction: SortDirection
+}
+
 function statValue(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : '-'
 }
@@ -131,6 +146,34 @@ function PlayerAvatar({ player, size = 'sm' }: { player: LockerPlayer; size?: 's
   )
 }
 
+function SortHeader({
+  field,
+  label,
+  sort,
+  onSort,
+}: {
+  field: SortField
+  label: string
+  sort: SortConfig
+  onSort: (field: SortField) => void
+}) {
+  const isActive = sort.field === field
+  return (
+    <th
+      className="cursor-pointer select-none hover:text-white transition-colors"
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <span className="inline-flex flex-col items-center leading-none">
+          <span className={`text-[8px] ${isActive && sort.direction === 'asc' ? 'text-[#C6F135]' : 'text-[#4B4B6A]'}`}>▲</span>
+          <span className={`text-[8px] -mt-1 ${isActive && sort.direction === 'desc' ? 'text-[#C6F135]' : 'text-[#4B4B6A]'}`}>▼</span>
+        </span>
+      </div>
+    </th>
+  )
+}
+
 function TeamDetail() {
   const { id: routeTeamId } = useParams<{ id: string }>()
   const [activeTab, setActiveTab] = useState<TeamTab>('locker')
@@ -139,6 +182,7 @@ function TeamDetail() {
   const [playerStates, setPlayerStates] = useState<Record<string, PlayerState>>({})
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sort, setSort] = useState<SortConfig>({ field: 'ovr', direction: 'desc' })
 
   useEffect(() => {
     let cancelled = false
@@ -212,12 +256,66 @@ function TeamDetail() {
   }, [routeTeamId])
 
   const sortedPlayers = useMemo(() => {
-    return [...players].sort((a, b) => {
-      const positionDiff = positionOrder[a.position] - positionOrder[b.position]
-      if (positionDiff !== 0) return positionDiff
-      return b.ovr - a.ovr
+    const list = [...players]
+    const { field, direction } = sort
+    const dir = direction === 'asc' ? 1 : -1
+
+    list.sort((a, b) => {
+      let cmp = 0
+
+      switch (field) {
+        case 'position':
+          cmp = positionOrder[a.position] - positionOrder[b.position]
+          break
+        case 'squad_number':
+          cmp = (a.squad_number || 0) - (b.squad_number || 0)
+          break
+        case 'age':
+          cmp = a.age - b.age
+          break
+        case 'ovr':
+          cmp = a.ovr - b.ovr
+          break
+        case 'form': {
+          const stateA = playerStates[a.id]
+          const stateB = playerStates[b.id]
+          const formA = stateA ? (formOrder[stateA.visible_form] ?? -1) : -1
+          const formB = stateB ? (formOrder[stateB.visible_form] ?? -1) : -1
+          cmp = formA - formB
+          break
+        }
+        case 'fitness': {
+          const fitA = playerStates[a.id]?.fitness ?? 0
+          const fitB = playerStates[b.id]?.fitness ?? 0
+          cmp = fitA - fitB
+          break
+        }
+        case 'matches_played':
+          cmp = (a.matches_played || 0) - (b.matches_played || 0)
+          break
+        case 'goals':
+          cmp = (a.goals || 0) - (b.goals || 0)
+          break
+        case 'assists':
+          cmp = (a.assists || 0) - (b.assists || 0)
+          break
+        case 'average_rating':
+          cmp = (a.average_rating || 0) - (b.average_rating || 0)
+          break
+        default:
+          cmp = 0
+      }
+
+      // 如果主排序字段相等，按 OVR 降序作为次要排序
+      if (cmp === 0) {
+        cmp = b.ovr - a.ovr
+      }
+
+      return cmp * dir
     })
-  }, [players])
+
+    return list
+  }, [players, sort, playerStates])
 
   const selectedPlayer = sortedPlayers.find((player) => player.id === selectedPlayerId) || sortedPlayers[0] || null
   const selectedState = selectedPlayer ? playerStates[selectedPlayer.id] : null
@@ -246,6 +344,15 @@ function TeamDetail() {
 
   const teamId = team?.id
   const leagueId = team?.league_id || team?.current_league_id
+
+  const handleSort = (field: SortField) => {
+    setSort((prev) => {
+      if (prev.field === field) {
+        return { field, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+      }
+      return { field, direction: 'desc' }
+    })
+  }
 
   // 其他Tab数据
   const { history: teamHistory, loading: historyLoading } = useTeamHistory(teamId)
@@ -323,16 +430,16 @@ function TeamDetail() {
                 <thead>
                   <tr>
                     <th>球员</th>
-                    <th>号码</th>
-                    <th>位置</th>
-                    <th>年龄</th>
-                    <th>OVR</th>
-                    <th>状态</th>
-                    <th>体能</th>
-                    <th>出场</th>
-                    <th>进球</th>
-                    <th>助攻</th>
-                    <th>评分</th>
+                    <SortHeader field="squad_number" label="号码" sort={sort} onSort={handleSort} />
+                    <SortHeader field="position" label="位置" sort={sort} onSort={handleSort} />
+                    <SortHeader field="age" label="年龄" sort={sort} onSort={handleSort} />
+                    <SortHeader field="ovr" label="OVR" sort={sort} onSort={handleSort} />
+                    <SortHeader field="form" label="状态" sort={sort} onSort={handleSort} />
+                    <SortHeader field="fitness" label="体能" sort={sort} onSort={handleSort} />
+                    <SortHeader field="matches_played" label="出场" sort={sort} onSort={handleSort} />
+                    <SortHeader field="goals" label="进球" sort={sort} onSort={handleSort} />
+                    <SortHeader field="assists" label="助攻" sort={sort} onSort={handleSort} />
+                    <SortHeader field="average_rating" label="评分" sort={sort} onSort={handleSort} />
                   </tr>
                 </thead>
                 <tbody>

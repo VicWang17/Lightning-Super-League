@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowUpRight } from 'lucide-react'
 import { 
   Trophy, 
   ChevronLeft, 
@@ -12,10 +11,13 @@ import {
   Medal,
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
-import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useTopScorers, useTopAssists } from '../../hooks/useLeagues'
+import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useLeagueLeaderboard } from '../../hooks/useLeagues'
 import { useSeasons } from '../../hooks/useSeasons'
 import type { League, LeagueStanding, Match, PlayoffMatch } from '../../types/league'
 import type { Season } from '../../types/season'
+import type { LeaderboardType } from '../../types/leaderboard'
+import { LeaderboardSidebar, getLeaderboardFormat } from '../../components/leaderboard/LeaderboardSidebar'
+import { LeaderboardTable } from '../../components/leaderboard/LeaderboardTable'
 
 // 图例组件 — 根据联赛赛制动态显示
 function Legend({ league }: { league: League }) {
@@ -311,49 +313,19 @@ function MatchCard({ match }: { match: Match }) {
  )
 }
 
-// 射手榜/助攻榜行组件
-function StatsRow({ rank, name, team, value, label, playerId }: { rank: number; name: string; team: string; value: number; label: string; playerId?: string }) {
- const rankColors = [
- 'bg-amber-500 text-black',
- 'bg-slate-300 text-black',
- 'bg-orange-400 text-black',
- 'bg-[#1E1E2D] text-[#8B8BA7]'
- ]
 
- return (
- <div className="flex items-center gap-4 py-3 border-b border-[#2D2D44] last:border-0">
- <div className={`w-7 h-7 flex items-center justify-center text-sm font-bold pixel-number ${rankColors[Math.min(rank - 1, 3)]}`}>
- {rank}
- </div>
- <div className="flex-1 min-w-0">
- {playerId ? (
-   <Link to={`/players/${playerId}`} className="font-medium text-white truncate hover:text-[#C6F135] transition-colors">
-     {name}
-   </Link>
- ) : (
-   <p className="font-medium text-white truncate">{name}</p>
- )}
- <p className="text-xs text-[#8B8BA7]">{team}</p>
- </div>
- <div className="text-right">
- <p className="font-bold pixel-number text-lg">{value}</p>
- <p className="text-xs text-[#8B8BA7]">{label}</p>
- </div>
- </div>
- )
-}
 
 function LeagueDetail() {
  const { id } = useParams<{ id: string }>()
- const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'scorers' | 'assists' | 'records'>('standings')
+ const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'stats' | 'records'>('standings')
  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined)
+ const [leaderboardType, setLeaderboardType] = useState<LeaderboardType>('goals')
  
  const { league, loading: leagueLoading, error: leagueError } = useLeagueDetail(id)
  const { seasons, loading: seasonsLoading } = useSeasons()
  const { standings, loading: standingsLoading } = useLeagueTable(id, selectedSeasonId)
  const { matches, loading: matchesLoading } = useLeagueSchedule(id, selectedSeasonId)
- const { scorers, loading: scorersLoading } = useTopScorers(id, selectedSeasonId, 10)
- const { assists, loading: assistsLoading } = useTopAssists(id, selectedSeasonId, 10)
+ const { items: leaderboardItems, loading: leaderboardLoading } = useLeagueLeaderboard(id, leaderboardType, selectedSeasonId, 20)
  
  // 默认选中当前赛季
  useEffect(() => {
@@ -488,16 +460,10 @@ function LeagueDetail() {
  赛程
  </div>
  </TabButton>
- <TabButton active={activeTab === 'scorers'} onClick={() => setActiveTab('scorers')}>
+ <TabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>
  <div className="flex items-center gap-2">
  <Target className="w-4 h-4" />
- 射手榜
- </div>
- </TabButton>
- <TabButton active={activeTab === 'assists'} onClick={() => setActiveTab('assists')}>
- <div className="flex items-center gap-2">
- <ArrowUpRight className="w-4 h-4" />
- 助攻榜
+ 数据
  </div>
  </TabButton>
  <TabButton active={activeTab === 'records'} onClick={() => setActiveTab('records')}>
@@ -589,67 +555,24 @@ function LeagueDetail() {
  </div>
  )}
 
- {activeTab === 'scorers' && (
+ {activeTab === 'stats' && (
  <div>
- <h3 className="text-lg font-semibold mb-4">射手榜</h3>
- {scorersLoading ? (
- <div className="space-y-2">
- {[1, 2, 3, 4, 5].map(i => (
- <div key={i} className="h-14 bg-[#1E1E2D] animate-pulse" />
- ))}
- </div>
- ) : scorers.length === 0 ? (
- <div className="text-center py-12">
- <Target className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
- <p className="text-[#8B8BA7]">暂无射手数据</p>
- </div>
- ) : (
- <div>
- {scorers.map(scorer => (
- <StatsRow
- key={scorer.player_id}
- rank={scorer.rank}
- name={scorer.player_name}
- team={scorer.team_name}
- value={scorer.goals}
- label="进球"
- playerId={scorer.player_id}
+ <div className="flex flex-col md:flex-row gap-4">
+ <div className="w-full md:w-40 shrink-0">
+ <h3 className="text-sm font-semibold text-[#8B8BA7] mb-2 px-3">榜单</h3>
+ <LeaderboardSidebar
+ activeType={leaderboardType}
+ onChange={setLeaderboardType}
  />
- ))}
  </div>
- )}
- </div>
- )}
-
- {activeTab === 'assists' && (
- <div>
- <h3 className="text-lg font-semibold mb-4">助攻榜</h3>
- {assistsLoading ? (
- <div className="space-y-2">
- {[1, 2, 3, 4, 5].map(i => (
- <div key={i} className="h-14 bg-[#1E1E2D] animate-pulse" />
- ))}
- </div>
- ) : assists.length === 0 ? (
- <div className="text-center py-12">
- <ArrowUpRight className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
- <p className="text-[#8B8BA7]">暂无助攻数据</p>
- </div>
- ) : (
- <div>
- {assists.map(assist => (
- <StatsRow
- key={assist.player_id}
- rank={assist.rank}
- name={assist.player_name}
- team={assist.team_name}
- value={assist.assists}
- label="助攻"
- playerId={assist.player_id}
+ <div className="flex-1 min-w-0">
+ <LeaderboardTable
+ items={leaderboardItems}
+ valueFormat={getLeaderboardFormat(leaderboardType)}
+ loading={leaderboardLoading}
  />
- ))}
  </div>
- )}
+ </div>
  </div>
  )}
 

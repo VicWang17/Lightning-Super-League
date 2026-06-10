@@ -23,6 +23,9 @@ from app.schemas.league import (
     LeagueStandingItem,
     TopScorerItem, TopAssistItem, CleanSheetItem
 )
+from app.schemas.leaderboard import (
+    LeaderboardType, LeaderboardItem
+)
 from app.schemas.season import (
     SeasonResponse, SeasonDetailResponse, SeasonDayResponse,
     SeasonCalendarResponse, TeamFixtureResponse, TodayFixtureResponse,
@@ -130,6 +133,9 @@ __all__ = [
     "TopScorerItem",
     "TopAssistItem",
     "CleanSheetItem",
+    # Leaderboard
+    "LeaderboardType",
+    "LeaderboardItem",
     # Season
     "SeasonResponse",
     "SeasonDetailResponse",

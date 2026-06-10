@@ -2,7 +2,7 @@
 World API routes - 世界排名与全球数据接口
 """
 from fastapi import APIRouter, Depends, Query
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
@@ -13,7 +13,9 @@ from app.schemas.records import (
     RecordScope as RecordScopeEnum,
 )
 from app.services.honor_service import HonorService
+from app.services.leaderboard_service import LeaderboardService
 from app.routers.records import list_records
+from app.schemas.leaderboard import LeaderboardType, LeaderboardItem
 
 router = APIRouter(prefix="/world", tags=["世界"])
 
@@ -44,10 +46,38 @@ async def get_top_players(
     position: Optional[str] = Query(None, description="位置筛选: GK/DF/MF/FW"),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取球员OVR排行"""
-    service = HonorService(db)
-    players = await service.get_top_players(limit=limit, position=position)
+    """获取球员OVR排行（兼容旧接口，内部调用通用排行榜）"""
+    service = LeaderboardService(db)
+    players = await service.get_ovr_leaderboard(limit=limit, position=position)
     return ResponseSchema(success=True, data=players)
+
+
+@router.get(
+    "/leaderboard",
+    response_model=ResponseSchema[List[LeaderboardItem]],
+    summary="获取世界排行榜",
+    description="获取全球球员排行榜，支持进球、助攻、评分、抢断等30+维度",
+)
+async def get_world_leaderboard(
+    type: LeaderboardType = Query(LeaderboardType.GOALS, description="排行榜类型"),
+    limit: int = Query(100, ge=1, le=500, description="返回数量限制"),
+    position: Optional[str] = Query(None, description="位置筛选: GK/DF/MF/FW"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取世界通用排行榜
+    
+    - **type**: 排行榜类型，如 goals/assists/tackles/rating/shot_accuracy 等
+    - **limit**: 返回数量
+    - **position**: 位置筛选（可选）
+    """
+    service = LeaderboardService(db)
+    items = await service.get_world_leaderboard(
+        lb_type=type,
+        limit=limit,
+        position=position,
+    )
+    return ResponseSchema(success=True, data=items)
 
 
 @router.get(

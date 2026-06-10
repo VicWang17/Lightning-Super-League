@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '../api/client'
 import type { LeagueSystem, League, LeagueDetail, Match, TopScorer, TopAssist, CleanSheet } from '../types/league'
+import type { LeaderboardType, LeaderboardItem } from '../types/leaderboard'
 
 // 获取所有联赛体系
 export function useLeagueSystems() {
@@ -268,4 +269,43 @@ export function useCleanSheets(leagueId: string | undefined, seasonId?: string, 
   }, [leagueId, seasonId, limit])
 
   return { cleanSheets, loading, error }
+}
+
+// 获取联赛通用排行榜
+export function useLeagueLeaderboard(
+  leagueId: string | undefined,
+  type: LeaderboardType,
+  seasonId?: string,
+  limit = 20
+) {
+  const [items, setItems] = useState<LeaderboardItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!leagueId) {
+      setLoading(false)
+      return
+    }
+
+    const fetchLeaderboard = async () => {
+      try {
+        setLoading(true)
+        let url = `/leagues/${leagueId}/leaderboard?type=${type}&limit=${limit}`
+        if (seasonId) url += `&season_id=${seasonId}`
+        const response = await api.get<LeaderboardItem[]>(url)
+        if (response.success) {
+          setItems(response.data)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取排行榜失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchLeaderboard()
+  }, [leagueId, type, seasonId, limit])
+
+  return { items, loading, error }
 }

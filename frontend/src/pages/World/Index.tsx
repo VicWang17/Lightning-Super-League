@@ -10,7 +10,9 @@ import {
   InfoBox,
 } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
-import { useWorldRankings, useTopPlayers, useWorldRecords } from '../../hooks/useWorld'
+import { useWorldRankings, useTopPlayers, useWorldRecords, useWorldLeaderboard } from '../../hooks/useWorld'
+import type { LeaderboardType } from '../../types/leaderboard'
+import { LeaderboardValue } from '../../components/leaderboard/LeaderboardValue'
 import {
   type RecordItem,
   RecordCategory,
@@ -22,6 +24,40 @@ import {
 
 type WorldTab = 'rankings' | 'players' | 'records'
 type PlayerPosition = 'ALL' | 'FW' | 'MF' | 'DF' | 'GK'
+type WorldSortType = 'ovr' | LeaderboardType
+
+interface WorldSortOption {
+  value: WorldSortType
+  label: string
+  format: 'int' | 'float1' | 'percent'
+}
+
+const WORLD_SORT_OPTIONS: WorldSortOption[] = [
+  { value: 'ovr', label: 'OVR', format: 'int' },
+  { value: 'goals', label: '进球', format: 'int' },
+  { value: 'assists', label: '助攻', format: 'int' },
+  { value: 'rating', label: '场均评分', format: 'float1' },
+  { value: 'tackles', label: '抢断', format: 'int' },
+  { value: 'interceptions', label: '拦截', format: 'int' },
+  { value: 'saves', label: '扑救', format: 'int' },
+  { value: 'clean_sheets', label: '零封', format: 'int' },
+  { value: 'shots', label: '射门', format: 'int' },
+  { value: 'shots_on_target', label: '射正', format: 'int' },
+  { value: 'shot_accuracy', label: '射正率', format: 'percent' },
+  { value: 'key_passes', label: '关键传球', format: 'int' },
+  { value: 'passes', label: '传球', format: 'int' },
+  { value: 'pass_accuracy', label: '传球成功率', format: 'percent' },
+  { value: 'dribbles', label: '盘带', format: 'int' },
+  { value: 'yellow_cards', label: '黄牌', format: 'int' },
+  { value: 'red_cards', label: '红牌', format: 'int' },
+  { value: 'fouls', label: '犯规', format: 'int' },
+  { value: 'offsides', label: '越位', format: 'int' },
+  { value: 'touches', label: '触球', format: 'int' },
+  { value: 'minutes', label: '出场时间', format: 'int' },
+  { value: 'appearances', label: '出场', format: 'int' },
+  { value: 'goals_per_game', label: '场均进球', format: 'float1' },
+  { value: 'assists_per_game', label: '场均助攻', format: 'float1' },
+]
 
 const TABS = [
   { value: 'rankings' as WorldTab, label: '球队排名', icon: Trophy },
@@ -120,6 +156,58 @@ function PlayerRow({ player }: { player: { rank: number; player_name: string; av
           className="text-sm text-[#8B8BA7] hover:text-white transition-colors"
         >
           {player.team_name}
+        </Link>
+      </td>
+    </tr>
+  )
+}
+
+function LeaderboardPlayerRow({ item, format }: { item: { rank: number; player_name: string; avatar_url?: string; position: string; team_name: string; team_id: string; player_id: string; value: number; matches: number }; format: 'int' | 'float1' | 'percent' }) {
+  const rankColor = item.rank <= 3 ? RANK_COLORS[item.rank - 1] : 'bg-[#1E1E2D] text-[#8B8BA7]'
+
+  return (
+    <tr className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+      <td className="py-3 px-4">
+        <div className={`w-8 h-8 flex items-center justify-center text-sm font-bold pixel-number ${rankColor}`}>
+          {item.rank}
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-3">
+          {item.avatar_url ? (
+            <div className="w-10 h-10 bg-[#1E1E2D] border-2 border-[#2D2D44] overflow-hidden">
+              <img src={`/${item.avatar_url}`} alt={item.player_name} className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 bg-[#0D4A4D]/30 border-2 border-[#0D7377]/30 flex items-center justify-center">
+              <Users className="w-5 h-5 text-[#0D7377]" />
+            </div>
+          )}
+          <Link
+            to={`/players/${item.player_id}`}
+            className="font-medium text-white hover:text-[#C6F135] transition-colors"
+          >
+            {item.player_name}
+          </Link>
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <span className="px-2 py-0.5 text-xs bg-[#1E1E2D] border border-[#2D2D44] text-[#8B8BA7]">
+          {item.position}
+        </span>
+      </td>
+      <td className="py-3 px-4 text-center text-[#8B8BA7]">{item.matches > 0 ? `${item.matches}场` : '-'}</td>
+      <td className="py-3 px-4 text-center">
+        <span className="font-bold pixel-number text-lg text-[#C6F135]">
+          <LeaderboardValue value={item.value} format={format} />
+        </span>
+      </td>
+      <td className="py-3 px-4">
+        <Link
+          to={`/teams/${item.team_id}`}
+          className="text-sm text-[#8B8BA7] hover:text-white transition-colors"
+        >
+          {item.team_name}
         </Link>
       </td>
     </tr>
@@ -237,9 +325,23 @@ function WorldRecordsTab() {
 function WorldPage() {
   const [activeTab, setActiveTab] = useState<WorldTab>('rankings')
   const [playerPosition, setPlayerPosition] = useState<PlayerPosition>('ALL')
+  const [sortType, setSortType] = useState<WorldSortType>('ovr')
 
   const { rankings, loading: rankingsLoading } = useWorldRankings()
-  const { players, loading: playersLoading } = useTopPlayers(100, playerPosition === 'ALL' ? undefined : playerPosition)
+  const { players: ovrPlayers, loading: ovrLoading } = useTopPlayers(
+    100,
+    playerPosition === 'ALL' ? undefined : playerPosition
+  )
+  const { items: lbItems, loading: lbLoading } = useWorldLeaderboard(
+    sortType === 'ovr' ? 'goals' : sortType,
+    100,
+    playerPosition === 'ALL' ? undefined : playerPosition
+  )
+
+  const isOvrSort = sortType === 'ovr'
+  const players = isOvrSort ? ovrPlayers : lbItems
+  const playersLoading = isOvrSort ? ovrLoading : lbLoading
+  const sortOption = WORLD_SORT_OPTIONS.find(o => o.value === sortType)
 
   return (
     <div className="max-w-[1200px]">
@@ -319,23 +421,37 @@ function WorldPage() {
 
         {activeTab === 'players' && (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">球员OVR排名</h3>
-              <div className="flex gap-1">
-                {POSITION_FILTERS.map((filter) => (
-                  <button
-                    key={filter.value}
-                    onClick={() => setPlayerPosition(filter.value)}
-                    className={clsx(
-                      'px-3 py-1 text-xs font-medium border-2 transition-all',
-                      playerPosition === filter.value
-                        ? 'bg-[#C6F135] text-[#0A0A0F] border-[#C6F135]'
-                        : 'bg-[#12121A] text-[#8B8BA7] border-[#2D2D44] hover:border-[#0D7377]'
-                    )}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <h3 className="text-lg font-semibold">球员排名</h3>
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex gap-1">
+                  {POSITION_FILTERS.map((filter) => (
+                    <button
+                      key={filter.value}
+                      onClick={() => setPlayerPosition(filter.value)}
+                      className={clsx(
+                        'px-3 py-1 text-xs font-medium border-2 transition-all',
+                        playerPosition === filter.value
+                          ? 'bg-[#C6F135] text-[#0A0A0F] border-[#C6F135]'
+                          : 'bg-[#12121A] text-[#8B8BA7] border-[#2D2D44] hover:border-[#0D7377]'
+                      )}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <select
+                    value={sortType}
+                    onChange={(e) => setSortType(e.target.value as WorldSortType)}
+                    className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-xs px-3 py-1 pr-7 focus:outline-none focus:border-[#C6F135] cursor-pointer"
                   >
-                    {filter.label}
-                  </button>
-                ))}
+                    {WORLD_SORT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <ChevronRight className="w-3 h-3 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+                </div>
               </div>
             </div>
             {playersLoading ? (
@@ -357,15 +473,27 @@ function WorldPage() {
                       <th className="py-2 px-4 font-medium">排名</th>
                       <th className="py-2 px-4 font-medium">球员</th>
                       <th className="py-2 px-4 font-medium">位置</th>
-                      <th className="py-2 px-4 font-medium text-center">年龄</th>
-                      <th className="py-2 px-4 font-medium text-center">OVR</th>
+                      <th className="py-2 px-4 font-medium text-center">
+                        {isOvrSort ? '年龄' : '场次'}
+                      </th>
+                      <th className="py-2 px-4 font-medium text-center">
+                        {sortOption?.label ?? 'OVR'}
+                      </th>
                       <th className="py-2 px-4 font-medium">球队</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {players.map((player) => (
-                      <PlayerRow key={player.player_id} player={player} />
-                    ))}
+                    {isOvrSort
+                      ? (players as any[]).map((player) => (
+                          <PlayerRow key={player.player_id} player={player} />
+                        ))
+                      : (players as any[]).map((item: any) => (
+                          <LeaderboardPlayerRow
+                            key={item.player_id}
+                            item={item}
+                            format={sortOption?.format ?? 'int'}
+                          />
+                        ))}
                   </tbody>
                 </table>
               </div>

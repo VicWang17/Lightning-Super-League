@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api/client'
 import type { WorldRanking, TopPlayer } from '../types/world'
 import type { RecordsByCategory } from '../types/records'
+import type { LeaderboardType, LeaderboardItem } from '../types/leaderboard'
 
 export function useWorldRankings() {
   const [rankings, setRankings] = useState<WorldRanking[]>([])
@@ -81,4 +82,36 @@ export function useWorldRecords() {
   }, [])
 
   return { records, loading, error }
+}
+
+export function useWorldLeaderboard(
+  type: LeaderboardType,
+  limit = 100,
+  position?: string
+) {
+  const [items, setItems] = useState<LeaderboardItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        setLoading(true)
+        let url = `/world/leaderboard?type=${type}&limit=${limit}`
+        if (position) url += `&position=${position}`
+        const response = await api.get<LeaderboardItem[]>(url)
+        if (response.success) {
+          setItems(response.data)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取世界排行榜失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchLeaderboard()
+  }, [type, limit, position])
+
+  return { items, loading, error }
 }
