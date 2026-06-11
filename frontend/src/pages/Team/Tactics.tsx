@@ -1,21 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import clsx from 'clsx'
 import { api } from '../../api/client'
-import type { PlayerListItem } from '../../types/player'
+import type { PlayerAbility, PlayerListItem, PlayerPosition } from '../../types/player'
 import {
   Chart,
   Check,
   Download,
   Fire,
   Flag,
-  Grid3x3,
   Shield,
   Sword,
   Target,
+  UserPlus,
   Users,
   Zap,
 } from '../../components/ui/pixel-icons'
 
 type FormationId = 'F01' | 'F02' | 'F03' | 'F04' | 'F05' | 'F06' | 'F07' | 'F08'
+type SelectionSource = 'starter' | 'bench'
 
 type TacticsSetup = {
   passing_style: number
@@ -34,6 +37,7 @@ type TacticsSetup = {
 
 type TacticKey = keyof TacticsSetup
 type TacticalPlayer = PlayerListItem & { fitness?: number; match_form?: string }
+type StarterSlot = ReturnType<typeof getSlots>[number] & { player?: TacticalPlayer }
 
 const formations: Array<{
   id: FormationId
@@ -59,14 +63,14 @@ const presets: Array<{ id: string; name: string; desc: string; icon: typeof Targ
   {
     id: 'balanced',
     name: '均衡默认',
-    desc: '没有明显短板，适合观察对手。',
+    desc: '观察对手，线间距离保持稳定。',
     icon: Target,
     tactics: { passing_style: 2, attack_width: 2, attack_tempo: 2, defensive_line_height: 2, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 2, defensive_compactness: 1, marking_strategy: 0, offside_trap: 0, tackling_aggression: 1 },
   },
   {
     id: 'high_press',
     name: '高位逼抢',
-    desc: '压上防线和逼抢，换取前场夺回球权。',
+    desc: '压上防线，前场夺回球权。',
     icon: Zap,
     tactics: { passing_style: 2, attack_width: 2, attack_tempo: 3, defensive_line_height: 4, crossing_strategy: 2, shooting_mentality: 3, playmaker_focus: 0, pressing_intensity: 4, defensive_compactness: 1, marking_strategy: 2, offside_trap: 2, tackling_aggression: 3 },
   },
@@ -129,18 +133,19 @@ const tacticFields: Array<{
   { key: 'tackling_aggression', label: '对抗强度', left: '克制', right: '凶狠', max: 3, group: '防守结构' },
 ]
 
-const storageKey = 'lsl:tactics:v1'
+const storageKey = 'lsl:tactics:v2'
+const legacyStorageKey = 'lsl:tactics:v1'
 
 const clamp = (value: number, max: number) => Math.min(max, Math.max(0, value))
 
-const positionColor: Record<string, string> = {
-  GK: 'bg-[#D7A94A]',
-  DF: 'bg-[#3D8FE6]',
-  MF: 'bg-[#50D1C8]',
-  FW: 'bg-[#D75A4A]',
+const positionTone: Record<PlayerPosition, { bg: string; ink: string; ring: string; label: string; token: string; marker: string; fill: string }> = {
+  GK: { bg: 'bg-[#E2B84B]', ink: 'text-[#2B1B08]', ring: 'border-[#7B5514]', label: '门将', token: '/tactics/token-gk-pixel-v6.png', marker: '/tactics/avatar-marker-gk-football-pixel-v1.png', fill: '#C49A32' },
+  DF: { bg: 'bg-[#63A9E8]', ink: 'text-[#071626]', ring: 'border-[#164C7C]', label: '后卫', token: '/tactics/token-df-pixel-v6.png', marker: '/tactics/avatar-marker-df-football-pixel-v1.png', fill: '#5086AE' },
+  MF: { bg: 'bg-[#72D0BB]', ink: 'text-[#06231C]', ring: 'border-[#1F7160]', label: '中场', token: '/tactics/token-mf-pixel-v6.png', marker: '/tactics/avatar-marker-mf-football-pixel-v1.png', fill: '#56A694' },
+  FW: { bg: 'bg-[#E97762]', ink: 'text-[#2B0905]', ring: 'border-[#8E2E20]', label: '前锋', token: '/tactics/token-fw-pixel-v6.png', marker: '/tactics/avatar-marker-fw-football-pixel-v1.png', fill: '#BE5848' },
 }
 
-const formationRows: Record<FormationId, Array<{ position: 'GK' | 'DF' | 'MF' | 'FW'; count: number; y: number }>> = {
+const formationRows: Record<FormationId, Array<{ position: PlayerPosition; count: number; y: number }>> = {
   F01: [{ position: 'GK', count: 1, y: 88 }, { position: 'DF', count: 2, y: 68 }, { position: 'MF', count: 3, y: 49 }, { position: 'FW', count: 2, y: 25 }],
   F02: [{ position: 'GK', count: 1, y: 88 }, { position: 'DF', count: 2, y: 68 }, { position: 'MF', count: 2, y: 50 }, { position: 'FW', count: 3, y: 24 }],
   F03: [{ position: 'GK', count: 1, y: 88 }, { position: 'DF', count: 1, y: 68 }, { position: 'MF', count: 3, y: 49 }, { position: 'FW', count: 3, y: 23 }],
@@ -156,6 +161,7 @@ function getSlots(formationId: FormationId) {
     const spacing = row.count > 1 ? 62 / (row.count - 1) : 0
     const start = row.count > 1 ? 19 : 50
     return Array.from({ length: row.count }, (_, index) => ({
+      id: `${row.position}-${index}`,
       position: row.position,
       x: start + spacing * index,
       y: row.y + (row.position === 'MF' && row.count === 4 && index % 2 === 0 ? 3 : 0),
@@ -163,19 +169,27 @@ function getSlots(formationId: FormationId) {
   })
 }
 
-function pickLineup(players: TacticalPlayer[], formationId: FormationId) {
+function pickInitialLineup(players: TacticalPlayer[], formationId: FormationId) {
   const used = new Set<string>()
   return getSlots(formationId).map((slot) => {
     const candidates = players
       .filter((player) => player.position === slot.position && !used.has(player.id))
-      .sort((a, b) => b.ovr - a.ovr)
+      .sort(sortPlayersForLineup)
     const fallback = players
       .filter((player) => !used.has(player.id))
-      .sort((a, b) => b.ovr - a.ovr)
+      .sort(sortPlayersForLineup)
     const player = candidates[0] || fallback[0]
     if (player) used.add(player.id)
-    return { ...slot, player }
+    return player?.id || null
   })
+}
+
+function sortPlayersForLineup(a: TacticalPlayer, b: TacticalPlayer) {
+  return playerScore(b) - playerScore(a)
+}
+
+function playerScore(player: TacticalPlayer) {
+  return player.ovr + (player.fitness || 75) * 0.12 + getMatchFormScore(player.match_form)
 }
 
 function getMatchFormScore(form?: string) {
@@ -185,36 +199,213 @@ function getMatchFormScore(form?: string) {
   return 0
 }
 
-function scoreFormation(players: TacticalPlayer[], formationId: FormationId) {
-  const lineup = pickLineup(players, formationId)
-  if (!lineup.length) return 0
-  const fit = lineup.reduce((sum, slot) => {
-    if (!slot.player) return sum - 10
-    const positionBonus = slot.player.position === slot.position ? 8 : -8
-    return sum + slot.player.ovr + (slot.player.fitness || 75) * 0.18 + getMatchFormScore(slot.player.match_form) + positionBonus
-  }, 0)
-  return Math.round(fit / lineup.length)
+function formatForm(form?: string) {
+  if (form === 'HOT') return '火热'
+  if (form === 'GOOD') return '良好'
+  if (form === 'LOW') return '低迷'
+  return '普通'
 }
 
-function riskScore(tactics: TacticsSetup) {
-  const raw = (4 - tactics.passing_style) * 0.2 +
-    tactics.attack_tempo * 0.2 +
-    tactics.shooting_mentality * 0.2 +
-    tactics.tackling_aggression * 0.15 +
-    (2 - tactics.marking_strategy) * 0.1 +
-    (4 - tactics.defensive_line_height) * 0.15
-  return Math.round(Math.min(1, Math.max(0, raw / 4)) * 100)
+function readStoredSetup() {
+  const raw = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as {
+      formationId?: FormationId
+      tactics?: TacticsSetup
+      preset?: string
+      starterIds?: Array<string | null>
+    }
+  } catch {
+    localStorage.removeItem(storageKey)
+    return null
+  }
 }
 
-function tacticalFlags(tactics: TacticsSetup) {
+function PlayerMini({
+  player,
+  active,
+  compact,
+}: {
+  player: TacticalPlayer
+  active?: boolean
+  compact?: boolean
+}) {
+  const tone = positionTone[player.position]
+  return (
+    <div className={clsx('flex min-w-0 items-center gap-3', compact && 'gap-2')}>
+      <div className={clsx('relative grid shrink-0 place-items-center font-black overflow-hidden rounded-full border-2', compact ? 'h-9 w-9 text-[10px]' : 'h-11 w-11 text-xs', tone.ring)}>
+        {player.avatar_url ? (
+          <img
+            src={`/${player.avatar_url}`}
+            alt={player.name}
+            className="h-full w-full object-cover object-top [image-rendering:pixelated]"
+          />
+        ) : (
+          <img
+            src={tone.token}
+            alt=""
+            className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
+          />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className={clsx('truncate font-black', active ? 'text-[#F8F4DE]' : 'text-[#E7E0C8]', compact ? 'text-xs' : 'text-sm')}>
+          {player.name}
+        </p>
+        <p className="text-[11px] font-bold text-[#786F5A]">
+          OVR {player.ovr} · {formatForm(player.match_form)}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function formatRate(numerator: number, denominator: number) {
+  if (!denominator) return '0%'
+  return `${Math.round((numerator / denominator) * 100)}%`
+}
+
+function getPositionStats(player: TacticalPlayer) {
+  if (player.position === 'FW') {
+    return [
+      { label: '射正率', value: formatRate(player.shots_on_target, player.shots) },
+      { label: '盘带成功率', value: formatRate(player.dribbles_succ, player.dribbles) },
+      { label: '头球成功率', value: formatRate(player.headers_succ, player.headers) },
+    ]
+  }
+  if (player.position === 'MF') {
+    return [
+      { label: '传球成功率', value: formatRate(player.passes_succ, player.passes) },
+      { label: '传中成功率', value: formatRate(player.crosses_succ, player.crosses) },
+      { label: '盘带成功率', value: formatRate(player.dribbles_succ, player.dribbles) },
+    ]
+  }
+  if (player.position === 'DF') {
+    return [
+      { label: '抢断成功率', value: formatRate(player.tackles_succ, player.tackles) },
+      { label: '拦截', value: player.interceptions },
+      { label: '解围', value: player.clearances },
+    ]
+  }
   return [
-    { label: '高位逼抢', active: tactics.defensive_line_height >= 3 && tactics.pressing_intensity >= 3 },
-    { label: '深度防守', active: tactics.defensive_line_height <= 1 && tactics.defensive_compactness >= 2 },
-    { label: '越位陷阱', active: tactics.offside_trap >= 1 && tactics.defensive_line_height >= 2 },
-    { label: '盯人元素', active: tactics.marking_strategy >= 1 },
-    { label: '后场组织', active: tactics.passing_style <= 1 && tactics.defensive_line_height >= 2 },
-    { label: '反击焦点', active: tactics.attack_tempo >= 4 },
+    { label: '零封率', value: formatRate(player.clean_sheets, player.matches_played) },
+    { label: '传球成功率', value: formatRate(player.passes_succ, player.passes) },
+    { label: '解围', value: player.clearances },
   ]
+}
+
+const abilityOrder: Array<{ key: keyof PlayerAbility; label: string }> = [
+  { key: 'sho', label: '射门' },
+  { key: 'pas', label: '传球' },
+  { key: 'dri', label: '盘带' },
+  { key: 'spd', label: '速度' },
+  { key: 'str', label: '力量' },
+  { key: 'sta', label: '体能' },
+  { key: 'acc', label: '爆发' },
+  { key: 'hea', label: '头球' },
+  { key: 'bal', label: '平衡' },
+  { key: 'defe', label: '防守' },
+  { key: 'tkl', label: '抢断' },
+  { key: 'vis', label: '视野' },
+  { key: 'cro', label: '传中' },
+  { key: 'con', label: '控球' },
+  { key: 'fin', label: '远射' },
+  { key: 'com', label: '镇定' },
+  { key: 'sav', label: '扑救' },
+  { key: 'ref', label: '反应' },
+  { key: 'pos', label: '站位' },
+  { key: 'rus', label: '出击' },
+  { key: 'dec', label: '球商' },
+  { key: 'fk', label: '任意球' },
+  { key: 'pk', label: '点球' },
+]
+
+function abilityTone(value: number) {
+  if (value >= 16) return 'text-[#E8C84A]'
+  if (value >= 11) return 'text-[#FFF8DE]'
+  return 'text-[#786F5A]'
+}
+
+function PlayerPanel({ player }: { player: TacticalPlayer }) {
+  const navigate = useNavigate()
+  const tone = positionTone[player.position]
+  const fitnessColor = player.fitness >= 80 ? 'bg-[#7CB342]' : player.fitness >= 50 ? 'bg-[#E6B800]' : 'bg-[#D75A4A]'
+  const formColor = player.match_form === 'HOT' ? 'text-[#E8C84A]' : player.match_form === 'GOOD' ? 'text-[#7CB342]' : player.match_form === 'LOW' ? 'text-[#D75A4A]' : 'text-[#A99E83]'
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={() => navigate(`/players/${player.id}`)}
+        className="flex w-full items-start gap-3 text-left transition-opacity hover:opacity-85"
+      >
+        <div className={clsx('relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-4', tone.ring)}>
+          {player.avatar_url ? (
+            <img
+              src={`/${player.avatar_url}`}
+              alt={player.name}
+              className="h-full w-full object-cover object-top [image-rendering:pixelated]"
+            />
+          ) : (
+            <img
+              src={tone.token}
+              alt=""
+              className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
+            />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-base font-black text-[#FFF8DE]">{player.name}</h3>
+          <p className="mt-1 text-sm font-black text-[#D5B15E]">{player.age}岁</p>
+        </div>
+      </button>
+
+      <div className="space-y-2 border-2 border-[#3B3425] bg-[#0D0B07] p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black text-[#786F5A]">体能</span>
+          <span className="text-xs font-black text-[#FFF8DE]">{player.fitness}%</span>
+        </div>
+        <div className="h-2 border border-[#3B3425] bg-[#1A1610]">
+          <div className={clsx('h-full', fitnessColor)} style={{ width: `${player.fitness}%` }} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-black text-[#786F5A]">状态</span>
+          <span className={clsx('text-xs font-black', formColor)}>{formatForm(player.match_form)}</span>
+        </div>
+      </div>
+
+      <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3">
+        <p className="mb-2 text-[10px] font-black text-[#786F5A]">赛季数据</p>
+        <div className="grid grid-cols-3 gap-y-1.5 text-xs">
+          <span className="font-black text-[#786F5A]">出场 <span className="text-[#FFF8DE]">{player.matches_played}</span></span>
+          <span className="font-black text-[#786F5A]">进球 <span className="text-[#FFF8DE]">{player.goals}</span></span>
+          <span className="font-black text-[#786F5A]">助攻 <span className="text-[#FFF8DE]">{player.assists}</span></span>
+          <span className="font-black text-[#786F5A]">场均 <span className="text-[#D5B15E]">{player.average_rating.toFixed(1)}</span></span>
+          <span className="font-black text-[#786F5A]">黄牌 <span className="text-yellow-400">{player.yellow_cards}</span></span>
+          <span className="font-black text-[#786F5A]">红牌 <span className="text-red-400">{player.red_cards}</span></span>
+          {getPositionStats(player).map((stat) => (
+            <span key={stat.label} className="font-black text-[#786F5A]">{stat.label} <span className="text-[#FFF8DE]">{stat.value}</span></span>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3">
+        <p className="mb-2 text-[10px] font-black text-[#786F5A]">能力值</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {abilityOrder.map((ability) => {
+            const value = player.abilities[ability.key]
+            return (
+              <div key={ability.key} className="border border-[#3B3425] bg-[#15110A] py-1 text-center">
+                <p className="text-[9px] font-black text-[#786F5A]">{ability.label}</p>
+                <p className={clsx('font-["Press_Start_2P"] text-[11px] font-black', abilityTone(value))}>{value}</p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function TacticSlider({
@@ -227,10 +418,10 @@ function TacticSlider({
   onChange: (key: TacticKey, value: number) => void
 }) {
   return (
-    <div className="border-2 border-[#242832] bg-[#07080A]/82 p-3 shadow-pixel-sm">
+    <div className="border-2 border-[#3B3425] bg-[#16120B]/88 p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-black text-[#E8EAD8]">{field.label}</span>
-        <span className="stat-number text-sm text-[#B8E532]">{value}/{field.max}</span>
+        <span className="text-sm font-black text-[#EFE8CE]">{field.label}</span>
+        <span className="stat-number text-sm text-[#D5B15E]">{value}/{field.max}</span>
       </div>
       <input
         type="range"
@@ -239,9 +430,9 @@ function TacticSlider({
         step={1}
         value={value}
         onChange={(event) => onChange(field.key, Number(event.target.value))}
-        className="w-full accent-[#B8E532]"
+        className="w-full accent-[#D5B15E]"
       />
-      <div className="mt-1 flex items-center justify-between text-[11px] font-bold text-[#697157]">
+      <div className="mt-1 flex items-center justify-between text-[11px] font-bold text-[#786F5A]">
         <span>{field.left}</span>
         <span>{field.right}</span>
       </div>
@@ -255,21 +446,33 @@ export default function Tactics() {
   const [formationId, setFormationId] = useState<FormationId>('F01')
   const [tactics, setTactics] = useState<TacticsSetup>(presets[0].tactics)
   const [activePreset, setActivePreset] = useState('balanced')
+  const [starterIds, setStarterIds] = useState<Array<string | null>>([])
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
+  const [panelPlayerId, setPanelPlayerId] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [hasLoadedStorage, setHasLoadedStorage] = useState(false)
 
   useEffect(() => {
-    const raw = localStorage.getItem(storageKey)
-    if (!raw) return
-    try {
-      const parsed = JSON.parse(raw) as { formationId?: FormationId; tactics?: TacticsSetup; preset?: string }
-      if (parsed.formationId && formations.some((formation) => formation.id === parsed.formationId)) {
-        setFormationId(parsed.formationId)
-      }
-      if (parsed.tactics) setTactics(parsed.tactics)
-      if (parsed.preset) setActivePreset(parsed.preset)
-    } catch {
-      localStorage.removeItem(storageKey)
+    const parsed = readStoredSetup()
+    if (!parsed) {
+      setHasLoadedStorage(true)
+      return
     }
+    if (parsed.formationId && formations.some((formation) => formation.id === parsed.formationId)) {
+      setFormationId(parsed.formationId)
+    }
+    if (parsed.tactics) {
+      const loadedTactics = parsed.tactics
+      setTactics(loadedTactics)
+      const matchedPreset = presets.find((preset) =>
+        tacticFields.every((field) => preset.tactics[field.key] === loadedTactics[field.key])
+      )
+      setActivePreset(matchedPreset ? matchedPreset.id : 'custom')
+    } else if (parsed.preset) {
+      setActivePreset(parsed.preset)
+    }
+    if (parsed.starterIds) setStarterIds(parsed.starterIds.slice(0, 8))
+    setHasLoadedStorage(true)
   }, [])
 
   useEffect(() => {
@@ -292,30 +495,110 @@ export default function Tactics() {
     return () => { cancelled = true }
   }, [])
 
-  const selectedFormation = formations.find((formation) => formation.id === formationId) || formations[0]
-  const lineup = useMemo(() => pickLineup(players, formationId), [players, formationId])
-  const fitScore = useMemo(() => scoreFormation(players, formationId), [players, formationId])
-  const risk = useMemo(() => riskScore(tactics), [tactics])
-  const flags = useMemo(() => tacticalFlags(tactics), [tactics])
-  const activeFlags = flags.filter((flag) => flag.active)
+  useEffect(() => {
+    if (!hasLoadedStorage || !players.length) return
+    setStarterIds((current) => {
+      const slots = getSlots(formationId)
+      const valid = current.filter((id): id is string => Boolean(id) && players.some((player) => player.id === id))
+      if (valid.length) {
+        const unique = Array.from(new Set(valid)).slice(0, slots.length)
+        return [...unique, ...Array(Math.max(0, slots.length - unique.length)).fill(null)]
+      }
+      return pickInitialLineup(players, formationId)
+    })
+  }, [formationId, hasLoadedStorage, players])
+
+  const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
+  const slots = useMemo(() => getSlots(formationId), [formationId])
+  const lineup: StarterSlot[] = useMemo(() => slots.map((slot, index) => ({
+    ...slot,
+    player: starterIds[index] ? playerById.get(starterIds[index] || '') : undefined,
+  })), [playerById, slots, starterIds])
+  const starterIdSet = useMemo(() => new Set(starterIds.filter(Boolean)), [starterIds])
+  const bench = useMemo(() => players.filter((player) => !starterIdSet.has(player.id)).sort(sortPlayersForLineup), [players, starterIdSet])
+  const selectedPlayer = useMemo(() => players.find((player) => player.id === panelPlayerId), [players, panelPlayerId])
+  const movePlayer = (from: { source: SelectionSource; index: number }, to: { source: SelectionSource; index: number }) => {
+    if (from.source === to.source && from.index === to.index) {
+      setSelectedPlayerId(null)
+      return
+    }
+    setStarterIds((current) => {
+      const next = [...current]
+      if (from.source === 'starter' && to.source === 'starter') {
+        const temp = next[from.index] || null
+        next[from.index] = next[to.index] || null
+        next[to.index] = temp
+        return next
+      }
+      if (from.source === 'bench' && to.source === 'starter') {
+        const benchPlayer = bench[from.index]
+        if (!benchPlayer) return current
+        next[to.index] = benchPlayer.id
+        return next
+      }
+      if (from.source === 'starter' && to.source === 'bench') {
+        next[from.index] = null
+        return next
+      }
+      return current
+    })
+    setSelectedPlayerId(null)
+    setSaved(false)
+  }
+
+  const handleTargetClick = (source: SelectionSource, index: number) => {
+    const targetPlayer = source === 'starter' ? lineup[index]?.player : bench[index]
+    if (!selectedPlayerId) {
+      if (targetPlayer) {
+        setSelectedPlayerId(targetPlayer.id)
+        setPanelPlayerId(targetPlayer.id)
+      }
+      return
+    }
+    const fromSlotIndex = lineup.findIndex((slot) => slot.player?.id === selectedPlayerId)
+    const from: { source: SelectionSource; index: number } = fromSlotIndex !== -1
+      ? { source: 'starter', index: fromSlotIndex }
+      : { source: 'bench', index: bench.findIndex((player) => player.id === selectedPlayerId) }
+    if (from.index === -1) {
+      setSelectedPlayerId(null)
+      return
+    }
+    movePlayer(from, { source, index })
+  }
 
   const onPreset = (presetId: string) => {
     const preset = presets.find((item) => item.id === presetId)
     if (!preset) return
     setActivePreset(preset.id)
     setTactics(preset.tactics)
+    setSaved(false)
+  }
+
+  const onFormation = (nextFormationId: FormationId) => {
+    setFormationId(nextFormationId)
+    setSelectedPlayerId(null)
+    setPanelPlayerId(null)
+    setSaved(false)
   }
 
   const onTacticChange = (key: TacticKey, value: number) => {
     const field = tacticFields.find((item) => item.key === key)
     setActivePreset('custom')
     setTactics((current) => ({ ...current, [key]: clamp(value, field?.max ?? 4) }))
+    setSaved(false)
   }
 
   const handleSave = () => {
-    localStorage.setItem(storageKey, JSON.stringify({ formationId, tactics, preset: activePreset }))
+    localStorage.setItem(storageKey, JSON.stringify({ formationId, tactics, preset: activePreset, starterIds }))
     setSaved(true)
     window.setTimeout(() => setSaved(false), 1800)
+  }
+
+  const autoPick = () => {
+    setStarterIds(pickInitialLineup(players, formationId))
+    setSelectedPlayerId(null)
+    setPanelPlayerId(null)
+    setSaved(false)
   }
 
   if (loading) {
@@ -323,177 +606,153 @@ export default function Tactics() {
   }
 
   return (
-    <div className="max-w-[1440px] space-y-5">
-      <section className="relative overflow-hidden border-2 border-[#2F3740] bg-[#07080A] shadow-pixel-lg">
-        <img
-          src="/tactics/hand-drawn-board-v1.png"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-38"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#050609] via-[#050609]/82 to-[#050609]/42" />
-        <div className="relative grid gap-5 p-5 lg:grid-cols-[1fr_360px] lg:p-6">
-          <div className="flex min-h-[180px] flex-col justify-between">
-            <div>
-              <div className="mb-3 inline-flex items-center gap-2 border-2 border-[#B8E532]/45 bg-[#0C1A0D]/80 px-3 py-1 text-xs font-black text-[#B8E532]">
-                <Grid3x3 className="h-3.5 w-3.5" />
-                MATCH ENGINE TACTICS
+    <div className="max-w-[1600px] space-y-4 text-[#EFE8CE]">
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          className="inline-flex items-center gap-1.5 border-2 border-[#6F521B] bg-[#D5B15E] px-3 py-1.5 text-xs font-black text-[#191007] shadow-pixel-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:brightness-110"
+        >
+          {saved ? <Check className="h-3 w-3" /> : <Download className="h-3 w-3" />}
+          {saved ? '已保存' : '保存方案'}
+        </button>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_300px] 2xl:grid-cols-[330px_minmax(0,1fr)_340px]">
+        <aside className="space-y-4">
+          <section className="border-2 border-[#3B3425] bg-[#15110A] p-4 shadow-pixel">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-[#D5B15E]" />
+                <h2 className="font-black text-[#FFF8DE]">替补席</h2>
               </div>
-              <h1 className="text-3xl font-black text-[#F2F4E8]">战术室</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#9AA58E]">
-                设置 8 人制阵型、比赛预设和 12 项引擎战术参数。当前版本先保存到本机配置，字段已对齐后端比赛请求。
-              </p>
+              <button
+                onClick={autoPick}
+                className="border border-[#6F521B] px-2 py-1 text-[11px] font-black text-[#D5B15E] hover:bg-[#2A1E0E]"
+              >
+                自动选择
+              </button>
             </div>
-            <div className="mt-5 grid max-w-3xl grid-cols-3 gap-3">
-              {[
-                { label: '阵型适配', value: fitScore, color: 'text-[#B8E532]' },
-                { label: '风险指数', value: risk, color: risk > 68 ? 'text-[#D75A4A]' : 'text-[#D7A94A]' },
-                { label: '生效机制', value: activeFlags.length, color: 'text-[#50D1C8]' },
-              ].map((item) => (
-                <div key={item.label} className="border-2 border-[#242832] bg-[#07080A]/82 p-3">
-                  <p className="text-[11px] font-black text-[#697157]">{item.label}</p>
-                  <strong className={`stat-number text-2xl ${item.color}`}>{item.value}</strong>
+            <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
+              {bench.length ? bench.map((player, index) => (
+                <button
+                  key={player.id}
+                  draggable
+                  onClick={() => handleTargetClick('bench', index)}
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData('application/json', JSON.stringify({ source: 'bench', index }))
+                    setSelectedPlayerId(player.id)
+                    setPanelPlayerId(player.id)
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    const payload = JSON.parse(event.dataTransfer.getData('application/json')) as { source: SelectionSource; index: number }
+                    movePlayer(payload, { source: 'bench', index })
+                  }}
+                  className={clsx(
+                    'w-full border-2 p-2 text-left transition-all',
+                    selectedPlayerId === player.id
+                      ? 'border-[#D5B15E] bg-[#2A1E0E]'
+                      : 'border-[#3B3425] bg-[#0D0B07] hover:border-[#D5B15E]/55',
+                  )}
+                >
+                  <PlayerMini player={player} compact />
+                </button>
+              )) : (
+                <div className="border-2 border-dashed border-[#3B3425] p-4 text-center text-sm font-bold text-[#786F5A]">
+                  暂无可用替补
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="border-2 border-[#B8E532]/35 bg-[#050609]/76 p-4 shadow-pixel">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-black text-[#E8EAD8]">当前方案</span>
-              <span className={`text-sm font-black ${selectedFormation.tone}`}>{selectedFormation.shape}</span>
-            </div>
-            <p className="text-xl font-black text-white">{selectedFormation.name}</p>
-            <p className="mt-2 text-sm leading-6 text-[#8B8BA7]">{selectedFormation.desc}</p>
-            <button
-              onClick={handleSave}
-              className="mt-5 flex w-full items-center justify-center gap-2 border-2 border-[#0A5A5D] bg-[#0D7377] px-4 py-3 text-sm font-black text-white shadow-pixel-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:bg-[#0A5A5D]"
-            >
-              {saved ? <Check className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-              {saved ? '已保存到本机' : '保存战术方案'}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)_360px]">
-        <aside className="space-y-5">
-          <section className="border-2 border-[#242832] bg-[#07080A] p-4 shadow-pixel">
-            <div className="mb-4 flex items-center gap-2">
-              <Target className="h-4 w-4 text-[#B8E532]" />
-              <h2 className="font-black text-[#F2F4E8]">阵型选择</h2>
-            </div>
-            <div className="space-y-2">
-              {formations.map((formation) => (
-                <button
-                  key={formation.id}
-                  onClick={() => setFormationId(formation.id)}
-                  className={`w-full border-2 p-3 text-left transition-all ${
-                    formationId === formation.id
-                      ? 'border-[#B8E532] bg-[#0C1A0D] shadow-pixel-green'
-                      : 'border-[#242832] bg-[#050609] hover:border-[#B8E532]/45'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-black text-white">{formation.name}</p>
-                      <p className="text-xs font-bold text-[#697157]">{formation.id} · {formation.shape}</p>
-                    </div>
-                    <span className={`border border-current px-2 py-0.5 text-xs font-black ${formation.tone}`}>{formation.tag}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="border-2 border-[#242832] bg-[#07080A] p-4 shadow-pixel">
-            <div className="mb-4 flex items-center gap-2">
-              <Sword className="h-4 w-4 text-[#B8E532]" />
-              <h2 className="font-black text-[#F2F4E8]">比赛预设</h2>
-            </div>
-            <div className="grid gap-2">
-              {presets.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => onPreset(preset.id)}
-                  className={`border-2 p-3 text-left transition-all ${
-                    activePreset === preset.id
-                      ? 'border-[#50D1C8] bg-[#071719]'
-                      : 'border-[#242832] bg-[#050609] hover:border-[#50D1C8]/50'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <preset.icon className="mt-0.5 h-4 w-4 text-[#50D1C8]" />
-                    <div>
-                      <p className="font-black text-white">{preset.name}</p>
-                      <p className="mt-1 text-xs leading-5 text-[#8B8BA7]">{preset.desc}</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
+              )}
             </div>
           </section>
         </aside>
 
-        <main className="space-y-5">
-          <section className="border-2 border-[#242832] bg-[#07080A] p-4 shadow-pixel">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-[#B8E532]" />
-                <h2 className="font-black text-[#F2F4E8]">战术板首发</h2>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-[11px] font-black text-[#8B8BA7]">
-                {['GK', 'DF', 'MF', 'FW'].map((position) => (
-                  <span key={position} className="inline-flex items-center gap-1">
-                    <span className={`h-2.5 w-2.5 ${positionColor[position]}`} />
-                    {position}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative mx-auto aspect-[3/4] max-h-[720px] w-full max-w-[560px] overflow-hidden border-4 border-[#2F3740] bg-[#143F2C] shadow-pixel-lg">
-              <div
-                className="absolute inset-0 opacity-35"
-                style={{
-                  backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)',
-                  backgroundSize: '18px 18px',
-                }}
+        <main className="space-y-4">
+          <div className="relative mx-auto aspect-[3/4] h-[min(78vh,760px)] min-h-[560px] max-w-[620px] overflow-hidden border-4 border-[#33291A] bg-[#D6C08E] shadow-pixel-lg">
+              <img
+                src="/tactics/hand-drawn-board-portrait-pixel-v2.png"
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover opacity-95"
               />
-              <div className="absolute inset-5 border-2 border-white/30" />
-              <div className="absolute left-5 right-5 top-1/2 h-0.5 bg-white/25" />
-              <div className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/25" />
-              <div className="absolute left-1/2 top-5 h-16 w-28 -translate-x-1/2 border-x-2 border-b-2 border-white/25" />
-              <div className="absolute bottom-5 left-1/2 h-16 w-28 -translate-x-1/2 border-x-2 border-t-2 border-white/25" />
+              <div className="absolute inset-0 bg-[#F2DFA6]/10 mix-blend-multiply" />
 
-              {lineup.map((slot, index) => (
-                <div
-                  key={`${slot.position}-${index}`}
-                  className="absolute -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-                >
-                  <div className={`grid h-11 w-11 place-items-center border-2 border-white/80 shadow-pixel ${positionColor[slot.position]}`}>
-                    <span className="text-xs font-black text-white">{slot.position}</span>
-                  </div>
-                  <div className="absolute left-1/2 top-12 w-24 -translate-x-1/2 text-center">
-                    <p className="truncate bg-black/68 px-1 text-[10px] font-black text-white">
-                      {slot.player?.name || '空位'}
-                    </p>
-                    <p className="mt-0.5 text-[10px] font-black text-[#B8E532]">
-                      {slot.player ? `OVR ${slot.player.ovr}` : 'NEED'}
-                    </p>
-                  </div>
-                </div>
-              ))}
+              {lineup.map((slot, index) => {
+                const player = slot.player
+                const markerPosition = player?.position || slot.position
+                const tone = positionTone[markerPosition]
+                return (
+                  <button
+                    key={`${slot.id}-${index}`}
+                    draggable={Boolean(player)}
+                    onClick={() => handleTargetClick('starter', index)}
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData('application/json', JSON.stringify({ source: 'starter', index }))
+                      if (player) {
+                        setSelectedPlayerId(player.id)
+                        setPanelPlayerId(player.id)
+                      }
+                    }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault()
+                      const payload = JSON.parse(event.dataTransfer.getData('application/json')) as { source: SelectionSource; index: number }
+                      movePlayer(payload, { source: 'starter', index })
+                    }}
+                    className="group absolute -translate-x-1/2 -translate-y-1/2 text-left"
+                    style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+                  >
+                    <div
+                      className={clsx(
+                        'relative h-[86px] w-[86px] transition-transform group-hover:-translate-y-0.5',
+                        selectedPlayerId === player?.id && 'outline outline-4 outline-[#FFF4B8]',
+                        !player && 'opacity-55 grayscale',
+                      )}
+                    >
+                      <img
+                        src={tone.marker}
+                        alt=""
+                        className="pointer-events-none absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
+                      />
+                      <div
+                        className="absolute left-1/2 top-1/2 h-[58px] w-[58px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full"
+                        style={{ backgroundColor: tone.fill }}
+                      >
+                        {player?.avatar_url ? (
+                          <img
+                            src={`/${player.avatar_url}`}
+                            alt={player?.name || ''}
+                            className="h-full w-full object-cover object-top [image-rendering:pixelated]"
+                          />
+                        ) : (
+                          <img
+                            src={tone.token}
+                            alt=""
+                            className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
+                          />
+                        )}
+                      </div>
+                      <span className="absolute -right-1 -top-2 rounded-full border-2 border-[#60471F] bg-[#F8E8B6] px-1.5 text-[10px] font-black text-[#2B1B08] font-['Press_Start_2P']">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <div className="absolute left-1/2 top-[86px] w-28 -translate-x-1/2 text-center">
+                      <p className="truncate rounded-sm border border-[#5A4420] bg-[#F7E5B5] px-1.5 text-[11px] font-black text-[#241808] shadow-[2px_2px_0_rgba(31,21,9,0.34)]">
+                        {player?.name || '空位'}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
-          </section>
 
-          <section className="grid gap-4 lg:grid-cols-2">
+          <section className="grid gap-3 lg:grid-cols-2">
             {(['进攻组织', '防守结构'] as const).map((group) => (
-              <div key={group} className="border-2 border-[#242832] bg-[#07080A] p-4 shadow-pixel">
-                <div className="mb-4 flex items-center gap-2">
-                  {group === '进攻组织' ? <Sword className="h-4 w-4 text-[#D75A4A]" /> : <Shield className="h-4 w-4 text-[#63B3FF]" />}
-                  <h2 className="font-black text-[#F2F4E8]">{group}</h2>
+              <div key={group} className="border-2 border-[#3B3425] bg-[#15110A] p-4 shadow-pixel">
+                <div className="mb-3 flex items-center gap-2">
+                  {group === '进攻组织' ? <Sword className="h-4 w-4 text-[#E97762]" /> : <Shield className="h-4 w-4 text-[#63A9E8]" />}
+                  <h2 className="font-black text-[#FFF8DE]">{group}</h2>
                 </div>
-                <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {tacticFields.filter((field) => field.group === group).map((field) => (
                     <TacticSlider
                       key={field.key}
@@ -508,64 +767,55 @@ export default function Tactics() {
           </section>
         </main>
 
-        <aside className="space-y-5">
-          <section className="border-2 border-[#242832] bg-[#07080A] p-4 shadow-pixel">
-            <div className="mb-4 flex items-center gap-2">
-              <Chart className="h-4 w-4 text-[#B8E532]" />
-              <h2 className="font-black text-[#F2F4E8]">阵型通道</h2>
+        <aside className="space-y-4">
+          <section className="border-2 border-[#3B3425] bg-[#15110A] p-3 shadow-pixel">
+            <div className="mb-3 flex items-center gap-2">
+              <Target className="h-4 w-4 text-[#D5B15E]" />
+              <h2 className="font-black text-[#FFF8DE]">比赛设置</h2>
             </div>
-            {['前场控制', '中场控制', '后场控制'].map((label, index) => (
-              <div key={label} className="mb-4 last:mb-0">
-                <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="font-bold text-[#8B8BA7]">{label}</span>
-                  <span className="stat-number font-black text-[#B8E532]">{selectedFormation.lanes[index]}</span>
-                </div>
-                <div className="pixel-progress-track">
-                  <div className="pixel-progress-fill" style={{ width: `${selectedFormation.lanes[index]}%` }} />
-                </div>
-              </div>
-            ))}
-          </section>
-
-          <section className="border-2 border-[#242832] bg-[#07080A] p-4 shadow-pixel">
-            <div className="mb-4 flex items-center gap-2">
-              <Zap className="h-4 w-4 text-[#50D1C8]" />
-              <h2 className="font-black text-[#F2F4E8]">引擎触发</h2>
-            </div>
-            <div className="grid gap-2">
-              {flags.map((flag) => (
-                <div
-                  key={flag.label}
-                  className={`flex items-center justify-between border-2 px-3 py-2 text-sm font-black ${
-                    flag.active
-                      ? 'border-[#50D1C8]/70 bg-[#071719] text-[#E8EAD8]'
-                      : 'border-[#242832] bg-[#050609] text-[#4F5A49]'
-                  }`}
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-[10px] font-black text-[#786F5A]">阵型</label>
+                <select
+                  value={formationId}
+                  onChange={(e) => onFormation(e.target.value as FormationId)}
+                  className="w-full appearance-none border-2 border-[#3B3425] bg-[#0D0B07] px-3 py-2 text-sm font-bold text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
                 >
-                  <span>{flag.label}</span>
-                  <span>{flag.active ? 'ON' : 'OFF'}</span>
-                </div>
-              ))}
+                  {formations.map((formation) => (
+                    <option key={formation.id} value={formation.id}>{formation.name} · {formation.shape}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] font-black text-[#786F5A]">比赛预设</label>
+                <select
+                  value={activePreset}
+                  onChange={(e) => onPreset(e.target.value)}
+                  className="w-full appearance-none border-2 border-[#3B3425] bg-[#0D0B07] px-3 py-2 text-sm font-bold text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
+                >
+                  <option value="custom" disabled>自定义</option>
+                  {presets.map((preset) => (
+                    <option key={preset.id} value={preset.id}>{preset.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </section>
 
-          <section className="border-2 border-[#242832] bg-[#07080A] p-4 shadow-pixel">
-            <div className="mb-4 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-[#D7A94A]" />
-              <h2 className="font-black text-[#F2F4E8]">阵容需求</h2>
+          <section className="border-2 border-[#3B3425] bg-[#15110A] p-4 shadow-pixel">
+            <div className="mb-3 flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-[#D5B15E]" />
+              <h2 className="font-black text-[#FFF8DE]">球员面板</h2>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(['DF', 'MF', 'FW'] as const).map((position) => (
-                <div key={position} className="border-2 border-[#242832] bg-[#050609] p-3 text-center">
-                  <p className="text-xs font-black text-[#697157]">{position}</p>
-                  <p className="stat-number text-xl font-black text-white">{selectedFormation.requirements[position]}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 border-2 border-[#2F3740] bg-[#050609] p-3 text-xs leading-5 text-[#8B8BA7]">
-              比赛引擎会按阵型挑选 1 名 GK 加 7 名外场首发。当前适配分综合 OVR、体能、状态和位置匹配。
-            </div>
+            {selectedPlayer ? (
+              <PlayerPanel player={selectedPlayer} />
+            ) : (
+              <div className="border-2 border-dashed border-[#3B3425] bg-[#0D0B07] p-4 text-sm leading-6 text-[#8F846D]">
+                选择一名首发或替补后，这里会显示球员状态和数据。
+              </div>
+            )}
           </section>
+
         </aside>
       </div>
     </div>

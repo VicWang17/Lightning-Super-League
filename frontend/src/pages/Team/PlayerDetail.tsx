@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   Award,
   Calendar,
@@ -208,6 +208,7 @@ function getRadarPoint(value: number, index: number, total: number) {
 }
 
 function PlayerDetail() {
+  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [player, setPlayer] = useState<Player | null>(null)
   const [contract, setContract] = useState<PlayerContract | null>(null)
@@ -268,7 +269,6 @@ function PlayerDetail() {
   const formName = FORM_NAMES[playerState?.visible_form || player.match_form] || '未知'
   const fitness = playerState?.fitness ?? player.fitness ?? 0
   const avatarSrc = player.avatar_url ? `/${player.avatar_url}` : '/locker-room/jersey-placeholder-v1.png'
-  const backTo = player.team_id ? `/teams/${player.team_id}` : '/dashboard'
   const played = player.matches_played || 0
   const minutes = player.minutes_played || 0
 
@@ -342,10 +342,10 @@ function PlayerDetail() {
   return (
     <div className="player-profile-page player-desk-page">
       <div className="player-profile-topbar player-desk-topbar">
-        <Link to={backTo} className="profile-back-link">
+        <button type="button" onClick={() => navigate(-1)} className="profile-back-link">
           <ChevronLeft className="h-4 w-4" />
-          返回球队
-        </Link>
+          返回上一页
+        </button>
         {player.team_id && (
           <button className="profile-contract-btn" onClick={() => setShowContractModal(true)}>
             <PenSquare className="h-4 w-4" />

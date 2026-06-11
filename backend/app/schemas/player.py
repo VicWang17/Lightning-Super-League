@@ -351,6 +351,9 @@ class PlayerListItem(BaseSchema):
 
     status: PlayerStatus = PlayerStatus.ACTIVE
     current_suspension: Optional[PlayerSuspensionInfo] = None
+    match_form: MatchForm = MatchForm.NEUTRAL
+    fitness: int = Field(default=100, ge=0, le=100, description="体能")
+    abilities: PlayerAbility = Field(default_factory=PlayerAbility)
 
 
 # =====================================================================

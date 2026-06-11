@@ -365,6 +365,21 @@ INITIAL_SQUAD_OVR_TIERS = {
 INITIAL_LEVEL_ONE_ELITE_PROBABILITY = 0.40
 INITIAL_LEVEL_ONE_ELITE_OVR_RANGE = (90, 94)
 
+HIGH_ATTRIBUTE_VALUE_WEIGHTS = {
+    16: 1.00,
+    17: 0.68,
+    18: 0.38,
+    19: 0.18,
+    20: 0.07,
+}
+HIGH_ATTRIBUTE_STEP_WEIGHTS = {
+    16: 1.00,
+    17: 0.72,
+    18: 0.46,
+    19: 0.24,
+    20: 0.10,
+}
+
 
 # ==================== 工具函数 ====================
 
@@ -377,6 +392,24 @@ def _weighted_choice(items: list) -> any:
 
 def _clamp(val: int, lo: int = 1, hi: int = 20) -> int:
     return max(lo, min(hi, int(round(val))))
+
+
+def _shape_high_attribute_value(val: float, *, is_strength: bool = False, is_elite: bool = False) -> int:
+    rounded = _clamp(val)
+    if rounded < 16:
+        return rounded
+
+    max_value = rounded
+    weights = []
+    candidates = list(range(16, max_value + 1))
+    for candidate in candidates:
+        weight = HIGH_ATTRIBUTE_VALUE_WEIGHTS[candidate]
+        if is_strength:
+            weight *= 1.0 + (candidate - 16) * 0.16
+        if is_elite:
+            weight *= 1.0 + (candidate - 16) * 0.12
+        weights.append(weight)
+    return random.choices(candidates, weights=weights, k=1)[0]
 
 
 def calculate_initial_team_overall(league_level: int, team_index: int = 1) -> int:
@@ -544,7 +577,11 @@ class AttributeGenerator:
                 if not candidates:
                     break
                 step_weights = {
-                    attr: weights[attr] * (1.8 if attr in strengths else 0.55 if attr in weaknesses else 1.0)
+                    attr: (
+                        weights[attr]
+                        * (1.8 if attr in strengths else 0.55 if attr in weaknesses else 1.0)
+                        * HIGH_ATTRIBUTE_STEP_WEIGHTS.get(attrs.get(attr, 10) + 1, 1.0)
+                    )
                     for attr in candidates
                 }
                 attr = random.choices(candidates, weights=[step_weights[a] for a in candidates], k=1)[0]
@@ -647,18 +684,26 @@ class AttributeGenerator:
             noise = random.gauss(0, variance)
             val = base_attr + noise
             
-            attrs[attr] = _clamp(val)
+            attrs[attr] = _shape_high_attribute_value(
+                val,
+                is_strength=attr in strengths,
+                is_elite=base_ovr >= 90,
+            )
         
         # 5b. 生成 FK 和 PK (基于相关属性)
-        attrs["fk"] = _clamp(
+        attrs["fk"] = _shape_high_attribute_value(
             attrs.get("cro", 10) * 0.4 + attrs.get("pas", 10) * 0.3 +
             attrs.get("vis", 10) * 0.2 + attrs.get("fin", 10) * 0.1 +
-            random.gauss(0, variance)
+            random.gauss(0, variance),
+            is_strength="fk" in strengths,
+            is_elite=base_ovr >= 90,
         )
-        attrs["pk"] = _clamp(
+        attrs["pk"] = _shape_high_attribute_value(
             attrs.get("sho", 10) * 0.4 + attrs.get("fin", 10) * 0.3 +
             attrs.get("con", 10) * 0.2 + attrs.get("str_", 10) * 0.1 +
-            random.gauss(0, variance)
+            random.gauss(0, variance),
+            is_strength="pk" in strengths,
+            is_elite=base_ovr >= 90,
         )
 
         # 6. 校准实际OVR，尽量保持球队强度分布，同时保留强弱项轮廓。

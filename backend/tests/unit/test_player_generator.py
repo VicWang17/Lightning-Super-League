@@ -1,4 +1,5 @@
 import random
+from collections import Counter
 
 from app.models.player import PlayerPosition
 from app.services.player_generator import AttributeGenerator, PlayerGenerator
@@ -49,6 +50,31 @@ class TestAttributeGeneratorDiversity:
 
         assert 10 <= elite_targets <= 15
         assert second_level_elite_targets == 0
+
+    def test_generated_high_attributes_taper_toward_ceiling(self):
+        random.seed(20260612)
+        counts = Counter()
+        positions_and_archetypes = [
+            (PlayerPosition.FW, "射手型"),
+            (PlayerPosition.MF, "组织型"),
+            (PlayerPosition.DF, "中卫型"),
+            (PlayerPosition.GK, "传统型"),
+        ]
+
+        for _ in range(120):
+            for position, archetype in positions_and_archetypes:
+                attrs = AttributeGenerator.generate(
+                    position,
+                    archetype,
+                    "标准型",
+                    age=random.randint(22, 29),
+                    potential_max=random.randint(80, 100),
+                    team_ovr=82,
+                    target_ovr=random.randint(82, 90),
+                )
+                counts.update(value for attr, value in attrs.items() if attr != "ovr" and value >= 16)
+
+        assert counts[16] > counts[17] > counts[18] > counts[19] > counts[20]
 
     def test_mid_tier_forwards_can_have_clear_strengths_and_weaknesses(self):
         random.seed(20260605)

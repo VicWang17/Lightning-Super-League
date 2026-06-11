@@ -9,6 +9,32 @@ export type PotentialLetter = 'S' | 'A' | 'B' | 'C' | 'D'
 export type ContractType = 'NORMAL' | 'ROOKIE' | 'FREE'
 export type SquadRole = 'key_player' | 'first_team' | 'rotation' | 'backup' | 'hot_prospect' | 'youngster' | 'not_needed'
 
+export interface PlayerAbility {
+  sho: number
+  pas: number
+  dri: number
+  spd: number
+  str: number
+  sta: number
+  acc: number
+  hea: number
+  bal: number
+  defe: number
+  tkl: number
+  vis: number
+  cro: number
+  con: number
+  fin: number
+  com: number
+  sav: number
+  ref: number
+  pos: number
+  rus: number
+  dec: number
+  fk: number
+  pk: number
+}
+
 export interface PlayerSkill {
   skill_id: string
   rarity: string
@@ -34,12 +60,7 @@ export interface Player {
   age: number
 
   // 23项属性 (1-20) - 后端只通过 abilities 嵌套返回
-  abilities?: {
-    sho: number; pas: number; dri: number; spd: number; str: number; sta: number
-    acc: number; hea: number; bal: number; defe: number; tkl: number; vis: number
-    cro: number; con: number; fin: number; com: number; sav: number; ref: number
-    pos: number; rus: number; dec: number; fk: number; pk: number
-  }
+  abilities?: PlayerAbility
   // 根平铺能力值后端不返回，仅作兼容可选
   sho?: number
   pas?: number
@@ -223,6 +244,9 @@ export interface PlayerListItem {
     source_fixture_id?: string
     effective_from_day?: number
   }
+  match_form: MatchForm
+  fitness: number
+  abilities: PlayerAbility
 
   // 进攻
   shots: number
