@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Link } from 'react-router-dom'
 import {
@@ -8,9 +8,15 @@ import {
   Target,
   ChevronRight,
   InfoBox,
+  Award,
 } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 import { useWorldRankings, useTopPlayers, useWorldRecords, useWorldLeaderboard } from '../../hooks/useWorld'
+import { useSeasonAwards, useAllLeagueAwardsForSeason } from '../../hooks/useAwards'
+import { useSeason } from '../../hooks/useSeason'
+import { useSeasons } from '../../hooks/useSeasons'
+import { AwardCard, DataKingsRow, TeamOfSeasonGrid } from '../../components/awards'
+
 import type { LeaderboardType, LeaderboardItem } from '../../types/leaderboard'
 import type { TopPlayer } from '../../types/world'
 import { LeaderboardValue } from '../../components/leaderboard/LeaderboardValue'
@@ -23,7 +29,7 @@ import {
   RECORD_TYPES_BY_CATEGORY,
 } from '../../types/records'
 
-type WorldTab = 'rankings' | 'players' | 'records'
+type WorldTab = 'rankings' | 'players' | 'records' | 'awards'
 type PlayerPosition = 'ALL' | 'FW' | 'MF' | 'DF' | 'GK'
 type WorldSortType = 'ovr' | LeaderboardType
 
@@ -64,6 +70,7 @@ const TABS = [
   { value: 'rankings' as WorldTab, label: '球队排名', icon: Trophy },
   { value: 'players' as WorldTab, label: '球员排名', icon: Users },
   { value: 'records' as WorldTab, label: '世界纪录', icon: Target },
+  { value: 'awards' as WorldTab, label: '赛季奖项', icon: Award },
 ]
 
 const POSITION_FILTERS: { value: PlayerPosition; label: string }[] = [
@@ -323,6 +330,185 @@ function WorldRecordsTab() {
   )
 }
 
+function WorldAwardsTab() {
+  const { seasons, loading: seasonsLoading } = useSeasons()
+  const { season: currentSeason } = useSeason()
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(currentSeason?.id)
+
+  // 默认选中当前赛季
+  useEffect(() => {
+    if (currentSeason?.id && !selectedSeasonId) {
+      setSelectedSeasonId(currentSeason.id)
+    }
+  }, [currentSeason?.id, selectedSeasonId])
+
+  const selectedSeason = seasons.find(s => s.id === selectedSeasonId)
+
+  const { awards, loading: seasonAwardsLoading } = useSeasonAwards(selectedSeasonId)
+  const { leagueAwards, loading: leagueAwardsLoading } = useAllLeagueAwardsForSeason(selectedSeasonId)
+
+  const loading = seasonAwardsLoading || leagueAwardsLoading || seasonsLoading
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-10 bg-[#1E1E2D] animate-pulse max-w-[200px]" />
+        <div className="h-48 bg-[#1E1E2D] animate-pulse" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />)}
+        </div>
+      </div>
+    )
+  }
+
+  // 过滤出有数据的联赛奖项
+  const activeLeagueAwards = leagueAwards.filter(la => la.team_of_season.length > 0 || la.golden_boot || la.best_fw)
+
+  return (
+    <div className="space-y-8">
+      {/* 赛季选择器 */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-[#8B8BA7]">赛季</span>
+        <div className="relative">
+          <select
+            value={selectedSeasonId || ''}
+            onChange={(e) => setSelectedSeasonId(e.target.value)}
+            className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#C6F135] cursor-pointer"
+          >
+            {seasons.map((season) => (
+              <option key={season.id} value={season.id}>
+                第 {season.season_number} 赛季
+              </option>
+            ))}
+          </select>
+          <ChevronRight className="w-4 h-4 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+        </div>
+        {selectedSeason && (
+          <span className="text-xs text-[#4B4B6A]">
+            {selectedSeason.status === 'finished' ? '已结束' : '进行中'}
+          </span>
+        )}
+      </div>
+
+      {/* 闪电足球先生 */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-1 h-5 bg-[#C6F135]" />
+          <h3 className="text-lg font-bold text-white">闪电足球先生</h3>
+        </div>
+        {awards?.best_player ? (
+          <div className="max-w-sm mx-auto">
+            <div className="relative bg-[#0B0D14] border-2 border-[#C6F135]/30 p-6 overflow-hidden">
+              <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_50%_0%,_#C6F135,_transparent_70%)]" />
+              <div className="absolute top-0 left-0 right-0 h-px bg-[linear-gradient(90deg,transparent,#C6F135,transparent)]" />
+              <div className="relative flex flex-col items-center text-center">
+                <span className="text-6xl mb-4 drop-shadow-lg">👑</span>
+                <h4 className="text-xl font-bold text-white mb-2">
+                  {awards.best_player.player_name}
+                </h4>
+                <Link
+                  to={`/players/${awards.best_player.player_id}`}
+                  className="text-sm text-[#C6F135] hover:underline mb-3"
+                >
+                  查看球员详情
+                </Link>
+                {awards.best_player.metadata && (
+                  <div className="flex flex-wrap justify-center gap-3 text-xs text-[#8B8BA7]">
+                    {awards.best_player.metadata.rating !== undefined && (
+                      <span className="px-2 py-1 bg-[#1E1E2D] border border-[#2D2D44]">
+                        评分 {awards.best_player.metadata.rating.toFixed(1)}
+                      </span>
+                    )}
+                    {awards.best_player.metadata.championships !== undefined && (
+                      <span className="px-2 py-1 bg-[#1E1E2D] border border-[#2D2D44]">
+                        {awards.best_player.metadata.championships} 座冠军
+                      </span>
+                    )}
+                    {awards.best_player.metadata.mvp_count !== undefined && (
+                      <span className="px-2 py-1 bg-[#1E1E2D] border border-[#2D2D44]">
+                        {awards.best_player.metadata.mvp_count} 次 MVP
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 border border-[#2D2D44]/40 bg-[#0B0D14]">
+            <span className="text-3xl opacity-30 grayscale">👑</span>
+            <p className="text-sm text-[#4B4B6A] mt-2">该赛季尚未评选</p>
+          </div>
+        )}
+      </section>
+
+      {/* 赛季数据之王 */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-1 h-5 bg-[#0D7377]" />
+          <h3 className="text-lg font-bold text-white">赛季数据之王</h3>
+        </div>
+        <DataKingsRow
+          goldenBoot={awards?.golden_boot}
+          playmaker={awards?.playmaker}
+          goldenGlove={awards?.golden_glove}
+          goldenWall={awards?.golden_wall}
+          size="lg"
+        />
+      </section>
+
+      {/* 全服年度最佳位置 */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-1 h-5 bg-[#C6F135]" />
+          <h3 className="text-lg font-bold text-white">全服年度最佳位置</h3>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <AwardCard award={awards?.best_fw} size="lg" />
+          <AwardCard award={awards?.best_mf} size="lg" />
+          <AwardCard award={awards?.best_df} size="lg" />
+          <AwardCard award={awards?.best_gk} size="lg" />
+        </div>
+      </section>
+
+      {/* 各联赛最佳阵容 */}
+      {activeLeagueAwards.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1 h-5 bg-amber-500" />
+            <h3 className="text-lg font-bold text-white">各联赛最佳阵容</h3>
+            <span className="text-xs text-[#4B4B6A]">({activeLeagueAwards.length} 个联赛)</span>
+          </div>
+          <div className="space-y-6">
+            {activeLeagueAwards.map((la) => (
+              <div key={la.league_id} className="border border-[#2D2D44] bg-[#080B11] overflow-hidden">
+                <div className="px-4 py-2.5 bg-[#12121A] border-b border-[#2D2D44] flex items-center justify-between">
+                  <span className="text-sm font-bold text-white">联赛最佳阵容</span>
+                  <span className="text-xs text-[#4B4B6A]">第 {la.season_number} 赛季</span>
+                </div>
+                <div className="p-4">
+                  <TeamOfSeasonGrid team={la.team_of_season} />
+                  {la.golden_boot && (
+                    <div className="mt-4 pt-4 border-t border-[#2D2D44]">
+                      <div className="text-xs text-[#8B8BA7] mb-2">联赛数据之王</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <AwardCard award={la.golden_boot} size="sm" showMetadata={false} />
+                        <AwardCard award={la.playmaker} size="sm" showMetadata={false} />
+                        <AwardCard award={la.golden_glove} size="sm" showMetadata={false} />
+                        <AwardCard award={la.golden_wall} size="sm" showMetadata={false} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
 function WorldPage() {
   const [activeTab, setActiveTab] = useState<WorldTab>('rankings')
   const [playerPosition, setPlayerPosition] = useState<PlayerPosition>('ALL')
@@ -503,6 +689,7 @@ function WorldPage() {
         )}
 
         {activeTab === 'records' && <WorldRecordsTab />}
+        {activeTab === 'awards' && <WorldAwardsTab />}
       </div>
     </div>
   )

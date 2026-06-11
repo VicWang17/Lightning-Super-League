@@ -18,6 +18,13 @@ import type {
   ReleaseResponse,
   AcceptOfferResponse,
 } from '../types/transfer'
+import type {
+  PlayerAward,
+  PlayerAwardSummary,
+  SeasonAwards,
+  LeagueAwards,
+  CupAwards,
+} from '../types/awards'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
@@ -957,6 +964,31 @@ class ApiClient {
       `/training/players/${playerId}/training/progress?season_id=${seasonId}&days=${days}`,
       { method: 'GET' }
     )
+  }
+
+  // ==================== 荣誉/奖项 API ====================
+  async getPlayerAwards(playerId: string) {
+    return this.requestWithAuth<PlayerAward[]>(`/awards/player/${playerId}`, { method: 'GET' })
+  }
+
+  async getPlayerAwardSummary(playerId: string) {
+    return this.requestWithAuth<PlayerAwardSummary>(`/awards/player/${playerId}/summary`, { method: 'GET' })
+  }
+
+  async getSeasonAwards(seasonId: string) {
+    return this.requestWithAuth<SeasonAwards>(`/awards/season/${seasonId}`, { method: 'GET' })
+  }
+
+  async getLeagueAwards(leagueId: string, seasonId: string) {
+    return this.requestWithAuth<LeagueAwards>(`/awards/league/${leagueId}?season_id=${seasonId}`, { method: 'GET' })
+  }
+
+  async getCupAwards(cupId: string, seasonId: string) {
+    return this.requestWithAuth<CupAwards>(`/awards/cup/${cupId}?season_id=${seasonId}`, { method: 'GET' })
+  }
+
+  async getAllLeagueAwardsForSeason(seasonId: string) {
+    return this.requestWithAuth<LeagueAwards[]>(`/awards/season/${seasonId}/leagues`, { method: 'GET' })
   }
 }
 

@@ -31,6 +31,7 @@ from app.routers.free_market import router as free_market_router
 from app.routers.youth_academy import router as youth_academy_router
 from app.routers.training import router as training_router
 from app.routers.transfers import router as transfers_router
+from app.routers.awards import router as awards_router
 
 settings = get_settings()
 
@@ -114,6 +115,7 @@ app.include_router(free_market_router, prefix="/api/v1")
 app.include_router(youth_academy_router, prefix="/api/v1")
 app.include_router(training_router, prefix="/api/v1")
 app.include_router(transfers_router, prefix="/api/v1")
+app.include_router(awards_router, prefix="/api/v1")
 
 
 @app.get("/")

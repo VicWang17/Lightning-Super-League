@@ -12,6 +12,8 @@ import {
  useCupFixtures, 
  useCupLeaderboard
 } from '../../hooks/useCups'
+import { useCupAwards } from '../../hooks/useAwards'
+import { DataKingsRow } from '../../components/awards'
 import { useSeasons } from '../../hooks/useSeasons'
 import type { CupFixture, CupGroup } from '../../types/cup'
 import type { Season } from '../../types/season'
@@ -20,7 +22,7 @@ import { CUP_STAGE_CONFIG } from '../../types/cup'
 import { LeaderboardSidebar, getLeaderboardFormat } from '../../components/leaderboard/LeaderboardSidebar'
 import { LeaderboardTable } from '../../components/leaderboard/LeaderboardTable'
 
-type TabType = 'groups' | 'knockout' | 'fixtures' | 'stats' | 'records'
+type TabType = 'groups' | 'knockout' | 'fixtures' | 'stats' | 'records' | 'awards'
 
 // 赛季选择器组件
 function SeasonSelector({ 
@@ -819,6 +821,7 @@ function CupDetail() {
  const [activeTab, setActiveTab] = useState<TabType>(defaultTab)
  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined)
  const [leaderboardType, setLeaderboardType] = useState<LeaderboardType>('goals')
+ const { awards: cupAwards, loading: awardsLoading } = useCupAwards(id, cup?.season_id)
  
  const { seasons, loading: seasonsLoading } = useSeasons()
  const { groups, loading: groupsLoading } = useCupGroups(id)
@@ -961,6 +964,12 @@ function CupDetail() {
  杯赛纪录
  </div>
  </TabButton>
+ <TabButton active={activeTab === 'awards'} onClick={() => setActiveTab('awards')}>
+ <div className="flex items-center gap-2">
+ <Trophy className="w-4 h-4" />
+ 杯赛奖项
+ </div>
+ </TabButton>
  </div>
  
  {!seasonsLoading && seasons.length > 0 && (
@@ -1096,6 +1105,34 @@ function CupDetail() {
  <div>
  <h3 className="text-lg font-semibold mb-4">杯赛纪录</h3>
  <CupRecordsTab cupId={id} />
+ </div>
+ )}
+
+ {/* 杯赛奖项 */}
+ {activeTab === 'awards' && (
+ <div className="space-y-6">
+   {awardsLoading ? (
+     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+       {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />)}
+     </div>
+   ) : (
+     <>
+       <section>
+         <div className="flex items-center gap-2 mb-4">
+           <div className="w-1 h-5 bg-[#0D7377]" />
+           <h3 className="text-lg font-bold text-white">杯赛数据之王</h3>
+         </div>
+         <DataKingsRow
+           goldenBoot={cupAwards?.golden_boot}
+           playmaker={cupAwards?.playmaker}
+           goldenGlove={cupAwards?.golden_glove}
+           goldenWall={cupAwards?.golden_wall}
+           size="lg"
+           emptyText="该赛季暂无杯赛奖项数据"
+         />
+       </section>
+     </>
+   )}
  </div>
  )}
  </div>

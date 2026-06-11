@@ -14,6 +14,7 @@ import {
   Thermometer,
   SquareAlert,
   Skull,
+  Medal,
 } from '../../components/ui/pixel-icons'
 import { ContractModal } from '../../components/players/ContractModal'
 import {
@@ -25,9 +26,12 @@ import {
   type PlayerHistoryResponse,
   type PlayerFeedback,
 } from '../../types/player'
+import { usePlayerAwards, usePlayerAwardSummary } from '../../hooks/useAwards'
+import { AWARD_LABELS, AWARD_ICONS } from '../../types/awards'
+import type { PlayerAward } from '../../types/awards'
 import { api } from '../../api/client'
 
-type ProfileTab = 'overview' | 'abilities' | 'career' | 'timeline' | 'records'
+type ProfileTab = 'overview' | 'abilities' | 'career' | 'timeline' | 'records' | 'honors'
 
 interface AttributeItem {
   key: keyof Player
@@ -46,6 +50,7 @@ const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
   { id: 'career', label: '生涯', icon: Calendar },
   { id: 'timeline', label: '轨迹', icon: Trophy },
   { id: 'records', label: '纪录', icon: Award },
+  { id: 'honors', label: '荣誉', icon: Medal },
 ]
 
 const FOOT_NAMES: Record<string, string> = {
@@ -212,6 +217,9 @@ function PlayerDetail() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('abilities')
   const [showContractModal, setShowContractModal] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  const { awards: playerAwards, loading: awardsLoading } = usePlayerAwards(id)
+  const { summary: awardSummary } = usePlayerAwardSummary(id)
 
   const fetchData = async () => {
     if (!id) return
@@ -595,6 +603,61 @@ function PlayerDetail() {
               )}
             </section>
           )}
+
+          {activeTab === 'honors' && (
+            <section className="profile-panel">
+              <div className="profile-panel-heading">
+                <div>
+                  <h2>荣誉室</h2>
+                </div>
+                <strong>{awardSummary?.total_awards || 0} 项</strong>
+              </div>
+
+              {/* 荣誉统计摘要 */}
+              {awardSummary && (
+                <div className="performance-strip desk-performance-strip mb-6">
+                  {awardSummary.mvp_count > 0 && (
+                    <div><span>本场最佳</span><strong>{awardSummary.mvp_count}</strong></div>
+                  )}
+                  {awardSummary.team_of_season_count > 0 && (
+                    <div><span>最佳阵容</span><strong>{awardSummary.team_of_season_count}</strong></div>
+                  )}
+                  {awardSummary.best_position_count > 0 && (
+                    <div><span>最佳位置</span><strong>{awardSummary.best_position_count}</strong></div>
+                  )}
+                  {awardSummary.golden_boot_count > 0 && (
+                    <div><span>金靴奖</span><strong>{awardSummary.golden_boot_count}</strong></div>
+                  )}
+                  {awardSummary.playmaker_count > 0 && (
+                    <div><span>助攻王</span><strong>{awardSummary.playmaker_count}</strong></div>
+                  )}
+                  {awardSummary.golden_glove_count > 0 && (
+                    <div><span>金手套</span><strong>{awardSummary.golden_glove_count}</strong></div>
+                  )}
+                  {awardSummary.golden_wall_count > 0 && (
+                    <div><span>金墙奖</span><strong>{awardSummary.golden_wall_count}</strong></div>
+                  )}
+                  {awardSummary.season_best_player_count > 0 && (
+                    <div><span>足球先生</span><strong>{awardSummary.season_best_player_count}</strong></div>
+                  )}
+                </div>
+              )}
+
+              {awardsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-[#1E1E2D] animate-pulse" />)}
+                </div>
+              ) : playerAwards.length === 0 ? (
+                <div className="career-empty-note">暂无荣誉</div>
+              ) : (
+                <div className="space-y-4">
+                  {playerAwards.map((award) => (
+                    <PlayerHonorCard key={award.id} award={award} />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
           </main>
 
           <aside className="player-intel-rail">
@@ -666,6 +729,52 @@ function PlayerDetail() {
           onSuccess={fetchData}
         />
       )}
+    </div>
+  )
+}
+
+function PlayerHonorCard({ award }: { award: PlayerAward }) {
+  const icon = AWARD_ICONS[award.award_type]
+  const label = AWARD_LABELS[award.award_type]
+  const isSeasonBest = award.award_type === 'season_best_player'
+
+  return (
+    <div className={`flex items-center gap-4 p-3 border transition-all ${
+      isSeasonBest ? 'border-[#C6F135]/30 bg-[#C6F135]/5' : 'border-[#2D2D44] bg-[#0B0D14] hover:border-[#0D7377]/30'
+    }`}>
+      <span className="text-2xl shrink-0">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-bold ${isSeasonBest ? 'text-[#C6F135]' : 'text-white'}`}>
+            {label}
+          </span>
+          <span className="text-xs text-[#4B4B6A]">
+            第 {award.season_number} 赛季
+          </span>
+        </div>
+        {award.description && (
+          <p className="text-xs text-[#8B8BA7] mt-0.5 truncate">{award.description}</p>
+        )}
+        {award.metadata && (
+          <div className="flex flex-wrap gap-2 mt-1 text-xs text-[#8B8BA7]">
+            {award.metadata.rating !== undefined && (
+              <span>评分 {award.metadata.rating.toFixed(1)}</span>
+            )}
+            {award.metadata.matches !== undefined && (
+              <span>· {award.metadata.matches}场</span>
+            )}
+            {award.metadata.goals !== undefined && award.metadata.goals > 0 && (
+              <span>· {award.metadata.goals}球</span>
+            )}
+            {award.metadata.assists !== undefined && award.metadata.assists > 0 && (
+              <span>· {award.metadata.assists}助</span>
+            )}
+            {award.metadata.primary_value !== undefined && (
+              <span>· {award.metadata.primary_value}</span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

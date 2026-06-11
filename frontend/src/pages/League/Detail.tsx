@@ -12,6 +12,8 @@ import {
 import { LeagueBadge } from '../../components/league/LeagueBadge'
 import { api } from '../../api/client'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useLeagueLeaderboard } from '../../hooks/useLeagues'
+import { useLeagueAwards } from '../../hooks/useAwards'
+import { AwardCard, DataKingsRow, TeamOfSeasonGrid } from '../../components/awards'
 import { useSeasons } from '../../hooks/useSeasons'
 import type { League, LeagueStanding, Match, PlayoffMatch } from '../../types/league'
 import type { Season } from '../../types/season'
@@ -317,7 +319,7 @@ function MatchCard({ match }: { match: Match }) {
 
 function LeagueDetail() {
  const { id } = useParams<{ id: string }>()
- const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'stats' | 'records'>('standings')
+ const [activeTab, setActiveTab] = useState<'standings' | 'schedule' | 'stats' | 'records' | 'awards'>('standings')
  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined)
  const [leaderboardType, setLeaderboardType] = useState<LeaderboardType>('goals')
  
@@ -326,6 +328,7 @@ function LeagueDetail() {
  const { standings, loading: standingsLoading } = useLeagueTable(id, selectedSeasonId)
  const { matches, loading: matchesLoading } = useLeagueSchedule(id, selectedSeasonId)
  const { items: leaderboardItems, loading: leaderboardLoading } = useLeagueLeaderboard(id, leaderboardType, selectedSeasonId, 20)
+ const { awards: leagueAwards, loading: awardsLoading } = useLeagueAwards(id, selectedSeasonId)
  
  // 默认选中当前赛季
  useEffect(() => {
@@ -445,6 +448,12 @@ function LeagueDetail() {
  联赛纪录
  </div>
  </TabButton>
+ <TabButton active={activeTab === 'awards'} onClick={() => setActiveTab('awards')}>
+ <div className="flex items-center gap-2">
+ <Trophy className="w-4 h-4" />
+ 赛季最佳
+ </div>
+ </TabButton>
  </div>
  
  {!seasonsLoading && seasons.length > 0 && (
@@ -553,6 +562,65 @@ function LeagueDetail() {
  <div>
  <h3 className="text-lg font-semibold mb-4">联赛纪录</h3>
  <LeagueRecordsTab leagueId={id} />
+ </div>
+ )}
+
+ {activeTab === 'awards' && (
+ <div className="space-y-8">
+ {awardsLoading ? (
+   <div className="space-y-4">
+     <div className="h-10 bg-[#1E1E2D] animate-pulse" />
+     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+       {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />)}
+     </div>
+   </div>
+ ) : (
+   <>
+     {/* 联赛最佳阵容 */}
+     <section>
+       <div className="flex items-center gap-2 mb-4">
+         <div className="w-1 h-5 bg-amber-500" />
+         <h3 className="text-lg font-bold text-white">联赛最佳阵容</h3>
+       </div>
+       <TeamOfSeasonGrid
+         team={leagueAwards?.team_of_season || []}
+         emptyText="该赛季暂无最佳阵容数据"
+       />
+     </section>
+
+     {/* 联赛最佳位置 */}
+     {(leagueAwards?.best_fw || leagueAwards?.best_mf || leagueAwards?.best_df || leagueAwards?.best_gk) && (
+       <section>
+         <div className="flex items-center gap-2 mb-4">
+           <div className="w-1 h-5 bg-[#C6F135]" />
+           <h3 className="text-lg font-bold text-white">联赛最佳位置</h3>
+         </div>
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+           <AwardCard award={leagueAwards?.best_fw} size="lg" />
+           <AwardCard award={leagueAwards?.best_mf} size="lg" />
+           <AwardCard award={leagueAwards?.best_df} size="lg" />
+           <AwardCard award={leagueAwards?.best_gk} size="lg" />
+         </div>
+       </section>
+     )}
+
+     {/* 联赛数据之王 */}
+     <section>
+       <div className="flex items-center gap-2 mb-4">
+         <div className="w-1 h-5 bg-[#0D7377]" />
+         <h3 className="text-lg font-bold text-white">联赛数据之王</h3>
+       </div>
+       <DataKingsRow
+         goldenBoot={leagueAwards?.golden_boot}
+         playmaker={leagueAwards?.playmaker}
+         goldenGlove={leagueAwards?.golden_glove}
+         goldenWall={leagueAwards?.golden_wall}
+         size="lg"
+         emptyText="该赛季暂无数据"
+       />
+     </section>
+   </>
+ )}
  </div>
  )}
  </div>

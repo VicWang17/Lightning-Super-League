@@ -73,6 +73,11 @@ from app.models.team_honor import (
     TeamHonor,
     HonorType,
 )
+from app.models.player_award import (
+    PlayerAward,
+    AwardType,
+    AwardLevel,
+)
 from app.models.mail import (
     Mail,
     MailCategory,
@@ -185,6 +190,10 @@ __all__ = [
     # Team Honor
     "TeamHonor",
     "HonorType",
+    # Player Award
+    "PlayerAward",
+    "AwardType",
+    "AwardLevel",
     # Mail
     "Mail",
     "MailCategory",
