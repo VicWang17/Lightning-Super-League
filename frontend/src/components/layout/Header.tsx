@@ -35,88 +35,80 @@ function Header() {
   }
 
   const hasMatchesToday = displayStatus && displayStatus.total_fixtures_today > 0
+  const seasonProgress = displayStatus
+    ? Math.min(100, Math.max(0, displayStatus.progress_percent || 0))
+    : 0
 
   const displayName = user?.nickname || user?.username || 'Manager'
   const firstLetter = displayName.charAt(0).toUpperCase()
 
   return (
     <header className="game-command-bar">
-      {/* Left: Team Identity */}
-      <div className="flex items-center gap-3">
-        <Link to="/team" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-full bg-[#14532D] border border-[#B8E532] flex items-center justify-center shrink-0">
-            <span className="text-xs font-bold text-white">{firstLetter}</span>
+      <div className="command-bar-inner">
+        <Link to="/team" className="command-club-link group">
+          <div className="command-club-avatar">
+            <span>{firstLetter}</span>
           </div>
-          <div className="leading-none">
-            <p className="text-sm font-black text-[#E8EAD8] group-hover:text-[#B8E532] transition-colors">
+          <div className="command-club-meta">
+            <span>经理席</span>
+            <strong>
               {displayName}
-            </p>
+            </strong>
           </div>
         </Link>
-      </div>
 
-      {/* Center: Season & Match Info */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5 text-xs">
-          <Clock className={`w-3.5 h-3.5 ${modeColor[mode] || modeColor.normal}`} />
-          <span className="text-[#697157]">{seasonDisplay}</span>
-        </div>
-
-        {displayStatus && (
-          <div className="w-20 hidden sm:block">
-            <div className="h-1.5 bg-[#0A0A0F] border border-[#242832]">
+        <div className="command-season-panel">
+          <div className="command-season-clock">
+            <Clock className={modeColor[mode] || modeColor.normal} />
+            <span>{seasonDisplay}</span>
+          </div>
+          {displayStatus && (
+            <div className="command-season-progress" aria-hidden="true">
               <div
-                className="h-full bg-[#B8E532]"
-                style={{ width: `${displayStatus.progress_percent}%` }}
+                className="command-season-progress-fill"
+                style={{ width: `${seasonProgress}%` }}
               />
             </div>
-          </div>
-        )}
+          )}
 
-        {hasMatchesToday && (
-          <Link
-            to="/match/schedule"
-            className="flex items-center gap-1.5 px-2 py-0.5 bg-[#0C1A0D] border border-[#9ECF45]/30 text-[10px] text-[#9ECF45] font-bold hover:bg-[#9ECF45]/10 transition-colors"
+          {hasMatchesToday && (
+            <Link to="/match/schedule" className="command-match-btn">
+              今日 {displayStatus.total_fixtures_today} 场
+            </Link>
+          )}
+        </div>
+
+        <div className="command-actions">
+          <button className="command-btn" title="通知">
+            <Bell className="w-4 h-4" />
+          </button>
+          <button className="command-btn" title="设置">
+            <Settings className="w-4 h-4" />
+          </button>
+
+          <div className="command-action-separator" />
+
+          <button
+            className="command-user-btn"
+            onClick={() => setShowUserMenu(!showUserMenu)}
           >
-            <span>今日比赛</span>
-          </Link>
-        )}
-      </div>
+            <span>{firstLetter}</span>
+            <ChevronDown className="w-3 h-3" />
+          </button>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-2">
-        <button className="command-btn" title="通知">
-          <Bell className="w-4 h-4" />
-        </button>
-        <button className="command-btn" title="设置">
-          <Settings className="w-4 h-4" />
-        </button>
-
-        <div className="w-px h-5 bg-[#242832] mx-1" />
-
-        <button
-          className="flex items-center gap-1.5 px-2 py-1 hover:bg-[#11141A] transition-colors"
-          onClick={() => setShowUserMenu(!showUserMenu)}
-        >
-          <div className="w-6 h-6 bg-[#1B2028] border border-[#2D2D44] flex items-center justify-center">
-            <span className="text-[10px] font-bold text-[#8D947B]">{firstLetter}</span>
-          </div>
-          <ChevronDown className="w-3 h-3 text-[#4B4B6A]" />
-        </button>
-
-        {showUserMenu && (
-          <div className="absolute right-4 top-12 bg-[#0A0A0F] border border-[#2D2D44] shadow-xl z-50 min-w-[140px]">
-            <button
-              onClick={() => {
-                logout()
-                navigate('/login')
-              }}
-              className="w-full text-left px-3 py-2 text-xs text-[#8D947B] hover:text-white hover:bg-[#1E1E2D] transition-colors"
-            >
-              退出登录
-            </button>
-          </div>
-        )}
+          {showUserMenu && (
+            <div className="command-user-menu">
+              <button
+                onClick={() => {
+                  logout()
+                  navigate('/login')
+                }}
+              >
+                退出登录
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )

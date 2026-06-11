@@ -12,6 +12,7 @@ from app.models.player_award import PlayerAward, AwardType, AwardLevel
 from app.models.player_season_stats import PlayerSeasonStats
 from app.models.player import Player, PlayerPosition
 from app.models.team_honor import TeamHonor, HonorType
+from app.models.team import Team
 from app.models.season import Season
 from app.models.match_result import MatchResult
 from app.models.season import Fixture
@@ -23,8 +24,11 @@ class AwardService:
     # ===== 评选触发接口 =====
 
     @staticmethod
-    async def award_match_mvp(fixture_id: str, result: MatchResult, db: AsyncSession) -> Optional[PlayerAward]:
-        """评选单场 MVP 并入库"""
+    async def award_match_mvp(fixture_id: str, result: Any, db: AsyncSession) -> Optional[PlayerAward]:
+        """评选单场 MVP 并入库
+
+        result 可以是数据库 MatchResult 模型，也可以是 match_simulator 的 MatchResult dataclass。
+        """
         stats = result.player_stats
         if not stats:
             return None
@@ -59,12 +63,32 @@ class AwardService:
         if not season:
             return None
 
+        # 确定球队名称（兼容 player_stats 中无 team_name 的情况）
         team_name = winner.get("team_name", "")
         opponent_name = ""
-        for s in stats:
-            if s.get("player_id") != player_id and s.get("team_name") != team_name:
-                opponent_name = s.get("team_name", "")
-                break
+        if not team_name:
+            winner_team_side = winner.get("team")
+            if winner_team_side == "home":
+                team_obj = await db.get(Team, fixture.home_team_id)
+                opponent_obj = await db.get(Team, fixture.away_team_id)
+            elif winner_team_side == "away":
+                team_obj = await db.get(Team, fixture.away_team_id)
+                opponent_obj = await db.get(Team, fixture.home_team_id)
+            else:
+                team_obj = None
+                opponent_obj = None
+            if team_obj:
+                team_name = team_obj.name
+            if opponent_obj:
+                opponent_name = opponent_obj.name
+
+        if not opponent_name:
+            for s in stats:
+                if s.get("player_id") != player_id:
+                    other_name = s.get("team_name", "")
+                    if other_name and other_name != team_name:
+                        opponent_name = other_name
+                        break
 
         description = f"第{season.season_number}赛季 第{fixture.season_day}天 {team_name} vs {opponent_name} 本场最佳"
 

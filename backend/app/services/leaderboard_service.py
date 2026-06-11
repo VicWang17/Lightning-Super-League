@@ -41,7 +41,7 @@ _COUNT_CONFIGS = {
     "penalty_goals": ("点球进球榜", "点球进球", "int", None, 0, 0),
     "minutes_played": ("出场时间榜", "分钟", "int", None, 0, 0),
     "matches_played": ("出场榜", "场次", "int", None, 0, 0),
-    "average_rating": ("场均评分榜", "评分", "float1", None, 3, 10),
+    "average_rating": ("场均评分榜", "评分", "float1", None, 1, 3),
 }
 
 # 率类配置 (type: numerator_field, denominator_field, label, value_label, value_format, position_filter, min_matches_league, min_matches_world)

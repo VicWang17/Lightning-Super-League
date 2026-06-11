@@ -8,6 +8,7 @@ from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
 
 from app.schemas import ResponseSchema, ErrorResponse
+from app.schemas.records import RecordsByCategory
 from app.schemas.league import (
     LeagueResponse, LeagueDetailResponse, LeagueSystemResponse,
     LeagueStandingItem, StandingTeamInfo, MatchResponse, MatchTeamInfo,
@@ -615,7 +616,7 @@ async def get_top_scorers(
 
 @router.get(
     "/{league_id}/records",
-    response_model=ResponseSchema[dict],
+    response_model=ResponseSchema[RecordsByCategory],
     summary="获取联赛纪录",
     description="获取指定联赛的所有纪录",
 )

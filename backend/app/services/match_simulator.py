@@ -164,6 +164,11 @@ class MatchSimulator:
         if db:
             from app.services.record_service import RecordService
             await RecordService.process_match_records(fixture, result, db)
+
+        # 评选单场 MVP
+        if db and result.player_stats:
+            from app.services.award_service import AwardService
+            await AwardService.award_match_mvp(fixture.id, result, db)
     
     @staticmethod
     async def _update_player_stats(fixture: Fixture, db: AsyncSession, result: Optional[MatchResult] = None) -> None:

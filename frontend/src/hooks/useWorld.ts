@@ -110,6 +110,8 @@ export function useWorldLeaderboard(
     const fetchLeaderboard = async () => {
       try {
         setLoading(true)
+        setItems([])
+        setError(null)
         let url = `/world/leaderboard?type=${type}&limit=${limit}`
         if (position) url += `&position=${position}`
         const response = await api.get<LeaderboardItem[]>(url)
@@ -118,6 +120,7 @@ export function useWorldLeaderboard(
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : '获取世界排行榜失败')
+        setItems([])
       } finally {
         setLoading(false)
       }

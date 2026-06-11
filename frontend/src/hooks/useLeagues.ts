@@ -291,6 +291,8 @@ export function useLeagueLeaderboard(
     const fetchLeaderboard = async () => {
       try {
         setLoading(true)
+        setItems([])
+        setError(null)
         let url = `/leagues/${leagueId}/leaderboard?type=${type}&limit=${limit}`
         if (seasonId) url += `&season_id=${seasonId}`
         const response = await api.get<LeaderboardItem[]>(url)
@@ -299,6 +301,7 @@ export function useLeagueLeaderboard(
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : '获取排行榜失败')
+        setItems([])
       } finally {
         setLoading(false)
       }
