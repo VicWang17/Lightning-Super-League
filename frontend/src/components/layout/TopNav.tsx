@@ -12,11 +12,13 @@ import {
   Zap,
   Globe,
   Mailbox,
+  Target,
 } from '../ui/pixel-icons'
 
 const navItems = [
   { path: '/dashboard', label: '办公室', icon: LayoutDashboard },
   { path: '/team', label: '更衣室', icon: Users },
+  { path: '/team/tactics', label: '战术', icon: Target },
   { path: '/match/schedule', label: '赛程', icon: CalendarDays },
   { path: '/training', label: '训练', icon: Zap },
   { path: '/leagues', label: '联赛', icon: Trophy },
@@ -36,6 +38,7 @@ function TopNav() {
 
   const isActive = (path: string) => {
     if (path === '/dashboard') return location.pathname === '/dashboard'
+    if (path === '/team') return location.pathname === '/team' || location.pathname.startsWith('/team/players')
     return location.pathname.startsWith(path)
   }
 
