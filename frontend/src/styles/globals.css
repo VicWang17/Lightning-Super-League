@@ -61,18 +61,102 @@
     background-size: 4px 4px, 4px 4px, 100% 100%;
   }
 
-  .game-sidebar {
-    background:
-      linear-gradient(180deg, var(--skin-surface) 0%, var(--skin-surface-2) 48%, var(--skin-bg) 100%);
-    border-right: 2px solid var(--skin-border);
-    box-shadow: 4px 0 0 rgba(0, 0, 0, 0.46);
+  /* 顶部指挥条（替代旧 game-header） */
+  .game-command-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 48px;
+    padding: 0 20px;
+    background: linear-gradient(180deg, rgba(7,8,10,0.98), rgba(5,6,8,0.96));
+    border-bottom: 1px solid var(--skin-border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
   }
 
-  .game-header {
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--skin-surface-2) 98%, transparent), color-mix(in srgb, var(--skin-bg) 96%, transparent));
-    border-bottom: 2px solid var(--skin-border);
-    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.36);
+  .command-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: var(--skin-muted);
+    transition: color 150ms ease;
+  }
+  .command-btn:hover {
+    color: var(--skin-text);
+  }
+
+  /* 顶部标签导航栏（替代 Sidebar） */
+  .top-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 40px;
+    padding: 0 16px;
+    background: linear-gradient(180deg, rgba(10,11,14,0.95), rgba(7,8,10,0.92));
+    border-bottom: 1px solid var(--skin-border);
+    position: sticky;
+    top: 48px;
+    z-index: 40;
+  }
+
+  .top-nav-main {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .top-nav-main::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-nav-secondary {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-left: 1px solid var(--skin-border);
+    padding-left: 8px;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
+
+  .top-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--skin-muted);
+    white-space: nowrap;
+    transition: color 120ms ease;
+    position: relative;
+  }
+
+  .top-nav-link:hover {
+    color: var(--skin-text);
+  }
+
+  .top-nav-link.is-active {
+    color: var(--skin-accent);
+  }
+
+  .top-nav-link.is-active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 8px;
+    right: 8px;
+    height: 2px;
+    background: var(--skin-accent);
+  }
+
+  /* 旧 Sidebar / Header 样式已废弃，保留兼容 */
+  .game-sidebar {
+    display: none;
   }
 
   /* 像素草地纹理背景（足球主题） */
@@ -136,6 +220,7 @@
       inset -2px -2px 0 rgba(0, 0, 0, 0.24);
   }
 
+  /* 旧 HUD 组件样式已废弃 */
   .game-hud-panel,
   .game-icon-box,
   .game-action-btn,
@@ -145,31 +230,10 @@
     color: var(--skin-muted) !important;
   }
 
-  .game-hud-panel p:last-child {
-    color: var(--skin-text) !important;
-  }
-
   .game-action-btn:hover,
   .skin-toggle:hover {
     border-color: var(--skin-accent) !important;
     color: #fff !important;
-  }
-
-  .skin-toggle {
-    color: var(--skin-accent) !important;
-  }
-
-  .game-nav-link,
-  .game-subnav-link {
-    background: var(--skin-surface) !important;
-    border-color: var(--skin-border) !important;
-    color: var(--skin-muted) !important;
-  }
-
-  .game-nav-link:hover,
-  .game-subnav-link:hover {
-    background: var(--skin-panel-2) !important;
-    color: var(--skin-text) !important;
   }
 
   .game-nav-link.is-active {
