@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   Calendar, ChevronLeft, Trophy, MapPin, 
-  Sword as Swords, CircleCheck as CheckCircle, Play as PlayCircle 
+  Sword as Swords, CircleCheck as CheckCircle
 } from '../../components/ui/pixel-icons'
 import api from '../../api/client'
 import { useSeason } from '../../hooks/useSeason'
@@ -35,201 +35,74 @@ interface ScheduleDay extends SeasonCalendarDay {
  }[]
 }
 
-// 获取状态显示配置
-function getStatusConfig(status: string) {
- switch (status) {
- case 'finished':
- return {
- icon: CheckCircle,
- label: '已结束',
- className: 'bg-[#1E1E2D] text-[#8B8BA7]',
- pillClassName: 'bg-[#1E1E2D] text-[#8B8BA7]'
- }
- case 'ongoing':
- return {
- icon: PlayCircle,
- label: '进行中',
- className: 'bg-red-500 text-white animate-pulse',
- pillClassName: 'bg-red-500/20 text-red-400 border border-red-500/30'
- }
- default:
- return {
- icon: Calendar,
- label: '未开始',
- className: 'bg-[#0D4A4D]/40 text-[#0D7377]',
- pillClassName: 'bg-[#0D4A4D]/40 text-[#0D7377] border border-[#0D7377]/30'
- }
- }
-}
-
-// 获取比赛类型标签
-function getFixtureTypeLabel(type: string, cupStage?: string) {
- if (type === 'league') {
- return `联赛 第${type === 'league' ? '' : ''}轮`
- }
- if (type.includes('cup_lightning')) {
- if (cupStage === 'GROUP') return '闪电杯-小组赛'
- if (cupStage?.startsWith('ROUND_')) return `闪电杯-${cupStage.replace('ROUND_', '')}强`
- if (cupStage === 'QUARTER') return '闪电杯-1/4决赛'
- if (cupStage === 'SEMI') return '闪电杯-半决赛'
- if (cupStage === 'FINAL') return '闪电杯-决赛'
- return '闪电杯'
- }
- if (type === 'cup_jenny') {
- return '杰尼杯'
- }
- return '其他'
-}
-
-// 格式化日期显示
-function formatMatchDate(dateStr: string): string {
+// 紧凑日期格式
+function formatCompactDate(dateStr: string): string {
  const date = new Date(dateStr)
- const month = date.getMonth() + 1
- const day = date.getDate()
- return `${month}月${day}日`
+ return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
-// 比赛行组件
-function MatchRow({
+// 紧凑比赛行组件
+function FixtureRow({
  date,
  fixture,
- team,
- isCurrentDay
+ team
 }: {
  date: string
  fixture: ScheduleDay['teamFixtures'][0]
  team: Team
- isCurrentDay: boolean
 }) {
  const navigate = useNavigate()
- const statusConfig = getStatusConfig(fixture.status)
- 
- const myScore = fixture.is_home ? fixture.home_score : fixture.away_score
- const opponentScore = fixture.is_home ? fixture.away_score : fixture.home_score
- 
- // 判断胜负
- const getResult = () => {
- if (fixture.status !== 'finished' || myScore === undefined || opponentScore === undefined) {
- return null
- }
- if (myScore > opponentScore) return 'win'
- if (myScore < opponentScore) return 'loss'
- return 'draw'
- }
- 
- const result = getResult()
- const resultBadge = result === 'win' 
- ? { text: '胜', className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' }
- : result === 'loss'
- ? { text: '负', className: 'bg-red-500/20 text-red-400 border-red-500/30' }
- : result === 'draw'
- ? { text: '平', className: 'bg-[#2D2D44] text-[#8B8BA7] border-[#4B4B6A]' }
- : null
+ const isFinished = fixture.status === 'finished'
+ const isLive = fixture.status === 'ongoing'
 
- // 确定主队和客队显示
+ const winner = isFinished && fixture.home_score != null && fixture.away_score != null
+   ? fixture.home_score > fixture.away_score ? 'home' : fixture.away_score > fixture.home_score ? 'away' : null
+   : null
+
  const homeTeamName = fixture.home_team_name
  const awayTeamName = fixture.away_team_name
  const homeTeamId = fixture.is_home ? team.id : fixture.opponent_id
  const awayTeamId = fixture.is_home ? fixture.opponent_id : team.id
- const isHomeMyTeam = fixture.is_home
- const isAwayMyTeam = !fixture.is_home
 
  return (
- <div className={`
- grid grid-cols-12 gap-4 items-center px-4 py-4 
- border-b border-[#2D2D44]/50 last:border-b-0
- hover:bg-[#1E1E2D]/50 transition-colors cursor-pointer
- ${isCurrentDay ? 'bg-[#0D7377]/5' : ''}
- `}
- role="button"
- tabIndex={0}
- onClick={() => navigate(`/match/${fixture.id}`)}
- onKeyDown={(event) => {
- if (event.key === 'Enter' || event.key === ' ') {
- event.preventDefault()
- navigate(`/match/${fixture.id}`)
- }
- }}
+ <div
+   className="grid grid-cols-[48px_1fr_48px_1fr] items-center gap-1 px-2 py-1 hover:bg-[#1E1E2D]/50 transition-colors cursor-pointer"
+   onClick={() => navigate(`/match/${fixture.id}`)}
  >
- {/* 日期 */}
- <div className="col-span-2">
- <div className="flex items-center gap-2">
- <span className={`font-semibold ${isCurrentDay ? 'text-[#0D7377]' : 'text-white'}`}>
- {formatMatchDate(date)}
- </span>
- {isCurrentDay && (
- <span className="text-[10px] px-1.5 py-0.5 bg-[#0D7377] text-white">
- 今天
- </span>
- )}
- </div>
- </div>
+   <div className="text-[10px] text-[#8B8BA7] leading-tight text-center">
+     <div>{formatCompactDate(date)}</div>
+     <div>{fixture.type === 'league' ? `${fixture.round}轮` : '杯'}</div>
+   </div>
 
- {/* 比赛类型 */}
- <div className="col-span-2">
- <span className="text-sm text-[#8B8BA7]">
- {fixture.type === 'league' ? `联赛 第${fixture.round}轮` : getFixtureTypeLabel(fixture.type, fixture.cup_stage)}
- </span>
- </div>
+   <div className={`text-right truncate text-xs font-bold ${winner === 'home' ? 'text-[#C6F135]' : 'text-white'}`}>
+     <Link
+       to={`/teams/${homeTeamId}`}
+       onClick={(e) => e.stopPropagation()}
+       className="hover:text-[#C6F135] transition-colors"
+     >
+       {homeTeamName || '未知'}
+     </Link>
+   </div>
 
- {/* 主队 */}
- <div className="col-span-2 text-right">
- <Link 
- to={`/teams/${homeTeamId}`}
- onClick={(event) => event.stopPropagation()}
- className={`text-sm font-medium hover:text-[#0D7377] transition-colors ${
- isHomeMyTeam ? 'text-white' : 'text-[#8B8BA7]'
- }`}
- >
- {homeTeamName || '未知球队'}
- </Link>
- </div>
+   <div className="text-center">
+     {fixture.status === 'scheduled' ? (
+       <span className="text-[10px] font-black pixel-number text-[#4B4B6A]">VS</span>
+     ) : (
+       <span className={`text-xs font-black stat-number ${isLive ? 'text-red-400' : 'text-white'}`}>
+         {fixture.home_score ?? '-'}:{fixture.away_score ?? '-'}
+       </span>
+     )}
+   </div>
 
- {/* VS / 比分 */}
- <div className="col-span-2 flex items-center justify-center gap-3">
- {fixture.status === 'scheduled' ? (
- <div className="flex items-center gap-2">
- <span className="text-xs text-[#4B4B6A]">主</span>
- <span className="text-sm font-bold text-[#4B4B6A]">VS</span>
- <span className="text-xs text-[#4B4B6A]">客</span>
- </div>
- ) : (
- <div className="flex items-center gap-3">
- <span className={`text-lg font-bold pixel-number ${isHomeMyTeam ? 'text-white' : 'text-[#8B8BA7]'}`}>
- {fixture.home_score}
- </span>
- <span className="text-[#4B4B6A]">:</span>
- <span className={`text-lg font-bold pixel-number ${isAwayMyTeam ? 'text-white' : 'text-[#8B8BA7]'}`}>
- {fixture.away_score}
- </span>
- </div>
- )}
- </div>
-
- {/* 客队 */}
- <div className="col-span-2 text-left">
- <Link 
- to={`/teams/${awayTeamId}`}
- onClick={(event) => event.stopPropagation()}
- className={`text-sm font-medium hover:text-[#0D7377] transition-colors ${
- isAwayMyTeam ? 'text-white' : 'text-[#8B8BA7]'
- }`}
- >
- {awayTeamName || '未知球队'}
- </Link>
- </div>
-
- {/* 状态 & 结果 */}
- <div className="col-span-1 flex items-center justify-end gap-2">
- {resultBadge && (
- <span className={`text-xs px-2 py-0.5 border ${resultBadge.className}`}>
- {resultBadge.text}
- </span>
- )}
- <span className={`text-xs px-2 py-0.5 border ${statusConfig.pillClassName}`}>
- {statusConfig.label}
- </span>
- </div>
+   <div className={`text-left truncate text-xs font-bold ${winner === 'away' ? 'text-[#C6F135]' : 'text-white'}`}>
+     <Link
+       to={`/teams/${awayTeamId}`}
+       onClick={(e) => e.stopPropagation()}
+       className="hover:text-[#C6F135] transition-colors"
+     >
+       {awayTeamName || '未知'}
+     </Link>
+   </div>
  </div>
  )
 }
@@ -346,9 +219,6 @@ function Schedule() {
  return { played, wins, draws, losses, goalsFor, goalsAgainst }
  }, [schedule])
  
- // 当前比赛日
- const currentDay = season?.current_day || 0
- 
  if (loading) {
  return (
  <div className="max-w-[1200px]">
@@ -461,10 +331,11 @@ function Schedule() {
  </div>
  </div>
  
- {/* 赛程列表 - 表格形式 */}
- <div className="card overflow-hidden border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
- <div className="px-4 py-4 border-b border-[#2D2D44]">
+ {/* 赛程列表 - 紧凑平铺 */}
+ <div>
+ <div className="flex items-center justify-between mb-3">
  <h3 className="text-lg font-semibold text-white">全部赛程</h3>
+ <span className="text-xs text-[#8B8BA7]">{schedule.reduce((sum, d) => sum + d.teamFixtures.length, 0)} 场</span>
  </div>
  
  {schedule.length === 0 ? (
@@ -473,32 +344,26 @@ function Schedule() {
  <p className="text-[#8B8BA7]">暂无赛程数据</p>
  </div>
  ) : (
- <div>
- {/* 表头 */}
- <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-[#1E1E2D] text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
- <div className="col-span-2">日期</div>
- <div className="col-span-2">赛事</div>
- <div className="col-span-2 text-right">主队</div>
- <div className="col-span-2 text-center">比分</div>
- <div className="col-span-2">客队</div>
- <div className="col-span-2 text-right">状态</div>
+ <section className="border-2 border-[#2D2D44] bg-[#0B0D14] shadow-pixel-sm overflow-hidden">
+ <div className="grid grid-cols-[48px_1fr_48px_1fr] gap-1 px-2 py-1.5 text-[10px] text-[#8B8BA7] border-b border-[#2D2D44] bg-[#12121A]">
+ <span className="text-center">日期</span>
+ <span className="text-right">主队</span>
+ <span></span>
+ <span className="text-left">客队</span>
  </div>
- 
- {/* 赛程行 */}
- <div className="divide-y divide-[#2D2D44]/50">
- {schedule.map(day => (
+ <div className="divide-y divide-[#2D2D44]">
+ {schedule.flatMap(day =>
  day.teamFixtures.map(fixture => (
- <MatchRow
- key={`${day.day}-${fixture.id}`}
+ <FixtureRow
+ key={fixture.id}
  date={day.date}
  fixture={fixture}
  team={team}
- isCurrentDay={day.day === currentDay}
  />
  ))
- ))}
+ )}
  </div>
- </div>
+ </section>
  )}
  </div>
  </div>

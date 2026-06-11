@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.user import User
 from app.schemas import (
     ResponseSchema,
     PaginatedResponse,
@@ -37,11 +38,11 @@ logger = get_logger("app.finance")
 async def get_finance_overview(
     team_id: str,
     season_id: Optional[str] = Query(None, description="赛季ID，不传则使用当前赛季"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取球队财务概览"""
-    user_id = current_user.get("user_id")
+    user_id = current_user.id
     logger.info(f"获取财务概览: team_id={team_id}, user_id={user_id}")
     
     service = FinanceService(db)
@@ -69,11 +70,11 @@ async def get_finance_transactions(
     direction: Optional[TransactionDirection] = Query(None, description="交易方向: income/expense"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取财务交易记录"""
-    user_id = current_user.get("user_id")
+    user_id = current_user.id
     logger.info(f"获取交易记录: team_id={team_id}, user_id={user_id}, season_id={season_id}")
     
     service = FinanceService(db)
@@ -110,7 +111,7 @@ async def get_finance_transactions(
 async def get_budget_plan(
     team_id: str,
     target_season_id: str = Query(..., description="目标赛季ID"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取预算计划"""
@@ -149,7 +150,7 @@ async def confirm_budget_plan(
     youth_pct: int = Query(..., ge=0, le=100, description="青训预算百分比"),
     wage_pct: int = Query(..., ge=0, le=100, description="工资预算百分比"),
     reserve_pct: int = Query(..., ge=0, le=100, description="储备预算百分比"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """确认预算计划"""
@@ -190,7 +191,7 @@ async def confirm_budget_plan(
 async def get_sponsor_options(
     team_id: str,
     season_id: str = Query(..., description="赛季ID"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取赞助商选项"""
@@ -209,7 +210,7 @@ async def sign_sponsor_contract(
     team_id: str,
     season_id: str = Query(..., description="赛季ID"),
     policy: SponsorPolicy = Query(..., description="赞助商策略: stable/performance"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """签署赞助合同"""
@@ -244,7 +245,7 @@ async def sign_sponsor_contract(
 async def get_sponsor_contract(
     team_id: str,
     season_id: str = Query(..., description="赛季ID"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取当前赞助合同"""
@@ -278,7 +279,7 @@ async def get_sponsor_contract(
 async def get_reserve_status(
     team_id: str,
     season_id: Optional[str] = Query(None, description="赛季ID，不传则使用当前赛季"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取风险准备金状态"""

@@ -70,16 +70,16 @@ function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-5 px-3 overflow-y-auto">
-        <ul className="space-y-2">
+        <ul className="divide-y divide-[#1B2028]">
           {menuItems.map((item) => (
             <li key={item.path}>
               <Link
                 to={item.path}
                 className={clsx(
-                  'game-nav-link flex items-center gap-3 px-4 py-3 transition-all duration-200 border-2',
+                  'game-nav-link flex items-center gap-3 px-4 py-3 transition-all duration-200',
                   isActive(item)
-                    ? 'is-active bg-[#B8E532] text-[#0A0A0F] font-black border-[#14532D] shadow-pixel-green'
-                    : 'text-[#8D947B] bg-[#06070A] hover:text-[#E8EAD8] hover:bg-[#11141A] border-[#1B2028]'
+                    ? 'is-active bg-[#B8E532] text-[#0A0A0F] font-black'
+                    : 'text-[#8D947B] hover:text-[#E8EAD8] hover:bg-[#11141A]'
                 )}
               >
                 {isActive(item) && (
@@ -93,34 +93,38 @@ function Sidebar() {
         </ul>
         
         {/* 次级导航 - 查看所有比赛 */}
-        <div className="mt-5 pt-5 border-t-2 border-[#242832]">
+        <div className="mt-5 pt-5 border-t border-[#1B2028]">
           <p className="px-4 text-xs text-[#596146] mb-2 font-bold uppercase tracking-wider">赛事入口</p>
-          <div className="space-y-1">
-            <Link
-              to="/leagues/all"
-              className={clsx(
-                'game-subnav-link flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 border-2',
-                location.pathname === '/leagues' || location.pathname === '/leagues/all'
-                  ? 'is-active text-[#B8E532] bg-[#11141A] border-[#242832]'
-                  : 'text-[#697157] hover:text-[#C7CBB8] hover:bg-[#11141A] border-transparent'
-              )}
-            >
-              <span className="w-1.5 h-1.5 rounded-none bg-[#B8E532]" />
-              联赛
-            </Link>
-            <Link
-              to="/cups/all"
-              className={clsx(
-                'game-subnav-link flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 border-2',
-                location.pathname === '/cups' || location.pathname === '/cups/all'
-                  ? 'is-active text-[#B8E532] bg-[#11141A] border-[#242832]'
-                  : 'text-[#697157] hover:text-[#C7CBB8] hover:bg-[#11141A] border-transparent'
-              )}
-            >
-              <span className="w-1.5 h-1.5 rounded-none bg-[#B8E532]" />
-              杯赛
-            </Link>
-          </div>
+          <ul className="divide-y divide-[#1B2028]">
+            <li>
+              <Link
+                to="/leagues/all"
+                className={clsx(
+                  'game-subnav-link flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200',
+                  location.pathname === '/leagues' || location.pathname === '/leagues/all'
+                    ? 'is-active text-[#B8E532] bg-[#11141A]'
+                    : 'text-[#697157] hover:text-[#C7CBB8] hover:bg-[#11141A]'
+                )}
+              >
+                <span className="w-1.5 h-1.5 rounded-none bg-[#B8E532]" />
+                所有联赛
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/cups/all"
+                className={clsx(
+                  'game-subnav-link flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200',
+                  location.pathname === '/cups' || location.pathname === '/cups/all'
+                    ? 'is-active text-[#B8E532] bg-[#11141A]'
+                    : 'text-[#697157] hover:text-[#C7CBB8] hover:bg-[#11141A]'
+                )}
+              >
+                <span className="w-1.5 h-1.5 rounded-none bg-[#B8E532]" />
+                所有杯赛
+              </Link>
+            </li>
+          </ul>
         </div>
       </nav>
 

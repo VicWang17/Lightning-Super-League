@@ -11,7 +11,7 @@ from app.schemas import ResponseSchema
 from app.schemas.league import TopScorerItem, TopAssistItem, CleanSheetItem
 from app.schemas.leaderboard import LeaderboardType, LeaderboardItem
 from app.services.leaderboard_service import LeaderboardService
-from app.models.season import CupCompetition, CupGroup, Fixture, FixtureStatus, Season
+from app.models.season import CupCompetition, CupGroup, Fixture, FixtureStatus, FixtureType, Season
 from app.models.team import Team
 from app.models.user import User
 from app.models.player import Player, PlayerPosition
@@ -188,7 +188,13 @@ async def get_my_team_cup(
     """
     获取当前用户球队参加的杯赛
     """
-    if not current_user.team_id:
+    # 获取用户球队
+    result = await db.execute(
+        select(Team).where(Team.user_id == current_user.id)
+    )
+    team = result.scalar_one_or_none()
+    
+    if not team:
         return ResponseSchema(success=True, data=None, message="用户没有球队")
     
     # 获取当前赛季
@@ -203,15 +209,6 @@ async def get_my_team_cup(
     if not season:
         return ResponseSchema(success=True, data=None, message="暂无进行中的赛季")
     
-    # 获取用户球队
-    result = await db.execute(
-        select(Team).where(Team.id == current_user.team_id)
-    )
-    team = result.scalar_one_or_none()
-    
-    if not team:
-        return ResponseSchema(success=True, data=None, message="球队不存在")
-    
     # 查找包含该球队的杯赛（通过检查比赛记录）
     result = await db.execute(
         select(Fixture).where(
@@ -221,7 +218,7 @@ async def get_my_team_cup(
                     Fixture.home_team_id == team.id,
                     Fixture.away_team_id == team.id
                 ),
-                Fixture.fixture_type.in_(["cup_lightning_group", "cup_lightning_knockout", "cup_jenny"])
+                Fixture.fixture_type.in_([FixtureType.CUP_LIGHTNING_GROUP, FixtureType.CUP_LIGHTNING_KNOCKOUT, FixtureType.CUP_JENNY])
             )
         ).limit(1)
     )

@@ -32,6 +32,7 @@ from app.schemas.records import (
     RecordsByCategory,
     RecordCategory as RecordCategoryEnum,
 )
+from app.models.user import User
 from app.dependencies import get_db, get_current_user
 from app.models import Team, League, LeagueStanding, Fixture, FixtureStatus, Season, LeagueSystem, PlayerSeasonStats, Player, TeamHonor, HonorType
 from app.core.logging import get_logger
@@ -47,13 +48,13 @@ logger = get_logger("app.teams")
     description="获取当前登录用户的球队信息",
 )
 async def get_my_team(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     获取当前登录用户的球队
     """
-    user_id = current_user.get("user_id")
+    user_id = current_user.id
     logger.info(f"获取用户球队: user_id={user_id}")
     
     # 查询用户的球队
@@ -184,13 +185,13 @@ async def create_team(team_data: TeamCreate):
     description="获取当前登录球队的Dashboard统计数据，包括联赛排名、战绩、近期状态和下场比赛",
 )
 async def get_my_team_dashboard(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     获取当前登录用户的球队Dashboard统计数据
     """
-    user_id = current_user.get("user_id")
+    user_id = current_user.id
     
     # 获取用户球队
     result = await db.execute(

@@ -2956,7 +2956,6 @@
 }
 
 .training-board,
-.training-editor-panel,
 .training-item-panel,
 .training-fatigue-panel {
   border: 2px solid var(--skin-border);
@@ -3163,7 +3162,6 @@
   gap: 8px;
 }
 
-.training-editor-panel,
 .training-item-panel {
   padding: 10px;
 }
@@ -3589,14 +3587,11 @@
 }
 
 .training-editor-panel {
-  border-color: #63B3FF;
-  background:
-    linear-gradient(180deg, rgba(99, 179, 255, 0.08), transparent 120px),
-    linear-gradient(90deg, var(--skin-grid) 1px, transparent 1px),
-    linear-gradient(var(--skin-grid) 1px, transparent 1px),
-    rgba(5, 7, 11, 0.97);
-  background-size: auto, 8px 8px, 8px 8px, auto;
-  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  padding: 0;
 }
 
 .training-item-panel {

@@ -398,19 +398,6 @@ function TeamDetail() {
 
       {activeTab === 'locker' && (
       <>
-      <section className="locker-hero">
-        <div>
-          <h1 className="text-3xl font-black text-[var(--skin-text)]">{team?.name || '更衣室'}</h1>
-        </div>
-        <div className="locker-metrics">
-          <TeamMetric label="总评" value={team?.overall_rating} />
-          <TeamMetric label="进攻" value={team?.attack} />
-          <TeamMetric label="中场" value={team?.midfield} />
-          <TeamMetric label="防守" value={team?.defense} />
-          <TeamMetric label="球员" value={players.length || undefined} />
-        </div>
-      </section>
-
       <section className="locker-layout">
         <main className="locker-board">
           <div className="locker-board-header">

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, update
 
 from app.dependencies import get_db, get_current_user
+from app.models.user import User
 from app.schemas import ResponseSchema
 from app.schemas.mail import (
     MailItem,
@@ -57,11 +58,11 @@ async def list_mails(
     is_read: Optional[bool] = Query(None, description="已读状态筛选"),
     limit: int = Query(50, ge=1, le=200, description="每页数量"),
     offset: int = Query(0, ge=0, description="偏移量"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取邮件列表"""
-    user_id = current_user["user_id"]
+    user_id = current_user.id
 
     # 基础查询
     base_where = [Mail.user_id == user_id, Mail.deleted_at.is_(None)]
@@ -120,11 +121,11 @@ async def list_mails(
     summary="获取未读邮件数量",
 )
 async def get_unread_count(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取未读邮件数量"""
-    user_id = current_user["user_id"]
+    user_id = current_user.id
 
     # 总未读
     total_stmt = select(func.count(Mail.id)).where(
@@ -163,11 +164,11 @@ async def get_unread_count(
 )
 async def get_mail(
     mail_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """获取邮件详情，同时自动标记为已读"""
-    user_id = current_user["user_id"]
+    user_id = current_user.id
 
     stmt = select(Mail).where(
         Mail.id == mail_id,
@@ -219,11 +220,11 @@ async def get_mail(
 )
 async def mark_read(
     request: MarkReadRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """批量标记邮件为已读"""
-    user_id = current_user["user_id"]
+    user_id = current_user.id
     from datetime import datetime
 
     await db.execute(
@@ -246,11 +247,11 @@ async def mark_read(
 )
 async def mark_all_read(
     category: Optional[MailCategory] = Query(None, description="指定分类，不传则全部"),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """标记当前用户的全部邮件为已读"""
-    user_id = current_user["user_id"]
+    user_id = current_user.id
     from datetime import datetime
 
     where_clause = [Mail.user_id == user_id, Mail.is_read == False]

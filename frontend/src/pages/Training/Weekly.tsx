@@ -312,7 +312,6 @@ export default function WeeklyTraining() {
   }, [])
 
   const selectedSlot = selectedCell ? PERIODS[selectedCell.periodIndex] : null
-  const selectedDay = selectedCell ? startDay + selectedCell.dayOffset : null
   const selectedCellData = selectedCell && selectedSlot ? getCell(selectedCell.dayOffset, selectedSlot.key) : undefined
   const selectedGroupId = useMemo(() => {
     if (!selectedCell || !selectedCellData?.groups?.length) return null
@@ -675,16 +674,6 @@ export default function WeeklyTraining() {
 
         <aside className="training-library">
           <section className="training-editor-panel">
-            <div className="training-editor-title">
-              <div>
-                <h2>时段设置</h2>
-                <p>{selectedDay && selectedSlot ? `第 ${selectedDay} 天 · ${selectedSlot.label}` : '请选择计划板上的时段'}</p>
-              </div>
-              {selectedCellData && !selectedCellData.isMatchDay && (
-                <button onClick={clearSelectedCell}>清空</button>
-              )}
-            </div>
-
             {selectedCellData?.isMatchDay ? (
               <div className="training-match-lock">
                 <Goal className="h-5 w-5" />

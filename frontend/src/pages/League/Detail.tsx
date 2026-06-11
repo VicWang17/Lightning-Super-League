@@ -250,68 +250,106 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  )
 }
 
-// 比赛卡片组件
-function MatchCard({ match }: { match: Match }) {
+// 比赛行组件（杯赛风格）
+function FixtureRow({ match }: { match: Match }) {
  const isFinished = match.status === 'finished'
  const isLive = match.status === 'ongoing'
+ const winner = isFinished && match.home_score != null && match.away_score != null
+   ? match.home_score > match.away_score ? 'home' : match.away_score > match.home_score ? 'away' : null
+   : null
 
  return (
- <div className="p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/30 hover:-translate-y-1 transition-all">
- <div className="flex items-center justify-between mb-3">
- <span className="text-xs text-[#8B8BA7]">第 {match.matchday} 轮</span>
- {isLive && (
- <span className="text-xs px-2 py-0.5 rounded-none bg-red-500 text-white animate-pulse">
- 进行中
- </span>
- )}
- {isFinished && (
- <span className="text-xs px-2 py-0.5 rounded-none bg-[#1E1E2D] text-[#8B8BA7]">
- 已结束
- </span>
- )}
- </div>
-
- <div className="flex items-center justify-between">
- <div className="flex-1 text-center">
- <Link
- to={`/teams/${match.home_team.id}`}
- className="font-medium text-white hover:text-[#C6F135] transition-colors"
+ <div
+   className="bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/50 transition-colors cursor-pointer"
+   onClick={() => window.location.href = `/match/${match.id}`}
  >
- {match.home_team.name}
- </Link>
- <p className="text-xs text-[#8B8BA7]">主</p>
- </div>
+   <div className="grid grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] items-center gap-3 px-4 py-3">
+     <div className={`min-w-0 ${winner === 'home' ? 'text-[#C6F135]' : 'text-white'}`}>
+       <Link
+         to={`/teams/${match.home_team.id}`}
+         className="block truncate font-bold hover:text-[#C6F135] transition-colors"
+         onClick={(e) => e.stopPropagation()}
+       >
+         {match.home_team.name}
+       </Link>
+     </div>
 
- <div className="px-4">
- {isFinished || isLive ? (
- <div className="text-2xl font-bold pixel-number">
- <span className={isLive ? 'text-red-400' : 'text-white'}>
- {match.home_score}
- </span>
- <span className="text-[#4B4B6A] mx-2">:</span>
- <span className={isLive ? 'text-red-400' : 'text-white'}>
- {match.away_score}
- </span>
- </div>
- ) : (
- <div className="text-lg font-bold pixel-number text-[#4B4B6A]">VS</div>
- )}
- <p className="text-xs text-[#8B8BA7] mt-1">
- {new Date(match.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
- </p>
- </div>
+     <div className="text-center">
+       {isFinished || isLive ? (
+         <div className={`text-lg font-black stat-number ${isLive ? 'text-red-400' : 'text-white'}`}>
+           {match.home_score ?? '-'}:{match.away_score ?? '-'}
+         </div>
+       ) : (
+         <div className="text-xs font-black pixel-number text-[#4B4B6A]">VS</div>
+       )}
+       <div className="mt-1 text-[10px] font-bold text-[#4B4B6A]">
+         {new Date(match.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+       </div>
+     </div>
 
- <div className="flex-1 text-center">
- <Link
- to={`/teams/${match.away_team.id}`}
- className="font-medium text-white hover:text-[#C6F135] transition-colors"
- >
- {match.away_team.name}
- </Link>
- <p className="text-xs text-[#8B8BA7]">客</p>
+     <div className={`min-w-0 text-right ${winner === 'away' ? 'text-[#C6F135]' : 'text-white'}`}>
+       <Link
+         to={`/teams/${match.away_team.id}`}
+         className="block truncate font-bold hover:text-[#C6F135] transition-colors"
+         onClick={(e) => e.stopPropagation()}
+       >
+         {match.away_team.name}
+       </Link>
+     </div>
+   </div>
+   {isLive && (
+     <div className="border-t border-[#2D2D44] px-4 py-1 text-xs font-bold text-red-400">进行中</div>
+   )}
  </div>
- </div>
- </div>
+ )
+}
+
+// 联赛赛程列表（按轮次分组，杯赛风格）
+function LeagueScheduleList({ matches }: { matches: Match[] }) {
+ const matchesByMatchday: Record<number, Match[]> = {}
+ matches.forEach(m => {
+   if (!matchesByMatchday[m.matchday]) matchesByMatchday[m.matchday] = []
+   matchesByMatchday[m.matchday].push(m)
+ })
+
+ const matchdays = Object.keys(matchesByMatchday).map(Number).sort((a, b) => a - b)
+
+ if (matchdays.length === 0) {
+   return (
+     <div className="text-center py-12">
+       <Calendar className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+       <p className="text-[#8B8BA7]">暂无赛程数据</p>
+     </div>
+   )
+ }
+
+ return (
+   <div className="space-y-6">
+     {matchdays.map((matchday, index) => {
+       const roundMatches = matchesByMatchday[matchday]
+       return (
+         <section key={matchday} className="border-2 border-[#2D2D44] bg-[#0B0D14] shadow-pixel-sm overflow-hidden">
+           <div className="flex items-center justify-between border-b-2 border-[#2D2D44] bg-[#12121A] px-4 py-3">
+             <div className="flex items-center gap-3">
+               <div className="h-6 w-2 bg-[#0D7377]" />
+               <h4 className="text-lg font-black text-white">第 {matchday} 轮</h4>
+             </div>
+             <span className="text-xs font-bold text-[#8B8BA7]">{roundMatches.length} 场</span>
+           </div>
+           <div className="divide-y divide-[#2D2D44]">
+             {roundMatches.map(match => (
+               <FixtureRow key={match.id} match={match} />
+             ))}
+           </div>
+           {index < matchdays.length - 1 && (
+             <div className="border-t border-[#2D2D44] px-4 py-2 text-xs text-[#4B4B6A]">
+               下一轮：第 {matchdays[index + 1]} 轮
+             </div>
+           )}
+         </section>
+       )
+     })}
+   </div>
  )
 }
 
@@ -517,22 +555,13 @@ function LeagueDetail() {
  <div>
  <h3 className="text-lg font-semibold mb-4">赛程安排</h3>
  {matchesLoading ? (
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+ <div className="space-y-4">
  {[1, 2, 3, 4].map(i => (
- <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-28 bg-[#1E1E2D] animate-pulse" />
  ))}
- </div>
- ) : matches.length === 0 ? (
- <div className="text-center py-12">
- <Calendar className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
- <p className="text-[#8B8BA7]">暂无赛程数据</p>
  </div>
  ) : (
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- {matches.slice(0, 10).map(match => (
- <MatchCard key={match.id} match={match} />
- ))}
- </div>
+ <LeagueScheduleList matches={matches} />
  )}
  </div>
  )}
