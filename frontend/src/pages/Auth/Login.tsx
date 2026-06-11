@@ -178,12 +178,12 @@ export default function Login() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mt-8 text-center"
         >
-          <Link
-            to="/"
+          <button
+            onClick={() => navigate(-1)}
             className="text-sm text-[#4B4B6A] hover:text-[#8B8BA7] transition-colors"
           >
-            ← 返回首页
-          </Link>
+            ← 返回上一页
+          </button>
         </motion.div>
 
         {/* Demo hint */}

@@ -2275,9 +2275,9 @@
   .player-dossier-strip {
     position: relative;
     display: grid;
-    grid-template-columns: 86px minmax(0, 1fr) 84px 84px minmax(190px, 260px);
+    grid-template-columns: 86px minmax(0, 1fr) auto;
     gap: 10px;
-    align-items: stretch;
+    align-items: center;
     margin-bottom: 0;
     border: 2px solid color-mix(in srgb, var(--skin-border-strong) 78%, transparent);
     background:
@@ -2383,6 +2383,64 @@
     font-weight: 1000;
   }
 
+  .potential-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 5px;
+    border: 2px solid;
+    font-family: Roboto Mono, monospace;
+    font-size: 13px;
+    font-weight: 1000;
+    line-height: 1;
+  }
+
+  .potential-badge--s {
+    border-color: #C6A035;
+    background: rgba(198, 160, 53, 0.12);
+    color: #E8C84A;
+  }
+
+  .potential-badge--a {
+    border-color: #C94040;
+    background: rgba(201, 64, 64, 0.12);
+    color: #F06565;
+  }
+
+  .potential-badge--b {
+    border-color: #3A7BC8;
+    background: rgba(58, 123, 200, 0.12);
+    color: #5BA0F0;
+  }
+
+  .potential-badge--c {
+    border-color: #3A9E50;
+    background: rgba(58, 158, 80, 0.12);
+    color: #5DD97A;
+  }
+
+  .potential-badge--d {
+    border-color: #6B6B7A;
+    background: rgba(107, 107, 122, 0.12);
+    color: #9A9AAA;
+  }
+
+  .dossier-ovr-big {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(36px, 4vw, 56px);
+    font-weight: 400;
+    line-height: 1;
+    color: var(--skin-accent);
+    padding: 0 16px;
+    text-shadow: 0 0 24px rgba(13, 115, 119, 0.35);
+    letter-spacing: 0;
+  }
+
   .dossier-status {
     border: 2px solid var(--skin-border);
     background: #050609;
@@ -2437,26 +2495,6 @@
       var(--skin-surface);
     clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
     box-shadow: inset 0 -4px 0 rgba(0,0,0,0.24);
-  }
-
-  .dossier-bookmarks button:nth-child(1) {
-    transform: translateY(0);
-  }
-
-  .dossier-bookmarks button:nth-child(2) {
-    transform: translateY(4px);
-  }
-
-  .dossier-bookmarks button:nth-child(3) {
-    transform: translateY(8px);
-  }
-
-  .dossier-bookmarks button:nth-child(4) {
-    transform: translateY(12px);
-  }
-
-  .dossier-bookmarks button:nth-child(5) {
-    transform: translateY(16px);
   }
 
   .dossier-bookmarks button.is-active {
@@ -2935,11 +2973,12 @@
     }
 
     .player-dossier-strip {
-      grid-template-columns: 86px minmax(0, 1fr) 78px 78px;
+      grid-template-columns: 86px minmax(0, 1fr) auto;
     }
 
-    .dossier-status {
-      grid-column: 1 / -1;
+    .dossier-ovr-big {
+      font-size: 36px;
+      padding: 0 10px;
     }
 
     .player-portrait-stage {
@@ -3014,10 +3053,11 @@
       height: 72px;
     }
 
-    .dossier-score,
-    .dossier-status {
+    .dossier-ovr-big {
       grid-column: 1 / -1;
-      min-height: 64px;
+      justify-content: flex-start;
+      font-size: 32px;
+      padding: 4px 0;
     }
 
     .dossier-name-row h1 {

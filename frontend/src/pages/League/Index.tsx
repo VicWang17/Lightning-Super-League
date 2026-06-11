@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Link, Navigate, useLocation } from 'react-router-dom'
-import { Trophy, ChevronRight, Users, Sword as Swords } from '../../components/ui/pixel-icons'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Trophy, ChevronRight, Users, Sword as Swords, ChevronLeft } from '../../components/ui/pixel-icons'
 import { LeagueBadge } from '../../components/league/LeagueBadge'
 import { useLeagueSystems, useLeagues } from '../../hooks/useLeagues'
 import api from '../../api/client'
@@ -112,6 +112,7 @@ function SystemSection({ systemCode, systemName, description }: { systemCode: st
 }
 
 function LeagueList() {
+ const navigate = useNavigate()
  const { systems, loading: systemsLoading } = useLeagueSystems()
  const [selectedSystem, setSelectedSystem] = useState<string | null>(null)
  const [userLeagueId, setUserLeagueId] = useState<string | null>(null)
@@ -149,6 +150,13 @@ function LeagueList() {
 
  return (
  <div className="max-w-[1200px]">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        返回上一页
+      </button>
  {/* 页面标题 */}
  <div className="mb-8">
  <div className="flex items-center gap-3 mb-2">

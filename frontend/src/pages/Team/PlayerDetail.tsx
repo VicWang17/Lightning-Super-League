@@ -363,30 +363,20 @@ function PlayerDetail() {
           <div className="dossier-name-row">
             <h1>{player.name}</h1>
             <span className={`profile-position ${getPositionColor(player.position)}`}>{player.position}</span>
-              <span className="profile-number">#{player.squad_number || player.preferred_number || '-'}</span>
-            </div>
-            <div className="dossier-vitals">
-              <span>{POSITION_NAMES[player.position]}</span>
-              <span>{player.age}岁</span>
-              <span>{player.height}cm / {player.weight}kg</span>
-              <span>{FOOT_NAMES[player.preferred_foot] || '-'}</span>
-              <StatusBadge status={player.status} current_suspension={player.current_suspension} />
-            </div>
+            <span className="profile-number">#{player.squad_number || player.preferred_number || '-'}</span>
+            <span className={`potential-badge potential-badge--${(player.potential_letter || 'D').toLowerCase()}`}>
+              {player.potential_letter}
+            </span>
           </div>
-          <div className="dossier-score">
-            <span>OVR</span>
-            <strong>{player.ovr}</strong>
+          <div className="dossier-vitals">
+            <span>{POSITION_NAMES[player.position]}</span>
+            <span>{player.age}岁</span>
+            <span>{player.height}cm / {player.weight}kg</span>
+            <span>{FOOT_NAMES[player.preferred_foot] || '-'}</span>
+            <StatusBadge status={player.status} current_suspension={player.current_suspension} />
           </div>
-          <div className="dossier-score is-potential">
-            <span>POT</span>
-            <strong>{player.potential_letter}</strong>
-          </div>
-          <div className="dossier-status">
-            <div className="dossier-status-tags">
-              <span className={`fm-tag fm-tag--${(playerState?.visible_form || player.match_form || 'NEUTRAL').toLowerCase()}`}>{formName}</span>
-              <span className={`fm-tag fm-tag--fitness${fitness >= 80 ? '-good' : fitness >= 50 ? '-mid' : '-bad'}`}>体能 {fitness}%</span>
-            </div>
-          </div>
+        </div>
+        <div className="dossier-ovr-big">{player.ovr}</div>
         </section>
 
         <nav className="player-profile-tabs player-workbench-tabs dossier-bookmarks" aria-label="球员详情标签">

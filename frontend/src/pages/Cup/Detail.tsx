@@ -896,13 +896,13 @@ function CupDetail() {
  <div className="max-w-[1200px]">
  {/* 返回按钮和所有杯赛链接 */}
  <div className="flex items-center justify-between mb-4">
- <Link 
- to="/cups"
+ <button 
+ onClick={() => navigate(-1)}
  className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors"
  >
  <ChevronLeft className="w-4 h-4" />
- 返回杯赛列表
- </Link>
+ 返回上一页
+ </button>
  <Link 
  to="/cups/all"
  className="inline-flex items-center gap-1 text-sm text-[#0D7377] hover:text-white transition-colors"
@@ -913,20 +913,9 @@ function CupDetail() {
  </div>
 
  {/* 杯赛信息头部 */}
- <div className="relative mb-6 overflow-hidden border-2 border-[#30334D] bg-[#080B11] shadow-pixel">
- <div className="absolute inset-0 opacity-40 bg-[linear-gradient(90deg,rgba(13,115,119,0.28),rgba(8,11,17,0.15)_42%,rgba(198,241,53,0.08))]" />
- <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:16px_16px]" />
- <div className="absolute left-0 top-0 h-2 w-2 bg-[#C6F135]" />
- <div className="absolute right-0 bottom-0 h-2 w-2 bg-[#C6F135]" />
-
- <div className="relative flex items-center gap-6 p-6">
- <div className="w-24 h-24 shrink-0 bg-[#050609] border-2 border-[#30334D] flex items-center justify-center shadow-pixel">
- <CupBadge code={cup.code} size="lg" title={`${cup.name} 徽章`} />
- </div>
- <div className="min-w-0">
- <h1 className="text-4xl font-black text-white leading-tight">{cup.name}</h1>
- </div>
- </div>
+ <div className="flex items-center gap-3 mb-6">
+ <CupBadge code={cup.code} size="md" title={`${cup.name} 徽章`} />
+ <h1 className="text-lg font-bold text-white">{cup.name}</h1>
  </div>
 
  {/* Tab 导航 + 赛季选择器 */}

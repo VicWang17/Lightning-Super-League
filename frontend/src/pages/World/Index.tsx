@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { clsx } from 'clsx'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Globe,
   Trophy,
@@ -9,6 +9,7 @@ import {
   ChevronRight,
   InfoBox,
   Award,
+  ChevronLeft,
 } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 import { useWorldRankings, useTopPlayers, useWorldRecords, useWorldLeaderboard } from '../../hooks/useWorld'
@@ -510,6 +511,7 @@ function WorldAwardsTab() {
 }
 
 function WorldPage() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<WorldTab>('rankings')
   const [playerPosition, setPlayerPosition] = useState<PlayerPosition>('ALL')
   const [sortType, setSortType] = useState<WorldSortType>('ovr')
@@ -532,6 +534,13 @@ function WorldPage() {
 
   return (
     <div className="max-w-[1200px]">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        返回上一页
+      </button>
       {/* 页面标题 */}
       <div className="flex items-center gap-3 mb-6">
         <Globe className="w-7 h-7 text-[#C6F135]" />

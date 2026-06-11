@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Tools as Construction, ArrowLeft } from '../../components/ui/pixel-icons'
 
 export default function Register() {
+  const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
@@ -70,13 +71,13 @@ export default function Register() {
               前往登录
             </Link>
             
-            <Link
-              to="/"
+            <button
+              onClick={() => navigate(-1)}
               className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 text-[#8B8BA7] hover:text-[#E2E2F0] font-medium transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              返回首页
-            </Link>
+              返回上一页
+            </button>
           </div>
         </motion.div>
       </div>

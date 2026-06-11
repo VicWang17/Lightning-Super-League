@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   ChevronLeft,
@@ -176,6 +176,7 @@ function SortHeader({
 
 function TeamDetail() {
   const { id: routeTeamId } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TeamTab>('locker')
   const [team, setTeam] = useState<TeamSummary | null>(null)
   const [players, setPlayers] = useState<LockerPlayer[]>([])
@@ -362,13 +363,13 @@ function TeamDetail() {
   return (
     <div className="locker-room-page">
       <div className="mb-4 flex items-center justify-between gap-4">
-        <Link
-          to="/leagues"
+        <button
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-1 text-sm font-bold text-[#7B8392] hover:text-white"
         >
           <ChevronLeft className="h-4 w-4" />
-          返回联赛
-        </Link>
+          返回上一页
+        </button>
         {leagueId && (
           <Link to={`/leagues/${leagueId}`} className="locker-link">
             <Trophy className="h-4 w-4" />

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import {
   Tree,
@@ -8,6 +8,7 @@ import {
   Check,
   Cancel,
   Loader,
+  ChevronLeft,
 } from '../../components/ui/pixel-icons'
 import api from '../../api/client'
 import type { ContractPreview } from '../../types/player'
@@ -47,6 +48,7 @@ const positionColors: Record<string, string> = {
 }
 
 export default function YouthAcademy() {
+  const navigate = useNavigate()
   const [players, setPlayers] = useState<AcademyPlayer[]>([])
   const [capacity, setCapacity] = useState(8)
   const [loading, setLoading] = useState(false)
@@ -182,6 +184,13 @@ export default function YouthAcademy() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        返回上一页
+      </button>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

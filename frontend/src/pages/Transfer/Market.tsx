@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import {
   Search,
@@ -51,6 +51,7 @@ const navTabs = [
 ]
 
 export default function TransferMarket() {
+  const navigate = useNavigate()
   const [players, setPlayers] = useState<MarketPlayer[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -161,6 +162,13 @@ export default function TransferMarket() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        返回上一页
+      </button>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -108,6 +108,7 @@ function FixtureRow({
 }
 
 function Schedule() {
+ const navigate = useNavigate()
  const [team, setTeam] = useState<Team | null>(null)
  const [schedule, setSchedule] = useState<ScheduleDay[]>([])
  const [loading, setLoading] = useState(true)
@@ -239,10 +240,10 @@ function Schedule() {
  <Calendar className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
  <h2 className="text-xl font-bold text-white mb-2">加载失败</h2>
  <p className="text-[#8B8BA7] mb-6">{error}</p>
- <Link to="/dashboard" className="btn-primary inline-flex items-center gap-2">
+ <button onClick={() => navigate(-1)} className="btn-primary inline-flex items-center gap-2">
  <ChevronLeft className="w-4 h-4" />
- 返回首页
- </Link>
+ 返回上一页
+ </button>
  </div>
  )
  }
@@ -253,10 +254,10 @@ function Schedule() {
  <Trophy className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
  <h2 className="text-xl font-bold text-white mb-2">暂无球队</h2>
  <p className="text-[#8B8BA7] mb-6">您还没有创建或加入球队</p>
- <Link to="/dashboard" className="btn-primary inline-flex items-center gap-2">
+ <button onClick={() => navigate(-1)} className="btn-primary inline-flex items-center gap-2">
  <ChevronLeft className="w-4 h-4" />
- 返回首页
- </Link>
+ 返回上一页
+ </button>
  </div>
  )
  }
@@ -264,13 +265,13 @@ function Schedule() {
  return (
  <div className="max-w-[1200px]">
  {/* 返回按钮 */}
- <Link 
- to="/dashboard"
+ <button 
+ onClick={() => navigate(-1)}
  className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
  >
  <ChevronLeft className="w-4 h-4" />
- 返回首页
- </Link>
+ 返回上一页
+ </button>
  
  {/* 页面标题 */}
  <div className="flex items-center justify-between mb-6">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Link, Navigate, useLocation } from 'react-router-dom'
-import { Trophy, ChevronRight, Users, Zap, Sword as Swords } from '../../components/ui/pixel-icons'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Trophy, ChevronRight, Users, Zap, Sword as Swords, ChevronLeft } from '../../components/ui/pixel-icons'
 import { CupBadge } from '../../components/cup/CupBadge'
 import { useCups } from '../../hooks/useCups'
 import api from '../../api/client'
@@ -86,6 +86,7 @@ function CupCardSkeleton() {
 }
 
 function CupList() {
+ const navigate = useNavigate()
  const { cups, loading: cupsLoading } = useCups()
  const [myCup, setMyCup] = useState<CupCompetition | null>(null)
  const [myCupId, setMyCupId] = useState<string | null>(null)
@@ -113,6 +114,13 @@ function CupList() {
 
  return (
  <div className="max-w-[1200px]">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        返回上一页
+      </button>
  {/* 页面标题 */}
  <div className="mb-8">
  <div className="flex items-center gap-3 mb-2">

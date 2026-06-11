@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { 
   Wallet,
   TrendingUp,
@@ -7,7 +7,8 @@ import {
   WarningDiamond,
   Check,
   ChevronRight,
-  Loader
+  Loader,
+  ChevronLeft
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 
@@ -51,6 +52,7 @@ function formatWan(value: number): string {
 }
 
 export default function FinanceOverview() {
+  const navigate = useNavigate()
   const [data, setData] = useState<FinanceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -120,6 +122,13 @@ export default function FinanceOverview() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
+      <button
+        onClick={() => navigate(-1)}
+        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        返回上一页
+      </button>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">财务中心</h1>
