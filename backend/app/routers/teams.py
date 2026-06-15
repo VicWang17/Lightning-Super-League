@@ -25,6 +25,8 @@ from app.schemas import (
     TeamStats,
     PlayerStateResponse,
     TeamPlayerStatesResponse,
+    TeamTacticsResponse,
+    TeamTacticsUpdate,
 )
 from app.schemas.records import (
     TeamHonorItem,
@@ -953,4 +955,97 @@ async def get_team_player_states(
     return ResponseSchema(
         success=True,
         data=TeamPlayerStatesResponse(team_id=team_id, players=states),
+    )
+
+
+@router.get(
+    "/{team_id}/tactics",
+    response_model=ResponseSchema[TeamTacticsResponse],
+    summary="获取球队战术方案",
+    description="获取指定球队的默认战术方案，不存在则自动生成默认方案",
+)
+async def get_team_tactics(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """获取球队战术方案"""
+    # 校验球队存在
+    team_result = await db.execute(select(Team).where(Team.id == team_id))
+    team = team_result.scalar_one_or_none()
+    if not team:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="球队不存在")
+
+    # 权限校验：只能查看自己的球队
+    if team.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该球队战术")
+
+    from app.services.tactics_service import TacticsService
+    service = TacticsService(db)
+    record = await service.get_or_create_default(team_id)
+
+    return ResponseSchema(
+        success=True,
+        data=TeamTacticsResponse.model_validate(record),
+    )
+
+
+@router.put(
+    "/{team_id}/tactics",
+    response_model=ResponseSchema[TeamTacticsResponse],
+    summary="保存球队战术方案",
+    description="保存指定球队的阵型、首发、替补和战术配置",
+)
+async def update_team_tactics(
+    team_id: str,
+    data: TeamTacticsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """保存球队战术方案"""
+    # 校验球队存在
+    team_result = await db.execute(select(Team).where(Team.id == team_id))
+    team = team_result.scalar_one_or_none()
+    if not team:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="球队不存在")
+
+    # 权限校验：只能修改自己的球队
+    if team.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权修改该球队战术")
+
+    from app.services.tactics_service import TacticsService
+    service = TacticsService(db)
+
+    # 校验首发球员属于本队且可用
+    lineup_players, lineup_errors = await service.validate_players(team_id, list(data.lineup_player_ids))
+    if lineup_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="; ".join(lineup_errors),
+        )
+
+    # 校验替补球员属于本队且可用
+    _bench_players, bench_errors = await service.validate_players(team_id, list(data.bench_player_ids))
+    if bench_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="; ".join(bench_errors),
+        )
+
+    # 校验阵型要求（只针对首发）
+    formation_errors = await service.validate_formation(data.formation_id, lineup_players)
+    if formation_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="; ".join(formation_errors),
+        )
+
+    # 保存
+    record = await service.update(team_id, data)
+    await db.commit()
+
+    return ResponseSchema(
+        success=True,
+        message="战术方案保存成功",
+        data=TeamTacticsResponse.model_validate(record),
     )

@@ -12,12 +12,35 @@ from app.schemas.league import TopScorerItem, TopAssistItem, CleanSheetItem
 from app.schemas.leaderboard import LeaderboardType, LeaderboardItem
 from app.services.leaderboard_service import LeaderboardService
 from app.models.season import CupCompetition, CupGroup, Fixture, FixtureStatus, FixtureType, Season
+from app.models.match_result import MatchResult
 from app.models.team import Team
 from app.models.user import User
 from app.models.player import Player, PlayerPosition
 from app.models.player_season_stats import PlayerSeasonStats
 
 router = APIRouter(prefix="/cups", tags=["杯赛"])
+
+
+async def _get_match_results_by_fixture(
+    db: AsyncSession,
+    fixtures: List[Fixture],
+) -> Dict[str, MatchResult]:
+    fixture_ids = [fixture.id for fixture in fixtures]
+    if not fixture_ids:
+        return {}
+
+    result = await db.execute(
+        select(MatchResult).where(MatchResult.fixture_id.in_(fixture_ids))
+    )
+    return {match_result.fixture_id: match_result for match_result in result.scalars().all()}
+
+
+def _match_result_fields(match_result: Optional[MatchResult]) -> Dict[str, Any]:
+    return {
+        "winner_team_id": match_result.winner_team_id if match_result else None,
+        "resolution": match_result.resolution if match_result else None,
+        "penalty_score": match_result.penalty_score if match_result else None,
+    }
 
 
 @router.get("", response_model=ResponseSchema[List[Dict[str, Any]]])
@@ -400,6 +423,7 @@ async def get_cup_fixtures(
     
     result = await db.execute(query)
     fixtures = result.scalars().all()
+    match_results_by_fixture = await _get_match_results_by_fixture(db, fixtures)
     
     fixture_list = []
     for fixture in fixtures:
@@ -433,6 +457,7 @@ async def get_cup_fixtures(
             "cup_stage": fixture.cup_stage,
             "cup_group_name": fixture.cup_group_name,
             "scheduled_at": fixture.scheduled_at.isoformat() if fixture.scheduled_at else None,
+            **_match_result_fields(match_results_by_fixture.get(fixture.id)),
         })
     
     return ResponseSchema(success=True, data=fixture_list)
@@ -472,6 +497,7 @@ async def get_cup_bracket(
             ).order_by(Fixture.id)
         )
         fixtures = result.scalars().all()
+        match_results_by_fixture = await _get_match_results_by_fixture(db, fixtures)
         
         for fixture in fixtures:
             # 获取球队名称
@@ -503,6 +529,7 @@ async def get_cup_bracket(
                 "status": fixture.status.value if hasattr(fixture.status, 'value') else fixture.status,
                 "cup_stage": fixture.cup_stage,
                 "scheduled_at": fixture.scheduled_at.isoformat() if fixture.scheduled_at else None,
+                **_match_result_fields(match_results_by_fixture.get(fixture.id)),
             })
     
     return ResponseSchema(success=True, data=bracket)

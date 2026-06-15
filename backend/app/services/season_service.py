@@ -640,10 +640,20 @@ class SeasonService:
         season = season.scalar_one_or_none()
         season_number = season.season_number if season else 1
 
+        # 为所有 AI 球队生成默认战术方案
+        from app.services.ai_tactics_advisor import AITacticsAdvisor
+        ai_tactics_advisor = AITacticsAdvisor(self.db)
+        ai_tactics_result = await ai_tactics_advisor.generate_for_all_ai_teams()
+
         for team_id in team_ids:
             await self.notify.send_season_start(team_id, season_id, season_number)
 
-        return {"event": "season_start", "season_id": season_id}
+        await self.db.commit()
+        return {
+            "event": "season_start",
+            "season_id": season_id,
+            "ai_tactics": ai_tactics_result,
+        }
 
     async def _handle_season_finance_initialized(self, event: GameEvent) -> Dict:
         """SEASON_FINANCE_INITIALIZED: 为所有球队初始化赛季财务"""

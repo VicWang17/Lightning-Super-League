@@ -4,6 +4,7 @@ SQLAlchemy models
 from app.models.base import Base
 from app.models.user import User, UserStatus
 from app.models.team import Team, TeamStatus, TeamFinance
+from app.models.team_tactics import TeamTactics
 from app.models.league import (
     LeagueSystem,
     League,
@@ -133,6 +134,7 @@ __all__ = [
     "Team",
     "TeamStatus",
     "TeamFinance",
+    "TeamTactics",
     # League
     "LeagueSystem",
     "League",

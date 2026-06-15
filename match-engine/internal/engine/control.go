@@ -20,6 +20,7 @@ func ComputeControlMatrix(m *domain.MatchState) [3][3]float64 {
 			deltaForm := formationDelta(home.FormationID, away.FormationID, r, c)
 			deltaPlayer := playerDelta(home, away, r, c, m.Minute, m.Half)
 			deltaTactic := tacticDelta(home.Tactics, away.Tactics, r, c)
+			deltaInstr := instructionControlDelta(home, away, r, c)
 			deltaDynamic := dynamicDelta(m, r, c)
 			deltaTeamAttr := teamAttrDelta(home, away)
 
@@ -27,7 +28,7 @@ func ComputeControlMatrix(m *domain.MatchState) [3][3]float64 {
 			momentum := m.GlobalMomentum
 
 			// Natural control raw value
-			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum + 0.10*deltaTeamAttr
+			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum + 0.10*deltaTeamAttr + 0.05*deltaInstr
 
 			// Apply skill-based zone control mods
 			zone := [2]int{r, c}

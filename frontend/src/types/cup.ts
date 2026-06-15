@@ -58,6 +58,12 @@ export interface CupFixture {
   }
   home_score?: number
   away_score?: number
+  winner_team_id?: string | null
+  resolution?: 'regular' | 'extra_time' | 'penalties' | 'draw' | string | null
+  penalty_score?: {
+    home: number
+    away: number
+  } | null
   status: 'scheduled' | 'ongoing' | 'finished'
   cup_stage?: string  // GROUP, ROUND_32, ROUND_16, QUARTER, SEMI, FINAL
   cup_group_name?: string

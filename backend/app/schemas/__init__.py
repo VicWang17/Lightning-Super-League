@@ -9,6 +9,13 @@ from app.schemas.user import (
     TokenResponse, UserWithToken
 )
 from app.schemas.team import TeamBase, TeamCreate, TeamUpdate, TeamResponse, TeamSummary, DashboardStats, TeamFinancials, TeamStats
+from app.schemas.tactics import (
+    TacticsSetup,
+    TeamInstructions,
+    PlayerInstruction,
+    TeamTacticsResponse,
+    TeamTacticsUpdate,
+)
 from app.schemas.player import (
     PlayerBase, PlayerCreate, PlayerUpdate, PlayerResponse,
     PlayerStats, PlayerPosition, PlayerAbility, PlayerRace,
@@ -103,6 +110,12 @@ __all__ = [
     "TeamResponse",
     "TeamSummary",
     "DashboardStats",
+    # Tactics
+    "TacticsSetup",
+    "TeamInstructions",
+    "PlayerInstruction",
+    "TeamTacticsResponse",
+    "TeamTacticsUpdate",
     # Player
     "PlayerBase",
     "PlayerCreate",

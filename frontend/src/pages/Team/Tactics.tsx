@@ -3,6 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { api } from '../../api/client'
 import type { PlayerAbility, PlayerListItem, PlayerPosition } from '../../types/player'
+import type {
+  TacticsSetup,
+  TeamInstructions,
+  InPossessionInstructions,
+  TransitionInstructions,
+  OutOfPossessionInstructions,
+  GoalkeeperDistributionInstructions,
+  PlayerInstruction,
+  SituationalRule,
+  SituationalRuleCondition,
+  SituationalRuleOverride,
+} from '../../types/tactics'
 import {
   Chart,
   Check,
@@ -15,6 +27,7 @@ import {
   Users,
   Zap,
   Cancel,
+  Delete,
   Settings2,
   ChevronDown,
 } from '../../components/ui/pixel-icons'
@@ -22,21 +35,6 @@ import {
 type FormationId = 'F01' | 'F02' | 'F03' | 'F04' | 'F05' | 'F06' | 'F07' | 'F08'
 type SelectionSource = 'starter' | 'bench'
 type TabId = 'personnel' | 'tactics' | 'setpiece' | 'substitution'
-
-type TacticsSetup = {
-  passing_style: number
-  attack_width: number
-  attack_tempo: number
-  defensive_line_height: number
-  crossing_strategy: number
-  shooting_mentality: number
-  playmaker_focus: number
-  pressing_intensity: number
-  defensive_compactness: number
-  marking_strategy: number
-  offside_trap: number
-  tackling_aggression: number
-}
 
 type TacticKey = keyof TacticsSetup
 type TacticalPlayer = PlayerListItem & { fitness?: number; match_form?: string }
@@ -69,55 +67,118 @@ const formations: Array<{
   { id: 'F08', name: '双翼展开', shape: '1-4-2', tag: '边路', desc: '中场与前场拉开宽度，制造传中和转移。', requirements: { DF: 1, MF: 4, FW: 2 }, lanes: [84, 76, 42], tone: 'text-[#D7A94A]' },
 ]
 
-const presets: Array<{ id: string; name: string; desc: string; icon: typeof Target; tactics: TacticsSetup }> = [
+function defaultSituationalRules(): SituationalRule[] {
+  return [
+    {
+      id: 'rule-behind-late',
+      name: '落后追分',
+      enabled: true,
+      condition: { minute_gte: 40, goal_diff_lte: -1 },
+      override: { tempo: 4, shooting_frequency: 4, defensive_line_height: 4, pressing_intensity: 4 },
+    },
+    {
+      id: 'rule-ahead-late',
+      name: '领先稳守',
+      enabled: true,
+      condition: { minute_gte: 40, goal_diff_gte: 1 },
+      override: { tempo: 1, defensive_line_height: 1, after_possession_won: 'hold_shape' },
+    },
+  ]
+}
+
+function legacyToTeamInstructions(legacy: TacticsSetup): TeamInstructions {
+  const buildUpStyle = legacy.passing_style >= 3 ? 'short' : legacy.passing_style <= 1 ? 'direct' : 'balanced'
+  const attackRoute = legacy.attack_width >= 3 ? 'both_wings' : legacy.attack_width <= 1 ? 'center' : 'mixed'
+  const afterLost = legacy.pressing_intensity >= 3 ? 'counter_press' : 'balanced'
+  const afterWon = legacy.attack_tempo >= 3 ? 'counter' : legacy.attack_tempo <= 1 ? 'hold_shape' : 'balanced'
+  const marking = legacy.marking_strategy === 0 ? 'zonal' : legacy.marking_strategy >= 2 ? 'man' : 'mixed'
+  return {
+    legacy_team_sliders: legacy,
+    in_possession: {
+      build_up_style: buildUpStyle,
+      chance_creation: 'balanced',
+      attack_route: attackRoute,
+      width: legacy.attack_width,
+      tempo: legacy.attack_tempo,
+      passing_risk: 2,
+      crossing_frequency: legacy.crossing_strategy,
+      dribble_frequency: 2,
+      shooting_frequency: legacy.shooting_mentality,
+    },
+    transition: {
+      after_possession_lost: afterLost,
+      after_possession_won: afterWon,
+      counter_directness: legacy.attack_tempo,
+      reset_under_pressure: 2,
+    },
+    out_of_possession: {
+      defensive_line_height: legacy.defensive_line_height,
+      pressing_intensity: legacy.pressing_intensity,
+      pressing_trigger: 'bad_touch',
+      compactness: legacy.defensive_compactness,
+      marking,
+      tackling_aggression: legacy.tackling_aggression,
+      offside_trap: legacy.offside_trap,
+    },
+    goalkeeper_distribution: {
+      distribution_target: 'mixed',
+      distribution_length: 'balanced',
+      release_speed: 'balanced',
+    },
+    player_instructions: [],
+    situational_rules: defaultSituationalRules(),
+  }
+}
+
+const presets: Array<{ id: string; name: string; desc: string; icon: typeof Target; teamInstructions: TeamInstructions }> = [
   {
     id: 'balanced',
     name: '均衡默认',
     desc: '观察对手，线间距离保持稳定。',
     icon: Target,
-    tactics: { passing_style: 2, attack_width: 2, attack_tempo: 2, defensive_line_height: 2, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 2, defensive_compactness: 1, marking_strategy: 0, offside_trap: 0, tackling_aggression: 1 },
+    teamInstructions: legacyToTeamInstructions({ passing_style: 2, attack_width: 2, attack_tempo: 2, defensive_line_height: 2, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 2, defensive_compactness: 1, marking_strategy: 0, offside_trap: 0, tackling_aggression: 1 }),
   },
   {
     id: 'high_press',
     name: '高位逼抢',
     desc: '压上防线，前场夺回球权。',
     icon: Zap,
-    tactics: { passing_style: 2, attack_width: 2, attack_tempo: 3, defensive_line_height: 4, crossing_strategy: 2, shooting_mentality: 3, playmaker_focus: 0, pressing_intensity: 4, defensive_compactness: 1, marking_strategy: 2, offside_trap: 2, tackling_aggression: 3 },
+    teamInstructions: legacyToTeamInstructions({ passing_style: 2, attack_width: 2, attack_tempo: 3, defensive_line_height: 4, crossing_strategy: 2, shooting_mentality: 3, playmaker_focus: 0, pressing_intensity: 4, defensive_compactness: 1, marking_strategy: 2, offside_trap: 2, tackling_aggression: 3 }),
   },
   {
     id: 'possession',
     name: '控球推进',
     desc: '短传和组织核心，降低草率射门。',
     icon: Chart,
-    tactics: { passing_style: 4, attack_width: 2, attack_tempo: 1, defensive_line_height: 3, crossing_strategy: 1, shooting_mentality: 1, playmaker_focus: 2, pressing_intensity: 2, defensive_compactness: 2, marking_strategy: 1, offside_trap: 1, tackling_aggression: 1 },
+    teamInstructions: legacyToTeamInstructions({ passing_style: 4, attack_width: 2, attack_tempo: 1, defensive_line_height: 3, crossing_strategy: 1, shooting_mentality: 1, playmaker_focus: 2, pressing_intensity: 2, defensive_compactness: 2, marking_strategy: 1, offside_trap: 1, tackling_aggression: 1 }),
   },
   {
     id: 'counter',
     name: '极速反击',
     desc: '回收阵型后快速纵向推进。',
     icon: Fire,
-    tactics: { passing_style: 1, attack_width: 2, attack_tempo: 4, defensive_line_height: 1, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 1, defensive_compactness: 2, marking_strategy: 0, offside_trap: 0, tackling_aggression: 1 },
+    teamInstructions: legacyToTeamInstructions({ passing_style: 1, attack_width: 2, attack_tempo: 4, defensive_line_height: 1, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 1, defensive_compactness: 2, marking_strategy: 0, offside_trap: 0, tackling_aggression: 1 }),
   },
   {
     id: 'deep_defense',
     name: '深度防反',
     desc: '低位压缩空间，优先降低失球风险。',
     icon: Shield,
-    tactics: { passing_style: 1, attack_width: 1, attack_tempo: 2, defensive_line_height: 0, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 0, defensive_compactness: 2, marking_strategy: 0, offside_trap: 0, tackling_aggression: 0 },
+    teamInstructions: legacyToTeamInstructions({ passing_style: 1, attack_width: 1, attack_tempo: 2, defensive_line_height: 0, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 0, defensive_compactness: 2, marking_strategy: 0, offside_trap: 0, tackling_aggression: 0 }),
   },
   {
     id: 'wide_attack',
     name: '边路冲击',
     desc: '宽度和传中拉满，适合高点前锋。',
     icon: Flag,
-    tactics: { passing_style: 2, attack_width: 4, attack_tempo: 3, defensive_line_height: 2, crossing_strategy: 4, shooting_mentality: 3, playmaker_focus: 0, pressing_intensity: 2, defensive_compactness: 1, marking_strategy: 0, offside_trap: 0, tackling_aggression: 2 },
+    teamInstructions: legacyToTeamInstructions({ passing_style: 2, attack_width: 4, attack_tempo: 3, defensive_line_height: 2, crossing_strategy: 4, shooting_mentality: 3, playmaker_focus: 0, pressing_intensity: 2, defensive_compactness: 1, marking_strategy: 0, offside_trap: 0, tackling_aggression: 2 }),
   },
   {
     id: 'all_out',
     name: '全力进攻',
     desc: '高节奏高射门，适合必须进球的阶段。',
     icon: Sword,
-    tactics: { passing_style: 1, attack_width: 3, attack_tempo: 4, defensive_line_height: 3, crossing_strategy: 3, shooting_mentality: 4, playmaker_focus: 0, pressing_intensity: 3, defensive_compactness: 0, marking_strategy: 1, offside_trap: 1, tackling_aggression: 3 },
+    teamInstructions: legacyToTeamInstructions({ passing_style: 1, attack_width: 3, attack_tempo: 4, defensive_line_height: 3, crossing_strategy: 3, shooting_mentality: 4, playmaker_focus: 0, pressing_intensity: 3, defensive_compactness: 0, marking_strategy: 1, offside_trap: 1, tackling_aggression: 3 }),
   },
 ]
 
@@ -220,14 +281,27 @@ function readStoredSetup() {
   const raw = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey)
   if (!raw) return null
   try {
-    return JSON.parse(raw) as {
+    const parsed = JSON.parse(raw) as {
       formationId?: FormationId
+      teamInstructions?: TeamInstructions
       tactics?: TacticsSetup
       preset?: string
       starterIds?: Array<string | null>
     }
+    if (!parsed.teamInstructions && parsed.tactics) {
+      parsed.teamInstructions = legacyToTeamInstructions(parsed.tactics)
+    }
+    if (parsed.teamInstructions) {
+      parsed.teamInstructions = {
+        ...parsed.teamInstructions,
+        player_instructions: parsed.teamInstructions.player_instructions || [],
+        situational_rules: parsed.teamInstructions.situational_rules || defaultSituationalRules(),
+      }
+    }
+    return parsed
   } catch {
     localStorage.removeItem(storageKey)
+    localStorage.removeItem(legacyStorageKey)
     return null
   }
 }
@@ -357,17 +431,89 @@ function TacticSlider({
   )
 }
 
+const defaultPlayerInstruction = (playerId: string): PlayerInstruction => ({
+  player_id: playerId,
+  carry_ball: 2,
+  passing_risk: 2,
+  shooting_frequency: 2,
+  crossing_frequency: 2,
+  pressing_intensity: 2,
+  hold_position: 2,
+  forward_runs: 2,
+})
+
+function getPlayerInstruction(teamInstructions: TeamInstructions, playerId: string): PlayerInstruction {
+  return (
+    teamInstructions.player_instructions.find((instruction) => instruction.player_id === playerId) ||
+    defaultPlayerInstruction(playerId)
+  )
+}
+
+function updatePlayerInstruction(
+  teamInstructions: TeamInstructions,
+  playerId: string,
+  patch: Partial<PlayerInstruction>,
+): TeamInstructions {
+  const existing = teamInstructions.player_instructions.find((instruction) => instruction.player_id === playerId)
+  const next: PlayerInstruction = existing
+    ? { ...existing, ...patch }
+    : { ...defaultPlayerInstruction(playerId), ...patch }
+
+  const isDefault =
+    next.carry_ball === 2 &&
+    next.passing_risk === 2 &&
+    next.shooting_frequency === 2 &&
+    next.crossing_frequency === 2 &&
+    next.pressing_intensity === 2 &&
+    next.hold_position === 2 &&
+    next.forward_runs === 2
+
+  let playerInstructions = teamInstructions.player_instructions
+  if (isDefault) {
+    playerInstructions = playerInstructions.filter((instruction) => instruction.player_id !== playerId)
+  } else {
+    playerInstructions = playerInstructions.map((instruction) =>
+      instruction.player_id === playerId ? next : instruction,
+    )
+    if (!playerInstructions.some((instruction) => instruction.player_id === playerId)) {
+      playerInstructions = [...playerInstructions, next]
+    }
+  }
+
+  return { ...teamInstructions, player_instructions: playerInstructions }
+}
+
+const instructionFields: Array<{
+  key: keyof Omit<PlayerInstruction, 'player_id'>
+  label: string
+  left: string
+  right: string
+}> = [
+  { key: 'carry_ball', label: '持球推进', left: '少', right: '多' },
+  { key: 'passing_risk', label: '传球冒险', left: '稳妥', right: '激进' },
+  { key: 'shooting_frequency', label: '射门频率', left: '少', right: '多' },
+  { key: 'crossing_frequency', label: '传中频率', left: '少', right: '多' },
+  { key: 'pressing_intensity', label: '压迫强度', left: '保守', right: '积极' },
+  { key: 'hold_position', label: '保持位置', left: '自由', right: '死守' },
+  { key: 'forward_runs', label: '前插跑位', left: '少', right: '多' },
+]
+
 function PlayerPanel({
   player,
   slot,
   onClear,
+  teamInstructions,
+  onInstructionChange,
 }: {
   player: TacticalPlayer
   slot?: StarterSlot
   onClear?: () => void
+  teamInstructions: TeamInstructions
+  onInstructionChange: (next: TeamInstructions) => void
 }) {
   const navigate = useNavigate()
   const tone = positionTone[player.position]
+  const instruction = getPlayerInstruction(teamInstructions, player.id)
   const fitnessColor = player.fitness >= 80 ? 'bg-[#7CB342]' : player.fitness >= 50 ? 'bg-[#E6B800]' : 'bg-[#D75A4A]'
   const formColor = player.match_form === 'HOT' ? 'text-[#E8C84A]' : player.match_form === 'GOOD' ? 'text-[#7CB342]' : player.match_form === 'LOW' ? 'text-[#D75A4A]' : 'text-[#A99E83]'
 
@@ -456,6 +602,46 @@ function PlayerPanel({
               </div>
             )
           })}
+        </div>
+      </div>
+
+      <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-[10px] font-black text-[#786F5A]">个人战术指令</p>
+          <button
+            type="button"
+            onClick={() => onInstructionChange(updatePlayerInstruction(teamInstructions, player.id, defaultPlayerInstruction(player.id)))}
+            className="text-[9px] font-black text-[#D5B15E] hover:text-[#FFF8DE]"
+          >
+            重置默认
+          </button>
+        </div>
+        <div className="space-y-3">
+          {instructionFields.map((field) => (
+            <div key={field.key} className="space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-black">
+                <span className="text-[#FFF8DE]">{field.label}</span>
+                <span className='font-["Press_Start_2P"] text-[#D5B15E]'>{instruction[field.key]}</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={4}
+                step={1}
+                value={instruction[field.key]}
+                onChange={(event) =>
+                  onInstructionChange(
+                    updatePlayerInstruction(teamInstructions, player.id, { [field.key]: Number(event.target.value) }),
+                  )
+                }
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-none border border-[#3B3425] bg-[#1A1610] accent-[#D5B15E]"
+              />
+              <div className="flex justify-between text-[9px] font-black text-[#786F5A]">
+                <span>{field.left}</span>
+                <span>{field.right}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -699,6 +885,580 @@ function TacticsDesignPanel({
   )
 }
 
+function PhaseSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (value: T) => void
+}) {
+  return (
+    <div className="border-2 border-[#3B3425] bg-[#16120B]/88 p-3">
+      <label className="mb-2 block text-sm font-black text-[#EFE8CE]">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        className="w-full border-2 border-[#3B3425] bg-[#0D0B07] px-2 py-1.5 text-xs font-black text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value} className="bg-[#0D0B07]">
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function PhaseSlider({
+  label,
+  value,
+  max,
+  onChange,
+}: {
+  label: string
+  value: number
+  max: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <div className="border-2 border-[#3B3425] bg-[#16120B]/88 p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-black text-[#EFE8CE]">{label}</span>
+        <span className="stat-number text-sm text-[#D5B15E]">{value}/{max}</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={1}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="w-full accent-[#D5B15E]"
+      />
+    </div>
+  )
+}
+
+function PhaseTacticsPanel({
+  teamInstructions,
+  onChange,
+}: {
+  teamInstructions: TeamInstructions
+  onChange: (next: TeamInstructions) => void
+}) {
+  const updateInPossession = (patch: Partial<InPossessionInstructions>) =>
+    onChange({ ...teamInstructions, in_possession: { ...teamInstructions.in_possession, ...patch } })
+  const updateTransition = (patch: Partial<TransitionInstructions>) =>
+    onChange({ ...teamInstructions, transition: { ...teamInstructions.transition, ...patch } })
+  const updateOutOfPossession = (patch: Partial<OutOfPossessionInstructions>) =>
+    onChange({ ...teamInstructions, out_of_possession: { ...teamInstructions.out_of_possession, ...patch } })
+  const updateGk = (patch: Partial<GoalkeeperDistributionInstructions>) =>
+    onChange({ ...teamInstructions, goalkeeper_distribution: { ...teamInstructions.goalkeeper_distribution, ...patch } })
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Settings2 className="h-4 w-4 text-[#D5B15E]" />
+        <h2 className="font-black text-[#FFF8DE]">阶段战术</h2>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+          <div className="mb-2 flex items-center gap-2">
+            <Sword className="h-3.5 w-3.5 text-[#E97762]" />
+            <h3 className="text-xs font-black text-[#EFE8CE]">持球进攻</h3>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <PhaseSelect
+              label="进攻路线"
+              value={teamInstructions.in_possession.attack_route}
+              options={[
+                { value: 'left', label: '左路' },
+                { value: 'center', label: '中路' },
+                { value: 'right', label: '右路' },
+                { value: 'both_wings', label: '两翼' },
+                { value: 'mixed', label: '混合' },
+              ]}
+              onChange={(v) => updateInPossession({ attack_route: v })}
+            />
+            <PhaseSelect
+              label="推进方式"
+              value={teamInstructions.in_possession.build_up_style}
+              options={[
+                { value: 'short', label: '短传推进' },
+                { value: 'balanced', label: '均衡' },
+                { value: 'direct', label: '直接推进' },
+                { value: 'long_ball', label: '长传冲吊' },
+              ]}
+              onChange={(v) => updateInPossession({ build_up_style: v })}
+            />
+            <PhaseSlider label="传球风险" value={teamInstructions.in_possession.passing_risk} max={4} onChange={(v) => updateInPossession({ passing_risk: v })} />
+            <PhaseSlider label="传中频率" value={teamInstructions.in_possession.crossing_frequency} max={4} onChange={(v) => updateInPossession({ crossing_frequency: v })} />
+            <PhaseSlider label="盘带频率" value={teamInstructions.in_possession.dribble_frequency} max={4} onChange={(v) => updateInPossession({ dribble_frequency: v })} />
+            <PhaseSlider label="射门频率" value={teamInstructions.in_possession.shooting_frequency} max={4} onChange={(v) => updateInPossession({ shooting_frequency: v })} />
+          </div>
+        </div>
+
+        <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+          <div className="mb-2 flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-[#D7A94A]" />
+            <h3 className="text-xs font-black text-[#EFE8CE]">转换阶段</h3>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <PhaseSelect
+              label="丢球后"
+              value={teamInstructions.transition.after_possession_lost}
+              options={[
+                { value: 'counter_press', label: '立即反抢' },
+                { value: 'balanced', label: '均衡' },
+                { value: 'regroup', label: '回防落位' },
+              ]}
+              onChange={(v) => updateTransition({ after_possession_lost: v })}
+            />
+            <PhaseSelect
+              label="得球后"
+              value={teamInstructions.transition.after_possession_won}
+              options={[
+                { value: 'counter', label: '快速反击' },
+                { value: 'balanced', label: '均衡' },
+                { value: 'hold_shape', label: '稳住阵型' },
+              ]}
+              onChange={(v) => updateTransition({ after_possession_won: v })}
+            />
+            <PhaseSlider label="反击直接性" value={teamInstructions.transition.counter_directness} max={4} onChange={(v) => updateTransition({ counter_directness: v })} />
+          </div>
+        </div>
+
+        <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+          <div className="mb-2 flex items-center gap-2">
+            <Shield className="h-3.5 w-3.5 text-[#63A9E8]" />
+            <h3 className="text-xs font-black text-[#EFE8CE]">无球防守</h3>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <PhaseSelect
+              label="逼抢触发"
+              value={teamInstructions.out_of_possession.pressing_trigger}
+              options={[
+                { value: 'passive', label: '被动' },
+                { value: 'bad_touch', label: '停球失误' },
+                { value: 'wide_trap', label: '边路逼抢' },
+                { value: 'center_trap', label: '中路合围' },
+                { value: 'always', label: '持续高压' },
+              ]}
+              onChange={(v) => updateOutOfPossession({ pressing_trigger: v })}
+            />
+            <PhaseSelect
+              label="盯防方式"
+              value={teamInstructions.out_of_possession.marking}
+              options={[
+                { value: 'zonal', label: '区域防守' },
+                { value: 'mixed', label: '混合' },
+                { value: 'man', label: '人盯人' },
+              ]}
+              onChange={(v) => updateOutOfPossession({ marking: v })}
+            />
+            <PhaseSlider label="防线紧凑度" value={teamInstructions.out_of_possession.compactness} max={4} onChange={(v) => updateOutOfPossession({ compactness: v })} />
+          </div>
+        </div>
+
+        <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+          <div className="mb-2 flex items-center gap-2">
+            <Target className="h-3.5 w-3.5 text-[#E2B84B]" />
+            <h3 className="text-xs font-black text-[#EFE8CE]">门将出球</h3>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <PhaseSelect
+              label="出球目标"
+              value={teamInstructions.goalkeeper_distribution.distribution_target}
+              options={[
+                { value: 'center_backs', label: '中后卫' },
+                { value: 'fullbacks', label: '边后卫' },
+                { value: 'midfield', label: '中场' },
+                { value: 'target_forward', label: '支点前锋' },
+                { value: 'mixed', label: '混合' },
+              ]}
+              onChange={(v) => updateGk({ distribution_target: v })}
+            />
+            <PhaseSelect
+              label="出球距离"
+              value={teamInstructions.goalkeeper_distribution.distribution_length}
+              options={[
+                { value: 'short', label: '短传' },
+                { value: 'balanced', label: '均衡' },
+                { value: 'long', label: '长传' },
+              ]}
+              onChange={(v) => updateGk({ distribution_length: v })}
+            />
+            <PhaseSelect
+              label="出球速度"
+              value={teamInstructions.goalkeeper_distribution.release_speed}
+              options={[
+                { value: 'slow', label: '慢速落位' },
+                { value: 'balanced', label: '均衡' },
+                { value: 'quick', label: '快速发动' },
+              ]}
+              onChange={(v) => updateGk({ release_speed: v })}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function newRuleId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `rule-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+const situationalConditionFields: Array<{
+  key: keyof SituationalRuleCondition
+  label: string
+  min: number
+  max: number
+}> = [
+  { key: 'minute_gte', label: '时间≥', min: 0, max: 120 },
+  { key: 'minute_lt', label: '时间<', min: 0, max: 120 },
+  { key: 'goal_diff_lte', label: '比分差≤', min: -20, max: 20 },
+  { key: 'goal_diff_gte', label: '比分差≥', min: -20, max: 20 },
+  { key: 'team_stamina_avg_lte', label: '平均体能≤', min: 0, max: 100 },
+]
+
+const situationalOverrideFields: Array<{
+  key: keyof SituationalRuleOverride
+  label: string
+  type: 'slider' | 'select'
+  max?: number
+  options?: { value: string; label: string }[]
+}> = [
+  { key: 'tempo', label: '节奏', type: 'slider', max: 4 },
+  { key: 'width', label: '宽度', type: 'slider', max: 4 },
+  { key: 'passing_risk', label: '传球冒险', type: 'slider', max: 4 },
+  { key: 'crossing_frequency', label: '传中频率', type: 'slider', max: 4 },
+  { key: 'shooting_frequency', label: '射门频率', type: 'slider', max: 4 },
+  { key: 'defensive_line_height', label: '防线高度', type: 'slider', max: 4 },
+  { key: 'pressing_intensity', label: '逼抢强度', type: 'slider', max: 4 },
+  {
+    key: 'after_possession_won',
+    label: '得球后',
+    type: 'select',
+    options: [
+      { value: 'counter', label: '快速反击' },
+      { value: 'balanced', label: '均衡' },
+      { value: 'hold_shape', label: '稳住阵型' },
+    ],
+  },
+  {
+    key: 'after_possession_lost',
+    label: '丢球后',
+    type: 'select',
+    options: [
+      { value: 'counter_press', label: '立即反抢' },
+      { value: 'balanced', label: '均衡' },
+      { value: 'regroup', label: '回防落位' },
+    ],
+  },
+  {
+    key: 'build_up_style',
+    label: '推进方式',
+    type: 'select',
+    options: [
+      { value: 'short', label: '短传推进' },
+      { value: 'balanced', label: '均衡' },
+      { value: 'direct', label: '直接推进' },
+      { value: 'long_ball', label: '长传冲吊' },
+    ],
+  },
+  {
+    key: 'chance_creation',
+    label: '创造机会',
+    type: 'select',
+    options: [
+      { value: 'patient', label: '耐心组织' },
+      { value: 'balanced', label: '均衡' },
+      { value: 'early_shot', label: '尽早射门' },
+      { value: 'work_into_box', label: '渗透禁区' },
+    ],
+  },
+]
+
+function SituationalRulesPanel({
+  teamInstructions,
+  onChange,
+}: {
+  teamInstructions: TeamInstructions
+  onChange: (next: TeamInstructions) => void
+}) {
+  const rules = teamInstructions.situational_rules || []
+
+  const updateRules = (next: SituationalRule[]) => {
+    onChange({ ...teamInstructions, situational_rules: next.slice(0, 10) })
+  }
+
+  const updateRule = (index: number, patch: Partial<SituationalRule>) => {
+    updateRules(rules.map((rule, i) => (i === index ? { ...rule, ...patch } : rule)))
+  }
+
+  const updateCondition = (index: number, patch: Partial<SituationalRuleCondition>) => {
+    updateRule(index, { condition: { ...rules[index].condition, ...patch } })
+  }
+
+  const removeConditionField = (index: number, key: keyof SituationalRuleCondition) => {
+    const next = { ...rules[index].condition }
+    delete next[key]
+    updateRule(index, { condition: next })
+  }
+
+  const updateOverride = (index: number, patch: SituationalRuleOverride) => {
+    updateRule(index, { override: { ...rules[index].override, ...patch } })
+  }
+
+  const removeOverride = (index: number, key: keyof SituationalRuleOverride) => {
+    const next = { ...rules[index].override }
+    delete next[key]
+    updateRule(index, { override: next })
+  }
+
+  const addRule = () => {
+    updateRules([
+      ...rules,
+      {
+        id: newRuleId(),
+        name: '新规则',
+        enabled: true,
+        condition: {},
+        override: {},
+      },
+    ])
+  }
+
+  const conditionDefaults: Record<keyof SituationalRuleCondition, number> = {
+    minute_gte: 40,
+    minute_lt: 90,
+    goal_diff_lte: -1,
+    goal_diff_gte: 1,
+    team_stamina_avg_lte: 50,
+  }
+
+  const addCondition = (index: number, key: keyof SituationalRuleCondition) => {
+    updateCondition(index, { [key]: conditionDefaults[key] } as Partial<SituationalRuleCondition>)
+  }
+
+  const addOverride = (index: number, key: keyof SituationalRuleOverride) => {
+    const field = situationalOverrideFields.find((f) => f.key === key)
+    if (!field) return
+    const value = field.type === 'slider' ? 2 : field.options![0].value
+    updateOverride(index, { [key]: value } as SituationalRuleOverride)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Flag className="h-4 w-4 text-[#D5B15E]" />
+          <h2 className="font-black text-[#FFF8DE]">情境规则</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-[#786F5A]">{rules.length}/10</span>
+          <button
+            type="button"
+            onClick={addRule}
+            disabled={rules.length >= 10}
+            className="border-2 border-[#3B3425] bg-[#0D0B07] px-2 py-1 text-[10px] font-black text-[#D5B15E] hover:border-[#D5B15E] disabled:opacity-40"
+          >
+            + 新增规则
+          </button>
+        </div>
+      </div>
+
+      {rules.length === 0 && (
+        <div className="border-2 border-dashed border-[#3B3425] p-4 text-center text-xs font-bold text-[#786F5A]">
+          暂无情境规则。点击右上角添加，或在预设中恢复默认规则。
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {rules.map((rule, index) => {
+          const conditionKeys = Object.keys(rule.condition) as Array<keyof SituationalRuleCondition>
+          const overrideKeys = Object.keys(rule.override) as Array<keyof SituationalRuleOverride>
+
+          return (
+            <div
+              key={rule.id}
+              className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={rule.name}
+                  onChange={(event) => updateRule(index, { name: event.target.value })}
+                  className="min-w-0 flex-1 border-2 border-[#3B3425] bg-[#15110A] px-2 py-1 text-xs font-black text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
+                />
+                <label className="flex items-center gap-1.5 text-[10px] font-black text-[#EFE8CE]">
+                  <input
+                    type="checkbox"
+                    checked={rule.enabled}
+                    onChange={(event) => updateRule(index, { enabled: event.target.checked })}
+                    className="accent-[#D5B15E]"
+                  />
+                  启用
+                </label>
+                <button
+                  type="button"
+                  title="删除规则"
+                  onClick={() => updateRules(rules.filter((_, i) => i !== index))}
+                  className="grid h-6 w-6 place-items-center border-2 border-[#3B3425] bg-[#15110A] text-[#786F5A] hover:text-[#E97762]"
+                >
+                  <Delete className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Sentence editor: conditions */}
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-xs leading-7">
+                <span className="font-black text-[#786F5A]">当</span>
+                {conditionKeys.length === 0 && (
+                  <span className="font-bold text-[#786F5A]">（无条件，始终触发）</span>
+                )}
+                {conditionKeys.map((key, ci) => {
+                  const field = situationalConditionFields.find((f) => f.key === key)!
+                  return (
+                    <div key={key} className="inline-flex items-center gap-1">
+                      {ci > 0 && <span className="font-black text-[#D5B15E]">并且</span>}
+                      <span className="font-black text-[#EFE8CE]">{field.label}</span>
+                      <input
+                        type="number"
+                        min={field.min}
+                        max={field.max}
+                        value={rule.condition[key]}
+                        onChange={(event) => {
+                          const num = Math.min(field.max, Math.max(field.min, Number(event.target.value)))
+                          updateCondition(index, { [key]: num } as Partial<SituationalRuleCondition>)
+                        }}
+                        className="w-14 border-2 border-[#3B3425] bg-[#15110A] px-1 py-0.5 text-center font-['Press_Start_2P'] text-[10px] font-black text-[#D5B15E] focus:border-[#D5B15E] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        title="移除条件"
+                        onClick={() => removeConditionField(index, key)}
+                        className="grid h-5 w-5 place-items-center text-[#786F5A] hover:text-[#E97762]"
+                      >
+                        <Delete className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+                <select
+                  value=""
+                  onChange={(event) => {
+                    if (event.target.value) {
+                      addCondition(index, event.target.value as keyof SituationalRuleCondition)
+                      event.target.value = ''
+                    }
+                  }}
+                  className="border-2 border-[#3B3425] bg-[#15110A] px-2 py-0.5 text-[10px] font-black text-[#D5B15E]"
+                >
+                  <option value="">+ 并且…</option>
+                  {situationalConditionFields
+                    .filter((field) => rule.condition[field.key] === undefined)
+                    .map((field) => (
+                      <option key={field.key} value={field.key}>
+                        {field.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Sentence editor: overrides */}
+              <div className="flex flex-wrap items-center gap-2 text-xs leading-7">
+                <span className="font-black text-[#786F5A]">时，将</span>
+                {overrideKeys.length === 0 && (
+                  <span className="font-bold text-[#786F5A]">（无覆盖）</span>
+                )}
+                {overrideKeys.map((key) => {
+                  const field = situationalOverrideFields.find((f) => f.key === key)!
+                  const value = rule.override[key] as number | string
+                  return (
+                    <div key={key} className="inline-flex items-center gap-1.5">
+                      <span className="font-black text-[#EFE8CE]">{field.label}</span>
+                      <span className="font-black text-[#786F5A]">调整为</span>
+                      {field.type === 'slider' ? (
+                        <>
+                          <input
+                            type="range"
+                            min={0}
+                            max={field.max}
+                            step={1}
+                            value={value as number}
+                            onChange={(event) =>
+                              updateOverride(index, { [key]: Number(event.target.value) } as SituationalRuleOverride)
+                            }
+                            className="w-20 accent-[#D5B15E]"
+                          />
+                          <span className='font-["Press_Start_2P"] w-3 text-center text-[10px] font-black text-[#D5B15E]'>
+                            {value}
+                          </span>
+                        </>
+                      ) : (
+                        <select
+                          value={value as string}
+                          onChange={(event) =>
+                            updateOverride(index, { [key]: event.target.value } as SituationalRuleOverride)
+                          }
+                          className="border-2 border-[#3B3425] bg-[#15110A] px-1 py-0.5 text-[10px] font-black text-[#FFF8DE]"
+                        >
+                          {field.options!.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <button
+                        type="button"
+                        title="移除覆盖"
+                        onClick={() => removeOverride(index, key)}
+                        className="grid h-5 w-5 place-items-center text-[#786F5A] hover:text-[#E97762]"
+                      >
+                        <Delete className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )
+                })}
+                <select
+                  value=""
+                  onChange={(event) => {
+                    if (event.target.value) {
+                      addOverride(index, event.target.value as keyof SituationalRuleOverride)
+                      event.target.value = ''
+                    }
+                  }}
+                  className="border-2 border-[#3B3425] bg-[#15110A] px-2 py-0.5 text-[10px] font-black text-[#D5B15E]"
+                >
+                  <option value="">+ 将…调整为…</option>
+                  {situationalOverrideFields
+                    .filter((field) => rule.override[field.key] === undefined)
+                    .map((field) => (
+                      <option key={field.key} value={field.key}>
+                        {field.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function BenchPanel({
   bench,
   selectedPlayerId,
@@ -740,10 +1500,14 @@ function PlayerDetailPanel({
   player,
   slot,
   onClear,
+  teamInstructions,
+  onInstructionChange,
 }: {
   player?: TacticalPlayer
   slot?: StarterSlot
   onClear: () => void
+  teamInstructions: TeamInstructions
+  onInstructionChange: (next: TeamInstructions) => void
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col border-2 border-[#3B3425] bg-[#15110A] p-3 shadow-pixel">
@@ -753,7 +1517,13 @@ function PlayerDetailPanel({
       </div>
       <div className="flex-1 overflow-y-auto pr-1">
         {player ? (
-          <PlayerPanel player={player} slot={slot} onClear={onClear} />
+          <PlayerPanel
+            player={player}
+            slot={slot}
+            onClear={onClear}
+            teamInstructions={teamInstructions}
+            onInstructionChange={onInstructionChange}
+          />
         ) : (
           <div className="flex h-48 flex-col items-center justify-center gap-3 border-2 border-dashed border-[#3B3425] p-4 text-center">
             <Target className="h-8 w-8 text-[#3B3425]" />
@@ -765,7 +1535,7 @@ function PlayerDetailPanel({
   )
 }
 
-function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => void }) {
+function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => void | Promise<void> }) {
   return (
     <button
       onClick={onSave}
@@ -785,8 +1555,9 @@ function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => void }) {
 export default function Tactics() {
   const [players, setPlayers] = useState<TacticalPlayer[]>([])
   const [loading, setLoading] = useState(true)
+  const [teamId, setTeamId] = useState<string | null>(null)
   const [formationId, setFormationId] = useState<FormationId>('F01')
-  const [tactics, setTactics] = useState<TacticsSetup>(presets[0].tactics)
+  const [teamInstructions, setTeamInstructions] = useState<TeamInstructions>(presets[0].teamInstructions)
   const [activePreset, setActivePreset] = useState('balanced')
   const [starterIds, setStarterIds] = useState<Array<string | null>>([])
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
@@ -795,42 +1566,26 @@ export default function Tactics() {
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false)
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('personnel')
-
-  useEffect(() => {
-    const parsed = readStoredSetup()
-    if (!parsed) {
-      setHasLoadedStorage(true)
-      return
-    }
-    if (parsed.formationId && formations.some((formation) => formation.id === parsed.formationId)) {
-      setFormationId(parsed.formationId)
-    }
-    if (parsed.tactics) {
-      const loadedTactics = parsed.tactics
-      setTactics(loadedTactics)
-      const matchedPreset = presets.find((preset) =>
-        tacticFields.every((field) => preset.tactics[field.key] === loadedTactics[field.key])
-      )
-      setActivePreset(matchedPreset ? matchedPreset.id : 'custom')
-    } else if (parsed.preset) {
-      setActivePreset(parsed.preset)
-    }
-    if (parsed.starterIds) setStarterIds(parsed.starterIds.slice(0, 8))
-    setHasLoadedStorage(true)
-  }, [])
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function fetchPlayers() {
       try {
         const teamRes = await api.get<{ id: string }>('/teams/my-team')
-        if (!teamRes.success || !teamRes.data?.id) return
+        if (!teamRes.success || !teamRes.data?.id) {
+          // No team context: fallback to localStorage defaults
+          setHasLoadedStorage(true)
+          return
+        }
+        setTeamId(teamRes.data.id)
         const playersRes = await api.get<{ items: PlayerListItem[] }>(`/teams/${teamRes.data.id}/players?page_size=100`)
         if (!cancelled && playersRes.success) {
           setPlayers((playersRes.data?.items || []).filter((player) => player.status === 'ACTIVE'))
         }
       } catch {
         // Keep the tactics editor usable when the local API is unavailable.
+        setHasLoadedStorage(true)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -838,6 +1593,71 @@ export default function Tactics() {
     fetchPlayers()
     return () => { cancelled = true }
   }, [])
+
+  // Load saved tactics from API, fallback to localStorage
+  useEffect(() => {
+    if (!teamId || !players.length) return
+    const currentTeamId = teamId
+    let cancelled = false
+
+    async function fetchTactics() {
+      try {
+        const res = await api.getTeamTactics(currentTeamId)
+        if (cancelled) return
+        if (res.success && res.data) {
+          const data = res.data
+          if (formations.some((formation) => formation.id === data.formation_id)) {
+            setFormationId(data.formation_id as FormationId)
+          }
+          if (data.team_instructions) {
+            const loaded: TeamInstructions = {
+              ...data.team_instructions,
+              player_instructions: data.team_instructions.player_instructions || [],
+              situational_rules: data.team_instructions.situational_rules || defaultSituationalRules(),
+            }
+            setTeamInstructions(loaded)
+            const loadedLegacy = loaded.legacy_team_sliders
+            const matchedPreset = presets.find((preset) =>
+              tacticFields.every((field) => preset.teamInstructions.legacy_team_sliders[field.key] === loadedLegacy[field.key])
+            )
+            setActivePreset(matchedPreset ? matchedPreset.id : 'custom')
+          }
+          if (data.lineup_player_ids && data.lineup_player_ids.length > 0) {
+            const validIds = data.lineup_player_ids
+              .filter((id): id is string => Boolean(id) && players.some((player) => player.id === id))
+              .slice(0, 8)
+            setStarterIds([...validIds, ...Array(Math.max(0, 8 - validIds.length)).fill(null)])
+          }
+          return
+        }
+      } catch {
+        // Fallback to localStorage on API error
+      }
+
+      // Fallback: localStorage
+      const parsed = readStoredSetup()
+      if (!parsed) return
+      if (parsed.formationId && formations.some((formation) => formation.id === parsed.formationId)) {
+        setFormationId(parsed.formationId)
+      }
+      if (parsed.teamInstructions) {
+        const loaded = parsed.teamInstructions
+        setTeamInstructions(loaded)
+        const loadedLegacy = loaded.legacy_team_sliders
+        const matchedPreset = presets.find((preset) =>
+          tacticFields.every((field) => preset.teamInstructions.legacy_team_sliders[field.key] === loadedLegacy[field.key])
+        )
+        setActivePreset(matchedPreset ? matchedPreset.id : 'custom')
+      } else if (parsed.preset) {
+        setActivePreset(parsed.preset)
+      }
+      if (parsed.starterIds) setStarterIds(parsed.starterIds.slice(0, 8))
+    }
+
+    fetchTactics()
+    setHasLoadedStorage(true)
+    return () => { cancelled = true }
+  }, [teamId, players])
 
   useEffect(() => {
     if (!hasLoadedStorage || !players.length) return
@@ -927,7 +1747,7 @@ export default function Tactics() {
     const preset = presets.find((item) => item.id === presetId)
     if (!preset) return
     setActivePreset(preset.id)
-    setTactics(preset.tactics)
+    setTeamInstructions(preset.teamInstructions)
     setSaved(false)
   }
 
@@ -943,14 +1763,54 @@ export default function Tactics() {
   const onTacticChange = (key: TacticKey, value: number) => {
     const field = tacticFields.find((item) => item.key === key)
     setActivePreset('custom')
-    setTactics((current) => ({ ...current, [key]: clamp(value, field?.max ?? 4) }))
+    setTeamInstructions((current) => ({
+      ...current,
+      legacy_team_sliders: { ...current.legacy_team_sliders, [key]: clamp(value, field?.max ?? 4) },
+    }))
     setSaved(false)
   }
 
-  const handleSave = () => {
-    localStorage.setItem(storageKey, JSON.stringify({ formationId, tactics, preset: activePreset, starterIds }))
-    setSaved(true)
-    window.setTimeout(() => setSaved(false), 1800)
+  const handleSave = async () => {
+    setSaveError(null)
+
+    // Always keep a local draft backup
+    localStorage.setItem(storageKey, JSON.stringify({ formationId, teamInstructions, preset: activePreset, starterIds }))
+
+    if (!teamId) {
+      // Offline / not logged in: only localStorage
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 1800)
+      return
+    }
+
+    const validStarterIds = starterIds
+      .filter((id): id is string => Boolean(id))
+      .slice(0, 8)
+    const validBenchIds = bench
+      .map((player) => player.id)
+      .filter((id) => !validStarterIds.includes(id))
+      .slice(0, 5)
+
+    const payload: import('../../types/tactics').TeamTacticsUpdate = {
+      formation_id: formationId,
+      lineup_player_ids: validStarterIds,
+      bench_player_ids: validBenchIds,
+      team_instructions: teamInstructions,
+      set_piece_instructions: {},
+      substitution_rules: {},
+    }
+
+    try {
+      const res = await api.saveTeamTactics(teamId, payload)
+      if (res.success) {
+        setSaved(true)
+        window.setTimeout(() => setSaved(false), 1800)
+      } else {
+        setSaveError(res.message || '保存失败')
+      }
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : '保存失败')
+    }
   }
 
   const autoPick = () => {
@@ -1009,6 +1869,12 @@ export default function Tactics() {
               <SaveButton saved={saved} onSave={handleSave} />
             </div>
           </div>
+
+          {saveError && (
+            <div className="border-2 border-[#8E2E20] bg-[#2B0905] px-3 py-2 text-xs font-black text-[#E97762]">
+              保存失败：{saveError}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_1fr_340px]">
             <BenchPanel
@@ -1117,6 +1983,12 @@ export default function Tactics() {
               player={selectedPlayer}
               slot={selectedSlot}
               onClear={clearPanelPlayer}
+              teamInstructions={teamInstructions}
+              onInstructionChange={(next) => {
+                setTeamInstructions(next)
+                setActivePreset('custom')
+                setSaved(false)
+              }}
             />
           </div>
         </>
@@ -1137,11 +2009,35 @@ export default function Tactics() {
             <SaveButton saved={saved} onSave={handleSave} />
           </div>
 
+          {saveError && (
+            <div className="border-2 border-[#8E2E20] bg-[#2B0905] px-3 py-2 text-xs font-black text-[#E97762]">
+              保存失败：{saveError}
+            </div>
+          )}
+
           <TacticsDesignPanel
-            tactics={tactics}
+            tactics={teamInstructions.legacy_team_sliders}
             activePreset={activePreset}
             onTacticChange={onTacticChange}
             onPreset={onPreset}
+          />
+
+          <PhaseTacticsPanel
+            teamInstructions={teamInstructions}
+            onChange={(next) => {
+              setTeamInstructions(next)
+              setActivePreset('custom')
+              setSaved(false)
+            }}
+          />
+
+          <SituationalRulesPanel
+            teamInstructions={teamInstructions}
+            onChange={(next) => {
+              setTeamInstructions(next)
+              setActivePreset('custom')
+              setSaved(false)
+            }}
           />
         </>
       )}

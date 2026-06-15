@@ -214,7 +214,7 @@ func (sim *Simulator) doBlockPassEvent(ms *domain.MatchState, possTeam, oppTeam 
 	ctrl := ms.EffectiveControl(zone)
 	success := ResolveDuel(atkVal, defVal+ctrl*1.5, sim.r)
 
-	ConsumeStamina(blocker, StaminaCost(config.EventBlockPass))
+	ConsumeDefensiveStamina(blocker, config.EventBlockPass)
 
 	result := "success"
 	if success {
@@ -501,6 +501,7 @@ func (sim *Simulator) doGoalKickEvent(ms *domain.MatchState, possTeam, oppTeam *
 	resetControlShift(ms)
 	keeper := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	gkInstr := possTeam.Instructions().GoalkeeperDistribution
 	setSkillContext(keeper, config.EventGoalKick, zone, ms.Minute, ms.Half)
 	setSkillContext(defender, config.EventGoalKick, zone, ms.Minute, ms.Half)
 
@@ -534,7 +535,7 @@ func (sim *Simulator) doGoalKickEvent(ms *domain.MatchState, possTeam, oppTeam *
 		} else {
 			ms.ActiveZone = [2]int{2, 1}
 		}
-		target = SelectPlayerByZone(possTeam, ms.ActiveZone, sim.r)
+		target = SelectPassTargetForDistribution(possTeam, ms.ActiveZone, gkInstr, sim.r, oppTeam)
 		ms.BallHolder = target
 		sim.applyControlShift(ms, zone, 0.03)
 	} else {
@@ -548,7 +549,7 @@ func (sim *Simulator) doGoalKickEvent(ms *domain.MatchState, possTeam, oppTeam *
 		} else {
 			// Ball stays in play, re-select attacker in back
 			ms.ActiveZone = [2]int{2, 1}
-			target = SelectPlayerByZone(possTeam, ms.ActiveZone, sim.r)
+			target = SelectPassTargetForDistribution(possTeam, ms.ActiveZone, gkInstr, sim.r, oppTeam)
 			ms.BallHolder = target
 		}
 	}
@@ -636,7 +637,8 @@ func (sim *Simulator) doThrowInEvent(ms *domain.MatchState, possTeam, oppTeam *d
 func (sim *Simulator) doKeeperShortPassEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	keeper := ms.BallHolder
 	pressure := SelectDefender(oppTeam, zone, sim.r)
-	target := SelectPlayerByZone(possTeam, zone, sim.r)
+	gkInstr := possTeam.Instructions().GoalkeeperDistribution
+	target := SelectPassTargetForDistribution(possTeam, zone, gkInstr, sim.r, oppTeam)
 	setSkillContext(keeper, config.EventKeeperShortPass, zone, ms.Minute, ms.Half)
 	setSkillContext(pressure, config.EventKeeperShortPass, zone, ms.Minute, ms.Half)
 
@@ -703,6 +705,7 @@ func (sim *Simulator) doKeeperShortPassEvent(ms *domain.MatchState, possTeam, op
 func (sim *Simulator) doKeeperThrowEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	keeper := ms.BallHolder
 	defender := SelectDefender(oppTeam, zone, sim.r)
+	gkInstr := possTeam.Instructions().GoalkeeperDistribution
 	setSkillContext(keeper, config.EventKeeperThrow, zone, ms.Minute, ms.Half)
 	setSkillContext(defender, config.EventKeeperThrow, zone, ms.Minute, ms.Half)
 
@@ -723,7 +726,7 @@ func (sim *Simulator) doKeeperThrowEvent(ms *domain.MatchState, possTeam, oppTea
 		keeper.Stats.PassesSucc++
 		// Hand throw advances to midfield quickly
 		ms.ActiveZone = [2]int{1, 1}
-		target = SelectPlayerByZone(possTeam, ms.ActiveZone, sim.r)
+		target = SelectPassTargetForDistribution(possTeam, ms.ActiveZone, gkInstr, sim.r, oppTeam)
 		ms.BallHolder = target
 		sim.applyControlShift(ms, zone, 0.05)
 	} else {
@@ -1132,8 +1135,8 @@ func (sim *Simulator) doDoubleTeamEvent(ms *domain.MatchState, possTeam, oppTeam
 
 	ctrl := ms.EffectiveControl(zone)
 	success := ResolveDuel(atkVal, defVal+ctrl*1.0, sim.r)
-	ConsumeStamina(d1, StaminaCost(config.EventDoubleTeam)*0.5)
-	ConsumeStamina(d2, StaminaCost(config.EventDoubleTeam)*0.5)
+	ConsumeStamina(d1, StaminaCost(config.EventDoubleTeam)*0.5*pressingStaminaMult(d1))
+	ConsumeStamina(d2, StaminaCost(config.EventDoubleTeam)*0.5*pressingStaminaMult(d2))
 
 	result := "success"
 	if success {
@@ -1180,8 +1183,8 @@ func (sim *Simulator) doPressTogetherEvent(ms *domain.MatchState, possTeam, oppT
 
 	ctrl := ms.EffectiveControl(zone)
 	success := ResolveDuel(atkVal, defVal+ctrl*1.0, sim.r)
-	ConsumeStamina(d1, StaminaCost(config.EventPressTogether)*0.5)
-	ConsumeStamina(d2, StaminaCost(config.EventPressTogether)*0.5)
+	ConsumeStamina(d1, StaminaCost(config.EventPressTogether)*0.5*pressingStaminaMult(d1))
+	ConsumeStamina(d2, StaminaCost(config.EventPressTogether)*0.5*pressingStaminaMult(d2))
 
 	result := "success"
 	if success {

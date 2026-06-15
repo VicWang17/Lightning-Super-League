@@ -71,6 +71,26 @@ type MatchState struct {
 		YellowCards, RedCards                                   int
 		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals       int
 	}
+
+	// Tactical tracking for post-match summary (V1)
+	HomeTactical TacticalTracking
+	AwayTactical TacticalTracking
+}
+
+// TacticalTracking holds per-side tactical counters.
+type TacticalTracking struct {
+	RouteUsage              map[string]int
+	EventCounts             map[string]int
+	PossessionByZone        [3][3]int
+	ShotsByZone             [3][3]int
+	TurnoversByZone         [3][3]int
+	PressWinsByZone         [3][3]int
+	CounterAttacks          int
+	HighPressRecoveries     int
+	GkShortDistributions    int
+	GkLongDistributions     int
+	InstructionTriggers     map[string]int
+	SituationalRuleTriggers map[string]int
 }
 
 // AssistCandidate tracks a direct chance creator. It is intentionally narrower

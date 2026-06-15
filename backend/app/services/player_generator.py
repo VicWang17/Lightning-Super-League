@@ -126,6 +126,39 @@ POSITION_NON_CORE_ATTRS = {
     PlayerPosition.GK: {"com", "sav", "ref", "pos", "rus", "dec", "pas", "fk", "pk"},
 }
 
+# 位置属性分层。生成器先用这些分层塑造球员画像，再用 OVR 权重校准。
+# 目标是让高能力球员首先强在本职属性，而不是被随机噪声推成跨位置全能。
+POSITION_PRIMARY_ATTRS = {
+    PlayerPosition.FW: {"sho", "dri", "spd", "acc", "fin", "hea"},
+    PlayerPosition.MF: {"pas", "vis", "con", "sta", "dec", "dri"},
+    PlayerPosition.DF: {"defe", "tkl", "str_", "hea", "sta", "dec"},
+    PlayerPosition.GK: {"sav", "ref", "pos", "rus", "com", "dec"},
+}
+
+POSITION_SECONDARY_ATTRS = {
+    PlayerPosition.FW: {"str_", "sta", "bal", "pas", "cro", "pk", "dec"},
+    PlayerPosition.MF: {"cro", "spd", "acc", "fin", "sho", "fk", "str_", "defe", "tkl"},
+    PlayerPosition.DF: {"spd", "bal", "pas", "cro", "vis", "com", "sho", "fin"},
+    PlayerPosition.GK: {"pas", "fk", "pk"},
+}
+
+POSITION_OFF_ATTR_CAPS = {
+    PlayerPosition.FW: {
+        "defe": 9, "tkl": 9, "sav": 5, "ref": 7, "pos": 7, "rus": 6, "com": 8,
+    },
+    PlayerPosition.MF: {
+        "sav": 5, "ref": 7, "pos": 7, "rus": 6, "com": 8,
+    },
+    PlayerPosition.DF: {
+        "sho": 11, "fin": 10, "dri": 11, "con": 10, "acc": 12,
+        "sav": 5, "ref": 7, "pos": 7, "rus": 6,
+    },
+    PlayerPosition.GK: {
+        "sho": 6, "dri": 6, "spd": 8, "str_": 9, "sta": 8, "defe": 6,
+        "hea": 6, "tkl": 5, "vis": 8, "cro": 6, "con": 7, "fin": 6, "bal": 7,
+    },
+}
+
 # OVR 权重 (4位置简化版, 总和100)
 OVR_WEIGHTS = {
     PlayerPosition.FW: {
@@ -521,6 +554,118 @@ class AvatarPool:
 
 class AttributeGenerator:
     @staticmethod
+    def _position_attr_tier(position: PlayerPosition, attr: str) -> str:
+        if attr in POSITION_PRIMARY_ATTRS[position]:
+            return "primary"
+        if attr in POSITION_SECONDARY_ATTRS[position]:
+            return "secondary"
+        return "off"
+
+    @staticmethod
+    def _specialist_cross_cap_bonus(
+        position: PlayerPosition,
+        archetype: str,
+        attr: str,
+        base_ovr: int,
+        potential_max: int,
+    ) -> int:
+        if base_ovr < 78 and potential_max < 88:
+            return 0
+        if position == PlayerPosition.MF and attr in {"defe", "tkl"}:
+            if archetype == "工兵型":
+                return 1 if base_ovr >= 82 or potential_max >= 92 else 0
+            return 0
+        if position == PlayerPosition.DF and attr in {"pas", "cro", "vis"}:
+            if archetype in {"边卫型", "清道夫型"}:
+                return 2
+            return 1
+        if position == PlayerPosition.DF and attr in {"sho", "fin"}:
+            if archetype == "边卫型" and (base_ovr >= 82 or potential_max >= 90):
+                return 2
+            if base_ovr >= 88 or potential_max >= 95:
+                return 1
+        return 0
+
+    @staticmethod
+    def _minimum_initial_growth_margin(age: int, potential_max: int) -> int:
+        """初始能力与潜力上限的最小距离，避免出道即巅峰。"""
+        if age <= 18:
+            margin = 16
+        elif age <= 20:
+            margin = 12
+        elif age <= 22:
+            margin = 8
+        elif age <= 24:
+            margin = 5
+        elif age <= 28:
+            margin = 3
+        else:
+            margin = 1
+        if potential_max >= 95 and age <= 22:
+            margin += 2
+        return margin
+
+    @staticmethod
+    def _initial_ovr_ceiling(age: int, potential_max: int) -> int:
+        margin = AttributeGenerator._minimum_initial_growth_margin(age, potential_max)
+        return max(20, potential_max - margin)
+
+    @staticmethod
+    def _enforce_initial_ovr_ceiling(
+        position: PlayerPosition,
+        attrs: dict,
+        ovr_ceiling: int,
+        core_floor: int,
+    ) -> dict:
+        weights = OVR_WEIGHTS[position]
+        relevant_attrs = [attr for attr, weight in weights.items() if weight > 0]
+        for _ in range(120):
+            if AttributeGenerator.calculate_ovr(position, attrs) <= ovr_ceiling:
+                break
+            candidates = [
+                attr for attr in relevant_attrs
+                if attrs.get(attr, 10) > max(1, core_floor - 2)
+            ]
+            if not candidates:
+                break
+            attr = max(
+                candidates,
+                key=lambda a: (
+                    weights[a],
+                    1 if AttributeGenerator._position_attr_tier(position, a) == "primary" else 0,
+                    attrs.get(a, 10),
+                ),
+            )
+            attrs[attr] -= 1
+        return attrs
+
+    @staticmethod
+    def _cap_off_position_attrs(
+        position: PlayerPosition,
+        archetype: str,
+        attrs: dict,
+        base_ovr: int,
+        potential_max: int,
+    ) -> dict:
+        caps = dict(POSITION_OFF_ATTR_CAPS.get(position, {}))
+
+        # 中场防守可以有特点，但不应普遍压过后卫本职防守。
+        if position == PlayerPosition.MF:
+            if archetype == "工兵型":
+                caps.update({"defe": 15, "tkl": 14})
+            elif archetype == "全能型":
+                caps.update({"defe": 14, "tkl": 13})
+            else:
+                caps.update({"defe": 13, "tkl": 12})
+
+        for attr, cap in caps.items():
+            cap += AttributeGenerator._specialist_cross_cap_bonus(
+                position, archetype, attr, base_ovr, potential_max
+            )
+            attrs[attr] = min(attrs.get(attr, 10), min(18, cap))
+        return attrs
+
+    @staticmethod
     def calculate_ovr(position: PlayerPosition, attrs: dict) -> int:
         weights = OVR_WEIGHTS[position]
         weight_total = sum(weight for weight in weights.values() if weight > 0)
@@ -573,13 +718,18 @@ class AttributeGenerator:
                 break
 
             if diff > 0:
-                candidates = [attr for attr in relevant_attrs if attrs.get(attr, 10) < 20]
+                candidates = [
+                    attr for attr in relevant_attrs
+                    if attrs.get(attr, 10) < 20
+                    and AttributeGenerator._position_attr_tier(position, attr) != "off"
+                ]
                 if not candidates:
                     break
                 step_weights = {
                     attr: (
                         weights[attr]
-                        * (1.8 if attr in strengths else 0.55 if attr in weaknesses else 1.0)
+                        * (2.2 if attr in strengths else 0.45 if attr in weaknesses else 1.0)
+                        * (1.35 if AttributeGenerator._position_attr_tier(position, attr) == "primary" else 0.72)
                         * HIGH_ATTRIBUTE_STEP_WEIGHTS.get(attrs.get(attr, 10) + 1, 1.0)
                     )
                     for attr in candidates
@@ -617,7 +767,8 @@ class AttributeGenerator:
             base_ovr = int(base_ovr * age_factor * (0.8 + 0.4 * potential_factor))
         else:
             base_ovr = target_ovr + random.randint(-1, 1)
-        base_ovr = _clamp(base_ovr, 20, 99)
+        ovr_ceiling = AttributeGenerator._initial_ovr_ceiling(age, potential_max)
+        base_ovr = _clamp(base_ovr, 20, min(99, ovr_ceiling))
         
         # 2. 核心属性组 (该位置看重的属性)
         core_attrs = POSITION_NON_CORE_ATTRS[position]
@@ -632,8 +783,14 @@ class AttributeGenerator:
         strength_count = random.randint(*profile_config["strengths"])
         weakness_count = random.randint(*profile_config["weaknesses"])
 
-        core_candidates = [attr for attr in PLAYER_ATTRIBUTES if attr in core_attrs]
+        primary_candidates = [attr for attr in PLAYER_ATTRIBUTES if attr in POSITION_PRIMARY_ATTRS[position]]
+        secondary_candidates = [attr for attr in PLAYER_ATTRIBUTES if attr in POSITION_SECONDARY_ATTRS[position]]
+        core_candidates = primary_candidates + [attr for attr in secondary_candidates if attr not in primary_candidates]
         strength_weights = {attr: bias.get(attr, 1.0) for attr in core_candidates}
+        for attr in primary_candidates:
+            strength_weights[attr] = strength_weights.get(attr, 1.0) * 1.65
+        for attr in secondary_candidates:
+            strength_weights[attr] = strength_weights.get(attr, 1.0) * 0.75
         strengths = AttributeGenerator._weighted_sample_attrs(core_candidates, strength_weights, strength_count)
 
         relevant_weights = OVR_WEIGHTS[position]
@@ -658,16 +815,22 @@ class AttributeGenerator:
         # 5. 逐项生成
         attrs = {}
         for attr in PLAYER_ATTRIBUTES:
-            is_core = attr in core_attrs
+            tier = AttributeGenerator._position_attr_tier(position, attr)
+            is_core = tier != "off"
             
             # 基础值: OVR 映射到 1-20 区间
             base_attr = (base_ovr / 100.0) * 18 + 1  # 映射到 1-19
             
-            # 核心属性略高，非核心属性明显拉低，避免所有位置都全能。
-            if is_core:
-                base_attr *= 1.02
+            # 本职属性明显高于副项，非本职属性随 OVR 走得很慢，避免高 OVR 自动全能。
+            if tier == "primary":
+                base_attr *= 1.08
+            elif tier == "secondary":
+                if position == PlayerPosition.DF and attr in {"sho", "fin"}:
+                    base_attr *= 0.74
+                else:
+                    base_attr *= 0.86
             else:
-                base_attr *= 0.68
+                base_attr *= 0.48
             
             # Archetype 只提供倾向，真正的强弱项由画像决定。
             bias_factor = bias.get(attr, 1.0)
@@ -679,6 +842,8 @@ class AttributeGenerator:
                 base_attr -= random.uniform(*profile_config["weak_penalty"])
             elif is_core and profile in {"specialist", "volatile", "flawed_starter"}:
                 base_attr += random.uniform(-0.9, 0.6)
+            elif not is_core:
+                base_attr -= random.uniform(0.3, 1.4)
             
             # 随机方差
             noise = random.gauss(0, variance)
@@ -687,7 +852,7 @@ class AttributeGenerator:
             attrs[attr] = _shape_high_attribute_value(
                 val,
                 is_strength=attr in strengths,
-                is_elite=base_ovr >= 90,
+                is_elite=base_ovr >= 90 and tier != "off",
             )
         
         # 5b. 生成 FK 和 PK (基于相关属性)
@@ -696,14 +861,18 @@ class AttributeGenerator:
             attrs.get("vis", 10) * 0.2 + attrs.get("fin", 10) * 0.1 +
             random.gauss(0, variance),
             is_strength="fk" in strengths,
-            is_elite=base_ovr >= 90,
+            is_elite=base_ovr >= 90 and position in {PlayerPosition.MF, PlayerPosition.FW},
         )
         attrs["pk"] = _shape_high_attribute_value(
             attrs.get("sho", 10) * 0.4 + attrs.get("fin", 10) * 0.3 +
             attrs.get("con", 10) * 0.2 + attrs.get("str_", 10) * 0.1 +
             random.gauss(0, variance),
             is_strength="pk" in strengths,
-            is_elite=base_ovr >= 90,
+            is_elite=base_ovr >= 90 and position == PlayerPosition.FW,
+        )
+
+        attrs = AttributeGenerator._cap_off_position_attrs(
+            position, archetype, attrs, base_ovr, potential_max
         )
 
         # 6. 校准实际OVR，尽量保持球队强度分布，同时保留强弱项轮廓。
@@ -722,6 +891,10 @@ class AttributeGenerator:
                 attrs[attr] = max(attrs[attr], core_floor)
 
         attrs = AttributeGenerator._calibrate_ovr(position, attrs, base_ovr, strengths, weaknesses, core_floor)
+        attrs = AttributeGenerator._cap_off_position_attrs(
+            position, archetype, attrs, base_ovr, potential_max
+        )
+        attrs = AttributeGenerator._enforce_initial_ovr_ceiling(position, attrs, ovr_ceiling, core_floor)
         actual_ovr = AttributeGenerator.calculate_ovr(position, attrs)
         attrs["ovr"] = actual_ovr
         return attrs
@@ -882,9 +1055,15 @@ class PlayerGenerator:
             for attr, value in attr_result.items():
                 attr_result[attr] = max(1, value - 1)
             ovr = AttributeGenerator.calculate_ovr(position, attr_result)
-        if potential_max <= ovr:
-            growth_margin = random.randint(1, 8) if actual_age <= 24 else random.randint(0, 3)
-            potential_max = min(100, ovr + max(growth_margin, 1))
+        initial_ceiling = AttributeGenerator._initial_ovr_ceiling(actual_age, potential_max)
+        if ovr > initial_ceiling:
+            attr_result = AttributeGenerator._enforce_initial_ovr_ceiling(
+                position,
+                attr_result,
+                initial_ceiling,
+                core_floor=1,
+            )
+            ovr = AttributeGenerator.calculate_ovr(position, attr_result)
         
         # Skills
         skills = SkillGenerator.generate(position, ovr)
@@ -992,6 +1171,7 @@ class PlayerGenerator:
         
         # 初始 OVR 35-45
         base_ovr = random.randint(35, 45)
+        base_ovr = min(base_ovr, AttributeGenerator._initial_ovr_ceiling(actual_age, potential_max))
         
         height, weight = self._generate_height_weight(position)
         
@@ -1140,6 +1320,7 @@ class PlayerGenerator:
         base_ovr += random.randint(ovr_bonus_min, ovr_bonus_max)
         base_ovr += random.randint(age_ovr_min, age_ovr_max)
         base_ovr = max(20, min(62, base_ovr))
+        base_ovr = min(base_ovr, AttributeGenerator._initial_ovr_ceiling(actual_age, potential_max))
         
         # Race / Name / Avatar
         race_str = random.choice(["asian", "western"])

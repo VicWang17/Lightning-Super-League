@@ -28,19 +28,30 @@ func NewSimulator(seed uint64) *Simulator {
 	}
 }
 
+func newTacticalTracking() domain.TacticalTracking {
+	return domain.TacticalTracking{
+		RouteUsage:              make(map[string]int),
+		EventCounts:             make(map[string]int),
+		InstructionTriggers:     make(map[string]int),
+		SituationalRuleTriggers: make(map[string]int),
+	}
+}
+
 func (sim *Simulator) Simulate(req domain.SimulateRequest) domain.SimulateResult {
 	start := time.Now()
 
 	// Init state
 	ms := &domain.MatchState{
-		MatchID:    req.MatchID,
-		Minute:     0,
-		Half:       1,
-		Score:      domain.Score{},
-		Possession: domain.SideHome,
-		ActiveZone: [2]int{1, 1},
-		HomeTeam:   domain.NewTeamRuntime(req.HomeTeam),
-		AwayTeam:   domain.NewTeamRuntime(req.AwayTeam),
+		MatchID:      req.MatchID,
+		Minute:       0,
+		Half:         1,
+		Score:        domain.Score{},
+		Possession:   domain.SideHome,
+		ActiveZone:   [2]int{1, 1},
+		HomeTeam:     domain.NewTeamRuntime(req.HomeTeam),
+		AwayTeam:     domain.NewTeamRuntime(req.AwayTeam),
+		HomeTactical: newTacticalTracking(),
+		AwayTactical: newTacticalTracking(),
 	}
 
 	// Set initial ball holder (home team kickoff taker)
@@ -109,6 +120,11 @@ func (sim *Simulator) Simulate(req domain.SimulateRequest) domain.SimulateResult
 
 		// Track possession
 		ms.PossessionTicks[ms.Possession]++
+		if ms.Possession == domain.SideHome {
+			ms.HomeTactical.PossessionByZone[ms.ActiveZone[0]][ms.ActiveZone[1]]++
+		} else {
+			ms.AwayTactical.PossessionByZone[ms.ActiveZone[0]][ms.ActiveZone[1]]++
+		}
 
 		// Pick and process next event
 		_, _ = sim.processEvent(ms)
@@ -208,6 +224,11 @@ func (sim *Simulator) runExtraTime(ms *domain.MatchState) string {
 			}
 		}
 		ms.PossessionTicks[ms.Possession]++
+		if ms.Possession == domain.SideHome {
+			ms.HomeTactical.PossessionByZone[ms.ActiveZone[0]][ms.ActiveZone[1]]++
+		} else {
+			ms.AwayTactical.PossessionByZone[ms.ActiveZone[0]][ms.ActiveZone[1]]++
+		}
 		_, _ = sim.processEvent(ms)
 		if len(ms.Events) > 0 {
 			last := ms.Events[len(ms.Events)-1]
@@ -304,6 +325,21 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 	zone := ms.ActiveZone
 	possTeam := ms.Team(ms.Possession)
 	oppTeam := ms.OppTeam(ms.Possession)
+
+	// V4: compute situational rule overrides for both teams at event start.
+	// These are cached on TeamRuntime and used by all Instructions() callers.
+	homeEff, homeTriggered := ComputeEffectiveInstructions(ms.HomeTeam, ms)
+	awayEff, awayTriggered := ComputeEffectiveInstructions(ms.AwayTeam, ms)
+	ms.HomeTeam.EffectiveInstructions = &homeEff
+	ms.AwayTeam.EffectiveInstructions = &awayEff
+
+	// Track which situational rules influenced this event.
+	for _, id := range homeTriggered {
+		ms.HomeTactical.SituationalRuleTriggers[id]++
+	}
+	for _, id := range awayTriggered {
+		ms.AwayTactical.SituationalRuleTriggers[id]++
+	}
 
 	// Determine available events based on zone and control
 	var candidates []candidateEvent
@@ -423,6 +459,18 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 		candidates = append(candidates, candidateEvent{typ: config.EventGoalKick, weight: 12})
 		candidates = append(candidates, candidateEvent{typ: config.EventKeeperShortPass, weight: 10})
 		candidates = append(candidates, candidateEvent{typ: config.EventKeeperThrow, weight: 5})
+
+		// V2: goalkeeper distribution instructions adjust candidate weights
+		gkInstr := possTeam.Instructions().GoalkeeperDistribution
+		for i := range candidates {
+			switch candidates[i].typ {
+			case config.EventGoalKick, config.EventKeeperShortPass, config.EventKeeperThrow:
+				candidates[i].weight = int(float64(candidates[i].weight) * gkDistributionWeightMod(gkInstr, candidates[i].typ))
+				if candidates[i].weight < 1 {
+					candidates[i].weight = 1
+				}
+			}
+		}
 	}
 
 	// Throw-in on sidelines (low weight, simulates dead ball restarts)
@@ -573,6 +621,36 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 	// Chain-state adjustment based on previous event outcome
 	candidates = sim.adjustCandidatesByLastEvent(candidates, ms)
 
+	// V2: attack route modifies event weights for the possession team
+	attackRoute := possTeam.Instructions().InPossession.AttackRoute
+	if attackRoute != "mixed" {
+		for i := range candidates {
+			candidates[i].weight = int(float64(candidates[i].weight) * attackRouteWeightMod(attackRoute, candidates[i].typ))
+			if candidates[i].weight < 1 {
+				candidates[i].weight = 1
+			}
+		}
+	}
+
+	// V2: passing risk and build-up style modify pass/attack event weights
+	instr := possTeam.Instructions().InPossession
+	for i := range candidates {
+		mod := passingRiskWeightMod(instr.PassingRisk, candidates[i].typ) *
+			buildUpStyleWeightMod(instr.BuildUpStyle, candidates[i].typ)
+		candidates[i].weight = int(float64(candidates[i].weight) * mod)
+		if candidates[i].weight < 1 {
+			candidates[i].weight = 1
+		}
+	}
+
+	// V3: per-player instructions for the current ball holder
+	for i := range candidates {
+		candidates[i].weight = int(float64(candidates[i].weight) * playerInstructionWeight(ms.BallHolder, candidates[i].typ))
+		if candidates[i].weight < 1 {
+			candidates[i].weight = 1
+		}
+	}
+
 	// Skill-based event weight adjustments (speed demon, killer pass, playmaker)
 	for i := range candidates {
 		ctx := SkillContext{
@@ -626,6 +704,9 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 	ms.BallHolder.Stats.Touches++
 	sim.executeEvent(ms, selected)
 
+	// Track tactical signals
+	sim.trackEvent(ms, selected, possBefore, zone)
+
 	// === Post-event tactical effects ===
 	isAttackingEvent := selected != config.EventTackle && selected != config.EventIntercept && selected != config.EventClearance
 	if ms.Possession != possBefore && isAttackingEvent {
@@ -661,31 +742,96 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 		// Flip control shift in the zone where it happened
 		sim.flipControlShiftOnTurnover(ms, zone)
 
-		newPossTeam := ms.Team(ms.Possession)
-		lostPossTeam := ms.Team(possBefore)
-
-		// Counter focus: new possession team gets temporary speed/precision boost
-		if newPossTeam.Tactics.AttackTempo == 4 {
-			sim.applyCounterBoost(ms, ms.Possession)
-		}
-
-		// High press: turnover in opponent half may immediately advance zone
-		if lostPossTeam.Tactics.DefensiveLineHeight >= 3 && lostPossTeam.Tactics.PressingIntensity >= 3 {
-			if zone[0] <= 1 { // turnover occurred in opponent's half or midfield
-				if sim.r.Float64() < 0.35 {
-					// High press: immediate forward push after winning back ball
-					if ms.ActiveZone[0] < 2 {
-						ms.ActiveZone[0]++
-					}
-					// Boost momentum for pressing team
-					sim.applyControlShift(ms, ms.ActiveZone, 0.12)
-					sim.boostGlobalMomentum(ms, 0.03)
-				}
-			}
-		}
+		// V2: apply transition instructions (counter / hold_shape / counter_press / regroup)
+		sim.applyTransitionInstructions(ms, possBefore, zone)
 	}
 
 	return selected, candidates
+}
+
+// trackEvent updates per-side tactical counters used in the post-match summary.
+func (sim *Simulator) trackEvent(ms *domain.MatchState, eventType string, possBefore domain.Side, zone [2]int) {
+	track := func(side domain.Side) *domain.TacticalTracking {
+		if side == domain.SideHome {
+			return &ms.HomeTactical
+		}
+		return &ms.AwayTactical
+	}
+
+	// Event frequency by type
+	track(ms.Possession).EventCounts[eventType]++
+
+	// V3: track when a non-default player instruction influences an event.
+	trackInstructionTrigger(track(ms.Possession), ms.BallHolder, eventType)
+
+	// Attack route usage for possession team's attacking events
+	attackingEvents := map[string]bool{
+		config.EventShortPass:     true,
+		config.EventMidPass:       true,
+		config.EventLongPass:      true,
+		config.EventThroughBall:   true,
+		config.EventCross:         true,
+		config.EventWingBreak:     true,
+		config.EventCutInside:     true,
+		config.EventSwitchPlay:    true,
+		config.EventOverlap:       true,
+		config.EventTrianglePass:  true,
+		config.EventOneTwo:        true,
+		config.EventPivotPass:     true,
+		config.EventBuildUp:       true,
+		config.EventCounterAttack: true,
+		config.EventCloseShot:     true,
+		config.EventLongShot:      true,
+		config.EventOneOnOne:      true,
+		config.EventHeader:        true,
+		config.EventDribblePast:   true,
+		config.EventLobPass:       true,
+		config.EventPassOverTop:   true,
+	}
+	if attackingEvents[eventType] {
+		route := ms.Team(ms.Possession).Instructions().InPossession.AttackRoute
+		track(ms.Possession).RouteUsage[route]++
+	}
+
+	// Shots by zone
+	if eventType == config.EventCloseShot || eventType == config.EventLongShot || eventType == config.EventOneOnOne {
+		track(ms.Possession).ShotsByZone[zone[0]][zone[1]]++
+	}
+
+	// Counter attacks
+	if eventType == config.EventCounterAttack {
+		track(ms.Possession).CounterAttacks++
+	}
+
+	// Goalkeeper distributions (when GK has the ball in back zone)
+	if zone[0] == 2 && ms.BallHolder != nil && ms.BallHolder.Position == config.PosGK {
+		switch eventType {
+		case config.EventKeeperShortPass, config.EventKeeperThrow:
+			track(ms.Possession).GkShortDistributions++
+		case config.EventGoalKick, config.EventLongPass:
+			track(ms.Possession).GkLongDistributions++
+		}
+		// Track distribution target preference usage
+		gkInstr := ms.Team(ms.Possession).Instructions().GoalkeeperDistribution
+		key := "gk_" + gkInstr.DistributionTarget
+		track(ms.Possession).RouteUsage[key]++
+	}
+
+	// Turnovers: possession changed due to an attacking event failure
+	isDefensiveEvent := eventType == config.EventTackle || eventType == config.EventIntercept ||
+		eventType == config.EventClearance || eventType == config.EventBlockPass
+	if ms.Possession != possBefore {
+		track(possBefore).TurnoversByZone[zone[0]][zone[1]]++
+
+		// High press recovery: possession won back in opponent half by a team using high press
+		winnerTeam := ms.Team(ms.Possession)
+		if zone[0] <= 1 && winnerTeam.Tactics.DefensiveLineHeight >= 3 && winnerTeam.Tactics.PressingIntensity >= 3 {
+			track(ms.Possession).HighPressRecoveries++
+		}
+	} else if isDefensiveEvent {
+		// Defensive win without full turnover still counts as press win
+		track(ms.Possession).PressWinsByZone[zone[0]][zone[1]]++
+	}
 }
 
 type candidateEvent struct {
@@ -2592,7 +2738,7 @@ func (sim *Simulator) doTackleEvent(ms *domain.MatchState, possTeam, oppTeam *do
 	atkVal += 1.2
 	success := ResolveDuel(atkVal, defVal, sim.r)
 
-	ConsumeStamina(tackler, StaminaCost(config.EventTackle))
+	ConsumeDefensiveStamina(tackler, config.EventTackle)
 	ConsumeStamina(holder, StaminaCost(config.EventTackle)*0.5)
 
 	result := "success"
@@ -2671,7 +2817,7 @@ func (sim *Simulator) doInterceptEvent(ms *domain.MatchState, possTeam, oppTeam 
 	setSkillContext(interceptor, config.EventIntercept, zone, ms.Minute, ms.Half)
 	passer := ms.BallHolder
 
-	ConsumeStamina(interceptor, StaminaCost(config.EventIntercept))
+	ConsumeDefensiveStamina(interceptor, config.EventIntercept)
 
 	ms.Possession = ms.Possession.Opponent()
 	sim.clearAssistCandidate(ms)
@@ -2782,6 +2928,54 @@ func (sim *Simulator) applyCounterBoost(ms *domain.MatchState, side domain.Side)
 	ms.CounterBoostRemaining[idx] = 3
 	// Counter boost gives a modest global momentum bump
 	sim.boostGlobalMomentum(ms, 0.12)
+}
+
+// applyTransitionInstructions applies V2 transition instructions after a turnover.
+// possBefore is the side that just lost possession.
+func (sim *Simulator) applyTransitionInstructions(ms *domain.MatchState, possBefore domain.Side, zone [2]int) {
+	newSide := ms.Possession
+	lostSide := possBefore
+	newTeam := ms.Team(newSide)
+	lostTeam := ms.Team(lostSide)
+
+	// After possession won
+	switch newTeam.Instructions().Transition.AfterPossessionWon {
+	case "counter":
+		sim.applyCounterBoost(ms, newSide)
+		// Higher counter_directness extends the boost duration
+		directness := newTeam.Instructions().Transition.CounterDirectness
+		extra := directness / 2
+		idx := int(newSide)
+		ms.CounterBoostRemaining[idx] += extra
+	case "hold_shape":
+		// Reset tempo: drop the ball to a safer zone if currently advanced
+		if zone[0] <= 1 && sim.r.Float64() < 0.5 {
+			if ms.ActiveZone[0] < 2 {
+				ms.ActiveZone[0]++
+			}
+		}
+	}
+
+	// After possession lost
+	switch lostTeam.Instructions().Transition.AfterPossessionLost {
+	case "counter_press":
+		// Lost ball in opponent half -> attempt immediate press
+		if zone[0] <= 1 {
+			pressIntensity := lostTeam.Instructions().OutOfPossession.PressingIntensity
+			if sim.r.Float64() < 0.15+float64(pressIntensity)*0.05 {
+				sim.applyControlShift(ms, zone, 0.08)
+				sim.boostGlobalMomentum(ms, 0.02)
+			}
+		}
+	case "regroup":
+		// Recover defensive shape: bolster back-zone control
+		backZone := [2]int{2, 1}
+		if lostSide == domain.SideHome {
+			sim.applyControlShift(ms, backZone, 0.06)
+		} else {
+			sim.applyControlShift(ms, backZone, -0.06)
+		}
+	}
 }
 
 func isDeadBallEvent(evType string) bool {
@@ -2896,7 +3090,7 @@ func (sim *Simulator) doClearanceEvent(ms *domain.MatchState, possTeam, oppTeam 
 	// Clearance: possession team clears the ball under pressure
 	defender := SelectDefender(possTeam, zone, sim.r)
 	setSkillContext(defender, config.EventClearance, zone, ms.Minute, ms.Half)
-	ConsumeStamina(defender, StaminaCost(config.EventClearance))
+	ConsumeDefensiveStamina(defender, config.EventClearance)
 
 	defender.Stats.Clearances++
 	defender.Stats.RatingBase += 0.1
@@ -3966,6 +4160,12 @@ func (sim *Simulator) buildResult(ms *domain.MatchState) domain.SimulateResult {
 		}
 	}
 
+	// Tactical summaries (V1)
+	result.TacticalSummaries = []domain.TacticalSummary{
+		sim.buildTacticalSummary(ms.HomeTeam, ms.HomeTactical),
+		sim.buildTacticalSummary(ms.AwayTeam, ms.AwayTactical),
+	}
+
 	// Narratives
 	for _, ev := range ms.Events {
 		narr := sim.ng.Generate(ev)
@@ -3975,6 +4175,66 @@ func (sim *Simulator) buildResult(ms *domain.MatchState) domain.SimulateResult {
 	}
 
 	return result
+}
+
+// trackInstructionTrigger records which player-level instruction dimensions were
+// active for the current event. Only non-default values (!= 2) are counted.
+func trackInstructionTrigger(tracking *domain.TacticalTracking, player *domain.PlayerRuntime, eventType string) {
+	if player == nil {
+		return
+	}
+	ins := player.Instruction
+	if ins == (domain.PlayerInstruction{}) {
+		return
+	}
+
+	record := func(key string, value int) {
+		if value != 2 {
+			tracking.InstructionTriggers[key]++
+		}
+	}
+
+	switch eventType {
+	case config.EventDribblePast, config.EventWingBreak, config.EventCutInside,
+		config.EventOverlap, config.EventCrossRun:
+		record("carry_ball", ins.CarryBall)
+	case config.EventCloseShot, config.EventLongShot, config.EventHeader, config.EventShotWindup:
+		record("shooting_frequency", ins.ShootingFrequency)
+	case config.EventCross, config.EventSwitchPlay:
+		record("crossing_frequency", ins.CrossingFrequency)
+	case config.EventThroughBall, config.EventPassOverTop, config.EventLongPass,
+		config.EventLobPass, config.EventMidBreak, config.EventCounterAttack:
+		record("passing_risk", ins.PassingRisk)
+	case config.EventShortPass, config.EventBackPass, config.EventPivotPass,
+		config.EventBuildUp, config.EventHoldBall:
+		record("passing_risk", ins.PassingRisk)
+		record("hold_position", ins.HoldPosition)
+	case config.EventTackle, config.EventIntercept, config.EventDoubleTeam,
+		config.EventPressTogether, config.EventBlockPass, config.EventShotBlock,
+		config.EventClearance:
+		record("pressing_intensity", ins.PressingIntensity)
+	case config.EventOneTwo, config.EventTrianglePass:
+		record("forward_runs", ins.ForwardRuns)
+	}
+}
+
+func (sim *Simulator) buildTacticalSummary(team *domain.TeamRuntime, tracking domain.TacticalTracking) domain.TacticalSummary {
+	return domain.TacticalSummary{
+		TeamID:                  team.TeamID,
+		FormationID:             team.FormationID,
+		RouteUsage:              tracking.RouteUsage,
+		EventCounts:             tracking.EventCounts,
+		PossessionByZone:        tracking.PossessionByZone,
+		ShotsByZone:             tracking.ShotsByZone,
+		TurnoversByZone:         tracking.TurnoversByZone,
+		PressWinsByZone:         tracking.PressWinsByZone,
+		CounterAttacks:          tracking.CounterAttacks,
+		HighPressRecoveries:     tracking.HighPressRecoveries,
+		GkShortDistributions:    tracking.GkShortDistributions,
+		GkLongDistributions:     tracking.GkLongDistributions,
+		InstructionTriggers:     tracking.InstructionTriggers,
+		SituationalRuleTriggers: tracking.SituationalRuleTriggers,
+	}
 }
 
 func round(v float64, decimals int) float64 {

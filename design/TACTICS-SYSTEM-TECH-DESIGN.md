@@ -173,7 +173,10 @@ class TeamInstructions(BaseModel):
     transition: TransitionInstructions
     out_of_possession: OutOfPossessionInstructions
     goalkeeper_distribution: GoalkeeperDistributionInstructions
+    player_instructions: list[PlayerInstruction] = []
 ```
+
+> 实现说明：`player_instructions` 已内嵌在 `team_instructions` JSON 中，不再单独建表字段，简化迁移与回滚。
 
 字段设计：
 
@@ -221,13 +224,6 @@ class GoalkeeperDistributionInstructions(BaseModel):
 现有 `TacticalSetup` 保留，新增可选扩展结构：
 
 ```go
-type TeamInstructions struct {
-    InPossession             InPossessionInstructions             `json:"in_possession"`
-    Transition               TransitionInstructions               `json:"transition"`
-    OutOfPossession          OutOfPossessionInstructions          `json:"out_of_possession"`
-    GoalkeeperDistribution   GoalkeeperDistributionInstructions   `json:"goalkeeper_distribution"`
-}
-
 type PlayerInstruction struct {
     PlayerID          string `json:"player_id"`
     CarryBall         int    `json:"carry_ball"`          // 0-4
@@ -239,15 +235,23 @@ type PlayerInstruction struct {
     ForwardRuns       int    `json:"forward_runs"`        // 0-4
 }
 
+type TeamInstructions struct {
+    LegacyTeamSliders          TacticalSetup                       `json:"legacy_team_sliders"`
+    InPossession               InPossessionInstructions            `json:"in_possession"`
+    Transition                 TransitionInstructions              `json:"transition"`
+    OutOfPossession            OutOfPossessionInstructions         `json:"out_of_possession"`
+    GoalkeeperDistribution     GoalkeeperDistributionInstructions  `json:"goalkeeper_distribution"`
+    PlayerInstructions         []PlayerInstruction                 `json:"player_instructions"`
+}
+
 type TeamSetup struct {
-    TeamID             string               `json:"team_id"`
-    Name               string               `json:"name"`
-    FormationID        string               `json:"formation_id"`
-    Players            []PlayerSetup        `json:"players"`
-    Bench              []PlayerSetup        `json:"bench"`
-    Tactics            TacticalSetup        `json:"tactics"`
-    TeamInstructions   *TeamInstructions    `json:"team_instructions,omitempty"`
-    PlayerInstructions []PlayerInstruction  `json:"player_instructions,omitempty"`
+    TeamID           string            `json:"team_id"`
+    Name             string            `json:"name"`
+    FormationID      string            `json:"formation_id"`
+    Players          []PlayerSetup     `json:"players"`
+    Bench            []PlayerSetup     `json:"bench"`
+    Tactics          TacticalSetup     `json:"tactics"`
+    TeamInstructions *TeamInstructions `json:"team_instructions,omitempty"`
 }
 ```
 
@@ -447,7 +451,7 @@ func (sim *Simulator) applyTransitionInstructions(ms *domain.MatchState, possBef
 | passing_risk | `through_ball`, `pass_over_top`, `long_pass` 权重和失误率 |
 | shooting_frequency | `close_shot`, `long_shot` 权重 |
 | crossing_frequency | `cross`, `overlap` 后传中倾向 |
-| pressing_intensity | 无球时被选为逼抢/抢断球员概率 |
+| pressing_intensity | 无球时被选为逼抢/抢断球员概率；高强度会增加防守动作体能消耗 |
 | hold_position | 前插和压上概率下降，防守区域控制提高 |
 | forward_runs | 接直塞、反越位、前场触球权重 |
 
@@ -473,13 +477,16 @@ func instructionWeightForEvent(p *PlayerRuntime, eventType string, instr PlayerI
 
 建议 `sliderWeight` 控制在 `0.75` 到 `1.35`，避免个人指令压过能力值。
 
-## 7. 情境规则设计
+## 7. 情境规则设计（已实现）
 
-情境战术不建议第一阶段做复杂规则编辑器。先内置少量自动规则：
+`TeamInstructions` 内嵌 `situational_rules` 列表，每条规则包含条件与覆盖：
 
 ```json
 [
   {
+    "id": "rule-behind-late",
+    "name": "落后追分",
+    "enabled": true,
     "condition": {"minute_gte": 40, "goal_diff_lte": -1},
     "override": {
       "tempo": 4,
@@ -489,6 +496,9 @@ func instructionWeightForEvent(p *PlayerRuntime, eventType string, instr PlayerI
     }
   },
   {
+    "id": "rule-ahead-late",
+    "name": "领先稳守",
+    "enabled": true,
     "condition": {"minute_gte": 40, "goal_diff_gte": 1},
     "override": {
       "tempo": 1,
@@ -499,11 +509,15 @@ func instructionWeightForEvent(p *PlayerRuntime, eventType string, instr PlayerI
 ]
 ```
 
+支持的条件字段：`minute_gte`、`minute_lt`、`goal_diff_lte`、`goal_diff_gte`、`team_stamina_avg_lte`。
+支持的覆盖字段：节奏、宽度、传球冒险、传中/射门频率、防线高度、逼抢强度、转换指令、推进方式、创造机会方式。
+
 实现点：
 
-- 每次 `processEvent` 前计算 `EffectiveInstructions`。
-- 不直接修改 `TeamRuntime.TeamInstructions`，避免状态污染。
-- 情境规则需要记录到 `TacticalSummary`，便于赛后解释。
+- 每次 `processEvent` 前调用 `ComputeEffectiveInstructions` 计算 `TeamRuntime.EffectiveInstructions`。
+- `Instructions()` 优先返回 `EffectiveInstructions`，不直接修改 `TeamInstructions`。
+- 触发的规则 ID 记录到 `TacticalSummary.situational_rule_triggers`，便于赛后解释。
+- AI 顾问根据风格画像自动生成默认的落后/领先规则。
 
 ## 8. 赛后战术摘要
 
@@ -516,6 +530,7 @@ type TacticalSummary struct {
     RouteUsage map[string]int `json:"route_usage"`
     EventCounts map[string]int `json:"event_counts"`
     InstructionTriggers map[string]int `json:"instruction_triggers"`
+    SituationalRuleTriggers map[string]int `json:"situational_rule_triggers"`
 
     PossessionByZone [3][3]int `json:"possession_by_zone"`
     TurnoversByZone [3][3]int `json:"turnovers_by_zone"`
@@ -616,28 +631,32 @@ match_plan locked setup
 - 门将短传/长传设置能稳定改变分配事件占比。
 - 快速反击设置提高 `counter_attack` 占比，但不会形成绝对最优。
 
-### V3：个人指令
+### V3：个人指令（已实现）
 
 范围：
 
-- 新增 `PlayerInstruction`。
-- 前端球员面板增加个人指令。
-- 目标选择器和候选权重接入个人指令。
-- 赛后摘要输出个人指令触发统计。
+- 新增 `PlayerInstruction` 并内嵌在 `TeamInstructions` 中。
+- 前端球员面板增加个人指令滑块。
+- AI 顾问根据球员属性/位置生成默认个人指令。
+- `MatchEngineClient` 将个人指令下发到 Go 引擎。
+- Go `PlayerRuntime` 绑定个人指令；`processEvent` 候选权重、选择器与赛后 `InstructionTriggers` 均接入个人指令。
 
 验收：
 
 - `carry_ball=4` 的球员过人/边路推进事件增加。
 - `shooting_frequency=4` 的前锋射门占比增加。
 - `pressing_intensity=4` 的球员参与抢断/压迫事件增加，同时体能消耗增加。
+- 赛后 `TacticalSummary.instruction_triggers` 可统计触发维度。
 
-### V4：情境规则与平衡
+### V4：情境规则与平衡（已实现）
 
 范围：
 
-- 内置落后/领先/体能不足情境策略。
-- 战术矩阵测试扩展到新字段。
-- 增加战术矛盾校验。
+- 新增 `SituationalRule` 并内嵌在 `TeamInstructions` 中。
+- Go 引擎每事件前计算 `EffectiveInstructions`，应用所有匹配规则。
+- AI 顾问根据风格画像自动生成默认落后/领先规则。
+- 前端提供通用情境规则编辑器：条件输入、覆盖项增删、启用开关、规则数量限制。
+- 赛后摘要输出 `situational_rule_triggers`。
 
 验收：
 

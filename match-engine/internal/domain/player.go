@@ -19,11 +19,11 @@ type BodyWear struct {
 
 // ActiveInjury represents a currently active injury on a player
 type ActiveInjury struct {
-	BodyPart      string            `json:"body_part"`
-	InjuryName    string            `json:"injury_name"`
-	Severity      int               `json:"severity"`       // 1=minor, 2=medium, 3=major
-	RemainingDays int               `json:"remaining_days"`
-	AttrImpact    map[string]float64 `json:"attr_impact"`   // only for minor injuries during match
+	BodyPart      string             `json:"body_part"`
+	InjuryName    string             `json:"injury_name"`
+	Severity      int                `json:"severity"` // 1=minor, 2=medium, 3=major
+	RemainingDays int                `json:"remaining_days"`
+	AttrImpact    map[string]float64 `json:"attr_impact"` // only for minor injuries during match
 }
 
 // CareerStats tracks a player's career totals injected from the backend.
@@ -38,15 +38,15 @@ type CareerStats struct {
 type PlayerSetup struct {
 	PlayerID    string         `json:"player_id"`
 	Name        string         `json:"name"`
-	Position    string         `json:"position"`    // GK/FW/MF/DF
-	Number      int            `json:"number"`      // jersey number
-	Attributes  map[string]int `json:"attributes"`  // 21 attrs 1-20
+	Position    string         `json:"position"`   // GK/FW/MF/DF
+	Number      int            `json:"number"`     // jersey number
+	Attributes  map[string]int `json:"attributes"` // 21 attrs 1-20
 	Skills      []string       `json:"skills"`
-	Stamina     float64        `json:"stamina"`     // initial stamina 0-100
+	Stamina     float64        `json:"stamina"` // initial stamina 0-100
 	Height      int            `json:"height"`
-	Foot        string         `json:"foot"`        // left/right/both
-	BodyWear    BodyWear       `json:"body_wear"`   // wear per body part
-	Traits      []string       `json:"traits"`      // e.g. "铁人", "玻璃体质"
+	Foot        string         `json:"foot"`      // left/right/both
+	BodyWear    BodyWear       `json:"body_wear"` // wear per body part
+	Traits      []string       `json:"traits"`    // e.g. "铁人", "玻璃体质"
 	Age         int            `json:"age"`
 	CareerStats CareerStats    `json:"career_stats"`
 }
@@ -70,6 +70,9 @@ type PlayerRuntime struct {
 	// Match injury info (new system)
 	MatchInjury *ActiveInjury // nil = healthy, set when injury occurs during match
 
+	// Instruction holds per-player tactical instructions. Defaults are applied if unset.
+	Instruction PlayerInstruction
+
 	// Skill context (set by simulator, read by resolver)
 	SkillEventType string
 	SkillZone      [2]int
@@ -92,32 +95,32 @@ type PlayerMatchStats struct {
 	Shots         int
 	ShotsOnTarget int
 	Passes        int
-	PassesSucc   int
-	KeyPasses    int
-	Crosses      int
-	CrossesSucc  int
-	Dribbles     int
-	DribblesSucc int
-	Tackles      int
-	TacklesSucc  int
-	Intercepts   int
-	Clearances   int
-	Blocks       int
-	Headers      int
-	HeaderWins   int
-	Saves        int
-	Fouls        int
-	FoulsDrawn   int
-	Offsides     int
-	YellowCards  int
-	RedCards     int
-	FreeKicks    int
+	PassesSucc    int
+	KeyPasses     int
+	Crosses       int
+	CrossesSucc   int
+	Dribbles      int
+	DribblesSucc  int
+	Tackles       int
+	TacklesSucc   int
+	Intercepts    int
+	Clearances    int
+	Blocks        int
+	Headers       int
+	HeaderWins    int
+	Saves         int
+	Fouls         int
+	FoulsDrawn    int
+	Offsides      int
+	YellowCards   int
+	RedCards      int
+	FreeKicks     int
 	FreeKickGoals int
-	Penalties    int
-	PenaltyGoals int
-	Turnovers    int
-	Touches      int
-	RatingBase   float64 // starts at 6.0
+	Penalties     int
+	PenaltyGoals  int
+	Turnovers     int
+	Touches       int
+	RatingBase    float64 // starts at 6.0
 }
 
 func (p *PlayerRuntime) GetAttr(idx int) float64 {

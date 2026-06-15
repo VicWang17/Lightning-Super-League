@@ -966,6 +966,25 @@ class ApiClient {
     )
   }
 
+  // ==================== 战术 API ====================
+  async getTeamTactics(teamId: string) {
+    return this.requestWithAuth<import('../types/tactics').TeamTactics>(
+      `/teams/${teamId}/tactics`,
+      { method: 'GET' }
+    )
+  }
+
+  async saveTeamTactics(teamId: string, data: import('../types/tactics').TeamTacticsUpdate) {
+    return this.requestWithAuth<import('../types/tactics').TeamTactics>(
+      `/teams/${teamId}/tactics`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
+  }
+
   // ==================== 荣誉/奖项 API ====================
   async getPlayerAwards(playerId: string) {
     return this.requestWithAuth<PlayerAward[]>(`/awards/player/${playerId}`, { method: 'GET' })

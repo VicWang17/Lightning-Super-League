@@ -68,6 +68,37 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
  )
 }
 
+type WinnerSide = 'home' | 'away' | null
+
+function getWinnerSide(match: CupFixture | null): WinnerSide {
+ if (!match || match.status !== 'finished') return null
+ if (match.winner_team_id === match.home_team.id) return 'home'
+ if (match.winner_team_id === match.away_team.id) return 'away'
+ if (match.home_score == null || match.away_score == null) return null
+ if (match.home_score > match.away_score) return 'home'
+ if (match.away_score > match.home_score) return 'away'
+ return null
+}
+
+function hasPenaltyScore(match: CupFixture) {
+ return match.resolution === 'penalties' && match.penalty_score?.home != null && match.penalty_score?.away != null
+}
+
+function MatchScore({ match, className = '' }: { match: CupFixture; className?: string }) {
+ return (
+ <div>
+ <div className={className}>
+ {match.home_score ?? '-'}:{match.away_score ?? '-'}
+ </div>
+ {hasPenaltyScore(match) && (
+ <div className="mt-0.5 text-[10px] font-black text-[#D6A619]">
+ 点球 {match.penalty_score!.home}:{match.penalty_score!.away}
+ </div>
+ )}
+ </div>
+ )
+}
+
 // 比赛卡片组件
 function MatchCard({ match }: { match: CupFixture }) {
  const isFinished = match.status === 'finished'
@@ -114,15 +145,7 @@ function MatchCard({ match }: { match: CupFixture }) {
 
  <div className="px-4">
  {isFinished || isLive ? (
- <div className="text-2xl font-bold stat-number">
- <span className={isLive ? 'text-red-400' : 'text-white'}>
- {match.home_score}
- </span>
- <span className="text-[#4B4B6A] mx-2">:</span>
- <span className={isLive ? 'text-red-400' : 'text-white'}>
- {match.away_score}
- </span>
- </div>
+ <MatchScore match={match} className={`text-2xl font-bold stat-number ${isLive ? 'text-red-400' : 'text-white'}`} />
  ) : (
  <div className="text-lg font-bold pixel-number text-[#4B4B6A]">VS</div>
  )}
@@ -272,13 +295,11 @@ function GroupSection({ group }: { group: CupGroup }) {
 function KnockoutMatchRow({ match }: { match: CupFixture }) {
  const isFinished = match.status === 'finished'
  const isLive = match.status === 'ongoing'
- const winner = isFinished && match.home_score != null && match.away_score != null
- ? match.home_score > match.away_score ? 'home' : match.away_score > match.home_score ? 'away' : null
- : null
+ const winner = getWinnerSide(match)
 
  return (
  <div className="bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/50 transition-colors">
- <div className="grid grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] items-center gap-3 px-4 py-3">
+ <div className="grid grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] items-center gap-3 px-4 py-3">
  <div className={`min-w-0 ${winner === 'home' ? 'text-[#C6F135]' : 'text-white'}`}>
  <Link
  to={`/teams/${match.home_team.id}`}
@@ -291,9 +312,7 @@ function KnockoutMatchRow({ match }: { match: CupFixture }) {
 
  <div className="text-center">
  {isFinished || isLive ? (
- <div className={`text-lg font-black stat-number ${isLive ? 'text-red-400' : 'text-white'}`}>
- {match.home_score ?? '-'}:{match.away_score ?? '-'}
- </div>
+ <MatchScore match={match} className={`text-lg font-black stat-number ${isLive ? 'text-red-400' : 'text-white'}`} />
  ) : (
  <div className="text-xs font-black pixel-number text-[#4B4B6A]">VS</div>
  )}
@@ -413,9 +432,7 @@ function getExpectedStageCount(stage: string, fallback: number) {
 function BracketMatchPill({ match, final = false }: { match: BracketSlot; final?: boolean }) {
  const isPlaceholder = !match
  const isFinished = Boolean(match && match.status === 'finished')
- const winner = match && isFinished && match.home_score != null && match.away_score != null
- ? match.home_score > match.away_score ? 'home' : match.away_score > match.home_score ? 'away' : null
- : null
+ const winner = getWinnerSide(match)
 
  if (isPlaceholder) {
  return (
@@ -423,7 +440,7 @@ function BracketMatchPill({ match, final = false }: { match: BracketSlot; final?
  final ? 'w-full max-w-[420px] px-3 py-2' : 'w-full max-w-[320px] px-2 py-1.5'
  }`}>
  <div className={`grid items-center gap-3 border-y-2 border-dashed ${
- final ? 'grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] border-[#D6A619]/60 py-2' : 'grid-cols-[minmax(0,1fr)_62px_minmax(0,1fr)] border-[#30334D] py-1.5'
+ final ? 'grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] border-[#D6A619]/60 py-2' : 'grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] border-[#30334D] py-1.5'
  }`}>
  <div className="flex min-w-0 items-center gap-2 text-[#596070]">
  <TeamMark name="待定" muted />
@@ -447,7 +464,7 @@ function BracketMatchPill({ match, final = false }: { match: BracketSlot; final?
  final ? 'w-full max-w-[420px] px-3 py-2' : 'w-full max-w-[320px] px-2 py-1.5'
  }`}>
  <div className={`grid items-center gap-3 border-y-2 ${
- final ? 'grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] border-[#D6A619] py-2' : 'grid-cols-[minmax(0,1fr)_62px_minmax(0,1fr)] border-[#30334D] py-1.5'
+ final ? 'grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] border-[#D6A619] py-2' : 'grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] border-[#30334D] py-1.5'
  }`}>
  <Link
  to={`/teams/${match.home_team.id}`}
@@ -461,9 +478,7 @@ function BracketMatchPill({ match, final = false }: { match: BracketSlot; final?
 
  <div className="text-center">
  {isFinished || match.status === 'ongoing' ? (
- <div className={`${final ? 'text-xl' : 'text-base'} font-black stat-number text-white`}>
- {match.home_score ?? '-'}:{match.away_score ?? '-'}
- </div>
+ <MatchScore match={match} className={`${final ? 'text-xl' : 'text-base'} font-black stat-number text-white`} />
  ) : (
  <div className={`${final ? 'text-sm' : 'text-xs'} font-black pixel-number text-[#4B4B6A]`}>VS</div>
  )}
@@ -500,7 +515,9 @@ function getHalfSlots(fixturesByStage: Record<string, CupFixture[]>, stage: stri
 }
 
 function getWinnerTeamId(match: BracketSlot) {
- if (!match || match.status !== 'finished' || match.home_score == null || match.away_score == null) return null
+ if (!match || match.status !== 'finished') return null
+ if (match.winner_team_id) return match.winner_team_id
+ if (match.home_score == null || match.away_score == null) return null
  if (match.home_score > match.away_score) return match.home_team.id
  if (match.away_score > match.home_score) return match.away_team.id
  return null

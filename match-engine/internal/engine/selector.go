@@ -57,6 +57,10 @@ func SelectPlayerByZone(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *do
 				weights[i] *= 0.01
 			}
 		}
+		// V3: active players with high carry_ball / forward_runs are slightly more likely
+		// to be chosen as the protagonist in open play.
+		weights[i] *= playerInstructionWeight(p, config.EventDribblePast)
+		weights[i] *= instructionValueMod(p.Instruction.ForwardRuns)
 	}
 
 	return weightedSelect(players, weights, r)
@@ -109,7 +113,11 @@ func SelectShooterByZone(team *domain.TeamRuntime, zone [2]int, distance string,
 		}
 		qualityFactor := 0.35 + shotScore/20.0
 
-		weights[i] = zw * staminaFactor * positionBonus * qualityFactor
+		// V3: honour player shooting_frequency and forward_runs
+		shotMod := playerInstructionWeight(p, config.EventCloseShot)
+		runMod := instructionValueMod(p.Instruction.ForwardRuns)
+
+		weights[i] = zw * staminaFactor * positionBonus * qualityFactor * shotMod * runMod
 	}
 
 	return weightedSelect(players, weights, r)
@@ -165,7 +173,9 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 			defBonus = 0.5
 		}
 		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
-		weights[i] = zw * defBonus * staminaFactor
+		// V3: pressing_intensity nudges defensive selection toward players instructed to press.
+		pressMod := playerInstructionWeight(p, config.EventTackle)
+		weights[i] = zw * defBonus * staminaFactor * pressMod
 	}
 
 	return weightedSelect(players, weights, r)
@@ -191,7 +201,17 @@ func SelectPassTarget(team *domain.TeamRuntime, fromZone [2]int, r *rand.Rand, m
 			zw += 0.3
 		}
 		staminaFactor := 0.5 + 0.5*(p.CurrentStamina/100.0)
-		weights[i] = zw * staminaFactor
+
+		// V3: reliable pass targets get a small hold_position boost; aggressive runners
+		// are preferred for progressive passes.
+		holdMod := instructionValueMod(p.Instruction.HoldPosition)
+		runMod := instructionValueMod(p.Instruction.ForwardRuns)
+		if fromZone[0] == 2 {
+			// From deep, prefer players who hold position
+			runMod = 1.0
+		}
+
+		weights[i] = zw * staminaFactor * holdMod * runMod
 	}
 
 	// Man marking expert: reduce pass target weight for forwards when opponent uses man marking

@@ -72,6 +72,33 @@ func ConsumeStamina(p *domain.PlayerRuntime, intensity float64) {
 	}
 }
 
+// pressingStaminaMult scales stamina cost for defensive actions based on the
+// player's pressing_intensity instruction. Higher pressing intensity costs more stamina.
+func pressingStaminaMult(p *domain.PlayerRuntime) float64 {
+	if p == nil {
+		return 1.0
+	}
+	switch p.Instruction.PressingIntensity {
+	case 0:
+		return 0.88
+	case 1:
+		return 0.94
+	case 2:
+		return 1.0
+	case 3:
+		return 1.06
+	case 4:
+		return 1.12
+	}
+	return 1.0
+}
+
+// ConsumeDefensiveStamina applies pressing-intensity stamina modulation for
+// defensive events such as tackle, intercept, clearance, block pass, etc.
+func ConsumeDefensiveStamina(p *domain.PlayerRuntime, eventType string) {
+	ConsumeStamina(p, StaminaCost(eventType)*pressingStaminaMult(p))
+}
+
 // StaminaCost for event types
 func StaminaCost(eventType string) float64 {
 	switch eventType {

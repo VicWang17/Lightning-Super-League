@@ -27,6 +27,9 @@ from app.services.player_state_service import PlayerStateService
 settings = get_settings()
 logger = get_logger("app.match_engine")
 
+# Tactics integration: read saved team tactics first, fallback to auto-selection below.
+# Constants and fallback selectors are kept locally for backward compatibility.
+
 FORMATION_REQUIREMENTS: dict[str, dict[PlayerPosition, int]] = {
     "F01": {PlayerPosition.DF: 2, PlayerPosition.MF: 3, PlayerPosition.FW: 2},  # Standard Balance
     "F02": {PlayerPosition.DF: 2, PlayerPosition.MF: 2, PlayerPosition.FW: 3},  # Front Press
@@ -264,22 +267,155 @@ class MatchEngineClient:
             raise ValueError(f"Team {team_id} has fewer than 8 players")
         return players
 
+    async def _get_team_tactics(self, db: AsyncSession, team_id: str) -> Optional[dict[str, Any]]:
+        """Load saved team tactics if they exist and are usable."""
+        from app.services.tactics_service import TacticsService
+        service = TacticsService(db)
+        record = await service.get_by_team_id(team_id)
+        if not record:
+            return None
+        instructions = dict(record.team_instructions or {})
+        return {
+            "formation_id": record.formation_id,
+            "lineup_player_ids": list(record.lineup_player_ids or []),
+            "bench_player_ids": list(record.bench_player_ids or []),
+            "tactics": instructions.get("legacy_team_sliders", instructions),
+            "team_instructions": instructions,
+        }
+
+    def _select_lineup_from_saved(
+        self,
+        players: list[Player],
+        saved_starter_ids: list[str],
+        saved_bench_ids: list[str],
+        formation_id: str,
+    ) -> tuple[list[Player], list[Player]]:
+        """Use saved lineup as the base, replacing unavailable players.
+
+        Replacement priority:
+        1. Same-position players from saved bench.
+        2. Any available player from saved bench.
+        3. Any ACTIVE player not already picked.
+        """
+        player_by_id = {p.id: p for p in players}
+        active_by_id = {
+            p.id: p for p in players
+            if getattr(p.status, "value", p.status) == "ACTIVE"
+        }
+
+        # Start with saved starters that are still active
+        starters: list[Player] = []
+        used_ids: set[str] = set()
+        for pid in saved_starter_ids:
+            p = active_by_id.get(pid)
+            if p and p not in starters:
+                starters.append(p)
+                used_ids.add(pid)
+
+        # Build a pool of replacements: saved bench first, then any remaining active players
+        bench_pool: list[Player] = []
+        for pid in saved_bench_ids:
+            p = active_by_id.get(pid)
+            if p and p.id not in used_ids and p not in bench_pool:
+                bench_pool.append(p)
+
+        for p in sorted(active_by_id.values(), key=self._lineup_score, reverse=True):
+            if p.id not in used_ids and p not in bench_pool:
+                bench_pool.append(p)
+
+        # Fill up to 8 starters, respecting formation position requirements
+        requirements = FORMATION_REQUIREMENTS.get(formation_id, FORMATION_REQUIREMENTS["F01"])
+
+        def ensure_gk() -> None:
+            if any(p.position == PlayerPosition.GK for p in starters):
+                return
+            candidates = [p for p in bench_pool if p.position == PlayerPosition.GK]
+            if candidates:
+                gk = candidates[0]
+                bench_pool.remove(gk)
+                starters.append(gk)
+                used_ids.add(gk.id)
+
+        def ensure_position(position: PlayerPosition, required: int) -> None:
+            current = sum(1 for p in starters if p.position == position)
+            needed = required - current
+            if needed <= 0:
+                return
+            candidates = [p for p in bench_pool if p.position == position]
+            for p in candidates[:needed]:
+                bench_pool.remove(p)
+                starters.append(p)
+                used_ids.add(p.id)
+
+        def fill_remaining() -> None:
+            while len(starters) < 8 and bench_pool:
+                p = bench_pool.pop(0)
+                if p.id not in used_ids:
+                    starters.append(p)
+                    used_ids.add(p.id)
+
+        ensure_gk()
+        for position, required in requirements.items():
+            ensure_position(position, required)
+        fill_remaining()
+
+        # Build bench from remaining saved bench + active players, up to 5
+        bench: list[Player] = []
+        for p in bench_pool:
+            if p.id not in used_ids and len(bench) < 5:
+                bench.append(p)
+                used_ids.add(p.id)
+
+        return starters[:8], bench[:5]
+
     async def _build_team_setup(self, team: Team, players: list[Player], db=None, season_number: int = 0) -> dict[str, Any]:
-        formation_id = self._choose_formation(players)
-        starters, bench = self._select_lineup(players, formation_id)
+        saved = None
+        if db is not None:
+            saved = await self._get_team_tactics(db, team.id)
+
+        if saved and saved.get("lineup_player_ids"):
+            formation_id = saved["formation_id"]
+            starters, bench = self._select_lineup_from_saved(
+                players,
+                saved["lineup_player_ids"],
+                saved.get("bench_player_ids", []),
+                formation_id,
+            )
+            saved_tactics = saved.get("tactics") or {}
+            tactics = dict(TACTIC_PRESETS["balanced"])
+            tactics.update(saved_tactics)
+        else:
+            formation_id = self._choose_formation(players)
+            starters, bench = self._select_lineup(players, formation_id)
+            tactics = self._choose_tactics(formation_id, starters)
+
         if len(starters) < 8:
             raise ValueError(f"Team {team.id} has fewer than 8 match-fit players")
+
         starter_setups = await asyncio.gather(*[self._player_setup(p, db, season_number) for p in starters])
         bench_setups = await asyncio.gather(*[self._player_setup(p, db, season_number) for p in bench])
+        team_instructions = saved.get("team_instructions") if saved else None
+        if not team_instructions:
+            from app.schemas.tactics import TeamInstructions
+            team_instructions = TeamInstructions.from_legacy(
+                self._legacy_tactics_setup(tactics)
+            ).model_dump()
+
         return {
             "team_id": team.id,
             "name": team.name,
             "formation_id": formation_id,
             "players": list(starter_setups),
             "bench": list(bench_setups),
-            "tactics": self._choose_tactics(formation_id, starters),
+            "tactics": tactics,
+            "team_instructions": team_instructions,
             "lineup_metrics": self._lineup_metrics(starters, bench),
         }
+
+    def _legacy_tactics_setup(self, tactics: dict[str, Any]) -> "TacticsSetup":
+        """将 legacy tactics dict 转为 TacticsSetup schema"""
+        from app.schemas.tactics import TacticsSetup
+        return TacticsSetup.model_validate(tactics)
 
     def _select_lineup(self, players: list[Player], formation_id: str) -> tuple[list[Player], list[Player]]:
         active = [p for p in players if getattr(p.status, "value", p.status) == "ACTIVE"]
