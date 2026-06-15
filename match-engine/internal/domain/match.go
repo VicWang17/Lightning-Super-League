@@ -34,43 +34,51 @@ type MatchState struct {
 	HomeTeam *TeamRuntime
 	AwayTeam *TeamRuntime
 
-	ControlMatrix [3][3]float64 // absolute reference: positive = home advantage
-	ControlShift  [3][3]float64 // event-driven offset from natural control, decays in inactive zones
+	ControlMatrix  [3][3]float64 // absolute reference: positive = home advantage
+	ControlShift   [3][3]float64 // event-driven offset from natural control, decays in inactive zones
 	GlobalMomentum float64       // global scalar momentum, range [-0.3, 0.3]
 
-	BallHolder *PlayerRuntime // current player with the ball
-	LastPasser *PlayerRuntime  // last successful passer on the possession team (for assist tracking)
+	BallHolder      *PlayerRuntime   // current player with the ball
+	AssistCandidate *AssistCandidate // direct chance creator eligible for assist credit
 
 	PossessionTicks [2]int // home, away
 
 	CounterBoostRemaining [2]int // remaining events with counter-attack boost (home, away)
 
-	LastEventType string
-	ChainState    string // none, ongoing, goal, turnover, set_piece
-	AddedTime     float64 // stoppage time for second half (in minutes)
+	LastEventType      string
+	ChainState         string  // none, ongoing, goal, turnover, set_piece
+	AddedTime          float64 // stoppage time for second half (in minutes)
 	AddedTimeAnnounced bool
 
 	EventCounter int
 	Events       []MatchEvent
 
 	HomeStats struct {
-		Shots, ShotsOnTarget, Passes, PassesSucc, KeyPasses int
-		Crosses, CrossesSucc, Dribbles, DribblesSucc int
+		Shots, ShotsOnTarget, Passes, PassesSucc, KeyPasses     int
+		Crosses, CrossesSucc, Dribbles, DribblesSucc            int
 		Tackles, TacklesSucc, Interceptions, Clearances, Blocks int
-		Headers, HeaderWins, Saves int
-		Corners, Fouls, FoulsDrawn, Offsides int
-		YellowCards, RedCards int
-		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals int
+		Headers, HeaderWins, Saves                              int
+		Corners, Fouls, FoulsDrawn, Offsides                    int
+		YellowCards, RedCards                                   int
+		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals       int
 	}
 	AwayStats struct {
-		Shots, ShotsOnTarget, Passes, PassesSucc, KeyPasses int
-		Crosses, CrossesSucc, Dribbles, DribblesSucc int
+		Shots, ShotsOnTarget, Passes, PassesSucc, KeyPasses     int
+		Crosses, CrossesSucc, Dribbles, DribblesSucc            int
 		Tackles, TacklesSucc, Interceptions, Clearances, Blocks int
-		Headers, HeaderWins, Saves int
-		Corners, Fouls, FoulsDrawn, Offsides int
-		YellowCards, RedCards int
-		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals int
+		Headers, HeaderWins, Saves                              int
+		Corners, Fouls, FoulsDrawn, Offsides                    int
+		YellowCards, RedCards                                   int
+		FreeKicks, FreeKickGoals, Penalties, PenaltyGoals       int
 	}
+}
+
+// AssistCandidate tracks a direct chance creator. It is intentionally narrower
+// than "last successful passer" so routine circulation does not inflate assists.
+type AssistCandidate struct {
+	Player     *PlayerRuntime
+	EventType  string
+	EventIndex int
 }
 
 func (m *MatchState) Team(side Side) *TeamRuntime {
@@ -78,7 +86,7 @@ func (m *MatchState) Team(side Side) *TeamRuntime {
 		return m.HomeTeam
 	}
 	return m.AwayTeam
-	}
+}
 
 func (m *MatchState) OppTeam(side Side) *TeamRuntime {
 	if side == SideHome {

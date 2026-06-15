@@ -27,6 +27,103 @@ func playerNameWithNumber(number int, name string) string {
 	return name
 }
 
+// milestoneSuffix turns milestone tags into commentary text.
+// It is intentionally deterministic (not random) so milestones feel significant.
+func milestoneSuffix(ev domain.MatchEvent) string {
+	if len(ev.Milestones) == 0 {
+		return ""
+	}
+
+	var hasHatTrick, hasLateGoal, hasLastMinuteGoal bool
+	var goalMilestone, assistMilestone string
+	for _, m := range ev.Milestones {
+		switch m {
+		case "hat_trick":
+			hasHatTrick = true
+		case "late_goal":
+			hasLateGoal = true
+		case "last_minute_goal":
+			hasLastMinuteGoal = true
+		default:
+			if strings.HasSuffix(m, "_goal") || strings.HasSuffix(m, "_goals") {
+				if goalMilestone == "" {
+					goalMilestone = m
+				}
+			}
+			if strings.HasSuffix(m, "_assist") || strings.HasSuffix(m, "_assists") {
+				if assistMilestone == "" {
+					assistMilestone = m
+				}
+			}
+		}
+	}
+
+	var parts []string
+	if hasLastMinuteGoal {
+		parts = append(parts, "读秒破门！这简直是绝杀！")
+	} else if hasLateGoal {
+		parts = append(parts, "最后时刻的进球！")
+	}
+	if hasHatTrick {
+		parts = append(parts, "帽子戏法！他本场已经打进三球！")
+	}
+	if text := formatGoalMilestone(ev.PlayerName, goalMilestone); text != "" {
+		parts = append(parts, text)
+	}
+	if text := formatAssistMilestone(ev.Player2Name, assistMilestone); text != "" {
+		parts = append(parts, text)
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+	return " " + strings.Join(parts, " ")
+}
+
+func formatGoalMilestone(playerName, milestone string) string {
+	if milestone == "" {
+		return ""
+	}
+	n := parseMilestoneNumber(milestone)
+	if n <= 0 {
+		return ""
+	}
+	if n == 1 {
+		return fmt.Sprintf("更要恭喜%s，这是他的职业生涯第一粒进球！", playerName)
+	}
+	return fmt.Sprintf("这是%s职业生涯的第%d粒进球！", playerName, n)
+}
+
+func formatAssistMilestone(playerName, milestone string) string {
+	if milestone == "" || playerName == "" {
+		return ""
+	}
+	n := parseMilestoneNumber(milestone)
+	if n <= 0 {
+		return ""
+	}
+	if n == 1 {
+		return fmt.Sprintf("助攻来自%s，这也是他职业生涯的第一次助攻！", playerName)
+	}
+	return fmt.Sprintf("助攻来自%s，这也是他职业生涯的第%d次助攻！", playerName, n)
+}
+
+func parseMilestoneNumber(milestone string) int {
+	if strings.HasPrefix(milestone, "first_") {
+		return 1
+	}
+	parts := strings.Split(milestone, "_")
+	if len(parts) == 0 {
+		return 0
+	}
+	// Use fmt.Sscanf to avoid importing strconv just for this.
+	var n int
+	if _, err := fmt.Sscanf(parts[0], "%d", &n); err == nil {
+		return n
+	}
+	return 0
+}
+
 func (ng *NarrativeGenerator) Generate(ev domain.MatchEvent) string {
 	return ng.GenerateWithContext(ev, 0, 0, [2]int{1, 1})
 }
@@ -98,6 +195,7 @@ func (ng *NarrativeGenerator) GenerateWithContext(ev domain.MatchEvent, ctrl flo
 			appendContext("crowd_boring", []string{"", " 看台上的球迷有些坐不住了。", " 比赛略显沉闷，球迷们希望看到进球。"})
 		}
 	}
+	base += milestoneSuffix(ev)
 	return base
 }
 
@@ -1309,8 +1407,10 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 		if ev.Result == "success" {
 			if ev.Detail != "" && ev.Detail != ev.PlayerName && ev.Detail != ev.Player2Name {
 				return ng.pick([]string{
-					fmt.Sprintf("%s→%s→%s，后场耐心传导，球终于来到%s脚下。", ev.PlayerName, ev.Detail, ev.Player2Name, ev.Player2Name),
-					fmt.Sprintf("后场三人组连续倒脚，%s把球传给%s。", ev.PlayerName, ev.Player2Name),
+					fmt.Sprintf("%s将球交给%s，后者顺势传给%s，后场三人稳稳控球。", ev.PlayerName, ev.Detail, ev.Player2Name),
+					fmt.Sprintf("%s、%s和%s在后场连续倒脚，球权始终掌控在脚下。", ev.PlayerName, ev.Detail, ev.Player2Name),
+					fmt.Sprintf("后场耐心组织，%s接球后传给%s，再转移到%s脚下。", ev.PlayerName, ev.Detail, ev.Player2Name),
+					fmt.Sprintf("皮球从%s脚下出发，经%s过渡，最终交到%s脚下。", ev.PlayerName, ev.Detail, ev.Player2Name),
 				})
 			}
 			return ng.pick([]string{

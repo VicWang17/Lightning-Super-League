@@ -14,11 +14,12 @@ from typing import Optional, Any
 from app.core.logging import get_logger
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models.player import Player, PlayerPosition
+from app.models.player_season_stats import PlayerSeasonStats
 from app.models.season import Fixture, FixtureType, Season
 from app.models.team import Team
 from app.services.player_state_service import PlayerStateService
@@ -423,7 +424,27 @@ class MatchEngineClient:
             ),
         }
 
+    async def _career_stats_for_player(self, player: Player, db=None) -> dict[str, int]:
+        """Aggregate career totals from player_season_stats for milestone narratives."""
+        if db is None:
+            return {"goals": 0, "assists": 0, "appearances": 0}
+        result = await db.execute(
+            select(
+                func.coalesce(func.sum(PlayerSeasonStats.goals), 0),
+                func.coalesce(func.sum(PlayerSeasonStats.assists), 0),
+                func.coalesce(func.sum(PlayerSeasonStats.matches_played), 0),
+            ).where(PlayerSeasonStats.player_id == player.id)
+        )
+        goals, assists, appearances = result.one()
+        return {
+            "goals": int(goals),
+            "assists": int(assists),
+            "appearances": int(appearances),
+        }
+
     async def _player_setup(self, player: Player, db=None, season_number: int = 0) -> dict[str, Any]:
+        career_stats = await self._career_stats_for_player(player, db)
+
         # 基础属性
         base_attributes = {
             "SHO": player.sho,
@@ -464,6 +485,7 @@ class MatchEngineClient:
                 setup["body_wear"] = player.body_wear or {}
                 setup["traits"] = player.traits or []
                 setup["age"] = age
+                setup["career_stats"] = career_stats
                 return setup
             except Exception as exc:
                 logger.warning(
@@ -483,6 +505,7 @@ class MatchEngineClient:
             "body_wear": player.body_wear or {},
             "traits": player.traits or [],
             "age": age,
+            "career_stats": career_stats,
         }
 
     def _skill_names(self, skills: list[Any]) -> list[str]:

@@ -128,6 +128,12 @@ func makePlayer(pos, suffix string) domain.PlayerSetup {
 		"ACC": 10, "CRO": 10, "CON": 10, "FIN": 10, "BAL": 10,
 		"COM": 10, "SAV": 10, "REF": 10, "POS": 10, "FK": 10, "PK": 10,
 	}
+	// Demo milestone values so the simulate CLI can show milestone narratives.
+	careerStats := domain.CareerStats{
+		Goals:       0,
+		Assists:     0,
+		Appearances: 10,
+	}
 
 	// Position-specific bias
 	switch pos {
@@ -156,13 +162,14 @@ func makePlayer(pos, suffix string) domain.PlayerSetup {
 
 	name := pos + " " + suffix
 	return domain.PlayerSetup{
-		PlayerID:   name,
-		Name:       name,
-		Position:   pos,
-		Attributes: attrs,
-		Stamina:    95.0,
-		Height:     180,
-		Foot:       "right",
+		PlayerID:    name,
+		Name:        name,
+		Position:    pos,
+		Attributes:  attrs,
+		Stamina:     95.0,
+		Height:      180,
+		Foot:        "right",
+		CareerStats: careerStats,
 	}
 }
 

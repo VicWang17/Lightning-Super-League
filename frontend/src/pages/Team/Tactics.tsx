@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { api } from '../../api/client'
@@ -12,13 +12,16 @@ import {
   Shield,
   Sword,
   Target,
-  UserPlus,
   Users,
   Zap,
+  Cancel,
+  Settings2,
+  ChevronDown,
 } from '../../components/ui/pixel-icons'
 
 type FormationId = 'F01' | 'F02' | 'F03' | 'F04' | 'F05' | 'F06' | 'F07' | 'F08'
 type SelectionSource = 'starter' | 'bench'
+type TabId = 'personnel' | 'tactics' | 'setpiece' | 'substitution'
 
 type TacticsSetup = {
   passing_style: number
@@ -38,6 +41,13 @@ type TacticsSetup = {
 type TacticKey = keyof TacticsSetup
 type TacticalPlayer = PlayerListItem & { fitness?: number; match_form?: string }
 type StarterSlot = ReturnType<typeof getSlots>[number] & { player?: TacticalPlayer }
+
+const TABS: Array<{ id: TabId; label: string }> = [
+  { id: 'personnel', label: '人员调整' },
+  { id: 'tactics', label: '战术设计' },
+  { id: 'setpiece', label: '定位球' },
+  { id: 'substitution', label: '换人策略' },
+]
 
 const formations: Array<{
   id: FormationId
@@ -222,45 +232,6 @@ function readStoredSetup() {
   }
 }
 
-function PlayerMini({
-  player,
-  active,
-  compact,
-}: {
-  player: TacticalPlayer
-  active?: boolean
-  compact?: boolean
-}) {
-  const tone = positionTone[player.position]
-  return (
-    <div className={clsx('flex min-w-0 items-center gap-3', compact && 'gap-2')}>
-      <div className={clsx('relative grid shrink-0 place-items-center font-black overflow-hidden rounded-full border-2', compact ? 'h-9 w-9 text-[10px]' : 'h-11 w-11 text-xs', tone.ring)}>
-        {player.avatar_url ? (
-          <img
-            src={`/${player.avatar_url}`}
-            alt={player.name}
-            className="h-full w-full object-cover object-top [image-rendering:pixelated]"
-          />
-        ) : (
-          <img
-            src={tone.token}
-            alt=""
-            className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
-          />
-        )}
-      </div>
-      <div className="min-w-0">
-        <p className={clsx('truncate font-black', active ? 'text-[#F8F4DE]' : 'text-[#E7E0C8]', compact ? 'text-xs' : 'text-sm')}>
-          {player.name}
-        </p>
-        <p className="text-[11px] font-bold text-[#786F5A]">
-          OVR {player.ovr} · {formatForm(player.match_form)}
-        </p>
-      </div>
-    </div>
-  )
-}
-
 function formatRate(numerator: number, denominator: number) {
   if (!denominator) return '0%'
   return `${Math.round((numerator / denominator) * 100)}%`
@@ -327,19 +298,82 @@ function abilityTone(value: number) {
   return 'text-[#786F5A]'
 }
 
-function PlayerPanel({ player }: { player: TacticalPlayer }) {
+function FormationMiniShape({ formationId }: { formationId: FormationId }) {
+  const rows = formationRows[formationId]
+  return (
+    <div className="relative aspect-[3/4] w-full">
+      {rows.flatMap((row) =>
+        Array.from({ length: row.count }, (_, i) => {
+          const spacing = row.count > 1 ? 100 / (row.count + 1) : 50
+          const left = row.count > 1 ? spacing * (i + 1) : 50
+          return (
+            <div
+              key={`${row.position}-${i}`}
+              className={clsx(
+                'absolute h-1 w-1 rounded-full',
+                row.position === 'GK' && 'bg-[#E2B84B]',
+                row.position === 'DF' && 'bg-[#63A9E8]',
+                row.position === 'MF' && 'bg-[#72D0BB]',
+                row.position === 'FW' && 'bg-[#E97762]',
+              )}
+              style={{ left: `${left}%`, top: `${row.y}%`, transform: 'translate(-50%, -50%)' }}
+            />
+          )
+        })
+      )}
+    </div>
+  )
+}
+
+function TacticSlider({
+  field,
+  value,
+  onChange,
+}: {
+  field: typeof tacticFields[number]
+  value: number
+  onChange: (key: TacticKey, value: number) => void
+}) {
+  return (
+    <div className="border-2 border-[#3B3425] bg-[#16120B]/88 p-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-black text-[#EFE8CE]">{field.label}</span>
+        <span className="stat-number text-sm text-[#D5B15E]">{value}/{field.max}</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={field.max}
+        step={1}
+        value={value}
+        onChange={(event) => onChange(field.key, Number(event.target.value))}
+        className="w-full accent-[#D5B15E]"
+      />
+      <div className="mt-1 flex items-center justify-between text-[11px] font-bold text-[#786F5A]">
+        <span>{field.left}</span>
+        <span>{field.right}</span>
+      </div>
+    </div>
+  )
+}
+
+function PlayerPanel({
+  player,
+  slot,
+  onClear,
+}: {
+  player: TacticalPlayer
+  slot?: StarterSlot
+  onClear?: () => void
+}) {
   const navigate = useNavigate()
   const tone = positionTone[player.position]
   const fitnessColor = player.fitness >= 80 ? 'bg-[#7CB342]' : player.fitness >= 50 ? 'bg-[#E6B800]' : 'bg-[#D75A4A]'
   const formColor = player.match_form === 'HOT' ? 'text-[#E8C84A]' : player.match_form === 'GOOD' ? 'text-[#7CB342]' : player.match_form === 'LOW' ? 'text-[#D75A4A]' : 'text-[#A99E83]'
 
   return (
-    <div className="space-y-3">
-      <button
-        type="button"
-        onClick={() => navigate(`/players/${player.id}`)}
-        className="flex w-full items-start gap-3 text-left transition-opacity hover:opacity-85"
-      >
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
         <div className={clsx('relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-4', tone.ring)}>
           {player.avatar_url ? (
             <img
@@ -356,10 +390,30 @@ function PlayerPanel({ player }: { player: TacticalPlayer }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-black text-[#FFF8DE]">{player.name}</h3>
-          <p className="mt-1 text-sm font-black text-[#D5B15E]">{player.age}岁</p>
+          <button
+            type="button"
+            onClick={() => navigate(`/players/${player.id}`)}
+            className="block text-left transition-opacity hover:opacity-85"
+          >
+            <h3 className="truncate text-base font-black text-[#FFF8DE]">{player.name}</h3>
+          </button>
+          <p className="mt-1 text-sm font-black text-[#D5B15E]">{player.age}岁 · {tone.label}</p>
+          {slot && (
+            <p className="mt-0.5 text-[11px] font-black text-[#9ECF45]">
+              当前首发 · 位置 {slot.position}-{slot.id.split('-')[1] ? Number(slot.id.split('-')[1]) + 1 : 1}
+            </p>
+          )}
         </div>
-      </button>
+        {onClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="grid h-7 w-7 shrink-0 place-items-center border-2 border-[#3B3425] bg-[#0D0B07] text-[#786F5A] hover:text-[#FFF8DE]"
+          >
+            <Cancel className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
 
       <div className="space-y-2 border-2 border-[#3B3425] bg-[#0D0B07] p-3">
         <div className="flex items-center justify-between">
@@ -408,35 +462,323 @@ function PlayerPanel({ player }: { player: TacticalPlayer }) {
   )
 }
 
-function TacticSlider({
-  field,
+function FormationSelect({
   value,
   onChange,
 }: {
-  field: typeof tacticFields[number]
-  value: number
-  onChange: (key: TacticKey, value: number) => void
+  value: FormationId
+  onChange: (id: FormationId) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const current = formations.find((f) => f.id === value)!
+
+  useEffect(() => {
+    function onClick(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    if (open) document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-3 border-2 border-[#3B3425] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
+      >
+        <div className="h-10 w-8 shrink-0">
+          <FormationMiniShape formationId={current.id} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black text-[#FFF8DE]">{current.shape}</p>
+        </div>
+        <ChevronDown className={clsx('h-4 w-4 shrink-0 text-[#786F5A] transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#3B3425] bg-[#15110A] p-2 shadow-pixel">
+          <div className="grid grid-cols-2 gap-2">
+            {formations.map((formation) => (
+              <button
+                key={formation.id}
+                type="button"
+                onClick={() => {
+                  onChange(formation.id)
+                  setOpen(false)
+                }}
+                className={clsx(
+                  'flex flex-col items-center gap-1 border-2 p-2 text-center transition-all',
+                  value === formation.id
+                    ? 'border-[#D5B15E] bg-[#2A1E0E]'
+                    : 'border-[#3B3425] bg-[#0D0B07] hover:border-[#D5B15E]/55',
+                )}
+              >
+                <div className="h-8 w-full">
+                  <FormationMiniShape formationId={formation.id} />
+                </div>
+                <p className="text-[11px] font-black text-[#FFF8DE]">{formation.shape}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PresetSelect({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const current = presets.find((p) => p.id === value)
+  const CurrentIcon = current?.icon || Target
+
+  useEffect(() => {
+    function onClick(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    if (open) document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-3 border-2 border-[#3B3425] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
+      >
+        <div className="grid h-8 w-8 shrink-0 place-items-center border border-[#3B3425] bg-[#0D0B07]">
+          <CurrentIcon className="h-4 w-4 text-[#D5B15E]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black text-[#FFF8DE]">{current?.name || '自定义'}</p>
+          <p className="text-[10px] font-bold text-[#786F5A]">{current?.desc || '手动调整'}</p>
+        </div>
+        <ChevronDown className={clsx('h-4 w-4 shrink-0 text-[#786F5A] transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#3B3425] bg-[#15110A] p-2 shadow-pixel">
+          <div className="space-y-1">
+            {presets.map((preset) => {
+              const Icon = preset.icon
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(preset.id)
+                    setOpen(false)
+                  }}
+                  className={clsx(
+                    'flex w-full items-center gap-2 border-2 p-2 text-left transition-all',
+                    value === preset.id
+                      ? 'border-[#D5B15E] bg-[#2A1E0E]'
+                      : 'border-[#3B3425] bg-[#0D0B07] hover:border-[#D5B15E]/55',
+                  )}
+                >
+                  <div className="grid h-7 w-7 shrink-0 place-items-center border border-[#3B3425] bg-[#15110A]">
+                    <Icon className="h-3.5 w-3.5 text-[#D5B15E]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black text-[#FFF8DE]">{preset.name}</p>
+                    <p className="text-[10px] font-bold text-[#786F5A]">{preset.desc}</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BenchPlayerRow({
+  player,
+  selected,
+  onClick,
+  onDragStart,
+}: {
+  player: TacticalPlayer
+  selected: boolean
+  onClick: () => void
+  onDragStart: (event: React.DragEvent<HTMLButtonElement>) => void
+}) {
+  const tone = positionTone[player.position]
+  const fitnessColor = player.fitness >= 80 ? 'bg-[#7CB342]' : player.fitness >= 50 ? 'bg-[#E6B800]' : 'bg-[#D75A4A]'
+
+  return (
+    <button
+      type="button"
+      draggable
+      onClick={onClick}
+      onDragStart={onDragStart}
+      className={clsx(
+        'flex w-full items-center gap-3 border-2 p-2 text-left transition-all',
+        selected
+          ? 'border-[#D5B15E] bg-[#2A1E0E]'
+          : 'border-[#3B3425] bg-[#15110A] hover:border-[#D5B15E]/55',
+      )}
+    >
+      <div className={clsx('relative h-10 w-10 shrink-0 overflow-hidden rounded-full border-2', tone.ring)}>
+        {player.avatar_url ? (
+          <img src={`/${player.avatar_url}`} alt={player.name} className="h-full w-full object-cover object-top [image-rendering:pixelated]" />
+        ) : (
+          <img src={tone.token} alt="" className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-black text-[#FFF8DE]">{player.name}</p>
+        <p className="text-[10px] font-bold text-[#786F5A]">{tone.label} · OVR {player.ovr}</p>
+        <div className="mt-1.5 h-1 border border-[#3B3425] bg-[#1A1610]">
+          <div className={clsx('h-full', fitnessColor)} style={{ width: `${player.fitness}%` }} />
+        </div>
+      </div>
+    </button>
+  )
+}
+
+function TacticsDesignPanel({
+  tactics,
+  activePreset,
+  onTacticChange,
+  onPreset,
+}: {
+  tactics: TacticsSetup
+  activePreset: string
+  onTacticChange: (key: TacticKey, value: number) => void
+  onPreset: (id: string) => void
 }) {
   return (
-    <div className="border-2 border-[#3B3425] bg-[#16120B]/88 p-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-black text-[#EFE8CE]">{field.label}</span>
-        <span className="stat-number text-sm text-[#D5B15E]">{value}/{field.max}</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Settings2 className="h-4 w-4 text-[#D5B15E]" />
+          <h2 className="font-black text-[#FFF8DE]">战术控制台</h2>
+        </div>
+        {activePreset === 'custom' && (
+          <button
+            type="button"
+            onClick={() => onPreset('balanced')}
+            className="text-[10px] font-black text-[#D5B15E] hover:text-[#FFF8DE]"
+          >
+            重置
+          </button>
+        )}
       </div>
-      <input
-        type="range"
-        min={0}
-        max={field.max}
-        step={1}
-        value={value}
-        onChange={(event) => onChange(field.key, Number(event.target.value))}
-        className="w-full accent-[#D5B15E]"
-      />
-      <div className="mt-1 flex items-center justify-between text-[11px] font-bold text-[#786F5A]">
-        <span>{field.left}</span>
-        <span>{field.right}</span>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {(['进攻组织', '防守结构'] as const).map((group) => (
+          <div key={group} className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+            <div className="mb-2 flex items-center gap-2">
+              {group === '进攻组织' ? <Sword className="h-3.5 w-3.5 text-[#E97762]" /> : <Shield className="h-3.5 w-3.5 text-[#63A9E8]" />}
+              <h3 className="text-xs font-black text-[#EFE8CE]">{group}</h3>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {tacticFields.filter((field) => field.group === group).map((field) => (
+                <TacticSlider key={field.key} field={field} value={tactics[field.key]} onChange={onTacticChange} />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
+  )
+}
+
+function BenchPanel({
+  bench,
+  selectedPlayerId,
+  onPlayerClick,
+  onDragStart,
+}: {
+  bench: TacticalPlayer[]
+  selectedPlayerId: string | null
+  onPlayerClick: (player: TacticalPlayer, index: number) => void
+  onDragStart: (event: React.DragEvent<HTMLButtonElement>, player: TacticalPlayer, index: number) => void
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col border-2 border-[#3B3425] bg-[#15110A] p-3 shadow-pixel">
+      <div className="mb-3 flex items-center gap-2">
+        <Users className="h-4 w-4 text-[#D5B15E]" />
+        <h2 className="font-black text-[#FFF8DE]">替补席</h2>
+        <span className="ml-auto text-[10px] font-bold text-[#786F5A]">{bench.length}人</span>
+      </div>
+      <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+        {bench.length ? bench.map((player, index) => (
+          <BenchPlayerRow
+            key={player.id}
+            player={player}
+            selected={selectedPlayerId === player.id}
+            onClick={() => onPlayerClick(player, index)}
+            onDragStart={(event) => onDragStart(event, player, index)}
+          />
+        )) : (
+          <div className="flex h-24 items-center justify-center border-2 border-dashed border-[#3B3425] text-xs font-bold text-[#786F5A]">
+            暂无可用替补
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PlayerDetailPanel({
+  player,
+  slot,
+  onClear,
+}: {
+  player?: TacticalPlayer
+  slot?: StarterSlot
+  onClear: () => void
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col border-2 border-[#3B3425] bg-[#15110A] p-3 shadow-pixel">
+      <div className="mb-3 flex items-center gap-2">
+        <Target className="h-4 w-4 text-[#D5B15E]" />
+        <h2 className="font-black text-[#FFF8DE]">球员详情</h2>
+      </div>
+      <div className="flex-1 overflow-y-auto pr-1">
+        {player ? (
+          <PlayerPanel player={player} slot={slot} onClear={onClear} />
+        ) : (
+          <div className="flex h-48 flex-col items-center justify-center gap-3 border-2 border-dashed border-[#3B3425] p-4 text-center">
+            <Target className="h-8 w-8 text-[#3B3425]" />
+            <p className="text-sm font-bold text-[#786F5A]">点击球场或替补球员查看详情</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => void }) {
+  return (
+    <button
+      onClick={onSave}
+      className={clsx(
+        'inline-flex items-center gap-1.5 border-2 px-3 py-2 text-xs font-black shadow-pixel-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:brightness-110',
+        saved
+          ? 'border-[#4A7C23] bg-[#7CB342] text-[#0D1A05]'
+          : 'border-[#6F521B] bg-[#D5B15E] text-[#191007]',
+      )}
+    >
+      {saved ? <Check className="h-3 w-3" /> : <Download className="h-3 w-3" />}
+      {saved ? '已保存' : '保存方案'}
+    </button>
   )
 }
 
@@ -451,6 +793,8 @@ export default function Tactics() {
   const [panelPlayerId, setPanelPlayerId] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false)
+  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<TabId>('personnel')
 
   useEffect(() => {
     const parsed = readStoredSetup()
@@ -517,6 +861,8 @@ export default function Tactics() {
   const starterIdSet = useMemo(() => new Set(starterIds.filter(Boolean)), [starterIds])
   const bench = useMemo(() => players.filter((player) => !starterIdSet.has(player.id)).sort(sortPlayersForLineup), [players, starterIdSet])
   const selectedPlayer = useMemo(() => players.find((player) => player.id === panelPlayerId), [players, panelPlayerId])
+  const selectedSlot = useMemo(() => lineup.find((slot) => slot.player?.id === panelPlayerId), [lineup, panelPlayerId])
+
   const movePlayer = (from: { source: SelectionSource; index: number }, to: { source: SelectionSource; index: number }) => {
     if (from.source === to.source && from.index === to.index) {
       setSelectedPlayerId(null)
@@ -566,6 +912,17 @@ export default function Tactics() {
     movePlayer(from, { source, index })
   }
 
+  const onBenchPlayerClick = (player: TacticalPlayer, _index: number) => {
+    setSelectedPlayerId(player.id)
+    setPanelPlayerId(player.id)
+  }
+
+  const onBenchDragStart = (event: React.DragEvent<HTMLButtonElement>, player: TacticalPlayer, index: number) => {
+    event.dataTransfer.setData('application/json', JSON.stringify({ source: 'bench', index }))
+    setSelectedPlayerId(player.id)
+    setPanelPlayerId(player.id)
+  }
+
   const onPreset = (presetId: string) => {
     const preset = presets.find((item) => item.id === presetId)
     if (!preset) return
@@ -577,7 +934,9 @@ export default function Tactics() {
   const onFormation = (nextFormationId: FormationId) => {
     setFormationId(nextFormationId)
     setSelectedPlayerId(null)
-    setPanelPlayerId(null)
+    if (!panelPlayerId || !players.some((p) => p.id === panelPlayerId)) {
+      setPanelPlayerId(null)
+    }
     setSaved(false)
   }
 
@@ -601,223 +960,213 @@ export default function Tactics() {
     setSaved(false)
   }
 
+  const clearPanelPlayer = () => {
+    setPanelPlayerId(null)
+    setSelectedPlayerId(null)
+  }
+
   if (loading) {
     return <div className="max-w-[1440px] p-8 text-center text-[#8B8BA7]">加载战术室...</div>
   }
 
   return (
-    <div className="max-w-[1600px] space-y-4 text-[#EFE8CE]">
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          className="inline-flex items-center gap-1.5 border-2 border-[#6F521B] bg-[#D5B15E] px-3 py-1.5 text-xs font-black text-[#191007] shadow-pixel-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:brightness-110"
-        >
-          {saved ? <Check className="h-3 w-3" /> : <Download className="h-3 w-3" />}
-          {saved ? '已保存' : '保存方案'}
-        </button>
+    <div className="mx-auto max-w-[1600px] space-y-4 text-[#EFE8CE]">
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b-2 border-[#3B3425]">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={clsx(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-0.5 transition-all',
+              activeTab === tab.id
+                ? 'border-[#D5B15E] text-[#D5B15E]'
+                : 'border-transparent text-[#786F5A] hover:text-[#FFF8DE]',
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_300px] 2xl:grid-cols-[330px_minmax(0,1fr)_340px]">
-        <aside className="space-y-4">
-          <section className="border-2 border-[#3B3425] bg-[#15110A] p-4 shadow-pixel">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-[#D5B15E]" />
-                <h2 className="font-black text-[#FFF8DE]">替补席</h2>
+      {/* Tab 1: Personnel */}
+      {activeTab === 'personnel' && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-36">
+                <FormationSelect value={formationId} onChange={onFormation} />
               </div>
+            </div>
+            <div className="flex items-center gap-3">
               <button
                 onClick={autoPick}
-                className="border border-[#6F521B] px-2 py-1 text-[11px] font-black text-[#D5B15E] hover:bg-[#2A1E0E]"
+                className="border border-[#6F521B] px-3 py-2 text-[11px] font-black text-[#D5B15E] hover:bg-[#2A1E0E]"
               >
-                自动选择
+                自动排阵
               </button>
+              <SaveButton saved={saved} onSave={handleSave} />
             </div>
-            <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
-              {bench.length ? bench.map((player, index) => (
-                <button
-                  key={player.id}
-                  draggable
-                  onClick={() => handleTargetClick('bench', index)}
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData('application/json', JSON.stringify({ source: 'bench', index }))
-                    setSelectedPlayerId(player.id)
-                    setPanelPlayerId(player.id)
-                  }}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    const payload = JSON.parse(event.dataTransfer.getData('application/json')) as { source: SelectionSource; index: number }
-                    movePlayer(payload, { source: 'bench', index })
-                  }}
-                  className={clsx(
-                    'w-full border-2 p-2 text-left transition-all',
-                    selectedPlayerId === player.id
-                      ? 'border-[#D5B15E] bg-[#2A1E0E]'
-                      : 'border-[#3B3425] bg-[#0D0B07] hover:border-[#D5B15E]/55',
-                  )}
-                >
-                  <PlayerMini player={player} compact />
-                </button>
-              )) : (
-                <div className="border-2 border-dashed border-[#3B3425] p-4 text-center text-sm font-bold text-[#786F5A]">
-                  暂无可用替补
-                </div>
-              )}
-            </div>
-          </section>
-        </aside>
+          </div>
 
-        <main className="space-y-4">
-          <div className="relative mx-auto aspect-[3/4] h-[min(78vh,760px)] min-h-[560px] max-w-[620px] overflow-hidden border-4 border-[#33291A] bg-[#D6C08E] shadow-pixel-lg">
-              <img
-                src="/tactics/hand-drawn-board-portrait-pixel-v2.png"
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover opacity-95"
-              />
-              <div className="absolute inset-0 bg-[#F2DFA6]/10 mix-blend-multiply" />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_1fr_340px]">
+            <BenchPanel
+              bench={bench}
+              selectedPlayerId={selectedPlayerId}
+              onPlayerClick={onBenchPlayerClick}
+              onDragStart={onBenchDragStart}
+            />
 
-              {lineup.map((slot, index) => {
-                const player = slot.player
-                const markerPosition = player?.position || slot.position
-                const tone = positionTone[markerPosition]
-                return (
-                  <button
-                    key={`${slot.id}-${index}`}
-                    draggable={Boolean(player)}
-                    onClick={() => handleTargetClick('starter', index)}
-                    onDragStart={(event) => {
-                      event.dataTransfer.setData('application/json', JSON.stringify({ source: 'starter', index }))
-                      if (player) {
-                        setSelectedPlayerId(player.id)
-                        setPanelPlayerId(player.id)
-                      }
-                    }}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault()
-                      const payload = JSON.parse(event.dataTransfer.getData('application/json')) as { source: SelectionSource; index: number }
-                      movePlayer(payload, { source: 'starter', index })
-                    }}
-                    className="group absolute -translate-x-1/2 -translate-y-1/2 text-left"
-                    style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-                  >
-                    <div
-                      className={clsx(
-                        'relative h-[86px] w-[86px] transition-transform group-hover:-translate-y-0.5',
-                        selectedPlayerId === player?.id && 'outline outline-4 outline-[#FFF4B8]',
-                        !player && 'opacity-55 grayscale',
-                      )}
+            <div className="flex flex-col items-center">
+              <div className="relative aspect-[1037/1517] h-[min(78vh,740px)] w-full max-w-[560px] overflow-hidden border-4 border-[#33291A] bg-[#D6C08E] shadow-pixel-lg">
+                <img
+                  src="/tactics/hand-drawn-board-portrait-pixel-v2.png"
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover opacity-95"
+                />
+                <div className="absolute inset-0 bg-[#F2DFA6]/10 mix-blend-multiply" />
+
+                {lineup.map((slot, index) => {
+                  const player = slot.player
+                  const markerPosition = player?.position || slot.position
+                  const tone = positionTone[markerPosition]
+                  const isSelected = selectedPlayerId === player?.id
+                  const isDragTarget = dragOverSlot === index
+                  const isEmpty = !player
+                  return (
+                    <button
+                      key={`${slot.id}-${index}`}
+                      draggable={Boolean(player)}
+                      onClick={() => handleTargetClick('starter', index)}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData('application/json', JSON.stringify({ source: 'starter', index }))
+                        if (player) {
+                          setSelectedPlayerId(player.id)
+                          setPanelPlayerId(player.id)
+                        }
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        setDragOverSlot(index)
+                      }}
+                      onDragLeave={() => setDragOverSlot((current) => (current === index ? null : current))}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        setDragOverSlot(null)
+                        const payload = JSON.parse(event.dataTransfer.getData('application/json')) as { source: SelectionSource; index: number }
+                        movePlayer(payload, { source: 'starter', index })
+                      }}
+                      className="group absolute -translate-x-1/2 -translate-y-1/2 text-left"
+                      style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
                     >
-                      <img
-                        src={tone.marker}
-                        alt=""
-                        className="pointer-events-none absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
-                      />
                       <div
-                        className="absolute left-1/2 top-1/2 h-[58px] w-[58px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full"
-                        style={{ backgroundColor: tone.fill }}
-                      >
-                        {player?.avatar_url ? (
-                          <img
-                            src={`/${player.avatar_url}`}
-                            alt={player?.name || ''}
-                            className="h-full w-full object-cover object-top [image-rendering:pixelated]"
-                          />
-                        ) : (
-                          <img
-                            src={tone.token}
-                            alt=""
-                            className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
-                          />
+                        className={clsx(
+                          'relative h-[74px] w-[74px] transition-transform',
+                          isSelected && 'drop-shadow-[0_0_8px_rgba(255,244,184,0.9)]',
+                          isDragTarget && !isEmpty && 'scale-110',
+                          isEmpty && 'opacity-55 grayscale',
+                          !isEmpty && 'group-hover:-translate-y-0.5',
                         )}
+                      >
+                        <img
+                          src={tone.marker}
+                          alt=""
+                          className="pointer-events-none absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
+                        />
+                        <div
+                          className="absolute left-1/2 top-1/2 h-[48px] w-[48px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full"
+                          style={{ backgroundColor: tone.fill }}
+                        >
+                          {player?.avatar_url ? (
+                            <img
+                              src={`/${player.avatar_url}`}
+                              alt={player?.name || ''}
+                              className="h-full w-full object-cover object-top [image-rendering:pixelated]"
+                            />
+                          ) : (
+                            <img
+                              src={tone.token}
+                              alt=""
+                              className="absolute inset-0 h-full w-full object-contain [image-rendering:pixelated]"
+                            />
+                          )}
+                        </div>
+                        <span className="absolute -right-1 -top-2 rounded-full border-2 border-[#60471F] bg-[#F8E8B6] px-1.5 text-[10px] font-black text-[#2B1B08] font-['Press_Start_2P']">
+                          {index + 1}
+                        </span>
                       </div>
-                      <span className="absolute -right-1 -top-2 rounded-full border-2 border-[#60471F] bg-[#F8E8B6] px-1.5 text-[10px] font-black text-[#2B1B08] font-['Press_Start_2P']">
-                        {index + 1}
-                      </span>
-                    </div>
-                    <div className="absolute left-1/2 top-[86px] w-28 -translate-x-1/2 text-center">
-                      <p className="truncate rounded-sm border border-[#5A4420] bg-[#F7E5B5] px-1.5 text-[11px] font-black text-[#241808] shadow-[2px_2px_0_rgba(31,21,9,0.34)]">
-                        {player?.name || '空位'}
-                      </p>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-
-          <section className="grid gap-3 lg:grid-cols-2">
-            {(['进攻组织', '防守结构'] as const).map((group) => (
-              <div key={group} className="border-2 border-[#3B3425] bg-[#15110A] p-4 shadow-pixel">
-                <div className="mb-3 flex items-center gap-2">
-                  {group === '进攻组织' ? <Sword className="h-4 w-4 text-[#E97762]" /> : <Shield className="h-4 w-4 text-[#63A9E8]" />}
-                  <h2 className="font-black text-[#FFF8DE]">{group}</h2>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {tacticFields.filter((field) => field.group === group).map((field) => (
-                    <TacticSlider
-                      key={field.key}
-                      field={field}
-                      value={tactics[field.key]}
-                      onChange={onTacticChange}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </section>
-        </main>
-
-        <aside className="space-y-4">
-          <section className="border-2 border-[#3B3425] bg-[#15110A] p-3 shadow-pixel">
-            <div className="mb-3 flex items-center gap-2">
-              <Target className="h-4 w-4 text-[#D5B15E]" />
-              <h2 className="font-black text-[#FFF8DE]">比赛设置</h2>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black text-[#786F5A]">阵型</label>
-                <select
-                  value={formationId}
-                  onChange={(e) => onFormation(e.target.value as FormationId)}
-                  className="w-full appearance-none border-2 border-[#3B3425] bg-[#0D0B07] px-3 py-2 text-sm font-bold text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
-                >
-                  {formations.map((formation) => (
-                    <option key={formation.id} value={formation.id}>{formation.name} · {formation.shape}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black text-[#786F5A]">比赛预设</label>
-                <select
-                  value={activePreset}
-                  onChange={(e) => onPreset(e.target.value)}
-                  className="w-full appearance-none border-2 border-[#3B3425] bg-[#0D0B07] px-3 py-2 text-sm font-bold text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
-                >
-                  <option value="custom" disabled>自定义</option>
-                  {presets.map((preset) => (
-                    <option key={preset.id} value={preset.id}>{preset.name}</option>
-                  ))}
-                </select>
+                      <div className="absolute left-1/2 top-[74px] w-24 -translate-x-1/2 text-center">
+                        <p className={clsx(
+                          'truncate rounded-sm border border-[#5A4420] px-1 text-[10px] font-black shadow-[2px_2px_0_rgba(31,21,9,0.34)]',
+                          isSelected ? 'bg-[#FFF4B8] text-[#2B1B08]' : 'bg-[#F7E5B5] text-[#241808]',
+                        )}>
+                          {player?.name || '空位'}
+                        </p>
+                      </div>
+                      {isDragTarget && isEmpty && (
+                        <div className="absolute left-1/2 top-1/2 h-[74px] w-[74px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-[#D5B15E] bg-[#D5B15E]/10" />
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             </div>
-          </section>
 
-          <section className="border-2 border-[#3B3425] bg-[#15110A] p-4 shadow-pixel">
-            <div className="mb-3 flex items-center gap-2">
-              <UserPlus className="h-4 w-4 text-[#D5B15E]" />
-              <h2 className="font-black text-[#FFF8DE]">球员面板</h2>
-            </div>
-            {selectedPlayer ? (
-              <PlayerPanel player={selectedPlayer} />
-            ) : (
-              <div className="border-2 border-dashed border-[#3B3425] bg-[#0D0B07] p-4 text-sm leading-6 text-[#8F846D]">
-                选择一名首发或替补后，这里会显示球员状态和数据。
+            <PlayerDetailPanel
+              player={selectedPlayer}
+              slot={selectedSlot}
+              onClear={clearPanelPlayer}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Tab 2: Tactics */}
+      {activeTab === 'tactics' && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-36">
+                <FormationSelect value={formationId} onChange={onFormation} />
               </div>
-            )}
-          </section>
+              <div className="w-44">
+                <PresetSelect value={activePreset} onChange={onPreset} />
+              </div>
+            </div>
+            <SaveButton saved={saved} onSave={handleSave} />
+          </div>
 
-        </aside>
-      </div>
+          <TacticsDesignPanel
+            tactics={tactics}
+            activePreset={activePreset}
+            onTacticChange={onTacticChange}
+            onPreset={onPreset}
+          />
+        </>
+      )}
+
+      {/* Tab 3: Set piece */}
+      {activeTab === 'setpiece' && (
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-4 border-2 border-[#3B3425] bg-[#15110A] p-8 text-center shadow-pixel">
+            <Target className="h-12 w-12 text-[#3B3425]" />
+            <h2 className="text-lg font-black text-[#FFF8DE]">定位球</h2>
+            <p className="text-sm font-bold text-[#786F5A]">角球 / 任意球 / 点球主罚人<br />暂未开发，敬请期待</p>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Substitution */}
+      {activeTab === 'substitution' && (
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-4 border-2 border-[#3B3425] bg-[#15110A] p-8 text-center shadow-pixel">
+            <Users className="h-12 w-12 text-[#3B3425]" />
+            <h2 className="text-lg font-black text-[#FFF8DE]">换人策略</h2>
+            <p className="text-sm font-bold text-[#786F5A]">暂未开发，敬请期待</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

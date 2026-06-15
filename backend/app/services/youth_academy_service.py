@@ -34,6 +34,7 @@ from app.services.contract_service import ContractService
 from app.services.player_generator import PlayerGenerator
 from app.services.player_number_service import assign_squad_number
 from app.services.notification_service import NotificationService
+from app.services.training_growth_service import TrainingGrowthService
 from app.core.logging import get_logger
 
 logger = get_logger("app.youth_academy")
@@ -264,7 +265,7 @@ class YouthAcademyService:
         age_factor = age_factors.get(age, 0.80)
         random_factor = random.uniform(0.85, 1.15)
 
-        base_growth = random.uniform(0.20, 0.45)
+        base_growth = random.uniform(0.12, 0.28)
         growth_budget = base_growth * speed_factor * age_factor * random_factor
 
         # 应用属性增长
@@ -298,7 +299,10 @@ class YouthAcademyService:
         )
 
     async def _apply_growth(self, player: Player, growth_budget: float) -> Dict[str, int]:
-        """应用属性增长，优先提升位置权重高的属性"""
+        """应用属性增长，优先提升位置权重高的属性。
+
+        青训成长也必须遵守属性上限和高属性指数成本，避免 18/19 轻易冲 20。
+        """
         # 位置权重定义
         position_weights = {
             PlayerPosition.FW: ["sho", "hea", "fin", "spd", "acc", "dri", "str_", "bal", "pk"],
@@ -314,37 +318,49 @@ class YouthAcademyService:
 
         attrs_gained = {}
         remaining_budget = growth_budget
+        progress = dict(player.attribute_progress or {})
 
-        # 优先提升主要属性（无潜力上限限制，允许偏科）
+        def try_grow(attr: str, chance: float, budget_share: float) -> None:
+            nonlocal remaining_budget
+            if remaining_budget <= 0 or random.random() >= chance:
+                return
+
+            current_val = float(getattr(player, attr))
+            caps = player.attribute_caps or {}
+            cap = float(caps.get(attr, TrainingGrowthService._derive_cap_from_potential(player, attr)))
+            cap = min(cap, 20.0)
+            if current_val >= 20 or int(cap) <= int(current_val):
+                return
+
+            high_attr_factor = TrainingGrowthService.calculate_high_attribute_factor(
+                current_val + float(progress.get(attr, 0.0))
+            )
+            gain = min(remaining_budget, budget_share) * high_attr_factor
+            if gain <= 0:
+                return
+
+            before = int(getattr(player, attr))
+            breakthroughs = TrainingGrowthService.apply_attribute_progress(player, {attr: gain})
+            after = int(getattr(player, attr))
+            progress.update(player.attribute_progress or {})
+            if after > before:
+                attrs_gained[attr] = attrs_gained.get(attr, 0) + (after - before)
+            remaining_budget -= min(remaining_budget, budget_share)
+
+        # 优先提升主要属性
         for attr in primary_attrs:
             if remaining_budget <= 0:
                 break
-            current_val = getattr(player, attr)
-
-            gain = min(1, remaining_budget)
-            if random.random() < 0.7:  # 70% 概率提升
-                new_val = min(20, current_val + gain)  # 仅受硬顶20限制
-                actual_gain = new_val - current_val
-                if actual_gain > 0:
-                    setattr(player, attr, int(new_val))
-                    attrs_gained[attr] = actual_gain
-                    remaining_budget -= actual_gain
+            try_grow(attr, chance=0.62, budget_share=0.18)
 
         # 少量随机提升其他属性
-        if remaining_budget > 0.3:
+        if remaining_budget > 0.12:
             secondary = [a for a in all_attrs if a not in primary_attrs]
             random.shuffle(secondary)
             for attr in secondary[:3]:
                 if remaining_budget <= 0:
                     break
-                current_val = getattr(player, attr)
-                if random.random() < 0.3:  # 30% 概率
-                    new_val = min(20, current_val + 1)  # 仅受硬顶20限制
-                    actual_gain = new_val - current_val
-                    if actual_gain > 0:
-                        setattr(player, attr, int(new_val))
-                        attrs_gained[attr] = attrs_gained.get(attr, 0) + actual_gain
-                        remaining_budget -= actual_gain
+                try_grow(attr, chance=0.20, budget_share=0.08)
 
         return attrs_gained
 

@@ -279,13 +279,13 @@ class Player(Base):
     @property
     def potential_letter(self) -> PotentialLetter:
         """根据隐藏潜力上限计算前端展示档位。"""
-        if self.potential_max >= 80:
+        if self.potential_max >= 95:
             return PotentialLetter.S
-        if self.potential_max >= 60:
+        if self.potential_max >= 85:
             return PotentialLetter.A
-        if self.potential_max >= 40:
+        if self.potential_max >= 75:
             return PotentialLetter.B
-        if self.potential_max >= 20:
+        if self.potential_max >= 65:
             return PotentialLetter.C
         return PotentialLetter.D
     

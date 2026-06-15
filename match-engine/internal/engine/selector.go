@@ -62,6 +62,59 @@ func SelectPlayerByZone(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *do
 	return weightedSelect(players, weights, r)
 }
 
+// SelectShooterByZone picks the likely shooter from the current attacking zone.
+// It still respects positional realism, but finishing attributes decide who gets
+// the chance more strongly than generic zone presence.
+func SelectShooterByZone(team *domain.TeamRuntime, zone [2]int, distance string, r *rand.Rand) *domain.PlayerRuntime {
+	players := team.GetActivePlayers()
+	if len(players) == 0 {
+		return team.PlayerRuntimes[0]
+	}
+
+	weights := make([]float64, len(players))
+	for i, p := range players {
+		if p.Position == config.PosGK {
+			weights[i] = 0.01
+			continue
+		}
+
+		zw := zoneWeight(p.Position, zone[0], zone[1])
+		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
+		if p.CurrentStamina < 20 {
+			staminaFactor *= 0.5
+		}
+
+		positionBonus := 1.0
+		switch p.Position {
+		case config.PosFW:
+			positionBonus = 2.2
+		case config.PosMF:
+			positionBonus = 1.15
+		case config.PosDF:
+			positionBonus = 0.35
+			if zone[0] == 0 {
+				positionBonus = 0.22
+			}
+		}
+
+		shotScore := p.GetAttrByName("SHO")*0.35 +
+			p.GetAttrByName("FIN")*0.30 +
+			p.GetAttrByName("DEC")*0.20 +
+			p.GetAttrByName("COM")*0.15
+		if distance == "long" {
+			shotScore = p.GetAttrByName("SHO")*0.45 +
+				p.GetAttrByName("FIN")*0.20 +
+				p.GetAttrByName("DEC")*0.20 +
+				p.GetAttrByName("COM")*0.15
+		}
+		qualityFactor := 0.35 + shotScore/20.0
+
+		weights[i] = zw * staminaFactor * positionBonus * qualityFactor
+	}
+
+	return weightedSelect(players, weights, r)
+}
+
 // SelectDefender picks a defender from opponent team
 func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
 	players := team.GetActivePlayers()
@@ -87,16 +140,25 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 		zw := zoneWeight(p.Position, zone[0], zone[1])
 		defBonus := 1.0
 		if p.Position == config.PosDF {
-			// 大幅提升后卫在防守事件中的出场权重，使抢断/拦截榜单更 realistic
-			defBonus = 2.5
+			// 后卫应主导后场防守，中场只在中前场高压时补位。
+			defBonus = 3.0
+			if zone[0] == 2 {
+				defBonus = 5.0
+			} else if zone[0] == 1 {
+				defBonus = 3.6
+			}
 			if manMarking {
-				defBonus = 3.5 // Man marking boosts defenders significantly
+				defBonus *= 1.25
 			}
 		} else if p.Position == config.PosMF {
-			// 降低中场在防守事件中的权重，避免 MF 霸榜
-			defBonus = 0.7
+			defBonus = 0.65
+			if zone[0] == 1 {
+				defBonus = 0.85
+			} else if zone[0] == 2 {
+				defBonus = 0.35
+			}
 			if manMarking {
-				defBonus = 0.9
+				defBonus *= 1.1
 			}
 		} else if p.Position == config.PosFW {
 			// 前锋极少深度参与纯防守动作
@@ -190,7 +252,6 @@ func weightedSelect[T any](items []T, weights []float64, r *rand.Rand) T {
 	}
 	return items[len(items)-1]
 }
-
 
 // SelectReboundAttacker picks an attacker for a rebound chance after keeper spill
 func SelectReboundAttacker(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {

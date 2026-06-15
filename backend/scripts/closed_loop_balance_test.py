@@ -87,6 +87,11 @@ BODY_PARTS = [
     "knee", "achilles", "foot", "back", "ribs",
     "shoulder", "fingers", "head",
 ]
+PLAYER_ATTRS = [
+    "sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal",
+    "defe", "tkl", "vis", "cro", "con", "fin", "com", "sav", "ref",
+    "pos", "rus", "dec", "fk", "pk",
+]
 
 
 @dataclass
@@ -154,6 +159,12 @@ class SeasonSummary:
     players_fatigue_over_75: int = 0
     players_fitness_below_50: int = 0
     avg_attr_progress_total: float = 0.0
+    players_ovr_100: int = 0
+    players_ovr_95_plus: int = 0
+    players_potential_s: int = 0
+    total_attrs_at_20: int = 0
+    players_with_attr_20: int = 0
+    avg_attrs_at_20_per_player: float = 0.0
     injuries_created: int = 0
     injuries_minor: int = 0
     injuries_medium: int = 0
@@ -194,6 +205,7 @@ class RunArtifacts:
     transfer_rows: list[dict[str, Any]] = field(default_factory=list)
     match_tactics_rows: list[dict[str, Any]] = field(default_factory=list)
     medical_rows: list[dict[str, Any]] = field(default_factory=list)
+    match_balance_rows: list[dict[str, Any]] = field(default_factory=list)
 
 
 def enum_value(value: Any) -> str:
@@ -563,6 +575,10 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
     attr_progress_totals = [
         sum((p.attribute_progress or {}).values()) for p in active_players
     ]
+    attr_20_counts = [
+        sum(1 for attr in PLAYER_ATTRS if int(getattr(p, attr, 0) or 0) >= 20)
+        for p in active_players
+    ]
 
     summary = SeasonSummary(
         season_number=season.season_number,
@@ -642,6 +658,12 @@ async def collect_season_summary(db, season: Season, processed_events: int, even
         players_fatigue_over_75=sum(1 for f in player_fatigues if f > 75),
         players_fitness_below_50=sum(1 for f in player_fitnesses if f < 50),
         avg_attr_progress_total=round(avg(attr_progress_totals), 2),
+        players_ovr_100=sum(1 for p in active_players if int(p.ovr or 0) >= 100),
+        players_ovr_95_plus=sum(1 for p in active_players if int(p.ovr or 0) >= 95),
+        players_potential_s=sum(1 for p in active_players if enum_value(p.potential_letter) == "S"),
+        total_attrs_at_20=sum(attr_20_counts),
+        players_with_attr_20=sum(1 for count in attr_20_counts if count > 0),
+        avg_attrs_at_20_per_player=round(avg(attr_20_counts), 3),
         injuries_created=len(season_injuries),
         injuries_minor=injury_severity_counts.get(1, 0),
         injuries_medium=injury_severity_counts.get(2, 0),
@@ -842,11 +864,24 @@ async def collect_player_rows(db, season: Season) -> list[dict[str, Any]]:
                 "max_body_wear": round(max_body_wear(player), 2),
                 "max_body_wear_part": max_body_wear_part(player),
                 "attribute_progress_total": round(sum((player.attribute_progress or {}).values()), 2),
+                "attrs_at_20": sum(1 for attr in PLAYER_ATTRS if int(getattr(player, attr, 0) or 0) >= 20),
                 "recent_ratings": player.recent_ratings or [],
                 "recent_minutes": player.recent_minutes or [],
                 "matches": 0,
                 "goals": 0,
                 "assists": 0,
+                "shots": 0,
+                "shots_on_target": 0,
+                "passes": 0,
+                "passes_succ": 0,
+                "key_passes": 0,
+                "crosses": 0,
+                "crosses_succ": 0,
+                "tackles": 0,
+                "tackles_succ": 0,
+                "interceptions": 0,
+                "clearances": 0,
+                "blocks": 0,
                 "rating_weighted": 0.0,
             },
         )
@@ -854,6 +889,18 @@ async def collect_player_rows(db, season: Season) -> list[dict[str, Any]]:
         item["matches"] += matches
         item["goals"] += int(row.goals or 0)
         item["assists"] += int(row.assists or 0)
+        item["shots"] += int(row.shots or 0)
+        item["shots_on_target"] += int(row.shots_on_target or 0)
+        item["passes"] += int(row.passes or 0)
+        item["passes_succ"] += int(row.passes_succ or 0)
+        item["key_passes"] += int(row.key_passes or 0)
+        item["crosses"] += int(row.crosses or 0)
+        item["crosses_succ"] += int(row.crosses_succ or 0)
+        item["tackles"] += int(row.tackles or 0)
+        item["tackles_succ"] += int(row.tackles_succ or 0)
+        item["interceptions"] += int(row.interceptions or 0)
+        item["clearances"] += int(row.clearances or 0)
+        item["blocks"] += int(row.blocks or 0)
         item["rating_weighted"] += decimal_float(row.average_rating) * max(matches, 1)
 
     rows = []
@@ -861,6 +908,182 @@ async def collect_player_rows(db, season: Season) -> list[dict[str, Any]]:
         denominator = max(int(item["matches"]), 1)
         item["average_rating"] = round(item.pop("rating_weighted") / denominator, 2)
         rows.append(item)
+    return rows
+
+
+async def collect_match_balance_rows(db, season: Season) -> list[dict[str, Any]]:
+    """汇总比赛产出平衡，重点检查助攻归因、低 OVR 高产和 DF/MF 防守贡献。"""
+    grouped = (
+        await db.execute(
+            select(
+                Player.position,
+                func.count(func.distinct(Player.id)).label("players"),
+                func.coalesce(func.sum(PlayerSeasonStats.matches_played), 0).label("matches"),
+                func.coalesce(func.sum(PlayerSeasonStats.goals), 0).label("goals"),
+                func.coalesce(func.sum(PlayerSeasonStats.assists), 0).label("assists"),
+                func.coalesce(func.sum(PlayerSeasonStats.shots), 0).label("shots"),
+                func.coalesce(func.sum(PlayerSeasonStats.key_passes), 0).label("key_passes"),
+                func.coalesce(func.sum(PlayerSeasonStats.tackles), 0).label("tackles"),
+                func.coalesce(func.sum(PlayerSeasonStats.tackles_succ), 0).label("tackles_succ"),
+                func.coalesce(func.sum(PlayerSeasonStats.interceptions), 0).label("interceptions"),
+                func.coalesce(func.sum(PlayerSeasonStats.clearances), 0).label("clearances"),
+                func.coalesce(func.sum(PlayerSeasonStats.blocks), 0).label("blocks"),
+            )
+            .join(Player, PlayerSeasonStats.player_id == Player.id)
+            .where(PlayerSeasonStats.season_id == season.id)
+            .group_by(Player.position)
+        )
+    ).all()
+
+    rows: list[dict[str, Any]] = []
+    pos_totals: dict[str, dict[str, float]] = {}
+    total_tackles = 0
+    total_interceptions = 0
+    total_def_actions = 0
+    for row in grouped:
+        pos = enum_value(row.position)
+        matches = int(row.matches or 0)
+        tackles = int(row.tackles or 0)
+        interceptions = int(row.interceptions or 0)
+        def_actions = tackles + interceptions + int(row.clearances or 0) + int(row.blocks or 0)
+        total_tackles += tackles
+        total_interceptions += interceptions
+        total_def_actions += def_actions
+        pos_totals[pos] = {
+            "matches": matches,
+            "goals": int(row.goals or 0),
+            "assists": int(row.assists or 0),
+            "shots": int(row.shots or 0),
+            "key_passes": int(row.key_passes or 0),
+            "tackles": tackles,
+            "tackles_succ": int(row.tackles_succ or 0),
+            "interceptions": interceptions,
+            "clearances": int(row.clearances or 0),
+            "blocks": int(row.blocks or 0),
+            "def_actions": def_actions,
+        }
+        rows.append({
+            "season_number": season.season_number,
+            "season_id": season.id,
+            "metric_type": "position",
+            "position": pos,
+            "players": int(row.players or 0),
+            "matches": matches,
+            "goals": int(row.goals or 0),
+            "assists": int(row.assists or 0),
+            "shots": int(row.shots or 0),
+            "key_passes": int(row.key_passes or 0),
+            "assists_per_key_pass": round(int(row.assists or 0) / max(int(row.key_passes or 0), 1), 3),
+            "shots_per_match": round(int(row.shots or 0) / max(matches, 1), 3),
+            "goals_per_match": round(int(row.goals or 0) / max(matches, 1), 3),
+            "tackles": tackles,
+            "tackles_succ": int(row.tackles_succ or 0),
+            "interceptions": interceptions,
+            "clearances": int(row.clearances or 0),
+            "blocks": int(row.blocks or 0),
+            "def_actions": def_actions,
+            "tackles_per_match": round(tackles / max(matches, 1), 3),
+            "interceptions_per_match": round(interceptions / max(matches, 1), 3),
+            "def_actions_per_match": round(def_actions / max(matches, 1), 3),
+        })
+
+    df = pos_totals.get("DF", {})
+    mf = pos_totals.get("MF", {})
+    rows.append({
+        "season_number": season.season_number,
+        "season_id": season.id,
+        "metric_type": "defense_distribution",
+        "df_tackles": int(df.get("tackles", 0)),
+        "mf_tackles": int(mf.get("tackles", 0)),
+        "df_interceptions": int(df.get("interceptions", 0)),
+        "mf_interceptions": int(mf.get("interceptions", 0)),
+        "df_def_actions": int(df.get("def_actions", 0)),
+        "mf_def_actions": int(mf.get("def_actions", 0)),
+        "df_tackle_share_pct": round(float(df.get("tackles", 0)) / max(total_tackles, 1) * 100, 2),
+        "df_interception_share_pct": round(float(df.get("interceptions", 0)) / max(total_interceptions, 1) * 100, 2),
+        "df_def_action_share_pct": round(float(df.get("def_actions", 0)) / max(total_def_actions, 1) * 100, 2),
+        "df_mf_tackle_ratio": round(float(df.get("tackles", 0)) / max(float(mf.get("tackles", 0)), 1), 3),
+        "df_mf_interception_ratio": round(float(df.get("interceptions", 0)) / max(float(mf.get("interceptions", 0)), 1), 3),
+    })
+
+    suspicious_assists = (
+        await db.execute(
+            select(
+                Player.id,
+                Player.name,
+                Player.position,
+                Player.ovr,
+                func.coalesce(func.sum(PlayerSeasonStats.matches_played), 0).label("matches"),
+                func.coalesce(func.sum(PlayerSeasonStats.goals), 0).label("goals"),
+                func.coalesce(func.sum(PlayerSeasonStats.assists), 0).label("assists"),
+                func.coalesce(func.sum(PlayerSeasonStats.key_passes), 0).label("key_passes"),
+                func.coalesce(func.sum(PlayerSeasonStats.passes), 0).label("passes"),
+            )
+            .join(Player, PlayerSeasonStats.player_id == Player.id)
+            .where(PlayerSeasonStats.season_id == season.id)
+            .group_by(Player.id)
+            .having(func.sum(PlayerSeasonStats.assists) >= 3)
+            .order_by(desc(func.sum(PlayerSeasonStats.assists)))
+            .limit(30)
+        )
+    ).all()
+    for row in suspicious_assists:
+        assists = int(row.assists or 0)
+        key_passes = int(row.key_passes or 0)
+        rows.append({
+            "season_number": season.season_number,
+            "season_id": season.id,
+            "metric_type": "assist_leader",
+            "player_id": row.id,
+            "player_name": row.name,
+            "position": enum_value(row.position),
+            "ovr": float(row.ovr or 0),
+            "matches": int(row.matches or 0),
+            "goals": int(row.goals or 0),
+            "assists": assists,
+            "key_passes": key_passes,
+            "passes": int(row.passes or 0),
+            "assists_per_key_pass": round(assists / max(key_passes, 1), 3),
+            "warning": assists > key_passes,
+        })
+
+    low_ovr_high_output = (
+        await db.execute(
+            select(
+                Player.id,
+                Player.name,
+                Player.position,
+                Player.ovr,
+                func.coalesce(func.sum(PlayerSeasonStats.matches_played), 0).label("matches"),
+                func.coalesce(func.sum(PlayerSeasonStats.goals), 0).label("goals"),
+                func.coalesce(func.sum(PlayerSeasonStats.assists), 0).label("assists"),
+                func.coalesce(func.sum(PlayerSeasonStats.shots), 0).label("shots"),
+            )
+            .join(Player, PlayerSeasonStats.player_id == Player.id)
+            .where(PlayerSeasonStats.season_id == season.id)
+            .where(Player.ovr < 65)
+            .group_by(Player.id)
+            .having(func.sum(PlayerSeasonStats.goals) + func.sum(PlayerSeasonStats.assists) >= 10)
+            .order_by(desc(func.sum(PlayerSeasonStats.goals) + func.sum(PlayerSeasonStats.assists)))
+            .limit(30)
+        )
+    ).all()
+    for row in low_ovr_high_output:
+        rows.append({
+            "season_number": season.season_number,
+            "season_id": season.id,
+            "metric_type": "low_ovr_high_output",
+            "player_id": row.id,
+            "player_name": row.name,
+            "position": enum_value(row.position),
+            "ovr": float(row.ovr or 0),
+            "matches": int(row.matches or 0),
+            "goals": int(row.goals or 0),
+            "assists": int(row.assists or 0),
+            "goal_assist_total": int(row.goals or 0) + int(row.assists or 0),
+            "shots": int(row.shots or 0),
+        })
+
     return rows
 
 
@@ -1897,6 +2120,7 @@ def build_report(artifacts: RunArtifacts) -> str:
     player_rows = artifacts.player_rows
     youth_budget_rows = artifacts.youth_budget_rows
     match_tactics_rows = artifacts.match_tactics_rows
+    match_balance_rows = artifacts.match_balance_rows
     injury_rows = artifacts.injury_rows
     transfer_rows = artifacts.transfer_rows
     invariant_rows = artifacts.invariant_rows
@@ -1958,6 +2182,10 @@ def build_report(artifacts: RunArtifacts) -> str:
 
     errors = [row for row in invariant_rows if row.get("severity") == "error"]
     warnings = [row for row in invariant_rows if row.get("severity") == "warning"]
+    latest_balance_rows = [row for row in match_balance_rows if int(row.get("season_number") or 0) == latest_season_number]
+    latest_defense_distribution = next((row for row in latest_balance_rows if row.get("metric_type") == "defense_distribution"), {})
+    assist_warning_count = sum(1 for row in match_balance_rows if row.get("metric_type") == "assist_leader" and row.get("warning"))
+    low_ovr_high_output_count = sum(1 for row in match_balance_rows if row.get("metric_type") == "low_ovr_high_output")
 
     def fmt_corr(value: float | None) -> str:
         return "n/a" if value is None else f"{value:.3f}"
@@ -2051,6 +2279,14 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- Latest avg fatigue / fitness: {season_rows[-1].get('avg_fatigue', 'n/a') if season_rows else 'n/a'} / {season_rows[-1].get('avg_fitness', 'n/a') if season_rows else 'n/a'}",
         f"- Latest players fatigue>75 / fitness<50: {season_rows[-1].get('players_fatigue_over_75', 'n/a') if season_rows else 'n/a'} / {season_rows[-1].get('players_fitness_below_50', 'n/a') if season_rows else 'n/a'}",
         f"- Latest avg attr progress total: {season_rows[-1].get('avg_attr_progress_total', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest OVR100 / OVR95+ / potential S players: "
+        f"{season_rows[-1].get('players_ovr_100', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('players_ovr_95_plus', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('players_potential_s', 'n/a') if season_rows else 'n/a'}",
+        f"- Latest total attrs at 20 / players with any 20 / avg 20 attrs per player: "
+        f"{season_rows[-1].get('total_attrs_at_20', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('players_with_attr_20', 'n/a') if season_rows else 'n/a'} / "
+        f"{season_rows[-1].get('avg_attrs_at_20_per_player', 'n/a') if season_rows else 'n/a'}",
         f"- Training sessions S1..Sn: {' / '.join(str(row.get('training_sessions', 0)) for row in season_rows)}",
         f"- Breakthroughs S1..Sn: {' / '.join(str(row.get('training_breakthroughs', 0)) for row in season_rows)}",
         "",
@@ -2077,6 +2313,14 @@ def build_report(artifacts: RunArtifacts) -> str:
         f"- F01 share: {f01_share:.1f}%",
         f"- Formation usage: {', '.join(f'{formation}={count}' for formation, count in sorted(formation_counts.items())) or 'n/a'}",
         f"- Avg starter-bench lineup/state/fitness gap: {avg_lineup_gap:.2f} / {avg_state_gap:.2f} / {avg_fitness_gap:.2f}",
+        "",
+        "## Match Balance Signals",
+        "",
+        f"- Assist leaders with assists > key passes: {assist_warning_count}",
+        f"- Low OVR (<65) high output players: {low_ovr_high_output_count}",
+        f"- Latest DF/MF tackle ratio: {latest_defense_distribution.get('df_mf_tackle_ratio', 'n/a')}",
+        f"- Latest DF/MF interception ratio: {latest_defense_distribution.get('df_mf_interception_ratio', 'n/a')}",
+        f"- Latest DF defensive-action share: {latest_defense_distribution.get('df_def_action_share_pct', 'n/a')}%",
         "",
         "## Transfer Market Signals",
         "",
@@ -2140,14 +2384,15 @@ def build_report(artifacts: RunArtifacts) -> str:
         "",
         "## Season Table",
         "",
-        "| Season | Contracts | Renew/Recontract | Retired | Youth Signed | Rookie Signed | FA Listings | Training | Breakthroughs | Injuries/Major | Transfer Offers | Transfers | Releases | Roster Min/Max | Wage Avg/Max | Fatigue | Fitness | Errors |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |",
+        "| Season | Contracts | Renew/Recontract | Retired | Youth Signed | Rookie Signed | FA Listings | Training | Breakthroughs | OVR100/95+ | S Pot | Attr20 | Injuries/Major | Transfer Offers | Transfers | Releases | Roster Min/Max | Wage Avg/Max | Fatigue | Fitness | Errors |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |",
     ])
     for row in season_rows:
         lines.append(
             "| {season_number} | {contracts_created} | {renewals_or_recontracts} | {retired_players} | "
             "{youth_signed} | {rookie_market_signed} | {free_agent_listings_created} | "
-            "{training_sessions} | {training_breakthroughs} | {injuries_created}/{injuries_major} | "
+            "{training_sessions} | {training_breakthroughs} | {players_ovr_100}/{players_ovr_95_plus} | "
+            "{players_potential_s} | {total_attrs_at_20}/{players_with_attr_20} | {injuries_created}/{injuries_major} | "
             "{transfer_offers_sent} | {transfer_completed} | {transfer_releases} | "
             "{roster_min}/{roster_max} | {avg_wage_pressure_pct:.1f}%/{max_wage_pressure_pct:.1f}% | "
             "{avg_fatigue:.1f} | {avg_fitness:.1f} | {invariants_failed} |".format(**row)
@@ -2172,6 +2417,7 @@ def build_report(artifacts: RunArtifacts) -> str:
         "- If most players are LOW or HOT, inspect component averages to find the state factor dominating the system.",
         "- If avg fatigue stays >70 or fitness <60, training load or match recovery may be too harsh.",
         "- If young_avg_attr_progress >3.5/season or old_avg_attr_progress >1.0/season, growth speed is unhealthy.",
+        "- If OVR100, potential S, or attributes at 20 rise quickly within 3 seasons, growth caps or high-attribute difficulty are too loose.",
         "- If training breakthroughs are near zero, check whether training plans are being generated and completed.",
     ])
 
@@ -2231,6 +2477,7 @@ async def run(args: argparse.Namespace) -> int:
             artifacts.fatigue_rows.extend(await collect_fatigue_rows(db, season))
             artifacts.injury_rows.extend(await collect_injury_rows(db, season))
             artifacts.transfer_rows.extend(await collect_transfer_rows(db, season))
+            artifacts.match_balance_rows.extend(await collect_match_balance_rows(db, season))
             artifacts.invariant_rows.extend(invariants)
         else:
             for index in range(1, args.seasons + 1):
@@ -2276,15 +2523,25 @@ async def run(args: argparse.Namespace) -> int:
                 artifacts.fatigue_rows.extend(await collect_fatigue_rows(db, season))
                 artifacts.injury_rows.extend(await collect_injury_rows(db, season))
                 artifacts.transfer_rows.extend(await collect_transfer_rows(db, season))
+                match_balance_rows = await collect_match_balance_rows(db, season)
+                artifacts.match_balance_rows.extend(match_balance_rows)
                 artifacts.invariant_rows.extend(invariants)
+
+                defense_distribution = next(
+                    (row for row in match_balance_rows if row.get("metric_type") == "defense_distribution"),
+                    {},
+                )
 
                 message = (
                     "[closed-loop] S{season} events={events} roster={rmin}/{rmax} "
                     "contracts={contracts} youth={youth} rookie_signed={rookie} "
                     "training={training}/{breakthroughs} fatigue={avg_fatigue} fitness={avg_fitness} "
+                    "ovr100={ovr100} ovr95={ovr95} s_pot={s_pot} attr20={attr20}/{players_attr20} "
                     "injuries={injuries}/{major} active_inj={active_injuries} wear70={wear70} "
                     "medical={medical}/{aggressive} reserve_usage={reserve_usage:.0f}% depleted={depleted} "
-                    "transfers={transfers}/{offers} releases={releases} auto_fill={auto_fill} errors={errors} status={status}"
+                    "transfers={transfers}/{offers} releases={releases} "
+                    "df_mf_tkl={df_mf_tackle_ratio} df_mf_int={df_mf_interception_ratio} "
+                    "auto_fill={auto_fill} errors={errors} status={status}"
                 ).format(
                     season=summary.season_number,
                     events=processed,
@@ -2297,6 +2554,11 @@ async def run(args: argparse.Namespace) -> int:
                     breakthroughs=summary.training_breakthroughs,
                     avg_fatigue=summary.avg_fatigue,
                     avg_fitness=summary.avg_fitness,
+                    ovr100=summary.players_ovr_100,
+                    ovr95=summary.players_ovr_95_plus,
+                    s_pot=summary.players_potential_s,
+                    attr20=summary.total_attrs_at_20,
+                    players_attr20=summary.players_with_attr_20,
                     injuries=summary.injuries_created,
                     major=summary.injuries_major,
                     active_injuries=summary.active_injuries,
@@ -2308,6 +2570,8 @@ async def run(args: argparse.Namespace) -> int:
                     transfers=summary.transfer_completed,
                     offers=summary.transfer_offers_sent,
                     releases=summary.transfer_releases,
+                    df_mf_tackle_ratio=defense_distribution.get("df_mf_tackle_ratio", "n/a"),
+                    df_mf_interception_ratio=defense_distribution.get("df_mf_interception_ratio", "n/a"),
                     auto_fill=summary.auto_fill_players_joined,
                     errors=summary.invariants_failed,
                     status=event_status,
@@ -2328,6 +2592,7 @@ async def run(args: argparse.Namespace) -> int:
     write_csv(artifacts.out_dir / "injury_metrics.csv", artifacts.injury_rows)
     write_csv(artifacts.out_dir / "transfer_metrics.csv", artifacts.transfer_rows)
     write_csv(artifacts.out_dir / "match_tactics_metrics.csv", artifacts.match_tactics_rows)
+    write_csv(artifacts.out_dir / "match_balance_metrics.csv", artifacts.match_balance_rows)
     write_jsonl(artifacts.out_dir / "event_results.jsonl", artifacts.event_rows)
     write_csv(artifacts.out_dir / "invariants.csv", artifacts.invariant_rows)
     (artifacts.out_dir / "closed_loop_balance_report.md").write_text(build_report(artifacts), encoding="utf-8")

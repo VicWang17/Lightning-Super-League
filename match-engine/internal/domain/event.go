@@ -21,6 +21,7 @@ type MatchEvent struct {
 	Score          *Score  `json:"score,omitempty"`
 	Narrative      string  `json:"narrative,omitempty"`
 	ExtraValue     float64 `json:"extra_value,omitempty"` // numeric extra data (e.g. added time minutes)
+	Milestones     []string `json:"milestones,omitempty"` // e.g. ["first_goal", "100_goals", "last_minute_goal"]
 }
 
 // Score represents the current score

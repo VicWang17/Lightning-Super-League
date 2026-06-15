@@ -79,11 +79,11 @@ STYLE_DISTRIBUTION = [
 
 # 潜力分布 -> (letter, min_potential, max_potential, weight)
 POTENTIAL_DISTRIBUTION = [
-    (PotentialLetter.S, 95, 100, 0.02),
-    (PotentialLetter.A, 85, 94, 0.08),
-    (PotentialLetter.B, 75, 84, 0.25),
-    (PotentialLetter.C, 65, 74, 0.35),
-    (PotentialLetter.D, 50, 64, 0.30),
+    (PotentialLetter.S, 95, 100, 0.006),
+    (PotentialLetter.A, 85, 94, 0.054),
+    (PotentialLetter.B, 75, 84, 0.23),
+    (PotentialLetter.C, 65, 74, 0.39),
+    (PotentialLetter.D, 50, 64, 0.32),
 ]
 
 # 年龄分布 -> (min_age, max_age, weight)
@@ -1069,24 +1069,24 @@ class PlayerGenerator:
             "low": {
                 "age_weights": [(17, 0.35), (18, 0.35), (16, 0.20), (15, 0.10)],
                 "potential_weights": [
-                    (PotentialLetter.S, 0.015), (PotentialLetter.A, 0.07),
-                    (PotentialLetter.B, 0.24), (PotentialLetter.C, 0.40), (PotentialLetter.D, 0.275)
+                    (PotentialLetter.S, 0.002), (PotentialLetter.A, 0.045),
+                    (PotentialLetter.B, 0.22), (PotentialLetter.C, 0.41), (PotentialLetter.D, 0.323)
                 ],
                 "ovr_range": (30, 44),
             },
             "medium": {
                 "age_weights": [(15, 0.20), (16, 0.25), (17, 0.30), (18, 0.25)],
                 "potential_weights": [
-                    (PotentialLetter.S, 0.03), (PotentialLetter.A, 0.13),
-                    (PotentialLetter.B, 0.38), (PotentialLetter.C, 0.35), (PotentialLetter.D, 0.11)
+                    (PotentialLetter.S, 0.007), (PotentialLetter.A, 0.09),
+                    (PotentialLetter.B, 0.34), (PotentialLetter.C, 0.40), (PotentialLetter.D, 0.163)
                 ],
                 "ovr_range": (32, 47),
             },
             "high": {
                 "age_weights": [(15, 0.35), (16, 0.30), (17, 0.25), (18, 0.10)],
                 "potential_weights": [
-                    (PotentialLetter.S, 0.07), (PotentialLetter.A, 0.21),
-                    (PotentialLetter.B, 0.42), (PotentialLetter.C, 0.25), (PotentialLetter.D, 0.05)
+                    (PotentialLetter.S, 0.02), (PotentialLetter.A, 0.17),
+                    (PotentialLetter.B, 0.41), (PotentialLetter.C, 0.31), (PotentialLetter.D, 0.09)
                 ],
                 "ovr_range": (34, 50),
             },

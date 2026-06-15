@@ -112,15 +112,38 @@ class TrainingGrowthService:
     
     @staticmethod
     def calculate_potential_factor(current: float, cap: float) -> float:
-        """潜力接近衰减 (设计文档 11.6)"""
+        """潜力接近衰减。
+
+        15+ 后采用指数式衰减：越接近 20，成长越困难；
+        19->20 应该是历史级球员才可能长期冲击的区间。
+        """
         remaining = cap - current
         if remaining <= 0:
             return 0.0
-        if remaining >= 6:
-            return 1.08
-        if remaining >= 4:
+        cap_gap_factor = min(1.05, max(0.015, (remaining / 6.0) ** 2.10))
+        high_attr_factor = TrainingGrowthService.calculate_high_attribute_factor(current)
+        return round(cap_gap_factor * high_attr_factor, 4)
+
+    @staticmethod
+    def calculate_high_attribute_factor(current: float) -> float:
+        """当前属性越高，成长越难。"""
+        if current < 15:
             return 1.0
-        return max(0.04, remaining / 4.0)
+        return max(0.008, 0.62 ** (current - 14.0))
+
+    @staticmethod
+    def attribute_breakthrough_cost(current: float, cap: float | None = None) -> float:
+        """从当前整数属性提升 1 点所需的成长进度成本。"""
+        if cap is not None and math.floor(cap) <= current:
+            return math.inf
+        if current < 15:
+            return 1.0
+        base = 1.35 ** (current - 14.0)
+        if current >= 18:
+            base *= 1.8
+        if current >= 19:
+            base *= 3.0
+        return round(base, 3)
 
     @staticmethod
     def calculate_development_stage_factor(
@@ -370,15 +393,15 @@ class TrainingGrowthService:
         else:
             peak_age = random.randint(26, 30)
         
-        # 成长速度系数 (0.70 - 1.40)
-        base_speed = 0.82 + (potential_max / 100.0) * 0.50
+        # 成长速度系数 (0.62 - 1.24)。高潜代表上限，不代表必然高速练满。
+        base_speed = 0.74 + (potential_max / 100.0) * 0.34
         if curve_type == "explosive":
-            base_speed += random.uniform(0.05, 0.15)
+            base_speed += random.uniform(0.03, 0.10)
         elif curve_type == "plateau":
-            base_speed -= random.uniform(0.05, 0.15)
+            base_speed -= random.uniform(0.05, 0.14)
         if actual_age <= 21 and potential_max >= 75:
-            base_speed += 0.08
-        growth_speed = round(max(0.70, min(1.40, base_speed)), 2)
+            base_speed += 0.04
+        growth_speed = round(max(0.62, min(1.24, base_speed)), 2)
         
         # 成长稳定性 (0.60 - 1.40)
         stability = round(random.uniform(0.80, 1.20), 2)
@@ -416,17 +439,27 @@ class TrainingGrowthService:
             w = weights.get(attr, 0)
             # 核心属性上限更高
             if w >= 10:
-                base = 16.0 + (potential_max - 50) / 50.0 * 4.0
+                base = 15.5 + (potential_max - 50) / 50.0 * 3.7
             elif w >= 5:
-                base = 14.0 + (potential_max - 50) / 50.0 * 4.0
+                base = 13.8 + (potential_max - 50) / 50.0 * 3.5
             elif w > 0:
-                base = 12.0 + (potential_max - 50) / 50.0 * 4.0
+                base = 11.8 + (potential_max - 50) / 50.0 * 3.2
             else:
-                base = 13.0 + (potential_max - 50) / 50.0 * 5.0
+                base = 12.4 + (potential_max - 50) / 50.0 * 3.8
             
             # 添加随机方差
-            variance = random.uniform(-1.5, 1.5)
-            cap = round(max(3.0, min(20.0, base + variance)), 2)
+            variance = random.uniform(-1.4, 1.0)
+            raw_cap = base + variance
+            hard_cap = 18.85
+            if potential_max >= 99 and w >= 10 and raw_cap >= 19.4:
+                hard_cap = 20.0
+            elif potential_max >= 95 and w >= 10:
+                hard_cap = 19.35
+            elif potential_max >= 90 and w >= 10:
+                hard_cap = 19.0
+            elif potential_max >= 85 and w >= 5:
+                hard_cap = 18.65
+            cap = round(max(3.0, min(hard_cap, raw_cap)), 2)
             caps[attr] = cap
         
         return caps
@@ -441,15 +474,31 @@ class TrainingGrowthService:
             if gain == 0:
                 continue
 
+            current_val = getattr(player, attr, 10)
+            caps = player.attribute_caps or {}
+            cap = float(caps.get(attr, TrainingGrowthService._derive_cap_from_potential(player, attr)))
+            cap = min(cap, 20.0)
             current_progress = float(progress.get(attr, 0.0))
             new_progress = current_progress + gain
 
             # 处理整数进位（正数为突破，负数为衰退）
-            int_gain = int(new_progress)
+            if new_progress >= 0:
+                int_gain = 0
+                while new_progress >= TrainingGrowthService.attribute_breakthrough_cost(current_val, cap):
+                    cost = TrainingGrowthService.attribute_breakthrough_cost(current_val, cap)
+                    if cost == math.inf:
+                        new_progress = 0.0
+                        break
+                    new_progress -= cost
+                    int_gain += 1
+                    current_val += 1
+            else:
+                int_gain = int(new_progress)
+
             if int_gain != 0:
                 current_val = getattr(player, attr, 10)
                 before_val = current_val
-                after_val = max(1, min(20, current_val + int_gain))
+                after_val = max(1, min(20, int(math.floor(min(cap, current_val + int_gain)))))
                 actual_change = after_val - before_val
 
                 if actual_change != 0:
@@ -469,7 +518,8 @@ class TrainingGrowthService:
                             "type": "decline",
                         })
 
-                new_progress -= int_gain
+                if int_gain < 0:
+                    new_progress -= int_gain
 
             progress[attr] = round(new_progress, 4)
 

@@ -26,20 +26,29 @@ type ActiveInjury struct {
 	AttrImpact    map[string]float64 `json:"attr_impact"`   // only for minor injuries during match
 }
 
+// CareerStats tracks a player's career totals injected from the backend.
+// The engine uses these to generate real-time milestone narratives.
+type CareerStats struct {
+	Goals       int `json:"goals"`
+	Assists     int `json:"assists"`
+	Appearances int `json:"appearances"`
+}
+
 // PlayerSetup represents input player data
 type PlayerSetup struct {
-	PlayerID   string         `json:"player_id"`
-	Name       string         `json:"name"`
-	Position   string         `json:"position"`    // GK/FW/MF/DF
-	Number     int            `json:"number"`      // jersey number
-	Attributes map[string]int `json:"attributes"`  // 21 attrs 1-20
-	Skills     []string       `json:"skills"`
-	Stamina    float64        `json:"stamina"`     // initial stamina 0-100
-	Height     int            `json:"height"`
-	Foot       string         `json:"foot"`        // left/right/both
-	BodyWear   BodyWear       `json:"body_wear"`   // wear per body part
-	Traits     []string       `json:"traits"`      // e.g. "铁人", "玻璃体质"
-	Age        int            `json:"age"`
+	PlayerID    string         `json:"player_id"`
+	Name        string         `json:"name"`
+	Position    string         `json:"position"`    // GK/FW/MF/DF
+	Number      int            `json:"number"`      // jersey number
+	Attributes  map[string]int `json:"attributes"`  // 21 attrs 1-20
+	Skills      []string       `json:"skills"`
+	Stamina     float64        `json:"stamina"`     // initial stamina 0-100
+	Height      int            `json:"height"`
+	Foot        string         `json:"foot"`        // left/right/both
+	BodyWear    BodyWear       `json:"body_wear"`   // wear per body part
+	Traits      []string       `json:"traits"`      // e.g. "铁人", "玻璃体质"
+	Age         int            `json:"age"`
+	CareerStats CareerStats    `json:"career_stats"`
 }
 
 // PlayerRuntime is the in-match mutable state of a player

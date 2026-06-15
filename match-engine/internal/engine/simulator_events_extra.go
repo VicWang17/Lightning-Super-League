@@ -281,13 +281,15 @@ func (sim *Simulator) doOneOnOneEvent(ms *domain.MatchState, possTeam, oppTeam *
 	}
 
 	result := "saved"
+	var assistMilestones []string
+	var assister *domain.PlayerRuntime
 	if success {
 		result = "goal"
 		shooter.Stats.Goals++
 		shooter.Stats.ShotsOnTarget++
 		shooter.Stats.RatingBase += 1.8
 		keeper.Stats.RatingBase -= 0.5
-		sim.recordAssist(ms, shooter, possTeam)
+		assistMilestones, assister = sim.recordAssist(ms, shooter, possTeam)
 		if ms.Possession == domain.SideHome {
 			ms.Score.Home++
 			ms.HomeStats.ShotsOnTarget++
@@ -314,7 +316,7 @@ func (sim *Simulator) doOneOnOneEvent(ms *domain.MatchState, possTeam, oppTeam *
 		sim.applyControlShift(ms, zone, 0.05)
 	}
 
-	sim.addEvent(ms, domain.MatchEvent{
+	oneOnOneEvent := domain.MatchEvent{
 		Type:         config.EventOneOnOne,
 		Team:         possTeam.Name,
 		PlayerID:     shooter.PlayerID,
@@ -324,15 +326,21 @@ func (sim *Simulator) doOneOnOneEvent(ms *domain.MatchState, possTeam, oppTeam *
 		Zone:         zoneStr(zone),
 		Result:       result,
 		Score:        &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
-	})
+	}
+	if result == "goal" {
+		oneOnOneEvent.Player2ID = playerIDOrEmpty(assister)
+		oneOnOneEvent.Player2Name = playerNameOrEmpty(assister)
+		oneOnOneEvent.Milestones = mergeMilestones(buildGoalMilestones(shooter, ms.Minute), assistMilestones)
+	}
+	sim.addEvent(ms, oneOnOneEvent)
 
 	if result == "goal" {
 		sim.addEvent(ms, domain.MatchEvent{
-			Type:         config.EventGoal,
-			Team:         possTeam.Name,
-			PlayerID:     shooter.PlayerID,
-			PlayerName:   shooter.Name,
-			Score:        &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
+			Type:       config.EventGoal,
+			Team:       possTeam.Name,
+			PlayerID:   shooter.PlayerID,
+			PlayerName: shooter.Name,
+			Score:      &domain.Score{Home: ms.Score.Home, Away: ms.Score.Away},
 		})
 		// Celebration event immediately after goal
 		sim.addEvent(ms, domain.MatchEvent{
@@ -936,6 +944,11 @@ func (sim *Simulator) doTrianglePassEvent(ms *domain.MatchState, possTeam, oppTe
 		}
 		ms.ActiveZone = [2]int{newRow, 1}
 		ms.BallHolder = p3
+		if ms.ActiveZone[0] == 0 {
+			sim.setAssistCandidate(ms, p2, config.EventTrianglePass)
+		} else {
+			sim.clearAssistCandidate(ms)
+		}
 		sim.applyControlShift(ms, zone, 0.25)
 	} else {
 		if sim.handlePassFailure(ms, possTeam, oppTeam, zone, config.EventTrianglePass, d1, true) {
@@ -943,6 +956,7 @@ func (sim *Simulator) doTrianglePassEvent(ms *domain.MatchState, possTeam, oppTe
 		}
 		result = "fail"
 		ms.Possession = ms.Possession.Opponent()
+		sim.clearAssistCandidate(ms)
 		ms.BallHolder = d1
 		d1.Stats.Intercepts++
 		if ms.Possession == domain.SideHome {
@@ -994,6 +1008,7 @@ func (sim *Simulator) doOneTwoEvent(ms *domain.MatchState, possTeam, oppTeam *do
 		// Chain to close shot or through ball
 		if zone[0] == 0 {
 			ms.BallHolder = p2
+			sim.setAssistCandidate(ms, p1, config.EventOneTwo)
 			// Emit the one-two event before chaining to shot
 			sim.addEvent(ms, domain.MatchEvent{
 				Type:         config.EventOneTwo,
@@ -1015,6 +1030,11 @@ func (sim *Simulator) doOneTwoEvent(ms *domain.MatchState, possTeam, oppTeam *do
 				ms.ActiveZone[0] = 0
 			}
 			ms.BallHolder = p2
+			if ms.ActiveZone[0] == 0 {
+				sim.setAssistCandidate(ms, p1, config.EventOneTwo)
+			} else {
+				sim.clearAssistCandidate(ms)
+			}
 			sim.applyControlShift(ms, zone, 0.1)
 		}
 	} else {
@@ -1022,6 +1042,7 @@ func (sim *Simulator) doOneTwoEvent(ms *domain.MatchState, possTeam, oppTeam *do
 		// High penalty
 		sim.applyControlShift(ms, zone, -0.4)
 		ms.Possession = ms.Possession.Opponent()
+		sim.clearAssistCandidate(ms)
 		ms.BallHolder = defender
 		defender.Stats.Tackles++
 		defender.Stats.TacklesSucc++
@@ -1063,6 +1084,11 @@ func (sim *Simulator) doCrossRunEvent(ms *domain.MatchState, possTeam, oppTeam *
 	if success {
 		// Confusion bonus: next shot gets boosted
 		ms.BallHolder = p2
+		if zone[0] == 0 {
+			sim.setAssistCandidate(ms, p1, config.EventCrossRun)
+		} else {
+			sim.clearAssistCandidate(ms)
+		}
 		// Set a flag for next shot bonus (we use a simple field on simulator)
 		// Since we can't easily pass state between events, apply immediate control boost
 		sim.applyControlShift(ms, zone, 0.35)
@@ -1072,6 +1098,7 @@ func (sim *Simulator) doCrossRunEvent(ms *domain.MatchState, possTeam, oppTeam *
 		// High penalty
 		sim.applyControlShift(ms, zone, -0.5)
 		ms.Possession = ms.Possession.Opponent()
+		sim.clearAssistCandidate(ms)
 		ms.BallHolder = defender
 		defender.Stats.Tackles++
 		defender.Stats.TacklesSucc++
