@@ -15,7 +15,7 @@ from typing import Optional
 from pathlib import Path
 
 from app.models.player import (
-    Player, PlayerPosition, PlayerFoot, PlayerRace, PlayerStatus,
+    Player, PlayerPosition, PlayerRace, PlayerStatus,
     PotentialLetter, PlayerPersonality, ContractType, MatchForm, SquadRole,
     OriginType,
 )
@@ -992,21 +992,16 @@ class PlayerGenerator:
         
         return birth_offset, letter, potential_max, actual_age
     
-    def _generate_height_weight(self, position: PlayerPosition) -> tuple:
+    def _generate_height(self, position: PlayerPosition) -> int:
+        """根据位置生成身高（体重和左右脚已废弃）。"""
         if position == PlayerPosition.GK:
-            h = random.randint(182, 198)
+            return random.randint(182, 198)
         elif position == PlayerPosition.DF:
-            h = random.randint(178, 195)
+            return random.randint(178, 195)
         elif position == PlayerPosition.FW:
-            h = random.randint(170, 190)
+            return random.randint(170, 190)
         else:  # MF
-            h = random.randint(168, 188)
-        
-        # 体重与身高正相关
-        base_w = h - 115
-        w = random.randint(base_w - 5, base_w + 8)
-        w = max(60, min(95, w))
-        return h, w
+            return random.randint(168, 188)
     
     def generate_player(self, team, position: PlayerPosition = None,
                        team_ovr: int = 50, team_level: int = 4,
@@ -1035,18 +1030,9 @@ class PlayerGenerator:
         # Age & Potential
         birth_offset, _potential_letter, potential_max, actual_age = self._generate_age_and_potential(team_level)
         
-        # Height & Weight
-        height, weight = self._generate_height_weight(position)
-        
-        # Foot
-        foot_roll = random.random()
-        if foot_roll < 0.70:
-            foot = PlayerFoot.RIGHT
-        elif foot_roll < 0.95:
-            foot = PlayerFoot.LEFT
-        else:
-            foot = PlayerFoot.BOTH
-        
+        # Height
+        height = self._generate_height(position)
+
         # Attributes
         attr_result = AttributeGenerator.generate(
             position, archetype, style, actual_age, potential_max, team_ovr, target_ovr=target_ovr
@@ -1102,10 +1088,8 @@ class PlayerGenerator:
             race=race,
             avatar_url=avatar_url,
             position=position,
-            preferred_foot=foot,
             preferred_number=preferred_number,
             height=height,
-            weight=weight,
             birth_offset=birth_offset,
             # 23 attrs
             sho=attr_result["sho"], pas=attr_result["pas"], dri=attr_result["dri"],
@@ -1177,16 +1161,8 @@ class PlayerGenerator:
         base_ovr = random.randint(35, 45)
         base_ovr = min(base_ovr, AttributeGenerator._initial_ovr_ceiling(actual_age, potential_max))
         
-        height, weight = self._generate_height_weight(position)
-        
-        foot_roll = random.random()
-        if foot_roll < 0.70:
-            foot = PlayerFoot.RIGHT
-        elif foot_roll < 0.95:
-            foot = PlayerFoot.LEFT
-        else:
-            foot = PlayerFoot.BOTH
-        
+        height = self._generate_height(position)
+
         # 生成属性
         attr_result = AttributeGenerator.generate(
             position, archetype, style, actual_age, potential_max, base_ovr
@@ -1209,10 +1185,8 @@ class PlayerGenerator:
             race=race,
             avatar_url=avatar_url,
             position=position,
-            preferred_foot=foot,
             preferred_number=preferred_number,
             height=height,
-            weight=weight,
             birth_offset=birth_offset,
             sho=attr_result["sho"], pas=attr_result["pas"], dri=attr_result["dri"],
             spd=attr_result["spd"], str_=attr_result["str_"], sta=attr_result["sta"],
@@ -1341,17 +1315,8 @@ class PlayerGenerator:
         style = _weighted_choice(STYLE_DISTRIBUTION)
         
         # Height / Weight
-        height, weight = self._generate_height_weight(position)
-        
-        # Foot
-        foot_roll = random.random()
-        if foot_roll < 0.70:
-            foot = PlayerFoot.RIGHT
-        elif foot_roll < 0.95:
-            foot = PlayerFoot.LEFT
-        else:
-            foot = PlayerFoot.BOTH
-        
+        height = self._generate_height(position)
+
         # Attributes
         attr_result = AttributeGenerator.generate(
             position, archetype, style, actual_age, potential_max, base_ovr
@@ -1377,10 +1342,8 @@ class PlayerGenerator:
             race=race,
             avatar_url=avatar_url,
             position=position,
-            preferred_foot=foot,
             preferred_number=preferred_number,
             height=height,
-            weight=weight,
             birth_offset=birth_offset,
             sho=attr_result["sho"], pas=attr_result["pas"], dri=attr_result["dri"],
             spd=attr_result["spd"], str_=attr_result["str_"], sta=attr_result["sta"],

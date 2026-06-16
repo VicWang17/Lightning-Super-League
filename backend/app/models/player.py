@@ -120,14 +120,14 @@ class Player(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(200), nullable=True)
     
     position: Mapped[PlayerPosition] = mapped_column(Enum(PlayerPosition), nullable=False, index=True)
-    preferred_foot: Mapped[PlayerFoot] = mapped_column(Enum(PlayerFoot), default=PlayerFoot.RIGHT, nullable=False)
-    
+    preferred_foot: Mapped[PlayerFoot | None] = mapped_column(Enum(PlayerFoot), nullable=True, default=None)
+
     # 号码系统
     preferred_number: Mapped[int] = mapped_column(Integer, nullable=False, default=10)  # 号码偏好
     squad_number: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 实际队内号码
-    
+
     height: Mapped[int] = mapped_column(Integer, nullable=False)   # cm, 165-200
-    weight: Mapped[int] = mapped_column(Integer, nullable=False)   # kg, 60-95
+    weight: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)   # 已废弃，保留列兼容旧数据
     
     # ===== 年龄系统 =====
     # birth_offset: 负数, 如 -22 表示第0赛季时22岁, 第1赛季时23岁

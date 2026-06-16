@@ -18,7 +18,6 @@ import {
 } from '../../components/ui/pixel-icons'
 import { ContractModal } from '../../components/players/ContractModal'
 import {
-  POSITION_NAMES,
   getPositionColor,
   type Player,
   type PlayerContract,
@@ -54,12 +53,6 @@ const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
   { id: 'records', label: '纪录', icon: Award },
   { id: 'honors', label: '荣誉', icon: Medal },
 ]
-
-const FOOT_NAMES: Record<string, string> = {
-  RIGHT: '右脚',
-  LEFT: '左脚',
-  BOTH: '双脚',
-}
 
 const STATUS_NAMES: Record<string, string> = {
   ACTIVE: '可出场',
@@ -372,41 +365,44 @@ function PlayerDetail() {
 
       <div className="dossier-card-shell">
         <section className="player-dossier-strip">
-        <div className="dossier-avatar">
-          <img src={avatarSrc} alt={player.name} />
-        </div>
-        <div className="dossier-identity">
-          <div className="dossier-name-row">
-            <h1>{player.name}</h1>
-            <span className={`profile-position ${getPositionColor(player.position)}`}>{player.position}</span>
-            <span className="profile-number">#{player.squad_number || player.preferred_number || '-'}</span>
+          <div className="dossier-avatar">
+            <img src={avatarSrc} alt={player.name} />
+          </div>
+          <div className="dossier-identity">
+            <div className="dossier-name-row">
+              <h1>{player.name}</h1>
+              <span className={`profile-position ${getPositionColor(player.position)}`}>{player.position}</span>
+              <span className="profile-number">#{player.squad_number || player.preferred_number || '-'}</span>
+            </div>
+            {player.short_description && (
+              <div className="dossier-tagline">{player.short_description}</div>
+            )}
+            <div className="dossier-vitals">
+              {player.team_id ? (
+                <Link
+                  to={`/teams/${player.team_id}`}
+                  className="dossier-team-link"
+                  title="查看球队"
+                >
+                  {player.team_name || '未知球队'}
+                </Link>
+              ) : (
+                <span>自由球员</span>
+              )}
+              <span className="dossier-vitals-sep">·</span>
+              <span>{player.age}岁</span>
+              <span className="dossier-vitals-sep">·</span>
+              <span>{player.height}cm</span>
+              <span className="dossier-vitals-sep">·</span>
+              <StatusBadge status={player.status} current_suspension={player.current_suspension} />
+            </div>
+          </div>
+          <div className="dossier-ovr-block">
+            <div className="dossier-ovr-big">{player.ovr}</div>
             <span className={`potential-badge potential-badge--${(player.potential_letter || 'D').toLowerCase()}`}>
               {player.potential_letter}
             </span>
           </div>
-          {player.short_description && (
-            <div className="dossier-tagline">{player.short_description}</div>
-          )}
-          <div className="dossier-vitals">
-            <span>{POSITION_NAMES[player.position]}</span>
-            {player.team_id ? (
-              <Link
-                to={`/teams/${player.team_id}`}
-                className="text-[var(--skin-accent)] hover:underline font-medium"
-                title="查看球队"
-              >
-                {player.team_name || '未知球队'}
-              </Link>
-            ) : (
-              <span>自由球员</span>
-            )}
-            <span>{player.age}岁</span>
-            <span>{player.height}cm / {player.weight}kg</span>
-            <span>{FOOT_NAMES[player.preferred_foot] || '-'}</span>
-            <StatusBadge status={player.status} current_suspension={player.current_suspension} />
-          </div>
-        </div>
-        <div className="dossier-ovr-big">{player.ovr}</div>
         </section>
 
         <nav className="player-profile-tabs player-workbench-tabs dossier-bookmarks" aria-label="球员详情标签">

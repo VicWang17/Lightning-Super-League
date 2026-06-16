@@ -2315,49 +2315,56 @@
 
   .dossier-identity {
     min-width: 0;
-    border-left: 3px solid var(--skin-border-strong);
-    padding: 4px 0 4px 14px;
+    padding: 2px 0;
   }
 
   .dossier-name-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    margin-top: 4px;
+    gap: 10px;
   }
 
   .dossier-name-row h1 {
     color: var(--skin-text);
-    font-size: clamp(28px, 3vw, 42px);
+    font-size: clamp(30px, 3.4vw, 46px);
     line-height: 1;
     font-weight: 1000;
-    letter-spacing: 0;
+    letter-spacing: -0.5px;
   }
 
   .dossier-tagline {
-    margin-top: 8px;
+    margin-top: 6px;
     color: #E8C84A;
     font-size: 14px;
-    font-weight: 900;
-    letter-spacing: 0.5px;
-    text-shadow: 0 0 6px rgba(232, 200, 74, 0.25);
+    font-weight: 800;
+    letter-spacing: 0.3px;
   }
 
   .dossier-vitals {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 9px;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    color: var(--skin-muted);
+    font-size: 13px;
+    font-weight: 700;
   }
 
-  .dossier-vitals span {
-    border: 2px solid var(--skin-border);
-    background: #050609;
-    padding: 5px 8px;
-    color: var(--skin-muted);
-    font-size: 12px;
-    font-weight: 900;
+  .dossier-vitals-sep {
+    color: var(--skin-border-strong);
+    user-select: none;
+  }
+
+  .dossier-team-link {
+    color: var(--skin-accent);
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .dossier-team-link:hover {
+    text-decoration: underline;
   }
 
   .dossier-score {
@@ -2436,16 +2443,22 @@
     color: #9A9AAA;
   }
 
-  .dossier-ovr-big {
+  .dossier-ovr-block {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 6px;
+    padding: 0 14px;
+    min-width: 72px;
+  }
+
+  .dossier-ovr-big {
     font-family: 'Press Start 2P', monospace;
     font-size: clamp(36px, 4vw, 56px);
     font-weight: 400;
     line-height: 1;
     color: var(--skin-accent);
-    padding: 0 16px;
     text-shadow: 0 0 24px rgba(13, 115, 119, 0.35);
     letter-spacing: 0;
   }
@@ -2985,9 +2998,12 @@
       grid-template-columns: 86px minmax(0, 1fr) auto;
     }
 
+    .dossier-ovr-block {
+      padding: 0 10px;
+    }
+
     .dossier-ovr-big {
       font-size: 36px;
-      padding: 0 10px;
     }
 
     .player-portrait-stage {
@@ -3062,11 +3078,16 @@
       height: 72px;
     }
 
-    .dossier-ovr-big {
+    .dossier-ovr-block {
       grid-column: 1 / -1;
+      flex-direction: row;
       justify-content: flex-start;
-      font-size: 32px;
+      gap: 10px;
       padding: 4px 0;
+    }
+
+    .dossier-ovr-big {
+      font-size: 32px;
     }
 
     .dossier-name-row h1 {

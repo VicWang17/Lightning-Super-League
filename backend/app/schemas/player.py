@@ -17,13 +17,6 @@ class PlayerPosition(str, Enum):
     GK = "GK"
 
 
-class PlayerFoot(str, Enum):
-    """Preferred foot"""
-    LEFT = "LEFT"
-    RIGHT = "RIGHT"
-    BOTH = "BOTH"
-
-
 class PlayerStatus(str, Enum):
     """Player status"""
     ACTIVE = "ACTIVE"
@@ -177,11 +170,9 @@ class PlayerBase(BaseSchema):
     race: PlayerRace = Field(..., description="种族")
     avatar_url: Optional[str] = Field(None, description="头像路径")
     position: PlayerPosition = Field(..., description="位置")
-    preferred_foot: PlayerFoot = PlayerFoot.RIGHT
     preferred_number: int = Field(default=10, ge=1, le=99, description="号码偏好")
     squad_number: Optional[int] = Field(None, ge=1, le=99, description="队内号码")
     height: int = Field(..., ge=165, le=200, description="身高(cm)")
-    weight: int = Field(..., ge=60, le=95, description="体重(kg)")
     birth_offset: int = Field(..., description="出生偏移量(负数)")
 
 

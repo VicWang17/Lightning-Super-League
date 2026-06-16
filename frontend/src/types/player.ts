@@ -2,7 +2,6 @@
 
 export type PlayerPosition = 'FW' | 'MF' | 'DF' | 'GK'
 export type PlayerRace = 'asian' | 'western'
-export type PlayerFoot = 'LEFT' | 'RIGHT' | 'BOTH'
 export type PlayerStatus = 'ACTIVE' | 'INJURED' | 'SUSPENDED' | 'RETIRED'
 export type MatchForm = 'HOT' | 'GOOD' | 'NEUTRAL' | 'LOW'
 export type PotentialLetter = 'S' | 'A' | 'B' | 'C' | 'D'
@@ -52,11 +51,9 @@ export interface Player {
   race: PlayerRace
   avatar_url?: string
   position: PlayerPosition
-  preferred_foot: PlayerFoot
   preferred_number: number
   squad_number?: number
   height: number
-  weight: number
   birth_offset: number
   age: number
 
