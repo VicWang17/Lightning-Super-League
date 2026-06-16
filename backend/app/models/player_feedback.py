@@ -3,7 +3,7 @@ Player feedback model - 球员每日反馈
 """
 from datetime import datetime
 
-from sqlalchemy import String, Integer, ForeignKey, Text, DateTime, JSON
+from sqlalchemy import String, Integer, ForeignKey, Text, DateTime, JSON, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -15,7 +15,11 @@ class PlayerFeedback(Base):
     存储球员每日生成的反馈文本，用于前端展示球员心态和状态。
     """
     __tablename__ = "player_feedbacks"
-    
+
+    __table_args__ = (
+        UniqueConstraint("player_id", "day_number", name="uix_player_feedback_player_day"),
+    )
+
     player_id: Mapped[str] = mapped_column(
         ForeignKey("players.id", ondelete="CASCADE"),
         nullable=False,

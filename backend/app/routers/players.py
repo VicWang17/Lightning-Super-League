@@ -1062,39 +1062,41 @@ async def get_player_feedback(
     if not player:
         return ResponseSchema(success=False, message="球员不存在", code=404)
     
-    # 查询现有反馈记录
     feedback_service = PlayerFeedbackService(db)
     feedbacks = await feedback_service.get_player_feedbacks(player_id, limit=limit)
-    
-    # 如果没有记录，尝试生成今天的反馈
-    if not feedbacks:
-        # 获取当前赛季和球队
-        season = None
-        team = None
-        day_number = 1
-        
-        if player.team_id:
-            team_result = await db.execute(select(Team).where(Team.id == player.team_id))
-            team = team_result.scalar_one_or_none()
-        
-        season_result = await db.execute(
-            select(Season)
-            .where(Season.status == SeasonStatus.ONGOING)
-            .order_by(Season.season_number.desc())
-            .limit(1)
-        )
-        season = season_result.scalar_one_or_none()
-        if season:
-            day_number = season.current_day
-        
+
+    # 准备当前赛季/球队/日期上下文
+    team = None
+    if player.team_id:
+        team_result = await db.execute(select(Team).where(Team.id == player.team_id))
+        team = team_result.scalar_one_or_none()
+
+    season = None
+    day_number = 1
+    season_result = await db.execute(
+        select(Season)
+        .where(Season.status == SeasonStatus.ONGOING)
+        .order_by(Season.season_number.desc())
+        .limit(1)
+    )
+    season = season_result.scalar_one_or_none()
+    if season:
+        day_number = season.current_day
+
+    # 如果当天还没有反馈，生成/获取今天的反馈
+    has_today = any(f.day_number == day_number for f in feedbacks)
+    if season and not has_today:
         feedback = await feedback_service.get_or_create_daily_feedback(
             player=player,
             team=team,
             season=season,
             day_number=day_number,
         )
-        feedbacks = [feedback]
-    
+        feedbacks = [feedback] + feedbacks
+
+    # 限制返回数量
+    feedbacks = feedbacks[:limit]
+
     data = [
         PlayerFeedbackResponse(
             id=f.id,
