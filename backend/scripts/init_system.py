@@ -34,7 +34,7 @@ from app.models import (
     Base, User, UserStatus,
     Team, TeamStatus, TeamFinance,
     LeagueSystem, League, 
-    Player, PlayerPosition, PlayerFoot, PlayerStatus, SquadRole
+    Player, PlayerPosition, PlayerStatus, SquadRole
 )
 from app.services.player_generator import PlayerGenerator, calculate_initial_team_overall
 from scripts.init_wage_configs import init_wage_configs

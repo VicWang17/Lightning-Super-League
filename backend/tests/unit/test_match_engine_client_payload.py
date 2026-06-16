@@ -42,7 +42,6 @@ async def _create_team_with_players(db: AsyncSession, name: str = "Test FC") -> 
             race="western",
             position=position,
             height=180,
-            weight=75,
             birth_offset=-20,
             personality=PlayerPersonality.PROFESSIONAL,
             team_id=team.id,

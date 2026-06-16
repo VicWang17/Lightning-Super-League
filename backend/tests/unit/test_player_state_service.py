@@ -8,7 +8,6 @@ from app.services.player_state_service import PlayerStateService
 from app.models.player import (
     Player,
     PlayerPosition,
-    PlayerFoot,
     PlayerRace,
     PlayerPersonality,
     PlayerStatus,

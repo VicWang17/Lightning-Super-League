@@ -353,9 +353,8 @@ class PlayerStateService:
             "skills": [],  # 由调用方填充
             "stamina": float(initial_stamina),
             "height": player.height,
-            "foot": self._foot(player.preferred_foot),
         }
-    
+
     @staticmethod
     def apply_state_to_attributes(
         attributes: dict[str, int],
@@ -486,13 +485,6 @@ class PlayerStateService:
         )
         return result.scalar_one_or_none()
     
-    @staticmethod
-    def _foot(foot) -> str:
-        value = getattr(foot, "value", foot)
-        mapping = {"LEFT": "left", "RIGHT": "right", "BOTH": "both"}
-        return mapping.get(value, "right")
-
-
 class PlayerStateComponents:
     """状态来源分解值（数据传输对象）"""
     

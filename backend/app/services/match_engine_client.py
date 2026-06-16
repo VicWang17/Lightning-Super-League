@@ -648,7 +648,6 @@ class MatchEngineClient:
             "skills": self._skill_names(player.skills or []),
             "stamina": stamina,
             "height": player.height,
-            "foot": self._foot(player.preferred_foot),
             "body_wear": player.body_wear or {},
             "traits": player.traits or [],
             "age": age,
@@ -665,11 +664,6 @@ class MatchEngineClient:
                 quality = skill.get("quality") or skill.get("rarity")
                 names.append(f"{name}|{quality}" if name and quality else name)
         return [s for s in names if s]
-
-    def _foot(self, foot: Any) -> str:
-        value = getattr(foot, "value", foot)
-        mapping = {"LEFT": "left", "RIGHT": "right", "BOTH": "both"}
-        return mapping.get(value, "right")
 
     def _choose_tactics(self, formation_id: str, starters: list[Player]) -> dict[str, int]:
         avg_fitness = self._avg([float(p.fitness or 100) for p in starters])

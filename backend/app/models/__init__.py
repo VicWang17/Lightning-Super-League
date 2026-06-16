@@ -22,7 +22,6 @@ from app.models.season import (
 from app.models.player import (
     Player,
     PlayerPosition,
-    PlayerFoot,
     PlayerStatus,
     PlayerRace,
     PotentialLetter,
@@ -150,7 +149,6 @@ __all__ = [
     # Player
     "Player",
     "PlayerPosition",
-    "PlayerFoot",
     "PlayerStatus",
     "PlayerRace",
     "PotentialLetter",

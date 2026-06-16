@@ -9,7 +9,6 @@ from app.services.contract_service import ContractService
 from app.models.player import (
     Player,
     PlayerPosition,
-    PlayerFoot,
     PlayerRace,
     PlayerPersonality,
     ContractType,
@@ -84,9 +83,7 @@ async def test_player(db, test_team):
         name="Test Player",
         race=PlayerRace.WESTERN,
         position=PlayerPosition.FW,
-        preferred_foot=PlayerFoot.RIGHT,
         height=180,
-        weight=75,
         birth_offset=-22,
         personality=PlayerPersonality.PROFESSIONAL,
         contract_type=ContractType.NORMAL,

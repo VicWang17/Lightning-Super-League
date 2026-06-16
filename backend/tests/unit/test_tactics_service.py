@@ -58,7 +58,6 @@ async def _create_player(
         race="western",
         position=position,
         height=180,
-        weight=75,
         birth_offset=-20,
         personality=PlayerPersonality.PROFESSIONAL,
         team_id=team_id,
