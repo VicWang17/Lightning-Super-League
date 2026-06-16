@@ -234,20 +234,22 @@ class MatchSimulator:
             stats.red_cards += red_cards
             stats.clean_sheets += clean_sheets
             stats.matches_played += matches_played
-            stats.minutes_played += matches_played * 90
-            
+            # 本游戏单场比赛常规时间为 50 分钟
+            match_minutes = 50
+            stats.minutes_played += matches_played * match_minutes
+
             # 更新平均评分（简化：随机 5.5-8.5）
             new_rating = Decimal("6.0")
             if matches_played > 0:
                 new_rating = Decimal(str(round(random.uniform(5.5, 8.5), 1)))
                 # 加权移动平均
                 total_minutes = stats.minutes_played
-                old_minutes = total_minutes - 90
+                old_minutes = total_minutes - match_minutes
                 if old_minutes > 0:
                     old_rating = stats.average_rating
                     stats.average_rating = (
                         (old_rating * Decimal(old_minutes / total_minutes)) +
-                        (new_rating * Decimal(90 / total_minutes))
+                        (new_rating * Decimal(match_minutes / total_minutes))
                     ).quantize(Decimal("0.1"))
                 else:
                     stats.average_rating = new_rating
