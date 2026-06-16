@@ -6,6 +6,7 @@ from typing import Optional, List, Dict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, update
+from sqlalchemy.exc import OperationalError
 
 from app.models.season import Season, SeasonStatus, Fixture, FixtureType, FixtureStatus, CupCompetition
 from app.models.league import League, LeagueSystem, LeagueStanding
@@ -468,9 +469,25 @@ class SeasonService:
                 training_injuries_medium = summary.get("training_injuries_medium", 0)
                 training_injuries_major = summary.get("training_injuries_major", 0)
                 injured_players = summary.get("injured_players", [])
+            except OperationalError as e:
+                # 死锁时需要先回滚，再抛出让事件队列重试
+                logger.warning(f"批量训练结算死锁: day={day}, error={e}")
+                await self.db.rollback()
+                raise
             except Exception as e:
                 logger.warning(f"批量训练结算失败: day={day}, error={e}")
-            recovery_summary = await self._apply_training_day_recovery(season_id, day, team_ids)
+                await self.db.rollback()
+                raise
+            try:
+                recovery_summary = await self._apply_training_day_recovery(season_id, day, team_ids)
+            except OperationalError as e:
+                logger.warning(f"训练日恢复死锁: day={day}, error={e}")
+                await self.db.rollback()
+                raise
+            except Exception as e:
+                logger.warning(f"训练日恢复失败: day={day}, error={e}")
+                await self.db.rollback()
+                raise
 
         # 3. 发送训练相关邮件（仅人类球队）
         for team_id in human_team_ids:
@@ -544,6 +561,7 @@ class SeasonService:
                     Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]),
                 )
             )
+            .order_by(Player.id)
         )
         fatigue_service = PlayerFatigueService()
         summary = {
@@ -587,7 +605,7 @@ class SeasonService:
         query = select(Player).where(
             Player.status.in_([PlayerStatus.ACTIVE, PlayerStatus.INJURED, PlayerStatus.SUSPENDED]),
             Player.team_id.isnot(None),
-        )
+        ).order_by(Player.id)
         if excluded_team_ids:
             query = query.where(Player.team_id.not_in(excluded_team_ids))
 

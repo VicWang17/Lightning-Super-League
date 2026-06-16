@@ -726,6 +726,9 @@ class TrainingService:
         players_by_team: dict[str, list[Player]] = defaultdict(list)
         for p in players_result.scalars().all():
             players_by_team[p.team_id].append(p)
+        # 按球员 id 排序，保证多事务更新同一批球员时的加锁顺序一致，减少死锁
+        for team_id in players_by_team:
+            players_by_team[team_id].sort(key=lambda p: p.id)
 
         # 3. 加载最近 7 天所有球队的已完成计划（用于重复递减）
         recent_plans_result = await self.db.execute(
