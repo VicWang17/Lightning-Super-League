@@ -34,17 +34,18 @@ ABILITY_GROUPS = {
     "gk": ["sav", "ref", "pos", "rus", "com"],
 }
 
-# 每个分组的风格近义词池（同一属性可用多种说法）
+# 每个分组的风格近义词池（同一属性可用多种说法）。
+# 大部分词会和“型”搭配，如“盘带型中场”“重炮型前锋”。
 STYLE_WORDS: dict[str, list[str]] = {
     "speed": ["极速", "闪电", "飞翼", "爆破"],
-    "shoot": ["射门", "终结", "重炮", "冷血"],
-    "pass": ["组织", "传球", "调度", "发动机"],
-    "dribble": ["盘带", "突破", "控球", "魔术师"],
+    "shoot": ["射门", "终结", "重炮", "得分"],
+    "pass": ["组织", "传球", "调度", "发动机", "掌控"],
+    "dribble": ["盘带", "突破", "控球", "魔术师", "灵动"],
     "defense": ["防守", "拦截", "抢断", "铁壁"],
     "header": ["头球", "空霸", "制空"],
-    "physical": ["力量", "坦克", "绞肉机", "硬汉"],
-    "calm": ["镇定", "冷静", "大心脏"],
-    "cross": ["传中", "边路", "45度"],
+    "physical": ["力量", "坦克", "硬汉", "绞肉机", "冲撞"],
+    "calm": ["镇定", "冷静", "沉稳", "大心脏"],
+    "cross": ["传中", "边路", "传中高手"],
     "gk": ["扑救", "反应", "出击", "镇定"],
 }
 
@@ -61,7 +62,7 @@ ROLE_WORDS: dict[str, list[str]] = {
     "FW": ["前锋", "射手", "终结者", "杀手", "中锋", "快马", "妖人", "新星"],
     "MF": ["中场", "核心", "指挥官", "发动机", "大师", "妖人", "新星"],
     "DF": ["后卫", "铁闸", "防守大闸", "统帅", "大师", "妖人", "新星"],
-    "GK": ["门将", "门神", "守护神", "门线专家", "出击型门将", "定海神针"],
+    "GK": ["门将", "门神", "守护神", "门线专家", "定海神针"],
 }
 
 # 年轻高潜力球员可能出现的限定词
@@ -84,7 +85,7 @@ class PlayerDescriptionService:
             return self._generate_gk(scores, player)
 
         # 普通 outfield 球员
-        main_style, sub_style = self._pick_styles(scores, position)
+        main_group, main_style, sub_group, sub_style = self._pick_styles(scores, position)
         zone = self._pick_zone(position, scores, exclude={main_style, sub_style} if sub_style else {main_style})
         role = self._pick_role(position, scores, player)
 
@@ -92,17 +93,29 @@ class PlayerDescriptionService:
         balanced = self._is_balanced(scores)
 
         templates: list[str] = []
-        # 基础模板
-        templates.append(f"{zone}{main_style}{role}")
-        if sub_style:
-            templates.append(f"{zone}{main_style}{sub_style}{role}")
-            templates.append(f"{main_style}型{sub_style}{role}")
-            templates.append(f"{zone}{main_style}{sub_style}专家")
-        templates.append(f"{main_style}型{zone}{role}")
-        if balanced:
-            templates.append(f"全能型{main_style}{role}")
+
+        # 传中作为主导风格时，用“传中高手”这种更自然的说法，避免生硬的“传中型”
+        if main_group == "cross":
+            templates.append(f"{zone}{main_style}{role}")
+            templates.append(f"{main_style}{role}")
             if sub_style:
-                templates.append(f"全能型{main_style}{sub_style}{role}")
+                templates.append(f"{zone}{main_style}{sub_style}专家")
+                templates.append(f"{main_style}{sub_style}专家")
+                if main_style != "传中高手":
+                    templates.append(f"{main_style}型{sub_style}{role}")
+                    templates.append(f"{zone}{main_style}型{sub_style}{role}")
+        else:
+            # 基础模板
+            templates.append(f"{zone}{main_style}{role}")
+            if sub_style:
+                templates.append(f"{zone}{main_style}{sub_style}{role}")
+                templates.append(f"{main_style}型{sub_style}{role}")
+                templates.append(f"{zone}{main_style}{sub_style}专家")
+            templates.append(f"{main_style}型{zone}{role}")
+            if balanced:
+                templates.append(f"全能型{main_style}{role}")
+                if sub_style:
+                    templates.append(f"全能型{main_style}{sub_style}{role}")
 
         # 年轻/老将限定词偶尔前置
         prefix = self._maybe_prefix(player)
@@ -147,8 +160,8 @@ class PlayerDescriptionService:
             scores[group] = total / len(attrs)
         return scores
 
-    def _pick_styles(self, scores: dict[str, float], position: str) -> tuple[str, str | None]:
-        """挑选主、副风格词。
+    def _pick_styles(self, scores: dict[str, float], position: str) -> tuple[str, str, str | None, str | None]:
+        """挑选主、副风格词及其所属分组。
 
         按分组得分排序，主风格取 Top1，副风格从 Top2-4 中按softmax加权选取。
         """
@@ -159,6 +172,7 @@ class PlayerDescriptionService:
         main_group = sorted_groups[0][0]
         main_style = self._weighted_choice(STYLE_WORDS[main_group], sorted_groups[0][1])
 
+        sub_group: str | None = None
         sub_style: str | None = None
         if len(sorted_groups) >= 2:
             # 从第二到第四中按得分加权选一个作为副风格
@@ -167,7 +181,7 @@ class PlayerDescriptionService:
             # 只有当副风格分数不太低时才使用
             if scores[sub_group] >= 10.5 and sub_group != main_group:
                 sub_style = self._weighted_choice(STYLE_WORDS[sub_group], scores[sub_group])
-        return main_style, sub_style
+        return main_group, main_style, sub_group, sub_style
 
     def _pick_zone(self, position: str, scores: dict[str, float], exclude: set[str] | None = None) -> str:
         """根据位置和速度/传中倾向选取区域词，避免与风格词重复。"""

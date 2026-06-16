@@ -447,7 +447,11 @@ function TeamDetail() {
                               <Link to={`/players/${player.id}`} className="block truncate font-black text-[var(--skin-text)] hover:text-[var(--skin-accent)]">
                                 {player.name}
                               </Link>
-                              <p className="text-xs text-[#707A8A]">{player.team_id ? '一线队' : '未归属'}</p>
+                              {player.short_description ? (
+                                <p className="text-xs font-medium text-[#E8C84A] truncate">{player.short_description}</p>
+                              ) : (
+                                <p className="text-xs text-[#707A8A]">{player.team_id ? '一线队' : '未归属'}</p>
+                              )}
                             </div>
                           </div>
                         </td>
