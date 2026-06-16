@@ -251,6 +251,7 @@ class Fixture(Base):
     # 关联关系
     season: Mapped["Season"] = relationship("Season", back_populates="fixtures")
     league: Mapped[Optional["League"]] = relationship("League")
+    cup_competition: Mapped[Optional["CupCompetition"]] = relationship("CupCompetition")
     home_team: Mapped["Team"] = relationship("Team", foreign_keys=[home_team_id])
     away_team: Mapped["Team"] = relationship("Team", foreign_keys=[away_team_id])
     

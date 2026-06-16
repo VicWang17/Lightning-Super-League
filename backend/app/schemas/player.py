@@ -485,4 +485,3 @@ class PlayerRecentMatchItem(BaseSchema):
     red_cards: int = 0
     saves: int = 0
     rating: float = 0.0
-    created_at: datetime
