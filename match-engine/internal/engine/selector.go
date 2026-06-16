@@ -125,6 +125,24 @@ func SelectShooterByZone(team *domain.TeamRuntime, zone [2]int, distance string,
 
 // SelectDefender picks a defender from opponent team
 func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
+	return selectDefensivePlayer(team, zone, "balanced", r)
+}
+
+// SelectTackler picks a player for direct challenges on the ball carrier.
+// Back-zone tackles should be led by defenders; high-zone tackles still allow
+// midfielders/forwards to participate as pressing actions.
+func SelectTackler(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
+	return selectDefensivePlayer(team, zone, "tackle", r)
+}
+
+// SelectInterceptor picks a player for cutting passing lanes.
+// Midfield interceptions can be midfielder-heavy, while dangerous back-zone
+// interceptions should be led by defenders.
+func SelectInterceptor(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
+	return selectDefensivePlayer(team, zone, "intercept", r)
+}
+
+func selectDefensivePlayer(team *domain.TeamRuntime, zone [2]int, action string, r *rand.Rand) *domain.PlayerRuntime {
 	players := team.GetActivePlayers()
 	if len(players) == 0 {
 		return team.PlayerRuntimes[0]
@@ -148,12 +166,17 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 		zw := zoneWeight(p.Position, zone[0], zone[1])
 		defBonus := 1.0
 		if p.Position == config.PosDF {
-			// 后卫应主导后场防守，中场只在中前场高压时补位。
 			defBonus = 3.0
 			if zone[0] == 2 {
-				defBonus = 5.0
+				defBonus = 7.0
 			} else if zone[0] == 1 {
 				defBonus = 3.6
+			}
+			if action == "tackle" && zone[0] >= 1 {
+				defBonus *= 1.35
+			}
+			if action == "intercept" && zone[0] == 2 {
+				defBonus *= 1.35
 			}
 			if manMarking {
 				defBonus *= 1.25
@@ -163,14 +186,24 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 			if zone[0] == 1 {
 				defBonus = 0.85
 			} else if zone[0] == 2 {
-				defBonus = 0.35
+				defBonus = 0.22
+			}
+			if action == "intercept" && zone[0] == 1 {
+				defBonus *= 1.25
+			}
+			if action == "tackle" && zone[0] == 2 {
+				defBonus *= 0.65
 			}
 			if manMarking {
 				defBonus *= 1.1
 			}
 		} else if p.Position == config.PosFW {
-			// 前锋极少深度参与纯防守动作
 			defBonus = 0.5
+			if zone[0] == 2 {
+				defBonus = 0.08
+			} else if action == "intercept" && zone[0] == 0 {
+				defBonus = 0.35
+			}
 		}
 		staminaFactor := 0.4 + 0.6*(p.CurrentStamina/100.0)
 		// V3: pressing_intensity nudges defensive selection toward players instructed to press.

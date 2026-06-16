@@ -2335,6 +2335,15 @@
     letter-spacing: 0;
   }
 
+  .dossier-tagline {
+    margin-top: 8px;
+    color: #E8C84A;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 6px rgba(232, 200, 74, 0.25);
+  }
+
   .dossier-vitals {
     display: flex;
     flex-wrap: wrap;

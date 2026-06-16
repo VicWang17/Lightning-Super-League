@@ -172,6 +172,9 @@ class Player(Base):
     
     # ===== 招牌技能 (JSON) =====
     skills: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+
+    # ===== 短词描述（球员画像） =====
+    short_description: Mapped[str | None] = mapped_column(String(120), nullable=True)
     
     # ===== 性格 (完全隐藏) =====
     personality: Mapped[PlayerPersonality] = mapped_column(Enum(PlayerPersonality), nullable=False)

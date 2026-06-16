@@ -208,15 +208,20 @@ def _choose_tactics(formation_id: str, starters: list[Player]) -> dict[str, int]
 
 
 def _normalize_team_instructions(value: dict | None) -> dict:
-    """将 V1 或空记录转换为 V2 TeamInstructions 字典"""
-    if not value:
+    """将 V1 或空记录转换为 V2 TeamInstructions 字典；任何异常都回退到默认"""
+    try:
+        if not value:
+            return TeamInstructions().model_dump()
+        # V2 记录包含阶段化字段
+        if "in_possession" in value:
+            # 尝试反序列化以剔除损坏字段，失败则回退
+            return TeamInstructions.model_validate(value).model_dump()
+        # V1 记录只有 12 条 legacy sliders
+        legacy = TacticsSetup.model_validate(value)
+        return TeamInstructions.from_legacy(legacy).model_dump()
+    except Exception:
+        logger.warning("team_instructions 损坏或无法识别，回退到默认战术")
         return TeamInstructions().model_dump()
-    # V2 记录包含阶段化字段
-    if "in_possession" in value:
-        return value
-    # V1 记录只有 12 条 legacy sliders
-    legacy = TacticsSetup.model_validate(value)
-    return TeamInstructions.from_legacy(legacy).model_dump()
 
 
 class TacticsService:
@@ -336,28 +341,17 @@ class TacticsService:
         formation_id: str,
         lineup_players: list[Player],
     ) -> list[str]:
-        """校验阵型位置要求"""
+        """校验阵型：只检查是否存在以及有且仅有 1 名门将。
+
+        游戏中位置只是模板，MF/DF/FW 可以互相客串，因此不再强制各位置人数。
+        """
         errors: list[str] = []
-        requirements = FORMATION_REQUIREMENTS.get(formation_id)
-        if not requirements:
+        if formation_id not in FORMATION_REQUIREMENTS:
             errors.append(f"未知阵型: {formation_id}")
             return errors
 
-        counts = {
-            PlayerPosition.GK: sum(1 for p in lineup_players if p.position == PlayerPosition.GK),
-            PlayerPosition.DF: sum(1 for p in lineup_players if p.position == PlayerPosition.DF),
-            PlayerPosition.MF: sum(1 for p in lineup_players if p.position == PlayerPosition.MF),
-            PlayerPosition.FW: sum(1 for p in lineup_players if p.position == PlayerPosition.FW),
-        }
-
-        # 门将必须恰好 1 人
-        if counts[PlayerPosition.GK] != 1:
-            errors.append(f"阵型 {formation_id} 需要 1 名门将，当前 {counts[PlayerPosition.GK]} 人")
-
-        #  outfield 位置满足要求
-        for position, required in requirements.items():
-            actual = counts[position]
-            if actual < required:
-                errors.append(f"阵型 {formation_id} 需要至少 {required} 名 {position.value}，当前 {actual} 人")
+        gk_count = sum(1 for p in lineup_players if p.position == PlayerPosition.GK)
+        if gk_count != 1:
+            errors.append(f"阵型 {formation_id} 需要 1 名门将，当前 {gk_count} 人")
 
         return errors

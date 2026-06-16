@@ -270,18 +270,22 @@ class MatchEngineClient:
     async def _get_team_tactics(self, db: AsyncSession, team_id: str) -> Optional[dict[str, Any]]:
         """Load saved team tactics if they exist and are usable."""
         from app.services.tactics_service import TacticsService
-        service = TacticsService(db)
-        record = await service.get_by_team_id(team_id)
-        if not record:
+        try:
+            service = TacticsService(db)
+            record = await service.get_by_team_id(team_id)
+            if not record:
+                return None
+            instructions = dict(record.team_instructions or {})
+            return {
+                "formation_id": record.formation_id,
+                "lineup_player_ids": list(record.lineup_player_ids or []),
+                "bench_player_ids": list(record.bench_player_ids or []),
+                "tactics": instructions.get("legacy_team_sliders", instructions),
+                "team_instructions": instructions,
+            }
+        except Exception as exc:
+            logger.warning(f"加载球队 {team_id} 战术失败，使用自动战术: {exc}")
             return None
-        instructions = dict(record.team_instructions or {})
-        return {
-            "formation_id": record.formation_id,
-            "lineup_player_ids": list(record.lineup_player_ids or []),
-            "bench_player_ids": list(record.bench_player_ids or []),
-            "tactics": instructions.get("legacy_team_sliders", instructions),
-            "team_instructions": instructions,
-        }
 
     def _select_lineup_from_saved(
         self,
@@ -395,7 +399,14 @@ class MatchEngineClient:
         starter_setups = await asyncio.gather(*[self._player_setup(p, db, season_number) for p in starters])
         bench_setups = await asyncio.gather(*[self._player_setup(p, db, season_number) for p in bench])
         team_instructions = saved.get("team_instructions") if saved else None
-        if not team_instructions:
+        try:
+            if team_instructions:
+                from app.schemas.tactics import TeamInstructions
+                team_instructions = TeamInstructions.model_validate(team_instructions).model_dump()
+            else:
+                raise ValueError("no saved instructions")
+        except Exception as exc:
+            logger.warning(f"球队 {team.id} 的 team_instructions 无效，回退到默认战术: {exc}")
             from app.schemas.tactics import TeamInstructions
             team_instructions = TeamInstructions.from_legacy(
                 self._legacy_tactics_setup(tactics)

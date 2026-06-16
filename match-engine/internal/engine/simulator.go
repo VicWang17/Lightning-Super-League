@@ -2728,7 +2728,7 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 
 func (sim *Simulator) doTackleEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	// Tackle: defending team tries to win ball from possession team
-	tackler := SelectDefender(oppTeam, zone, sim.r)
+	tackler := SelectTackler(oppTeam, zone, sim.r)
 	setSkillContext(tackler, config.EventTackle, zone, ms.Minute, ms.Half)
 	holder := ms.BallHolder
 
@@ -2813,7 +2813,7 @@ func (sim *Simulator) doTackleEvent(ms *domain.MatchState, possTeam, oppTeam *do
 
 func (sim *Simulator) doInterceptEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	// Interception: turnover
-	interceptor := SelectDefender(oppTeam, zone, sim.r)
+	interceptor := SelectInterceptor(oppTeam, zone, sim.r)
 	setSkillContext(interceptor, config.EventIntercept, zone, ms.Minute, ms.Half)
 	passer := ms.BallHolder
 

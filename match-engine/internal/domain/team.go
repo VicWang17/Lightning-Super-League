@@ -163,6 +163,91 @@ func DefaultTeamInstructions() TeamInstructions {
 	}
 }
 
+// inSet returns true if s is one of the allowed values.
+func inSet(s string, allowed ...string) bool {
+	for _, a := range allowed {
+		if s == a {
+			return true
+		}
+	}
+	return false
+}
+
+// clamp restricts v to [min, max].
+func clamp(v, min, max int) int {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
+
+// NormalizeTeamInstructions repairs incomplete or corrupted team instructions
+// by filling missing enum values and clamping out-of-range sliders.
+func NormalizeTeamInstructions(ti TeamInstructions) TeamInstructions {
+	if !inSet(ti.InPossession.BuildUpStyle, "short", "balanced", "direct", "long_ball") {
+		ti.InPossession.BuildUpStyle = "balanced"
+	}
+	if !inSet(ti.InPossession.ChanceCreation, "patient", "balanced", "early_shot", "work_into_box") {
+		ti.InPossession.ChanceCreation = "balanced"
+	}
+	if !inSet(ti.InPossession.AttackRoute, "left", "center", "right", "both_wings", "mixed") {
+		ti.InPossession.AttackRoute = "mixed"
+	}
+	ti.InPossession.Width = clamp(ti.InPossession.Width, 0, 4)
+	ti.InPossession.Tempo = clamp(ti.InPossession.Tempo, 0, 4)
+	ti.InPossession.PassingRisk = clamp(ti.InPossession.PassingRisk, 0, 4)
+	ti.InPossession.CrossingFrequency = clamp(ti.InPossession.CrossingFrequency, 0, 4)
+	ti.InPossession.DribbleFrequency = clamp(ti.InPossession.DribbleFrequency, 0, 4)
+	ti.InPossession.ShootingFrequency = clamp(ti.InPossession.ShootingFrequency, 0, 4)
+
+	if !inSet(ti.Transition.AfterPossessionLost, "counter_press", "balanced", "regroup") {
+		ti.Transition.AfterPossessionLost = "balanced"
+	}
+	if !inSet(ti.Transition.AfterPossessionWon, "counter", "balanced", "hold_shape") {
+		ti.Transition.AfterPossessionWon = "balanced"
+	}
+	ti.Transition.CounterDirectness = clamp(ti.Transition.CounterDirectness, 0, 4)
+	ti.Transition.ResetUnderPressure = clamp(ti.Transition.ResetUnderPressure, 0, 4)
+
+	ti.OutOfPossession.DefensiveLineHeight = clamp(ti.OutOfPossession.DefensiveLineHeight, 0, 4)
+	ti.OutOfPossession.PressingIntensity = clamp(ti.OutOfPossession.PressingIntensity, 0, 4)
+	if !inSet(ti.OutOfPossession.PressingTrigger, "passive", "bad_touch", "wide_trap", "center_trap", "always") {
+		ti.OutOfPossession.PressingTrigger = "bad_touch"
+	}
+	ti.OutOfPossession.Compactness = clamp(ti.OutOfPossession.Compactness, 0, 4)
+	if !inSet(ti.OutOfPossession.Marking, "zonal", "mixed", "man") {
+		ti.OutOfPossession.Marking = "mixed"
+	}
+	ti.OutOfPossession.TacklingAggression = clamp(ti.OutOfPossession.TacklingAggression, 0, 3)
+	ti.OutOfPossession.OffsideTrap = clamp(ti.OutOfPossession.OffsideTrap, 0, 2)
+
+	if !inSet(ti.GoalkeeperDistribution.DistributionTarget, "center_backs", "fullbacks", "midfield", "target_forward", "mixed") {
+		ti.GoalkeeperDistribution.DistributionTarget = "mixed"
+	}
+	if !inSet(ti.GoalkeeperDistribution.DistributionLength, "short", "balanced", "long") {
+		ti.GoalkeeperDistribution.DistributionLength = "balanced"
+	}
+	if !inSet(ti.GoalkeeperDistribution.ReleaseSpeed, "slow", "balanced", "quick") {
+		ti.GoalkeeperDistribution.ReleaseSpeed = "balanced"
+	}
+
+	for i := range ti.PlayerInstructions {
+		pi := &ti.PlayerInstructions[i]
+		pi.CarryBall = clamp(pi.CarryBall, 0, 4)
+		pi.PassingRisk = clamp(pi.PassingRisk, 0, 4)
+		pi.ShootingFrequency = clamp(pi.ShootingFrequency, 0, 4)
+		pi.CrossingFrequency = clamp(pi.CrossingFrequency, 0, 4)
+		pi.PressingIntensity = clamp(pi.PressingIntensity, 0, 4)
+		pi.HoldPosition = clamp(pi.HoldPosition, 0, 4)
+		pi.ForwardRuns = clamp(pi.ForwardRuns, 0, 4)
+	}
+
+	return ti
+}
+
 // TeamSetup is the input for one team
 type TeamSetup struct {
 	TeamID           string            `json:"team_id"`
@@ -187,10 +272,10 @@ type TeamRuntime struct {
 // to the stored team instructions or derive them from legacy TacticalSetup.
 func (t *TeamRuntime) Instructions() TeamInstructions {
 	if t.EffectiveInstructions != nil {
-		return *t.EffectiveInstructions
+		return NormalizeTeamInstructions(*t.EffectiveInstructions)
 	}
 	if t.TeamInstructions != nil {
-		return *t.TeamInstructions
+		return NormalizeTeamInstructions(*t.TeamInstructions)
 	}
 	return DeriveTeamInstructions(t.Tactics)
 }
@@ -269,9 +354,14 @@ func DeriveTeamInstructions(t TacticalSetup) TeamInstructions {
 func NewTeamRuntime(ts TeamSetup) *TeamRuntime {
 	tr := &TeamRuntime{TeamSetup: ts}
 
-	instrMap := make(map[string]PlayerInstruction)
 	if ts.TeamInstructions != nil {
-		for _, ins := range ts.TeamInstructions.PlayerInstructions {
+		normalized := NormalizeTeamInstructions(*ts.TeamInstructions)
+		tr.TeamInstructions = &normalized
+	}
+
+	instrMap := make(map[string]PlayerInstruction)
+	if tr.TeamInstructions != nil {
+		for _, ins := range tr.TeamInstructions.PlayerInstructions {
 			instrMap[ins.PlayerID] = ins
 		}
 	}

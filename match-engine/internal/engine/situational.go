@@ -88,10 +88,12 @@ func applyOverride(base *domain.TeamInstructions, o domain.SituationalRuleOverri
 // ComputeEffectiveInstructions evaluates all situational rules for a team and
 // returns the resulting instructions together with the IDs of triggered rules.
 func ComputeEffectiveInstructions(team *domain.TeamRuntime, ms *domain.MatchState) (domain.TeamInstructions, []string) {
-	base := team.Instructions()
+	var base domain.TeamInstructions
 	if team.TeamInstructions != nil {
 		// Start from the stored instructions so we don't double-apply derived defaults.
-		base = *team.TeamInstructions
+		base = domain.NormalizeTeamInstructions(*team.TeamInstructions)
+	} else {
+		base = domain.NormalizeTeamInstructions(team.Instructions())
 	}
 
 	var triggered []string
@@ -104,7 +106,7 @@ func ComputeEffectiveInstructions(team *domain.TeamRuntime, ms *domain.MatchStat
 			triggered = append(triggered, rule.ID)
 		}
 	}
-	return base, triggered
+	return domain.NormalizeTeamInstructions(base), triggered
 }
 
 func clampInt(v, min, max int) int {

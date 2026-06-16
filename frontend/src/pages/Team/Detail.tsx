@@ -508,6 +508,9 @@ function TeamDetail() {
                     {selectedPlayer.squad_number ? `#${selectedPlayer.squad_number} · ` : ''}
                     {selectedPlayer.position} · {selectedPlayer.age}岁
                   </p>
+                  {selectedPlayer.short_description && (
+                    <p className="mt-1 text-sm font-black text-[#E8C84A]">{selectedPlayer.short_description}</p>
+                  )}
                 </div>
               </div>
 

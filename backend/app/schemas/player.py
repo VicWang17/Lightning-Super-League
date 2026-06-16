@@ -231,6 +231,7 @@ class PlayerResponse(PlayerBase):
     wage: Decimal
     release_clause: Optional[Decimal] = None
     squad_role: str = Field(default="first_team")
+    short_description: Optional[str] = Field(None, description="球员画像短词描述")
     
     # 号码
     preferred_number: int = Field(default=10, ge=1, le=99)
@@ -300,6 +301,7 @@ class PlayerListItem(BaseSchema):
     """Simplified player info for listings"""
     id: str
     name: str
+    short_description: Optional[str] = Field(None, description="球员画像短词描述")
     race: PlayerRace
     avatar_url: Optional[str]
     age: int

@@ -19,6 +19,7 @@ from app.models.player import (
     PotentialLetter, PlayerPersonality, ContractType, MatchForm, SquadRole,
     OriginType,
 )
+from app.services.player_description_service import PlayerDescriptionService
 from app.services.player_number_service import generate_preferred_number
 from app.services.training_growth_service import TrainingGrowthService
 
@@ -1094,8 +1095,9 @@ class PlayerGenerator:
         )
         
         preferred_number = generate_preferred_number(position)
-        
-        return Player(
+        description_service = PlayerDescriptionService()
+
+        player = Player(
             name=name,
             race=race,
             avatar_url=avatar_url,
@@ -1139,6 +1141,8 @@ class PlayerGenerator:
             squad_role=role,
             team_id=team.id,
         )
+        player.short_description = description_service.generate(player)
+        return player
     
     def generate_auto_fill_player(self, team, season_number: int = 1) -> Player:
         """生成自动补员兜底球员（设计文档 7.2）
@@ -1198,8 +1202,9 @@ class PlayerGenerator:
         wage = estimate_initial_wage(base_ovr, potential_max, actual_age)
         
         preferred_number = generate_preferred_number(position)
-        
-        return Player(
+        description_service = PlayerDescriptionService()
+
+        player = Player(
             name=name,
             race=race,
             avatar_url=avatar_url,
@@ -1229,6 +1234,8 @@ class PlayerGenerator:
             squad_role=SquadRole.BACKUP,
             origin_type=OriginType.AUTO_FILL,
         )
+        player.short_description = description_service.generate(player)
+        return player
     
     def generate_youth_player(
         self,
@@ -1363,8 +1370,9 @@ class PlayerGenerator:
         )
         
         preferred_number = generate_preferred_number(position)
-        
-        return Player(
+        description_service = PlayerDescriptionService()
+
+        player = Player(
             name=name,
             race=race,
             avatar_url=avatar_url,
@@ -1404,6 +1412,8 @@ class PlayerGenerator:
             origin_type=OriginType.ACADEMY,
             academy_team_id=team.id,
         )
+        player.short_description = description_service.generate(player)
+        return player
     
     def _generate_initial_squad_targets(self, league_level: int, size: int) -> list[int]:
         tiers = INITIAL_SQUAD_OVR_TIERS.get(league_level, INITIAL_SQUAD_OVR_TIERS[3])

@@ -48,6 +48,7 @@ export interface PlayerSkill {
 export interface Player {
   id: string
   name: string
+  short_description?: string
   race: PlayerRace
   avatar_url?: string
   position: PlayerPosition
@@ -220,6 +221,7 @@ export interface PlayerStats {
 export interface PlayerListItem {
   id: string
   name: string
+  short_description?: string
   race: PlayerRace
   avatar_url?: string
   age: number

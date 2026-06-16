@@ -368,6 +368,9 @@ function PlayerDetail() {
               {player.potential_letter}
             </span>
           </div>
+          {player.short_description && (
+            <div className="dossier-tagline">{player.short_description}</div>
+          )}
           <div className="dossier-vitals">
             <span>{POSITION_NAMES[player.position]}</span>
             <span>{player.age}岁</span>

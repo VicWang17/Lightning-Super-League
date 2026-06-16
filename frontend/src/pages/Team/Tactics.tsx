@@ -86,6 +86,24 @@ function defaultSituationalRules(): SituationalRule[] {
   ]
 }
 
+function normalizeTeamInstructions(value: unknown): TeamInstructions {
+  const fallback = presets[0].teamInstructions
+  try {
+    const v = value as Partial<TeamInstructions>
+    return {
+      legacy_team_sliders: { ...fallback.legacy_team_sliders, ...(v.legacy_team_sliders || {}) } as TacticsSetup,
+      in_possession: { ...fallback.in_possession, ...(v.in_possession || {}) },
+      transition: { ...fallback.transition, ...(v.transition || {}) },
+      out_of_possession: { ...fallback.out_of_possession, ...(v.out_of_possession || {}) },
+      goalkeeper_distribution: { ...fallback.goalkeeper_distribution, ...(v.goalkeeper_distribution || {}) },
+      player_instructions: Array.isArray(v.player_instructions) ? v.player_instructions : [],
+      situational_rules: Array.isArray(v.situational_rules) ? v.situational_rules : defaultSituationalRules(),
+    }
+  } catch {
+    return fallback
+  }
+}
+
 function legacyToTeamInstructions(legacy: TacticsSetup): TeamInstructions {
   const buildUpStyle = legacy.passing_style >= 3 ? 'short' : legacy.passing_style <= 1 ? 'direct' : 'balanced'
   const attackRoute = legacy.attack_width >= 3 ? 'both_wings' : legacy.attack_width <= 1 ? 'center' : 'mixed'
@@ -292,11 +310,7 @@ function readStoredSetup() {
       parsed.teamInstructions = legacyToTeamInstructions(parsed.tactics)
     }
     if (parsed.teamInstructions) {
-      parsed.teamInstructions = {
-        ...parsed.teamInstructions,
-        player_instructions: parsed.teamInstructions.player_instructions || [],
-        situational_rules: parsed.teamInstructions.situational_rules || defaultSituationalRules(),
-      }
+      parsed.teamInstructions = normalizeTeamInstructions(parsed.teamInstructions)
     }
     return parsed
   } catch {
@@ -828,7 +842,11 @@ function BenchPlayerRow({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-black text-[#FFF8DE]">{player.name}</p>
-        <p className="text-[10px] font-bold text-[#786F5A]">{tone.label} · OVR {player.ovr}</p>
+        {player.short_description ? (
+          <p className="truncate text-[10px] font-black text-[#E8C84A]">{player.short_description}</p>
+        ) : (
+          <p className="text-[10px] font-bold text-[#786F5A]">{tone.label} · OVR {player.ovr}</p>
+        )}
         <div className="mt-1.5 h-1 border border-[#3B3425] bg-[#1A1610]">
           <div className={clsx('h-full', fitnessColor)} style={{ width: `${player.fitness}%` }} />
         </div>
@@ -1189,6 +1207,51 @@ const situationalOverrideFields: Array<{
   },
 ]
 
+function conditionHalfOpenRange(condition: SituationalRuleCondition) {
+  return {
+    minute: [condition.minute_gte ?? 0, condition.minute_lt ?? 121] as [number, number],
+    goalDiff: [condition.goal_diff_gte ?? -100, (condition.goal_diff_lte ?? 100) + 1] as [number, number],
+    stamina: [0, (condition.team_stamina_avg_lte ?? 100) + 1] as [number, number],
+  }
+}
+
+function intervalsOverlap(a: [number, number], b: [number, number]) {
+  return Math.max(a[0], b[0]) < Math.min(a[1], b[1])
+}
+
+function conditionsOverlap(a: SituationalRuleCondition, b: SituationalRuleCondition) {
+  const ra = conditionHalfOpenRange(a)
+  const rb = conditionHalfOpenRange(b)
+  return (
+    intervalsOverlap(ra.minute, rb.minute) &&
+    intervalsOverlap(ra.goalDiff, rb.goalDiff) &&
+    intervalsOverlap(ra.stamina, rb.stamina)
+  )
+}
+
+function situationalOverrideLabel(key: keyof SituationalRuleOverride) {
+  return situationalOverrideFields.find((f) => f.key === key)?.label || key
+}
+
+function findSituationalConflicts(rules: SituationalRule[]) {
+  const conflicts: Array<{ ruleIndex: number; otherIndex: number; fields: string[] }> = []
+  const enabled = rules.map((r, i) => ({ r, i })).filter(({ r }) => r.enabled)
+  for (let a = 0; a < enabled.length; a++) {
+    for (let b = a + 1; b < enabled.length; b++) {
+      const { r: ra, i: ia } = enabled[a]
+      const { r: rb, i: ib } = enabled[b]
+      if (!conditionsOverlap(ra.condition, rb.condition)) continue
+      const aKeys = Object.keys(ra.override) as Array<keyof SituationalRuleOverride>
+      const bKeys = Object.keys(rb.override) as Array<keyof SituationalRuleOverride>
+      const shared = aKeys.filter((k) => bKeys.includes(k))
+      if (shared.length > 0) {
+        conflicts.push({ ruleIndex: ia, otherIndex: ib, fields: shared.map(situationalOverrideLabel) })
+      }
+    }
+  }
+  return conflicts
+}
+
 function SituationalRulesPanel({
   teamInstructions,
   onChange,
@@ -1197,6 +1260,7 @@ function SituationalRulesPanel({
   onChange: (next: TeamInstructions) => void
 }) {
   const rules = teamInstructions.situational_rules || []
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
 
   const updateRules = (next: SituationalRule[]) => {
     onChange({ ...teamInstructions, situational_rules: next.slice(0, 10) })
@@ -1284,17 +1348,67 @@ function SituationalRulesPanel({
         </div>
       )}
 
+      {(() => {
+        const conflicts = findSituationalConflicts(rules)
+        if (conflicts.length === 0) return null
+        return (
+          <div className="border-2 border-[#8E2E20] bg-[#2B0905] p-3 text-xs font-black text-[#E97762]">
+            <p className="mb-1">检测到规则冲突：</p>
+            <ul className="list-inside list-disc space-y-1">
+              {conflicts.map((conflict, i) => (
+                <li key={i}>
+                  “{rules[conflict.ruleIndex].name}”与“{rules[conflict.otherIndex].name}”条件可能同时满足，且都覆盖了 {conflict.fields.join('、')}。
+                  排在前面的规则会被后面的覆盖。
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
+
       <div className="space-y-3">
         {rules.map((rule, index) => {
           const conditionKeys = Object.keys(rule.condition) as Array<keyof SituationalRuleCondition>
           const overrideKeys = Object.keys(rule.override) as Array<keyof SituationalRuleOverride>
 
+          const ruleConflicts = findSituationalConflicts(rules).filter(
+            (c) => c.ruleIndex === index || c.otherIndex === index,
+          )
+
           return (
             <div
               key={rule.id}
-              className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel"
+              draggable
+              onDragStart={(event) => {
+                setDraggingIndex(index)
+                event.dataTransfer.effectAllowed = 'move'
+              }}
+              onDragOver={(event) => {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'move'
+              }}
+              onDrop={(event) => {
+                event.preventDefault()
+                if (draggingIndex === null || draggingIndex === index) return
+                const next = [...rules]
+                const [moved] = next.splice(draggingIndex, 1)
+                next.splice(index, 0, moved)
+                updateRules(next)
+                setDraggingIndex(null)
+              }}
+              onDragEnd={() => setDraggingIndex(null)}
+              className={clsx(
+                'border-2 bg-[#0D0B07] p-3 shadow-pixel transition-opacity',
+                draggingIndex === index ? 'border-[#D5B15E] opacity-60' : 'border-[#3B3425]',
+              )}
             >
               <div className="mb-3 flex items-center gap-2">
+                <span
+                  title="拖拽排序"
+                  className="cursor-grab pr-1 text-[10px] font-black text-[#786F5A] active:cursor-grabbing"
+                >
+                  ⠿
+                </span>
                 <input
                   type="text"
                   value={rule.name}
@@ -1319,6 +1433,19 @@ function SituationalRulesPanel({
                   <Delete className="h-3.5 w-3.5" />
                 </button>
               </div>
+
+              {ruleConflicts.length > 0 && (
+                <div className="mb-2 text-[10px] font-black text-[#E97762]">
+                  与
+                  {ruleConflicts.map((c, ci) => (
+                    <span key={ci}>
+                      {ci > 0 && '、'}
+                      “{rules[c.ruleIndex === index ? c.otherIndex : c.ruleIndex].name}”
+                    </span>
+                  ))}
+                  存在覆盖冲突，后者会覆盖前者。
+                </div>
+              )}
 
               {/* Sentence editor: conditions */}
               <div className="mb-3 flex flex-wrap items-center gap-2 text-xs leading-7">
@@ -1610,11 +1737,7 @@ export default function Tactics() {
             setFormationId(data.formation_id as FormationId)
           }
           if (data.team_instructions) {
-            const loaded: TeamInstructions = {
-              ...data.team_instructions,
-              player_instructions: data.team_instructions.player_instructions || [],
-              situational_rules: data.team_instructions.situational_rules || defaultSituationalRules(),
-            }
+            const loaded = normalizeTeamInstructions(data.team_instructions)
             setTeamInstructions(loaded)
             const loadedLegacy = loaded.legacy_team_sliders
             const matchedPreset = presets.find((preset) =>
@@ -1641,7 +1764,7 @@ export default function Tactics() {
         setFormationId(parsed.formationId)
       }
       if (parsed.teamInstructions) {
-        const loaded = parsed.teamInstructions
+        const loaded = normalizeTeamInstructions(parsed.teamInstructions)
         setTeamInstructions(loaded)
         const loadedLegacy = loaded.legacy_team_sliders
         const matchedPreset = presets.find((preset) =>

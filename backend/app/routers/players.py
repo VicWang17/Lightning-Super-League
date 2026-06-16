@@ -262,6 +262,7 @@ async def list_players(
         PlayerListItem(
             id=p.id,
             name=p.name,
+            short_description=p.short_description,
             race=p.race,
             avatar_url=p.avatar_url,
             age=abs(p.birth_offset),  # TODO: 加上当前赛季序号
@@ -363,6 +364,7 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
         data=PlayerResponse(
             id=player.id,
             name=player.name,
+            short_description=player.short_description,
             race=player.race,
             avatar_url=player.avatar_url,
             position=player.position,

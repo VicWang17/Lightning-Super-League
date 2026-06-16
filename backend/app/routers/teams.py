@@ -460,6 +460,7 @@ async def get_team_players(
         PlayerListItem(
             id=p.id,
             name=p.name,
+            short_description=p.short_description,
             race=p.race,
             avatar_url=p.avatar_url,
             age=abs(p.birth_offset),

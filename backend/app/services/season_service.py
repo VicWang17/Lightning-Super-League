@@ -645,6 +645,17 @@ class SeasonService:
         ai_tactics_advisor = AITacticsAdvisor(self.db)
         ai_tactics_result = await ai_tactics_advisor.generate_for_all_ai_teams()
 
+        # 新赛季统一刷新所有球员短词描述
+        from app.services.player_description_service import PlayerDescriptionService
+        desc_service = PlayerDescriptionService()
+        players_result = await self.db.execute(select(Player))
+        players = players_result.scalars().all()
+        for i, player in enumerate(players):
+            player.short_description = desc_service.generate(player)
+            if (i + 1) % 200 == 0:
+                await self.db.commit()
+        await self.db.commit()
+
         for team_id in team_ids:
             await self.notify.send_season_start(team_id, season_id, season_number)
 
@@ -653,6 +664,7 @@ class SeasonService:
             "event": "season_start",
             "season_id": season_id,
             "ai_tactics": ai_tactics_result,
+            "descriptions_regenerated": len(players),
         }
 
     async def _handle_season_finance_initialized(self, event: GameEvent) -> Dict:
