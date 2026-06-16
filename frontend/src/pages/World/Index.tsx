@@ -12,13 +12,13 @@ import {
   ChevronLeft,
 } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
-import { useWorldRankings, useTopPlayers, useWorldRecords, useWorldLeaderboard } from '../../hooks/useWorld'
+import { useWorldRankings, useTopPlayers, useWorldRecords, useWorldLeaderboard, useWorldTeamLeaderboard } from '../../hooks/useWorld'
 import { useSeasonAwards, useAllLeagueAwardsForSeason } from '../../hooks/useAwards'
 import { useSeason } from '../../hooks/useSeason'
 import { useSeasons } from '../../hooks/useSeasons'
 import { AwardCard, DataKingsRow, TeamOfSeasonGrid } from '../../components/awards'
 
-import type { LeaderboardType, LeaderboardItem } from '../../types/leaderboard'
+import type { LeaderboardType, LeaderboardItem, TeamLeaderboardType, TeamLeaderboardItem } from '../../types/leaderboard'
 import type { TopPlayer } from '../../types/world'
 import { LeaderboardValue } from '../../components/leaderboard/LeaderboardValue'
 import {
@@ -65,6 +65,29 @@ const WORLD_SORT_OPTIONS: WorldSortOption[] = [
   { value: 'matches_played', label: '出场', format: 'int' },
   { value: 'goals_per_game', label: '场均进球', format: 'float1' },
   { value: 'assists_per_game', label: '场均助攻', format: 'float1' },
+]
+
+type WorldTeamSortType = 'ranking' | TeamLeaderboardType
+
+interface WorldTeamSortOption {
+  value: WorldTeamSortType
+  label: string
+  format: 'int' | 'float1' | 'percent'
+}
+
+const TEAM_SORT_OPTIONS: WorldTeamSortOption[] = [
+  { value: 'ranking', label: '综合排名', format: 'int' },
+  { value: 'points', label: '积分', format: 'int' },
+  { value: 'wins', label: '胜场', format: 'int' },
+  { value: 'draws', label: '平局', format: 'int' },
+  { value: 'losses', label: '负场', format: 'int' },
+  { value: 'matches', label: '比赛', format: 'int' },
+  { value: 'goals_for', label: '进球', format: 'int' },
+  { value: 'goals_against', label: '失球', format: 'int' },
+  { value: 'goal_difference', label: '净胜球', format: 'int' },
+  { value: 'win_rate', label: '胜率', format: 'percent' },
+  { value: 'goals_per_game', label: '场均进球', format: 'float1' },
+  { value: 'goals_against_per_game', label: '场均失球', format: 'float1' },
 ]
 
 const TABS = [
@@ -115,6 +138,34 @@ function RankingRow({ ranking }: { ranking: { rank: number; team_name: string; t
       <td className="py-3 px-4 text-center">
         <span className="font-bold pixel-number text-lg text-[#C6F135]">
           {ranking.total_score.toFixed(0)}
+        </span>
+      </td>
+    </tr>
+  )
+}
+
+function TeamLeaderboardRow({ item, format }: { item: TeamLeaderboardItem; format: 'int' | 'float1' | 'percent' }) {
+  const rankColor = item.rank <= 3 ? RANK_COLORS[item.rank - 1] : 'bg-[#1E1E2D] text-[#8B8BA7]'
+
+  return (
+    <tr className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+      <td className="py-3 px-4">
+        <div className={`w-8 h-8 flex items-center justify-center text-sm font-bold pixel-number ${rankColor}`}>
+          {item.rank}
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <Link
+          to={`/teams/${item.team_id}`}
+          className="font-medium text-white hover:text-[#C6F135] transition-colors"
+        >
+          {item.team_name}
+        </Link>
+      </td>
+      <td className="py-3 px-4 text-center text-[#8B8BA7]">{item.matches > 0 ? `${item.matches}场` : '-'}</td>
+      <td className="py-3 px-4 text-center">
+        <span className="font-bold pixel-number text-lg text-[#C6F135]">
+          <LeaderboardValue value={item.value} format={format} />
         </span>
       </td>
     </tr>
@@ -515,8 +566,16 @@ function WorldPage() {
   const [activeTab, setActiveTab] = useState<WorldTab>('rankings')
   const [playerPosition, setPlayerPosition] = useState<PlayerPosition>('ALL')
   const [sortType, setSortType] = useState<WorldSortType>('ovr')
+  const [teamSortType, setTeamSortType] = useState<WorldTeamSortType>('ranking')
 
+  const isTeamRanking = teamSortType === 'ranking'
   const { rankings, loading: rankingsLoading } = useWorldRankings()
+  const { items: teamLbItems, loading: teamLbLoading } = useWorldTeamLeaderboard(
+    isTeamRanking ? null : teamSortType,
+    100
+  )
+  const teamSortOption = TEAM_SORT_OPTIONS.find(o => o.value === teamSortType)
+
   const { players: ovrPlayers, loading: ovrLoading } = useTopPlayers(
     100,
     playerPosition === 'ALL' ? undefined : playerPosition
@@ -570,47 +629,97 @@ function WorldPage() {
       <div className="card">
         {activeTab === 'rankings' && (
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold">球队世界排名</h3>
-              <span className="text-xs text-[#4B4B6A]">近3个赛季联赛加权积分 + 杯赛冠军积分</span>
+              <div className="relative">
+                <select
+                  value={teamSortType}
+                  onChange={(e) => setTeamSortType(e.target.value as WorldTeamSortType)}
+                  className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-xs px-3 py-1 pr-7 focus:outline-none focus:border-[#C6F135] cursor-pointer"
+                >
+                  {TEAM_SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <ChevronRight className="w-3 h-3 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+              </div>
             </div>
-            {rankingsLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="h-12 bg-[#1E1E2D] animate-pulse" />
-                ))}
-              </div>
-            ) : rankings.length === 0 ? (
-              <div className="text-center py-12">
-                <Trophy className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
-                <p className="text-[#8B8BA7]">暂无排名数据</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
-                      <th className="py-2 px-4 font-medium">排名</th>
-                      <th className="py-2 px-4 font-medium">球队</th>
-                      <th className="py-2 px-4 font-medium text-center">
-                        <span className="inline-flex items-center gap-1">
-                          联赛积分
-                          <span title="联赛积分 = 近3赛季联赛积分 × 联赛权重（超级×10 / 甲级×5 / 乙级×2.5 / 丙级×1）">
-                            <InfoBox className="w-3.5 h-3.5 text-[#4B4B6A] hover:text-[#0D7377] cursor-help" />
+            {isTeamRanking ? (
+              rankingsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-12 bg-[#1E1E2D] animate-pulse" />
+                  ))}
+                </div>
+              ) : rankings.length === 0 ? (
+                <div className="text-center py-12">
+                  <Trophy className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+                  <p className="text-[#8B8BA7]">暂无排名数据</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+                        <th className="py-2 px-4 font-medium">排名</th>
+                        <th className="py-2 px-4 font-medium">球队</th>
+                        <th className="py-2 px-4 font-medium text-center">
+                          <span className="inline-flex items-center gap-1">
+                            联赛积分
+                            <span title="联赛积分 = 近3赛季联赛积分 × 联赛权重（超级×10 / 甲级×5 / 乙级×2.5 / 丙级×1）">
+                              <InfoBox className="w-3.5 h-3.5 text-[#4B4B6A] hover:text-[#0D7377] cursor-help" />
+                            </span>
                           </span>
-                        </span>
-                      </th>
-                      <th className="py-2 px-4 font-medium text-center">杯赛冠军</th>
-                      <th className="py-2 px-4 font-medium text-center">总得分</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rankings.map((ranking) => (
-                      <RankingRow key={ranking.team_id} ranking={ranking} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </th>
+                        <th className="py-2 px-4 font-medium text-center">杯赛冠军</th>
+                        <th className="py-2 px-4 font-medium text-center">总得分</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rankings.map((ranking) => (
+                        <RankingRow key={ranking.team_id} ranking={ranking} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : (
+              teamLbLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-12 bg-[#1E1E2D] animate-pulse" />
+                  ))}
+                </div>
+              ) : teamLbItems.length === 0 ? (
+                <div className="text-center py-12">
+                  <Trophy className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+                  <p className="text-[#8B8BA7]">暂无排名数据</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+                        <th className="py-2 px-4 font-medium">排名</th>
+                        <th className="py-2 px-4 font-medium">球队</th>
+                        <th className="py-2 px-4 font-medium text-center">场次</th>
+                        <th className="py-2 px-4 font-medium text-center">
+                          {teamSortOption?.label ?? '数值'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teamLbItems.map((item) => (
+                        <TeamLeaderboardRow
+                          key={item.team_id}
+                          item={item}
+                          format={teamSortOption?.format ?? 'int'}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
             )}
           </div>
         )}

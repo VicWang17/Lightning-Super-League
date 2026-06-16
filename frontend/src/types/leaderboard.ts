@@ -55,3 +55,27 @@ export interface LeaderboardConfig {
   label: string
   icon: string
 }
+
+// 球队排行榜
+export type TeamLeaderboardType =
+  | 'points'
+  | 'wins'
+  | 'draws'
+  | 'losses'
+  | 'matches'
+  | 'goals_for'
+  | 'goals_against'
+  | 'goal_difference'
+  | 'win_rate'
+  | 'goals_per_game'
+  | 'goals_against_per_game'
+
+export interface TeamLeaderboardItem {
+  rank: number
+  team_id: string
+  team_name: string
+  logo_url?: string
+  value: number
+  value_label: string
+  matches: number
+}

@@ -575,6 +575,13 @@ class ApiClient {
     return this.get<PlayerState>(`/players/${playerId}/state`)
   }
 
+  async getPlayerRecentMatches(playerId: string, limit = 10) {
+    return this.requestWithAuth<import('../types/player').PlayerRecentMatch[]>(
+      `/players/${playerId}/recent-matches?limit=${limit}`,
+      { method: 'GET' }
+    )
+  }
+
   async getTeamPlayerStates(teamId: string) {
     return this.get<TeamPlayerStates>(`/teams/${teamId}/player-states`)
   }
@@ -1008,6 +1015,14 @@ class ApiClient {
 
   async getAllLeagueAwardsForSeason(seasonId: string) {
     return this.requestWithAuth<LeagueAwards[]>(`/awards/season/${seasonId}/leagues`, { method: 'GET' })
+  }
+
+  // ==================== 世界排行榜 API ====================
+  async getWorldTeamLeaderboard(type: import('../types/leaderboard').TeamLeaderboardType, limit = 100) {
+    return this.requestWithAuth<import('../types/leaderboard').TeamLeaderboardItem[]>(
+      `/world/team-leaderboard?type=${type}&limit=${limit}`,
+      { method: 'GET' }
+    )
   }
 }
 

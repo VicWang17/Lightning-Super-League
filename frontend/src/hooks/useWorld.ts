@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api/client'
 import type { WorldRanking, TopPlayer } from '../types/world'
 import type { RecordsByCategory } from '../types/records'
-import type { LeaderboardType, LeaderboardItem } from '../types/leaderboard'
+import type { LeaderboardType, LeaderboardItem, TeamLeaderboardType, TeamLeaderboardItem } from '../types/leaderboard'
 
 export function useWorldRankings() {
   const [rankings, setRankings] = useState<WorldRanking[]>([])
@@ -128,6 +128,45 @@ export function useWorldLeaderboard(
 
     fetchLeaderboard()
   }, [type, limit, position])
+
+  return { items, loading, error }
+}
+
+export function useWorldTeamLeaderboard(
+  type: TeamLeaderboardType | null,
+  limit = 100
+) {
+  const [items, setItems] = useState<TeamLeaderboardItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!type) {
+      setItems([])
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    const fetchLeaderboard = async () => {
+      try {
+        setLoading(true)
+        setItems([])
+        setError(null)
+        const response = await api.getWorldTeamLeaderboard(type, limit)
+        if (response.success) {
+          setItems(response.data)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '获取球队排行榜失败')
+        setItems([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchLeaderboard()
+  }, [type, limit])
 
   return { items, loading, error }
 }
