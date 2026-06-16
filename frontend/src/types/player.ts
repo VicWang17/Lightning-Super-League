@@ -161,6 +161,7 @@ export interface Player {
   penalty_goals: number
 
   team_id?: string
+  team_name?: string
   created_at: string
   updated_at: string
 }

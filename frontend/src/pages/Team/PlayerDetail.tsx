@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   Award,
   Calendar,
@@ -389,6 +389,17 @@ function PlayerDetail() {
           )}
           <div className="dossier-vitals">
             <span>{POSITION_NAMES[player.position]}</span>
+            {player.team_id ? (
+              <Link
+                to={`/teams/${player.team_id}`}
+                className="text-[var(--skin-accent)] hover:underline font-medium"
+                title="查看球队"
+              >
+                {player.team_name || '未知球队'}
+              </Link>
+            ) : (
+              <span>自由球员</span>
+            )}
             <span>{player.age}岁</span>
             <span>{player.height}cm / {player.weight}kg</span>
             <span>{FOOT_NAMES[player.preferred_foot] || '-'}</span>
@@ -548,7 +559,15 @@ function PlayerDetail() {
                       {seasons.map(row => (
                         <tr key={row.season_number}>
                           <td>第 {row.season_number} 赛季</td>
-                          <td>{row.team_name}</td>
+                          <td>
+                            {row.team_id ? (
+                              <Link to={`/teams/${row.team_id}`} className="text-[var(--skin-accent)] hover:underline">
+                                {row.team_name}
+                              </Link>
+                            ) : (
+                              row.team_name
+                            )}
+                          </td>
                           <td>{row.matches_played}</td>
                           <td>{row.goals}</td>
                           <td>{row.assists}</td>
@@ -611,9 +630,17 @@ function PlayerDetail() {
                               <span className="text-xs text-[#707A8A]">{m.competition}</span>
                             </td>
                             <td>
-                              <span className="text-xs">
-                                {teamName} {m.home_score}-{m.away_score} {oppName}
-                              </span>
+                              <Link
+                                to={`/match/${m.fixture_id}`}
+                                className="text-xs hover:text-[var(--skin-accent)] transition-colors"
+                                title="查看比赛详情"
+                              >
+                                <span className="hover:underline">{teamName}</span>
+                                {' '}
+                                <span className="font-medium">{m.home_score}-{m.away_score}</span>
+                                {' '}
+                                <span className="hover:underline">{oppName}</span>
+                              </Link>
                             </td>
                             <td className={resultClass}>{resultLabel}</td>
                             <td>{m.rating ? m.rating.toFixed(1) : '-'}</td>

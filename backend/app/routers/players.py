@@ -355,6 +355,10 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
     if not player:
         return ResponseSchema(success=False, message="球员不存在", code=404)
     
+    team_name = None
+    if player.team_id:
+        team_name = await db.scalar(select(Team.name).where(Team.id == player.team_id))
+    
     from app.schemas.player import PlayerAbility, PlayerStats, PlayerSkill
     
     abilities = PlayerAbility(
@@ -405,6 +409,7 @@ async def get_player(player_id: str, db: AsyncSession = Depends(get_db)):
             market_value=player.market_value,
             stats=stats,
             team_id=player.team_id,
+            team_name=team_name,
             created_at=player.created_at,
             updated_at=player.updated_at,
             **career_stats,

@@ -209,6 +209,7 @@ class PlayerResponse(PlayerBase):
     """Full player response schema"""
     id: str
     team_id: Optional[str] = None
+    team_name: Optional[str] = Field(None, description="所属球队名称")
     age: int = Field(..., description="当前年龄(由 birth_offset 计算)")
     
     # 能力值
