@@ -64,6 +64,46 @@ class LeaderboardItem(BaseSchema):
     ovr: Optional[int] = None
 
 
+class TeamLeaderboardType(str, Enum):
+    """球队排行榜类型"""
+    POINTS = "points"
+    WINS = "wins"
+    DRAWS = "draws"
+    LOSSES = "losses"
+    MATCHES = "matches"
+    GOALS_FOR = "goals_for"
+    GOALS_AGAINST = "goals_against"
+    GOAL_DIFFERENCE = "goal_difference"
+    WIN_RATE = "win_rate"
+    GOALS_PER_GAME = "goals_per_game"
+    GOALS_AGAINST_PER_GAME = "goals_against_per_game"
+
+
+class TeamLeaderboardItem(BaseSchema):
+    """球队排行榜单项"""
+    rank: int
+    team_id: str
+    team_name: str
+    logo_url: Optional[str] = None
+    value: float
+    value_label: str
+    matches: int
+
+
+@dataclass
+class TeamLeaderboardConfig:
+    """球队排行榜配置项"""
+    type: TeamLeaderboardType
+    label: str
+    value_label: str
+    value_format: str  # "int" | "float1" | "percent"
+    field: Optional[str] = None
+    num_field: Optional[str] = None
+    den_field: Optional[str] = None
+    is_rate: bool = False
+    order_dir: str = "desc"  # "desc" 或 "asc"
+
+
 @dataclass
 class LeaderboardConfig:
     """排行榜配置项"""

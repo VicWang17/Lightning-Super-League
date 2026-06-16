@@ -6,13 +6,17 @@ from typing import List, Optional, Any
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, and_, cast, Float
+from sqlalchemy import select, func, desc, asc, and_, cast, Float
 from sqlalchemy.orm import selectinload
 
 from app.models import PlayerSeasonStats, Player, Team, Season, League
+from app.models.league import LeagueStanding
 from app.models.player import PlayerPosition
 from app.models.season import SeasonStatus
-from app.schemas.leaderboard import LeaderboardType, LeaderboardItem, LeaderboardConfig
+from app.schemas.leaderboard import (
+    LeaderboardType, LeaderboardItem, LeaderboardConfig,
+    TeamLeaderboardType, TeamLeaderboardItem, TeamLeaderboardConfig,
+)
 
 
 # ==================== 排行榜配置表 ====================
@@ -99,6 +103,59 @@ def _build_configs() -> dict:
 
 
 LEADERBOARD_CONFIGS = _build_configs()
+
+
+# ==================== 球队世界排行榜配置 ====================
+_TEAM_COUNT_CONFIGS: dict[str, tuple[str, str, str, str]] = {
+    "points": ("积分", "积分", "int", "points"),
+    "wins": ("胜场", "胜场", "int", "won"),
+    "draws": ("平局", "平局", "int", "drawn"),
+    "losses": ("负场", "负场", "int", "lost"),
+    "matches": ("场次", "场次", "int", "played"),
+    "goals_for": ("进球", "进球", "int", "goals_for"),
+    "goals_against": ("失球", "失球", "int", "goals_against"),
+    "goal_difference": ("净胜球", "净胜球", "int", "goal_difference"),
+}
+
+_TEAM_RATE_CONFIGS: dict[str, tuple[str, str, str, str, str]] = {
+    "win_rate": ("胜率", "胜率", "percent", "won", "played"),
+    "goals_per_game": ("场均进球", "场均进球", "float1", "goals_for", "played"),
+    "goals_against_per_game": ("场均失球", "场均失球", "float1", "goals_against", "played"),
+}
+
+
+def _build_team_configs() -> dict[TeamLeaderboardType, TeamLeaderboardConfig]:
+    configs: dict[TeamLeaderboardType, TeamLeaderboardConfig] = {}
+    for type_name, (label, value_label, value_format, field) in _TEAM_COUNT_CONFIGS.items():
+        lb_type = TeamLeaderboardType(type_name)
+        # 负向指标越低越好
+        order_dir = "asc" if type_name in {"losses", "goals_against"} else "desc"
+        configs[lb_type] = TeamLeaderboardConfig(
+            type=lb_type,
+            label=label,
+            value_label=value_label,
+            value_format=value_format,
+            field=field,
+            is_rate=False,
+            order_dir=order_dir,
+        )
+    for type_name, (label, value_label, value_format, num_field, den_field) in _TEAM_RATE_CONFIGS.items():
+        lb_type = TeamLeaderboardType(type_name)
+        order_dir = "asc" if type_name == "goals_against_per_game" else "desc"
+        configs[lb_type] = TeamLeaderboardConfig(
+            type=lb_type,
+            label=label,
+            value_label=value_label,
+            value_format=value_format,
+            num_field=num_field,
+            den_field=den_field,
+            is_rate=True,
+            order_dir=order_dir,
+        )
+    return configs
+
+
+TEAM_LEADERBOARD_CONFIGS = _build_team_configs()
 
 
 class LeaderboardService:
@@ -351,7 +408,15 @@ class LeaderboardService:
         team = Team
         
         # 构建聚合表达式
-        if config.is_rate:
+        if lb_type == LeaderboardType.RATING:
+            # 场均评分跨赛季需要按出场次数加权平均，不能直接求和
+            value_expr = (
+                cast(func.coalesce(func.sum(ps.average_rating * ps.matches_played), 0), Float)
+                / func.nullif(cast(func.coalesce(func.sum(ps.matches_played), 0), Float), 0)
+            ).label("stat_value")
+            order_expr = value_expr
+            matches_expr = func.coalesce(func.sum(ps.matches_played), 0).label("matches")
+        elif config.is_rate:
             value_expr = self._build_world_rate_expr(lb_type)
             order_expr = value_expr
             matches_expr = func.coalesce(func.sum(ps.matches_played), 0).label("matches")
@@ -410,6 +475,62 @@ class LeaderboardService:
                 matches=matches or 0,
             ))
         
+        return items
+
+    # ==================== 球队世界排行榜 ====================
+    async def get_world_team_leaderboard(
+        self,
+        lb_type: TeamLeaderboardType,
+        limit: int = 100,
+    ) -> List[TeamLeaderboardItem]:
+        """获取球队世界排行榜（跨赛季累计）"""
+        config = TEAM_LEADERBOARD_CONFIGS.get(lb_type)
+        if not config:
+            return []
+
+        ls = LeagueStanding
+        team = Team
+
+        if config.is_rate:
+            num_col = getattr(ls, config.num_field)
+            den_col = getattr(ls, config.den_field)
+            value_expr = (
+                cast(func.coalesce(func.sum(num_col), 0), Float)
+                / func.nullif(cast(func.coalesce(func.sum(den_col), 0), Float), 0)
+            ).label("stat_value")
+        else:
+            value_expr = func.coalesce(func.sum(getattr(ls, config.field)), 0).label("stat_value")
+
+        matches_expr = func.coalesce(func.sum(ls.played), 0).label("matches")
+
+        query = (
+            select(team, value_expr, matches_expr)
+            .outerjoin(ls, team.id == ls.team_id)
+            .group_by(team.id)
+        )
+
+        if config.is_rate:
+            den_col = getattr(ls, config.den_field)
+            query = query.having(func.coalesce(func.sum(den_col), 0) > 0)
+
+        order = desc(value_expr) if config.order_dir == "desc" else asc(value_expr)
+        query = query.order_by(order).limit(limit)
+
+        result = await self.db.execute(query)
+        rows = result.all()
+
+        items: List[TeamLeaderboardItem] = []
+        for idx, (t, stat_value, matches) in enumerate(rows):
+            items.append(TeamLeaderboardItem(
+                rank=idx + 1,
+                team_id=str(t.id),
+                team_name=t.name,
+                logo_url=t.logo_url,
+                value=self._format_value(stat_value, config.value_format),
+                value_label=config.value_label,
+                matches=matches or 0,
+            ))
+
         return items
 
     # ==================== OVR 排名（世界页专用） ====================

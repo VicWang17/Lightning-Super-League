@@ -15,7 +15,12 @@ from app.schemas.records import (
 from app.services.honor_service import HonorService
 from app.services.leaderboard_service import LeaderboardService
 from app.routers.records import list_records
-from app.schemas.leaderboard import LeaderboardType, LeaderboardItem
+from app.schemas.leaderboard import (
+    LeaderboardType,
+    LeaderboardItem,
+    TeamLeaderboardType,
+    TeamLeaderboardItem,
+)
 
 router = APIRouter(prefix="/world", tags=["世界"])
 
@@ -76,6 +81,31 @@ async def get_world_leaderboard(
         lb_type=type,
         limit=limit,
         position=position,
+    )
+    return ResponseSchema(success=True, data=items)
+
+
+@router.get(
+    "/team-leaderboard",
+    response_model=ResponseSchema[List[TeamLeaderboardItem]],
+    summary="获取球队世界排行榜",
+    description="获取全球球队排行榜，支持积分、胜场、进球、失球、胜率、场均进球等维度",
+)
+async def get_world_team_leaderboard(
+    type: TeamLeaderboardType = Query(TeamLeaderboardType.POINTS, description="排行榜类型"),
+    limit: int = Query(100, ge=1, le=500, description="返回数量限制"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取球队世界通用排行榜
+
+    - **type**: 排行榜类型，如 points/wins/goals_for/goals_against/win_rate/goals_per_game 等
+    - **limit**: 返回数量
+    """
+    service = LeaderboardService(db)
+    items = await service.get_world_team_leaderboard(
+        lb_type=type,
+        limit=limit,
     )
     return ResponseSchema(success=True, data=items)
 
