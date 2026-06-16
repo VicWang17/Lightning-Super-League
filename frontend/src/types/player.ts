@@ -495,3 +495,37 @@ export interface PlayerFeedback {
   tags: string[]
   created_at: string
 }
+
+export interface PlayerRecentMatch {
+  fixture_id: string
+  match_date: string
+  season_number: number
+  competition: string
+  round_number: number
+  home_team_id: string
+  home_team_name: string
+  away_team_id: string
+  away_team_name: string
+  home_score: number
+  away_score: number
+  side: 'home' | 'away'
+  result: 'win' | 'draw' | 'loss'
+  minutes_played: number
+  goals: number
+  assists: number
+  shots: number
+  shots_on_target: number
+  passes: number
+  key_passes: number
+  crosses: number
+  dribbles: number
+  tackles: number
+  interceptions: number
+  clearances: number
+  blocks: number
+  fouls: number
+  yellow_cards: number
+  red_cards: number
+  saves: number
+  rating: number
+}

@@ -6,6 +6,7 @@ from typing import List, Optional
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_db
 from app.schemas import (
@@ -31,8 +32,10 @@ from app.schemas import (
     GrowthCurvePoint,
     AttributeProgressItem,
     PlayerFeedbackResponse,
+    PlayerRecentMatchItem,
 )
-from app.models import Player, PlayerSeasonStats, Season, Team, SeasonStatus
+from app.models import Player, PlayerSeasonStats, Season, Team, SeasonStatus, MatchResult, Fixture, League, CupCompetition
+from app.models.season import FixtureStatus
 from app.services.contract_service import ContractService
 from app.services.player_state_service import PlayerStateService
 from app.services.player_feedback_service import PlayerFeedbackService
@@ -692,6 +695,119 @@ async def get_player_history(
             milestones=milestones,
         ),
     )
+
+
+@router.get(
+    "/{player_id}/recent-matches",
+    response_model=ResponseSchema[List[PlayerRecentMatchItem]],
+    summary="获取球员近期比赛",
+    description="返回球员最近几场比赛的每场详细数据",
+)
+async def get_player_recent_matches(
+    player_id: str,
+    limit: int = Query(10, ge=1, le=50, description="返回最近几场比赛"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取球员近期比赛数据。"""
+    player = await db.scalar(select(Player).where(Player.id == player_id))
+    if not player:
+        return ResponseSchema(success=False, message="球员不存在", code=404)
+
+    # MySQL JSON_CONTAINS: 检查 player_stats 列表中是否包含该球员对象
+    json_match = func.json_contains(
+        MatchResult.player_stats,
+        func.json_object("player_id", player_id),
+    )
+
+    result = await db.execute(
+        select(MatchResult, Fixture)
+        .join(Fixture, MatchResult.fixture_id == Fixture.id)
+        .options(
+            selectinload(Fixture.season),
+            selectinload(Fixture.home_team),
+            selectinload(Fixture.away_team),
+            selectinload(Fixture.league),
+            selectinload(Fixture.cup_competition),
+        )
+        .where(Fixture.status == FixtureStatus.FINISHED)
+        .where(json_match)
+        .order_by(Fixture.scheduled_at.desc())
+        .limit(limit)
+    )
+    rows = result.all()
+
+    items: list[PlayerRecentMatchItem] = []
+    for mr, fixture in rows:
+        ps = next(
+            (p for p in (mr.player_stats or []) if p.get("player_id") == player_id),
+            None,
+        )
+        if not ps:
+            continue
+
+        side = ps.get("team") or "home"
+        home_score = fixture.home_score or 0
+        away_score = fixture.away_score or 0
+        if side == "home":
+            player_score, opponent_score = home_score, away_score
+        else:
+            player_score, opponent_score = away_score, home_score
+
+        if player_score > opponent_score:
+            result_label = "win"
+        elif player_score < opponent_score:
+            result_label = "loss"
+        else:
+            result_label = "draw"
+
+        if fixture.league:
+            competition = fixture.league.name
+        elif fixture.cup_competition:
+            competition = fixture.cup_competition.name
+        else:
+            competition = fixture.fixture_type.value
+
+        minutes = int(ps.get("minutes_played") or 0)
+        if not minutes:
+            minutes = 70 if mr.resolution in {"extra_time", "penalties"} else 50
+
+        items.append(
+            PlayerRecentMatchItem(
+                fixture_id=fixture.id,
+                match_date=fixture.scheduled_at,
+                season_number=fixture.season.season_number,
+                competition=competition,
+                round_number=fixture.round_number,
+                home_team_id=fixture.home_team_id,
+                home_team_name=fixture.home_team.name if fixture.home_team else "主场",
+                away_team_id=fixture.away_team_id,
+                away_team_name=fixture.away_team.name if fixture.away_team else "客场",
+                home_score=home_score,
+                away_score=away_score,
+                side=side,
+                result=result_label,
+                minutes_played=minutes,
+                goals=int(ps.get("goals", 0)),
+                assists=int(ps.get("assists", 0)),
+                shots=int(ps.get("shots", 0)),
+                shots_on_target=int(ps.get("shots_on_target", 0)),
+                passes=int(ps.get("passes", 0)),
+                key_passes=int(ps.get("key_passes", 0)),
+                crosses=int(ps.get("crosses", 0)),
+                dribbles=int(ps.get("dribbles", 0)),
+                tackles=int(ps.get("tackles", 0)),
+                interceptions=int(ps.get("interceptions", 0)),
+                clearances=int(ps.get("clearances", 0)),
+                blocks=int(ps.get("blocks", 0)),
+                fouls=int(ps.get("fouls", 0)),
+                yellow_cards=int(ps.get("yellow_cards", 0)),
+                red_cards=int(ps.get("red_cards", 0)),
+                saves=int(ps.get("saves", 0)),
+                rating=float(ps.get("rating", 0.0)),
+            )
+        )
+
+    return ResponseSchema(success=True, data=items)
 
 
 # =====================================================================

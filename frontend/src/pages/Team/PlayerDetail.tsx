@@ -25,13 +25,14 @@ import {
   type PlayerState,
   type PlayerHistoryResponse,
   type PlayerFeedback,
+  type PlayerRecentMatch,
 } from '../../types/player'
 import { usePlayerAwards, usePlayerAwardSummary } from '../../hooks/useAwards'
 import { AWARD_LABELS, AWARD_ICONS } from '../../types/awards'
 import type { PlayerAward } from '../../types/awards'
 import { api } from '../../api/client'
 
-type ProfileTab = 'overview' | 'abilities' | 'career' | 'timeline' | 'records' | 'honors'
+type ProfileTab = 'overview' | 'abilities' | 'career' | 'recent' | 'timeline' | 'records' | 'honors'
 
 interface AttributeItem {
   key: keyof Player
@@ -48,6 +49,7 @@ const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
   { id: 'abilities', label: '能力', icon: Chart },
   { id: 'overview', label: '档案', icon: User },
   { id: 'career', label: '生涯', icon: Calendar },
+  { id: 'recent', label: '近期比赛', icon: Clock },
   { id: 'timeline', label: '轨迹', icon: Trophy },
   { id: 'records', label: '纪录', icon: Award },
   { id: 'honors', label: '荣誉', icon: Medal },
@@ -188,9 +190,20 @@ function getAbilityValue(player: Player, key: keyof Player) {
   return typeof nested === 'number' ? nested : typeof direct === 'number' ? direct : 0
 }
 
-function metricPer90(value: number, minutes: number) {
+function metricPer50(value: number, minutes: number) {
   if (!minutes) return '0.00'
-  return ((value / minutes) * 90).toFixed(2)
+  return ((value / minutes) * 50).toFixed(2)
+}
+
+function formatMatchDate(dateStr: string) {
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return dateStr
+  return d.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function getAbilityTone(value: number) {
@@ -215,6 +228,7 @@ function PlayerDetail() {
   const [playerState, setPlayerState] = useState<PlayerState | null>(null)
   const [history, setHistory] = useState<PlayerHistoryResponse | null>(null)
   const [feedbacks, setFeedbacks] = useState<PlayerFeedback[]>([])
+  const [recentMatches, setRecentMatches] = useState<PlayerRecentMatch[]>([])
   const [activeTab, setActiveTab] = useState<ProfileTab>('abilities')
   const [showContractModal, setShowContractModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -226,18 +240,20 @@ function PlayerDetail() {
     if (!id) return
     setLoading(true)
     try {
-      const [playerRes, contractRes, stateRes, historyRes, feedbackRes] = await Promise.all([
+      const [playerRes, contractRes, stateRes, historyRes, feedbackRes, recentRes] = await Promise.all([
         api.get<Player>(`/players/${id}`),
         api.get<PlayerContract>(`/players/${id}/contract`).catch(() => null),
         api.get<PlayerState>(`/players/${id}/state`).catch(() => null),
         api.get<PlayerHistoryResponse>(`/players/${id}/history`).catch(() => null),
         api.get<PlayerFeedback[]>(`/players/${id}/feedback`).catch(() => null),
+        api.getPlayerRecentMatches(id, 20).catch(() => null),
       ])
       if (playerRes.success) setPlayer(playerRes.data)
       if (contractRes?.success) setContract(contractRes.data)
       if (stateRes?.success) setPlayerState(stateRes.data)
       if (historyRes?.success) setHistory(historyRes.data)
       if (feedbackRes?.success) setFeedbacks(feedbackRes.data)
+      if (recentRes?.success) setRecentMatches(recentRes.data)
     } catch {
       setPlayer(null)
     } finally {
@@ -273,8 +289,8 @@ function PlayerDetail() {
   const minutes = player.minutes_played || 0
 
   const overviewStats = [
-    { label: '每90分钟进球', value: metricPer90(player.goals || 0, minutes) },
-    { label: '每90分钟助攻', value: metricPer90(player.assists || 0, minutes) },
+    { label: '每50分钟进球', value: metricPer50(player.goals || 0, minutes) },
+    { label: '每50分钟助攻', value: metricPer50(player.assists || 0, minutes) },
     { label: '射正率', value: `${formatNumber(player.shot_accuracy, '0')}%` },
     { label: '传球成功率', value: `${formatNumber(player.pass_accuracy, '0')}%` },
     { label: '抢断成功率', value: `${formatNumber(player.tackle_accuracy, '0')}%` },
@@ -543,6 +559,92 @@ function PlayerDetail() {
                   </table>
                 ) : (
                   <div className="career-empty-note">暂无生涯数据</div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'recent' && (
+            <section className="profile-panel">
+              <div className="profile-panel-heading">
+                <div>
+                  <h2>近期比赛</h2>
+                </div>
+                <strong>{recentMatches.length} 场</strong>
+              </div>
+              <div className="career-table-wrap">
+                {recentMatches.length > 0 ? (
+                  <table className="career-table">
+                    <thead>
+                      <tr>
+                        <th>日期</th>
+                        <th>赛事</th>
+                        <th>对阵</th>
+                        <th>结果</th>
+                        <th>评分</th>
+                        <th>时间</th>
+                        <th>进球</th>
+                        <th>助攻</th>
+                        <th>射门</th>
+                        <th>传球</th>
+                        <th>抢断</th>
+                        <th>扑救</th>
+                        <th>牌</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentMatches.map((m) => {
+                        const isHome = m.side === 'home'
+                        const teamName = isHome ? m.home_team_name : m.away_team_name
+                        const oppName = isHome ? m.away_team_name : m.home_team_name
+                        const resultClass =
+                          m.result === 'win'
+                            ? 'text-emerald-400'
+                            : m.result === 'loss'
+                            ? 'text-red-400'
+                            : 'text-amber-400'
+                        const resultLabel = m.result === 'win' ? '胜' : m.result === 'loss' ? '负' : '平'
+                        return (
+                          <tr key={m.fixture_id}>
+                            <td>{formatMatchDate(m.match_date)}</td>
+                            <td>
+                              <span className="text-xs text-[#707A8A]">{m.competition}</span>
+                            </td>
+                            <td>
+                              <span className="text-xs">
+                                {teamName} {m.home_score}-{m.away_score} {oppName}
+                              </span>
+                            </td>
+                            <td className={resultClass}>{resultLabel}</td>
+                            <td>{m.rating ? m.rating.toFixed(1) : '-'}</td>
+                            <td>{m.minutes_played}'</td>
+                            <td>{m.goals}</td>
+                            <td>{m.assists}</td>
+                            <td>
+                              {m.shots}
+                              {m.shots_on_target > 0 ? `(${m.shots_on_target})` : ''}
+                            </td>
+                            <td>
+                              {m.passes}
+                              {m.key_passes > 0 ? `(${m.key_passes})` : ''}
+                            </td>
+                            <td>
+                              {m.tackles}
+                              {m.interceptions > 0 ? `(${m.interceptions})` : ''}
+                            </td>
+                            <td>{m.saves > 0 ? m.saves : '-'}</td>
+                            <td>
+                              {m.yellow_cards > 0 && <span className="text-amber-400">黄{m.yellow_cards}</span>}
+                              {m.red_cards > 0 && <span className="text-red-400">红{m.red_cards}</span>}
+                              {m.yellow_cards === 0 && m.red_cards === 0 && '-'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="career-empty-note">暂无近期比赛数据</div>
                 )}
               </div>
             </section>

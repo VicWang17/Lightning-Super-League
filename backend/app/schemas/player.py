@@ -450,4 +450,39 @@ class PlayerFeedbackResponse(BaseSchema):
     day_number: int
     content: str
     tags: List[str] = Field(default_factory=list)
+
+
+class PlayerRecentMatchItem(BaseSchema):
+    """球员最近一场比赛的数据项"""
+    fixture_id: str
+    match_date: datetime
+    season_number: int
+    competition: str
+    round_number: int
+    home_team_id: str
+    home_team_name: str
+    away_team_id: str
+    away_team_name: str
+    home_score: int
+    away_score: int
+    side: str = Field(..., description="球员所在方: home / away")
+    result: str = Field(..., description="球员视角结果: win / draw / loss")
+    minutes_played: int
+    goals: int = 0
+    assists: int = 0
+    shots: int = 0
+    shots_on_target: int = 0
+    passes: int = 0
+    key_passes: int = 0
+    crosses: int = 0
+    dribbles: int = 0
+    tackles: int = 0
+    interceptions: int = 0
+    clearances: int = 0
+    blocks: int = 0
+    fouls: int = 0
+    yellow_cards: int = 0
+    red_cards: int = 0
+    saves: int = 0
+    rating: float = 0.0
     created_at: datetime
