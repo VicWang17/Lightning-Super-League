@@ -520,6 +520,7 @@ export interface PlayerRecentMatch {
   crosses: number
   dribbles: number
   tackles: number
+  tackles_succ: number
   interceptions: number
   clearances: number
   blocks: number

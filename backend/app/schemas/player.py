@@ -477,6 +477,7 @@ class PlayerRecentMatchItem(BaseSchema):
     crosses: int = 0
     dribbles: int = 0
     tackles: int = 0
+    tackles_succ: int = 0
     interceptions: int = 0
     clearances: int = 0
     blocks: int = 0

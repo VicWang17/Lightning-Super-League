@@ -587,7 +587,7 @@ function PlayerDetail() {
                         <th>助攻</th>
                         <th>射门</th>
                         <th>传球</th>
-                        <th>抢断</th>
+                        <th>抢断(成功)</th>
                         <th>扑救</th>
                         <th>牌</th>
                       </tr>
@@ -630,7 +630,7 @@ function PlayerDetail() {
                             </td>
                             <td>
                               {m.tackles}
-                              {m.interceptions > 0 ? `(${m.interceptions})` : ''}
+                              {m.tackles_succ > 0 ? `(${m.tackles_succ})` : ''}
                             </td>
                             <td>{m.saves > 0 ? m.saves : '-'}</td>
                             <td>

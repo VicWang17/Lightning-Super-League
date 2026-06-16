@@ -53,6 +53,17 @@ def _bounded_success(total: int, succ: int) -> int:
     return max(0, min(total, succ))
 
 
+def _accuracy_ratio(value) -> float:
+    """Normalize engine accuracy values that may arrive as 0-1 or 0-100."""
+    try:
+        accuracy = float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if accuracy > 1:
+        accuracy /= 100
+    return max(0.0, min(1.0, accuracy))
+
+
 async def _get_career_stats(db: AsyncSession, player_id: str):
     """从赛季统计表聚合生涯统计。"""
     result = await db.execute(
@@ -796,6 +807,7 @@ async def get_player_recent_matches(
                 crosses=int(ps.get("crosses", 0)),
                 dribbles=int(ps.get("dribbles", 0)),
                 tackles=int(ps.get("tackles", 0)),
+                tackles_succ=round(int(ps.get("tackles", 0)) * _accuracy_ratio(ps.get("tackle_accuracy", 0))),
                 interceptions=int(ps.get("interceptions", 0)),
                 clearances=int(ps.get("clearances", 0)),
                 blocks=int(ps.get("blocks", 0)),
