@@ -943,7 +943,7 @@ function CupDetail() {
  </div>
 
  {/* Tab 内容 */}
- <div className="p-6">
+ <div className="px-6 pb-6 pt-2">
  {/* 小组赛 */}
  {activeTab === 'groups' && cup.has_group_stage && (
  <div>

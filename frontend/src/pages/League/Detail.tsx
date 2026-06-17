@@ -495,7 +495,7 @@ function LeagueDetail() {
  </div>
 
  {/* Tab 内容 */}
- <div className="card">
+ <div className="px-6 pb-6 pt-2">
  {activeTab === 'standings' && (
  <div>
  <div className="mb-4">
