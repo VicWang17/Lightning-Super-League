@@ -85,23 +85,10 @@ class RecordService:
 
         # 单场总进球最多
         if total_goals > 0:
-            await RecordService._update_record(
-                scope=RecordScope.WORLD,
-                scope_target_id=None,
-                record_type=RecordType.MOST_GOALS_IN_MATCH,
-                category=RecordCategory.MATCH,
-                value_str=f"{total_goals}球",
-                value_num=total_goals,
-                holder_team_id=winner_team_id,
-                fixture_id=fixture.id,
-                season_id=fixture.season_id,
-                match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
-                db=db,
-            )
-            if fixture.league_id:
+            for scope, target_id in RecordService._scopes_for_fixture(fixture):
                 await RecordService._update_record(
-                    scope=RecordScope.LEAGUE,
-                    scope_target_id=fixture.league_id,
+                    scope=scope,
+                    scope_target_id=target_id,
                     record_type=RecordType.MOST_GOALS_IN_MATCH,
                     category=RecordCategory.MATCH,
                     value_str=f"{total_goals}球",
@@ -115,23 +102,12 @@ class RecordService:
 
         # 最大比分胜利
         if margin > 0 and winner_team_id:
-            await RecordService._update_record(
-                scope=RecordScope.WORLD,
-                scope_target_id=None,
-                record_type=RecordType.BIGGEST_WIN_MARGIN,
-                category=RecordCategory.MATCH,
-                value_str=f"{margin}球",
-                value_num=margin,
-                holder_team_id=winner_team_id,
-                fixture_id=fixture.id,
-                season_id=fixture.season_id,
-                match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
-                db=db,
-            )
-            if fixture.league_id:
+            for scope, target_id in RecordService._scopes_for_fixture(
+                fixture, include_team=True, team_id=winner_team_id
+            ):
                 await RecordService._update_record(
-                    scope=RecordScope.LEAGUE,
-                    scope_target_id=fixture.league_id,
+                    scope=scope,
+                    scope_target_id=target_id,
                     record_type=RecordType.BIGGEST_WIN_MARGIN,
                     category=RecordCategory.MATCH,
                     value_str=f"{margin}球",
@@ -142,35 +118,25 @@ class RecordService:
                     match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
                     db=db,
                 )
-            await RecordService._update_record(
-                scope=RecordScope.TEAM,
-                scope_target_id=winner_team_id,
-                record_type=RecordType.BIGGEST_WIN_MARGIN,
-                category=RecordCategory.MATCH,
-                value_str=f"{margin}球",
-                value_num=margin,
-                holder_team_id=winner_team_id,
-                fixture_id=fixture.id,
-                season_id=fixture.season_id,
-                match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
-                db=db,
-            )
 
         # 最大比分失利
         if margin > 0 and loser_team_id:
-            await RecordService._update_record(
-                scope=RecordScope.TEAM,
-                scope_target_id=loser_team_id,
-                record_type=RecordType.BIGGEST_DEFEAT_MARGIN,
-                category=RecordCategory.MATCH,
-                value_str=f"{margin}球",
-                value_num=margin,
-                holder_team_id=loser_team_id,
-                fixture_id=fixture.id,
-                season_id=fixture.season_id,
-                match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
-                db=db,
-            )
+            for scope, target_id in RecordService._scopes_for_fixture(
+                fixture, include_team=True, team_id=loser_team_id
+            ):
+                await RecordService._update_record(
+                    scope=scope,
+                    scope_target_id=target_id,
+                    record_type=RecordType.BIGGEST_DEFEAT_MARGIN,
+                    category=RecordCategory.MATCH,
+                    value_str=f"{margin}球",
+                    value_num=margin,
+                    holder_team_id=loser_team_id,
+                    fixture_id=fixture.id,
+                    season_id=fixture.season_id,
+                    match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
+                    db=db,
+                )
 
     # ------------------------------------------------------------------
     # 2. 球员单场纪录
@@ -205,12 +171,7 @@ class RecordService:
                 value_num = -float(total_seconds)
                 value_str = f"{minute}分{second}秒" if second else f"{minute}分"
 
-                for scope, target_id in [
-                    (RecordScope.WORLD, None),
-                    (RecordScope.LEAGUE, fixture.league_id),
-                ]:
-                    if scope == RecordScope.LEAGUE and not target_id:
-                        continue
+                for scope, target_id in RecordService._scopes_for_fixture(fixture):
                     await RecordService._update_record(
                         scope=scope,
                         scope_target_id=target_id,
@@ -240,23 +201,12 @@ class RecordService:
 
             if goals >= 3:
                 # 帽子戏法次数：每场比赛只计一次
-                await RecordService._increment_record(
-                    scope=RecordScope.WORLD,
-                    scope_target_id=None,
-                    record_type=RecordType.HAT_TRICKS,
-                    category=RecordCategory.PLAYER,
-                    holder_player_id=player_id,
-                    holder_team_id=team_id,
-                    fixture_id=fixture.id,
-                    season_id=fixture.season_id,
-                    db=db,
-                    increment=1,
-                    unit="次",
-                )
-                if fixture.league_id:
+                for ht_scope, ht_target_id in RecordService._scopes_for_fixture(
+                    fixture, include_team=True, team_id=team_id
+                ):
                     await RecordService._increment_record(
-                        scope=RecordScope.LEAGUE,
-                        scope_target_id=fixture.league_id,
+                        scope=ht_scope,
+                        scope_target_id=ht_target_id,
                         record_type=RecordType.HAT_TRICKS,
                         category=RecordCategory.PLAYER,
                         holder_player_id=player_id,
@@ -270,13 +220,9 @@ class RecordService:
 
             # 单场进球最多
             if goals > 0:
-                for scope, target_id in [
-                    (RecordScope.WORLD, None),
-                    (RecordScope.LEAGUE, fixture.league_id),
-                    (RecordScope.TEAM, team_id),
-                ]:
-                    if scope == RecordScope.LEAGUE and not target_id:
-                        continue
+                for scope, target_id in RecordService._scopes_for_fixture(
+                    fixture, include_team=True, team_id=team_id
+                ):
                     await RecordService._update_record(
                         scope=scope,
                         scope_target_id=target_id,
@@ -294,13 +240,9 @@ class RecordService:
 
             # 单场助攻最多
             if assists > 0:
-                for scope, target_id in [
-                    (RecordScope.WORLD, None),
-                    (RecordScope.LEAGUE, fixture.league_id),
-                    (RecordScope.TEAM, team_id),
-                ]:
-                    if scope == RecordScope.LEAGUE and not target_id:
-                        continue
+                for scope, target_id in RecordService._scopes_for_fixture(
+                    fixture, include_team=True, team_id=team_id
+                ):
                     await RecordService._update_record(
                         scope=scope,
                         scope_target_id=target_id,
@@ -331,13 +273,9 @@ class RecordService:
             for field, record_type, unit in match_record_fields:
                 value = int(ps.get(field, 0))
                 if value > 0:
-                    for scope, target_id in [
-                        (RecordScope.WORLD, None),
-                        (RecordScope.LEAGUE, fixture.league_id),
-                        (RecordScope.TEAM, team_id),
-                    ]:
-                        if scope == RecordScope.LEAGUE and not target_id:
-                            continue
+                    for scope, target_id in RecordService._scopes_for_fixture(
+                        fixture, include_team=True, team_id=team_id
+                    ):
                         await RecordService._update_record(
                             scope=scope,
                             scope_target_id=target_id,
@@ -378,13 +316,9 @@ class RecordService:
 
                     age = season_number + abs(player.birth_offset)
 
-                    for scope, target_id in [
-                        (RecordScope.WORLD, None),
-                        (RecordScope.LEAGUE, fixture.league_id),
-                        (RecordScope.TEAM, player.team_id),
-                    ]:
-                        if scope == RecordScope.LEAGUE and not target_id:
-                            continue
+                    for scope, target_id in RecordService._scopes_for_fixture(
+                        fixture, include_team=True, team_id=player.team_id
+                    ):
                         await RecordService._update_record(
                             scope=scope,
                             scope_target_id=target_id,
@@ -492,26 +426,12 @@ class RecordService:
 
                 value_str = f"{streak_length}{suffix}"
 
-                # WORLD scope
-                await RecordService._update_record(
-                    scope=RecordScope.WORLD,
-                    scope_target_id=None,
-                    record_type=record_type,
-                    category=RecordCategory.TEAM,
-                    value_str=value_str,
-                    value_num=float(streak_length),
-                    holder_team_id=team_id,
-                    season_id=fixture.season_id,
-                    match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
-                    db=db,
-                    context={"streak_length": streak_length},
-                )
-
-                # LEAGUE scope
-                if fixture.league_id:
+                for scope, target_id in RecordService._scopes_for_fixture(
+                    fixture, include_team=True, team_id=team_id
+                ):
                     await RecordService._update_record(
-                        scope=RecordScope.LEAGUE,
-                        scope_target_id=fixture.league_id,
+                        scope=scope,
+                        scope_target_id=target_id,
                         record_type=record_type,
                         category=RecordCategory.TEAM,
                         value_str=value_str,
@@ -522,21 +442,6 @@ class RecordService:
                         db=db,
                         context={"streak_length": streak_length},
                     )
-
-                # TEAM scope
-                await RecordService._update_record(
-                    scope=RecordScope.TEAM,
-                    scope_target_id=team_id,
-                    record_type=record_type,
-                    category=RecordCategory.TEAM,
-                    value_str=value_str,
-                    value_num=float(streak_length),
-                    holder_team_id=team_id,
-                    season_id=fixture.season_id,
-                    match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
-                    db=db,
-                    context={"streak_length": streak_length},
-                )
 
     # ------------------------------------------------------------------
     # 4. 生涯累计纪录（基于 engine player_stats）
@@ -712,13 +617,9 @@ class RecordService:
                     break
 
             if scoring_streak >= 2:
-                for scope, target_id in [
-                    (RecordScope.WORLD, None),
-                    (RecordScope.LEAGUE, fixture.league_id),
-                    (RecordScope.TEAM, team_id),
-                ]:
-                    if scope == RecordScope.LEAGUE and not target_id:
-                        continue
+                for scope, target_id in RecordService._scopes_for_fixture(
+                    fixture, include_team=True, team_id=team_id
+                ):
                     await RecordService._update_record(
                         scope=scope,
                         scope_target_id=target_id,
@@ -735,13 +636,9 @@ class RecordService:
                     )
 
             if assist_streak >= 2:
-                for scope, target_id in [
-                    (RecordScope.WORLD, None),
-                    (RecordScope.LEAGUE, fixture.league_id),
-                    (RecordScope.TEAM, team_id),
-                ]:
-                    if scope == RecordScope.LEAGUE and not target_id:
-                        continue
+                for scope, target_id in RecordService._scopes_for_fixture(
+                    fixture, include_team=True, team_id=team_id
+                ):
                     await RecordService._update_record(
                         scope=scope,
                         scope_target_id=target_id,
@@ -1418,6 +1315,27 @@ class RecordService:
     # ------------------------------------------------------------------
     # 底层工具方法
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _scopes_for_fixture(
+        fixture: Fixture,
+        include_team: bool = False,
+        team_id: Optional[str] = None,
+    ) -> list[tuple[RecordScope, Optional[str]]]:
+        """根据比赛生成需要更新的纪录作用域列表。
+
+        杯赛比赛会额外生成 CUP  scope，联赛比赛生成 LEAGUE scope。
+        """
+        scopes: list[tuple[RecordScope, Optional[str]]] = [
+            (RecordScope.WORLD, None),
+        ]
+        if fixture.league_id:
+            scopes.append((RecordScope.LEAGUE, fixture.league_id))
+        if fixture.cup_competition_id:
+            scopes.append((RecordScope.CUP, fixture.cup_competition_id))
+        if include_team and team_id:
+            scopes.append((RecordScope.TEAM, team_id))
+        return scopes
 
     @staticmethod
     async def _update_record(
