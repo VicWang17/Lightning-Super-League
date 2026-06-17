@@ -53,12 +53,94 @@
   }
 
   .game-shell {
+    --page-bg-image: none;
     background-color: var(--skin-bg);
     background-image:
       linear-gradient(var(--skin-grid) 1px, transparent 1px),
       linear-gradient(90deg, var(--skin-grid) 1px, transparent 1px),
       radial-gradient(circle at 70% 0%, rgba(70, 74, 86, 0.10), transparent 34%);
     background-size: 4px 4px, 4px 4px, 100% 100%;
+    isolation: isolate;
+    position: relative;
+  }
+
+  .game-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, rgba(5, 6, 9, 0.92) 0%, rgba(5, 6, 9, 0.66) 48%, rgba(5, 6, 9, 0.86) 100%),
+      linear-gradient(0deg, rgba(5, 6, 9, 0.88) 0%, rgba(5, 6, 9, 0.36) 58%, rgba(5, 6, 9, 0.76) 100%),
+      var(--page-bg-image) center / cover no-repeat;
+    image-rendering: pixelated;
+  }
+
+  .game-shell::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.55;
+  }
+
+  .game-shell[data-page-bg="dashboard"] {
+    --page-bg-image: url('/dashboard/manager-office-training-v1.png');
+  }
+
+  .game-shell[data-page-bg="inbox"] {
+    --page-bg-image: url('/page-bg/inbox-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="locker"] {
+    --page-bg-image: url('/locker-room/locker-room-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="tactics"] {
+    --page-bg-image: url('/page-bg/tactics-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="match"] {
+    --page-bg-image: url('/page-bg/match-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="training"] {
+    --page-bg-image: url('/page-bg/training-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="league"] {
+    --page-bg-image: url('/page-bg/league-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="cup"] {
+    --page-bg-image: url('/page-bg/cup-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="transfer"] {
+    --page-bg-image: url('/page-bg/transfer-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="youth"] {
+    --page-bg-image: url('/page-bg/youth-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="finance"] {
+    --page-bg-image: url('/page-bg/finance-bg-v1.png');
+  }
+
+  .game-shell[data-page-bg="world"] {
+    --page-bg-image: url('/page-bg/world-bg-v1.png');
+  }
+
+  .game-main {
+    position: relative;
+    z-index: 1;
   }
 
   /* 顶部指挥条（替代旧 game-header） */

@@ -3,6 +3,7 @@ import { ClipboardNote, Zap, Target, Shield, Clock, TrendingUp } from '../../com
 import { api } from '../../api/client'
 import type { TrainingResultItem } from '../../types/training'
 import { Card } from '../../components/ui/Card'
+import { TrainingPageShell } from './components/TrainingPageShell'
 
 const categoryIcons: Record<string, React.ElementType> = {
   '战术': Target,
@@ -105,17 +106,17 @@ export default function TrainingHistory() {
   const tacticCount = aggregated.filter(r => r.category === '战术').reduce((s, r) => s + r.count, 0)
 
   if (loading) {
-    return <div className="max-w-[1400px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return (
+      <TrainingPageShell title="训练历史" subtitle="训练执行统计与效果分析">
+        <div className="p-8 text-center text-[#8B8BA7]">加载中...</div>
+      </TrainingPageShell>
+    )
   }
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      <div>
-        <h1 className="text-2xl font-bold text-white">训练历史</h1>
-        <p className="text-sm text-[#8B8BA7] mt-1">训练执行统计与效果分析</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <TrainingPageShell title="训练历史" subtitle="训练执行统计与效果分析">
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <div className="flex items-center gap-2 mb-2">
             <ClipboardNote className="w-4 h-4 text-[#0D7377]" />
@@ -242,6 +243,7 @@ export default function TrainingHistory() {
           </div>
         )}
       </Card>
-    </div>
+      </div>
+    </TrainingPageShell>
   )
 }
