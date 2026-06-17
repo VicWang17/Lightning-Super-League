@@ -485,8 +485,15 @@ class RecordService:
                 (RecordType.LONGEST_LOSING_STREAK, losing_streak, "连败"),
             ]
 
+            # 连胜/不败至少 2 场才算 streak；连败只要 1 场就统计（一场败也是败）
+            streak_thresholds = {
+                RecordType.LONGEST_WIN_STREAK: 2,
+                RecordType.LONGEST_UNBEATEN: 2,
+                RecordType.LONGEST_LOSING_STREAK: 1,
+            }
+
             for record_type, streak_length, suffix in streaks:
-                if streak_length < 2:
+                if streak_length < streak_thresholds.get(record_type, 2):
                     continue
 
                 value_str = f"{streak_length}{suffix}"
