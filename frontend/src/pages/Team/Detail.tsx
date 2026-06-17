@@ -397,10 +397,7 @@ function TeamDetail() {
       <section className="locker-layout">
         <main className="locker-board">
           <div className="locker-board-header">
-            <div>
-              <h2 className="text-xl font-black text-[var(--skin-text)]">球员名单</h2>
-            </div>
-            <span className="text-sm font-bold text-[#7B8392]">{players.length} 名球员</span>
+            <span className="ml-auto text-sm font-bold text-[#7B8392]">{players.length} 名球员</span>
           </div>
 
           {loading ? (
@@ -631,8 +628,7 @@ function TeamDetail() {
       )}
 
       {activeTab === 'history' && (
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4">历年战绩</h3>
+        <div>
           {historyLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -694,8 +690,7 @@ function TeamDetail() {
       )}
 
       {activeTab === 'honors' && (
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4">荣誉室</h3>
+        <div>
           {honorsLoading ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
@@ -743,9 +738,7 @@ function TeamDetail() {
       )}
 
       {activeTab === 'records' && (
-        <div className="card">
-          <RecordsBoard records={teamRecords} loading={recordsLoading} emptyText="暂无球队纪录" />
-        </div>
+        <RecordsBoard records={teamRecords} loading={recordsLoading} emptyText="暂无球队纪录" />
       )}
     </div>
   )
