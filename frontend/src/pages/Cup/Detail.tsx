@@ -992,8 +992,7 @@ function CupDetail() {
  {/* 小组赛 */}
  {activeTab === 'groups' && cup.has_group_stage && (
  <div>
- <div className="flex items-center justify-between mb-4">
- <h3 className="text-lg font-semibold">小组赛分组</h3>
+ <div className="flex justify-end mb-4">
  <div className="flex items-center gap-4 text-xs">
  <div className="flex items-center gap-1.5">
  <div className="w-3 h-3 bg-emerald-500" />
@@ -1029,10 +1028,6 @@ function CupDetail() {
  {/* 预选赛（如果有） */}
  {preliminaryFixtures.length > 0 && (
  <div className="mb-8">
- <div className="flex items-center gap-2 mb-4">
- <h3 className="text-lg font-semibold">预选赛</h3>
- <span className="text-xs text-[#8B8BA7]">({preliminaryFixtures.length} 场)</span>
- </div>
  {fixturesLoading ? (
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {[1, 2].map(i => (
@@ -1048,12 +1043,9 @@ function CupDetail() {
  )}
  </div>
  )}
- 
+
  {/* 淘汰赛正赛 */}
  <div>
- <h3 className="text-lg font-semibold mb-4">
- {cup.has_group_stage ? '淘汰赛' : '正赛'}
- </h3>
  {fixturesLoading ? (
  <div className="h-64 bg-[#1E1E2D] animate-pulse" />
  ) : (
@@ -1066,7 +1058,6 @@ function CupDetail() {
  {/* 赛程 */}
  {activeTab === 'fixtures' && (
  <div>
- <h3 className="text-lg font-semibold mb-4">赛程</h3>
  {fixturesLoading ? (
  <div className="space-y-4">
  {[1, 2, 3, 4].map(i => (
@@ -1109,7 +1100,6 @@ function CupDetail() {
  {/* 杯赛纪录 */}
  {activeTab === 'records' && (
  <div>
- <h3 className="text-lg font-semibold mb-4">杯赛纪录</h3>
  <CupRecordsTab cupId={id} />
  </div>
  )}
@@ -1124,10 +1114,6 @@ function CupDetail() {
    ) : (
      <>
        <section>
-         <div className="flex items-center gap-2 mb-4">
-           <div className="w-1 h-5 bg-[#0D7377]" />
-           <h3 className="text-lg font-bold text-white">杯赛数据之王</h3>
-         </div>
          <DataKingsRow
            goldenBoot={cupAwards?.golden_boot}
            playmaker={cupAwards?.playmaker}
