@@ -355,16 +355,17 @@ class RecordService:
     @staticmethod
     async def _check_streak_records(fixture: Fixture, db: AsyncSession) -> None:
         """检测球队连胜、不败、连败纪录
-        
-        逻辑：查询该球队最近所有已完成的联赛比赛，计算当前 streak，
-        然后与历史纪录比较。
+
+        逻辑：
+        - WORLD / LEAGUE / TEAM 维度继续使用联赛比赛计算 streak；
+        - CUP 维度使用该杯赛（cup_competition_id）内的比赛计算 streak。
         """
         for team_id in [fixture.home_team_id, fixture.away_team_id]:
             if not team_id:
                 continue
 
-            # 获取该球队所有已完成的联赛比赛（按时间倒序）
-            result = await db.execute(
+            # 联赛比赛 streak（用于 WORLD / LEAGUE / TEAM）
+            league_result = await db.execute(
                 select(Fixture).where(
                     and_(
                         Fixture.status == FixtureStatus.FINISHED,
@@ -376,59 +377,41 @@ class RecordService:
                     )
                 ).order_by(Fixture.scheduled_at.desc()).limit(100)
             )
-            fixtures = list(result.scalars().all())
+            league_fixtures = list(league_result.scalars().all())
+            league_streaks = RecordService._compute_team_streaks(league_fixtures, team_id)
 
-            if not fixtures:
-                continue
+            # 杯赛比赛 streak（用于 CUP）
+            cup_fixtures = []
+            if fixture.cup_competition_id:
+                cup_result = await db.execute(
+                    select(Fixture).where(
+                        and_(
+                            Fixture.status == FixtureStatus.FINISHED,
+                            Fixture.cup_competition_id == fixture.cup_competition_id,
+                            or_(
+                                Fixture.home_team_id == team_id,
+                                Fixture.away_team_id == team_id,
+                            ),
+                        )
+                    ).order_by(Fixture.scheduled_at.desc()).limit(100)
+                )
+                cup_fixtures = list(cup_result.scalars().all())
+            cup_streaks = RecordService._compute_team_streaks(cup_fixtures, team_id)
 
-            # 计算 streaks
-            win_streak = 0
-            unbeaten_streak = 0
-            losing_streak = 0
-
-            for f in fixtures:
-                is_home = f.home_team_id == team_id
-                home_score = f.home_score or 0
-                away_score = f.away_score or 0
-
-                if is_home:
-                    team_score, opp_score = home_score, away_score
+            for scope, target_id in RecordService._scopes_for_fixture(
+                fixture, include_team=True, team_id=team_id
+            ):
+                if scope == RecordScope.CUP:
+                    streaks = cup_streaks
                 else:
-                    team_score, opp_score = away_score, home_score
+                    streaks = league_streaks
 
-                if team_score > opp_score:
-                    win_streak += 1
-                    unbeaten_streak += 1
-                    losing_streak = 0
-                elif team_score == opp_score:
-                    win_streak = 0
-                    unbeaten_streak += 1
-                    losing_streak = 0
-                else:
-                    win_streak = 0
-                    unbeaten_streak = 0
-                    losing_streak += 1
+                # 连胜/不败/连败都只要 1 场就统计，保证所有数据都显示出来
+                for record_type, streak_length, suffix in streaks:
+                    if streak_length < 1:
+                        continue
 
-            # 注意：以上计算包含了当前这场比赛，所以 streak 是当前的连续值
-            # 但我们只关心是否打破了"最长"纪录，所以还需要历史最长值
-            # 简化处理：直接比较当前 streak 与纪录
-
-            streaks = [
-                (RecordType.LONGEST_WIN_STREAK, win_streak, "连胜"),
-                (RecordType.LONGEST_UNBEATEN, unbeaten_streak, "场不败"),
-                (RecordType.LONGEST_LOSING_STREAK, losing_streak, "连败"),
-            ]
-
-            # 连胜/不败/连败都只要 1 场就统计，保证所有数据都显示出来
-            for record_type, streak_length, suffix in streaks:
-                if streak_length < 1:
-                    continue
-
-                value_str = f"{streak_length}{suffix}"
-
-                for scope, target_id in RecordService._scopes_for_fixture(
-                    fixture, include_team=True, team_id=team_id
-                ):
+                    value_str = f"{streak_length}{suffix}"
                     await RecordService._update_record(
                         scope=scope,
                         scope_target_id=target_id,
@@ -442,6 +425,42 @@ class RecordService:
                         db=db,
                         context={"streak_length": streak_length},
                     )
+
+    @staticmethod
+    def _compute_team_streaks(fixtures: list[Fixture], team_id: str) -> list[tuple[RecordType, int, str]]:
+        """计算球队当前连胜/不败/连败场次"""
+        win_streak = 0
+        unbeaten_streak = 0
+        losing_streak = 0
+
+        for f in fixtures:
+            is_home = f.home_team_id == team_id
+            home_score = f.home_score or 0
+            away_score = f.away_score or 0
+
+            if is_home:
+                team_score, opp_score = home_score, away_score
+            else:
+                team_score, opp_score = away_score, home_score
+
+            if team_score > opp_score:
+                win_streak += 1
+                unbeaten_streak += 1
+                losing_streak = 0
+            elif team_score == opp_score:
+                win_streak = 0
+                unbeaten_streak += 1
+                losing_streak = 0
+            else:
+                win_streak = 0
+                unbeaten_streak = 0
+                losing_streak += 1
+
+        return [
+            (RecordType.LONGEST_WIN_STREAK, win_streak, "连胜"),
+            (RecordType.LONGEST_UNBEATEN, unbeaten_streak, "场不败"),
+            (RecordType.LONGEST_LOSING_STREAK, losing_streak, "连败"),
+        ]
 
     # ------------------------------------------------------------------
     # 4. 生涯累计纪录（基于 engine player_stats）
@@ -555,8 +574,18 @@ class RecordService:
         result: "MatchResult",
         db: AsyncSession,
     ) -> None:
-        """检测球员连续进球/助攻场次纪录"""
+        """检测球员连续进球/助攻场次纪录
+
+        - 非 CUP 维度沿用原有逻辑：使用球队所有已完成的比赛；
+        - CUP 维度仅使用该杯赛（cup_competition_id）内的比赛。
+        """
         player_stats = result.player_stats or []
+        if not player_stats:
+            return
+
+        # 按 team 预取该球队的比赛数据，避免每个球员重复查询
+        team_all_rows: dict[str, list[tuple[Fixture, MatchResultModel]]] = {}
+        team_cup_rows: dict[str, list[tuple[Fixture, MatchResultModel]]] = {}
 
         for ps in player_stats:
             player_id = ps.get("player_id")
@@ -565,61 +594,65 @@ class RecordService:
 
             team_side = ps.get("team", "")
             team_id = fixture.home_team_id if team_side == "home" else fixture.away_team_id
+            if not team_id:
+                continue
 
-            # 获取该球队所有已完成的比赛（按时间倒序）
-            fixtures_result = await db.execute(
-                select(Fixture, MatchResultModel)
-                .join(MatchResultModel, MatchResultModel.fixture_id == Fixture.id)
-                .where(
-                    and_(
-                        Fixture.status == FixtureStatus.FINISHED,
-                        or_(
-                            Fixture.home_team_id == team_id,
-                            Fixture.away_team_id == team_id,
-                        ),
+            if team_id not in team_all_rows:
+                all_result = await db.execute(
+                    select(Fixture, MatchResultModel)
+                    .join(MatchResultModel, MatchResultModel.fixture_id == Fixture.id)
+                    .where(
+                        and_(
+                            Fixture.status == FixtureStatus.FINISHED,
+                            or_(
+                                Fixture.home_team_id == team_id,
+                                Fixture.away_team_id == team_id,
+                            ),
+                        )
                     )
+                    .order_by(Fixture.scheduled_at.desc())
                 )
-                .order_by(Fixture.scheduled_at.desc())
+                team_all_rows[team_id] = list(all_result.all())
+
+                if fixture.cup_competition_id:
+                    cup_result = await db.execute(
+                        select(Fixture, MatchResultModel)
+                        .join(MatchResultModel, MatchResultModel.fixture_id == Fixture.id)
+                        .where(
+                            and_(
+                                Fixture.status == FixtureStatus.FINISHED,
+                                Fixture.cup_competition_id == fixture.cup_competition_id,
+                                or_(
+                                    Fixture.home_team_id == team_id,
+                                    Fixture.away_team_id == team_id,
+                                ),
+                            )
+                        )
+                        .order_by(Fixture.scheduled_at.desc())
+                    )
+                    team_cup_rows[team_id] = list(cup_result.all())
+
+            all_rows = team_all_rows[team_id]
+            cup_rows = team_cup_rows.get(team_id, [])
+
+            scoring_streak_all, assist_streak_all = RecordService._compute_player_streaks(
+                all_rows, player_id
             )
-            rows = fixtures_result.all()
+            scoring_streak_cup, assist_streak_cup = RecordService._compute_player_streaks(
+                cup_rows, player_id
+            )
 
-            # 计算当前连续进球/助攻场次
-            scoring_streak = 0
-            assist_streak = 0
-            scoring_broken = False
-            assist_broken = False
-
-            for f, mr in rows:
-                ps_list = mr.player_stats or []
-                player_data = next(
-                    (p for p in ps_list if p.get("player_id") == player_id), None
-                )
-                if player_data:
-                    goals = int(player_data.get("goals", 0))
-                    assists = int(player_data.get("assists", 0))
+            for scope, target_id in RecordService._scopes_for_fixture(
+                fixture, include_team=True, team_id=team_id
+            ):
+                if scope == RecordScope.CUP:
+                    scoring_streak = scoring_streak_cup
+                    assist_streak = assist_streak_cup
                 else:
-                    goals = 0
-                    assists = 0
+                    scoring_streak = scoring_streak_all
+                    assist_streak = assist_streak_all
 
-                if not scoring_broken:
-                    if goals > 0:
-                        scoring_streak += 1
-                    else:
-                        scoring_broken = True
-
-                if not assist_broken:
-                    if assists > 0:
-                        assist_streak += 1
-                    else:
-                        assist_broken = True
-
-                if scoring_broken and assist_broken:
-                    break
-
-            if scoring_streak >= 2:
-                for scope, target_id in RecordService._scopes_for_fixture(
-                    fixture, include_team=True, team_id=team_id
-                ):
+                if scoring_streak >= 2:
                     await RecordService._update_record(
                         scope=scope,
                         scope_target_id=target_id,
@@ -635,10 +668,7 @@ class RecordService:
                         db=db,
                     )
 
-            if assist_streak >= 2:
-                for scope, target_id in RecordService._scopes_for_fixture(
-                    fixture, include_team=True, team_id=team_id
-                ):
+                if assist_streak >= 2:
                     await RecordService._update_record(
                         scope=scope,
                         scope_target_id=target_id,
@@ -653,6 +683,45 @@ class RecordService:
                         match_date=fixture.scheduled_at.date() if fixture.scheduled_at else None,
                         db=db,
                     )
+
+    @staticmethod
+    def _compute_player_streaks(
+        rows: list[tuple[Fixture, MatchResultModel]], player_id: str
+    ) -> tuple[int, int]:
+        """计算球员当前连续进球/助攻场次"""
+        scoring_streak = 0
+        assist_streak = 0
+        scoring_broken = False
+        assist_broken = False
+
+        for f, mr in rows:
+            ps_list = mr.player_stats or []
+            player_data = next(
+                (p for p in ps_list if p.get("player_id") == player_id), None
+            )
+            if player_data:
+                goals = int(player_data.get("goals", 0))
+                assists = int(player_data.get("assists", 0))
+            else:
+                goals = 0
+                assists = 0
+
+            if not scoring_broken:
+                if goals > 0:
+                    scoring_streak += 1
+                else:
+                    scoring_broken = True
+
+            if not assist_broken:
+                if assists > 0:
+                    assist_streak += 1
+                else:
+                    assist_broken = True
+
+            if scoring_broken and assist_broken:
+                break
+
+        return scoring_streak, assist_streak
 
     # ------------------------------------------------------------------
     # 5. 赛季级纪录增量检测（每场比赛后调用）
