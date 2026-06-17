@@ -495,12 +495,6 @@ function PlayerDetail() {
 
           {activeTab === 'abilities' && (
             <section className="profile-panel">
-              <div className="profile-panel-heading">
-                <div>
-                  <h2>位置化能力</h2>
-                </div>
-                <strong>OVR {player.ovr}</strong>
-              </div>
               <div className="ability-board">
                 {attributeGroups.map(group => (
                   <div key={group.title} className="ability-cluster">
