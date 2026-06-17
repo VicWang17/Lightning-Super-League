@@ -1035,7 +1035,6 @@ function CupDetail() {
  <div>
  <div className="flex flex-col md:flex-row gap-4">
  <div className="w-full md:w-40 shrink-0">
- <h3 className="text-sm font-semibold text-[#8B8BA7] mb-2 px-3">榜单</h3>
  <LeaderboardSidebar
  activeType={leaderboardType}
  onChange={setLeaderboardType}

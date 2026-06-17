@@ -498,8 +498,7 @@ function LeagueDetail() {
  <div className="card">
  {activeTab === 'standings' && (
  <div>
- <div className="flex items-center justify-between mb-4">
- <h3 className="text-lg font-semibold">积分榜</h3>
+ <div className="mb-4">
  <Legend league={league} />
  </div>
  
@@ -544,7 +543,6 @@ function LeagueDetail() {
 
  {activeTab === 'schedule' && (
  <div>
- <h3 className="text-lg font-semibold mb-4">赛程安排</h3>
  {matchesLoading ? (
  <div className="space-y-4">
  {[1, 2, 3, 4].map(i => (
@@ -561,7 +559,6 @@ function LeagueDetail() {
  <div>
  <div className="flex flex-col md:flex-row gap-4">
  <div className="w-full md:w-40 shrink-0">
- <h3 className="text-sm font-semibold text-[#8B8BA7] mb-2 px-3">榜单</h3>
  <LeaderboardSidebar
  activeType={leaderboardType}
  onChange={setLeaderboardType}
@@ -580,7 +577,6 @@ function LeagueDetail() {
 
  {activeTab === 'records' && (
  <div>
- <h3 className="text-lg font-semibold mb-4">联赛纪录</h3>
  <LeagueRecordsTab leagueId={id} />
  </div>
  )}
