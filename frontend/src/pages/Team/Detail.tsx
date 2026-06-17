@@ -19,12 +19,7 @@ import {
 import { getPositionColor, type PlayerListItem, type PlayerState } from '../../types/player'
 import { api } from '../../api/client'
 import { useTeamHistory, useTeamHonors, useTeamRecords } from '../../hooks/useTeamOverview'
-import {
-  RecordCategory,
-  RecordType,
-  RECORD_TYPE_LABELS,
-  RECORD_TYPES_BY_CATEGORY,
-} from '../../types/records'
+import { RecordsBoard } from '../../components/records/RecordsBoard'
 import { Card } from '../../components/ui/Card'
 
 interface TeamSummary {
@@ -749,59 +744,7 @@ function TeamDetail() {
 
       {activeTab === 'records' && (
         <div className="card">
-          <h3 className="text-lg font-semibold mb-4">球队纪录</h3>
-          {recordsLoading ? (
-            <div className="text-center py-16 text-[#8B8BA7]">加载中...</div>
-          ) : !teamRecords ? (
-            <div className="text-center py-12">
-              <Target className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
-              <p className="text-[#8B8BA7]">暂无纪录数据</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {RECORD_TYPES_BY_CATEGORY[RecordCategory.TEAM].map((type: RecordType) => {
-                const record = teamRecords.team.find((r) => r.record_type === type)
-                return record ? (
-                  <Card key={type} className="bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="shrink-0">
-                        <div className="w-12 h-12 bg-[#0D4A4D]/30 border-2 border-[#0D7377]/30 flex items-center justify-center">
-                          <Target className="w-6 h-6 text-[#0D7377]" />
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-sm font-bold text-white truncate">{record.record_type_label}</h3>
-                          <span className="text-lg font-bold stat-number pixel-number text-[#C6F135]">{record.record_value}</span>
-                        </div>
-                        <div className="mt-1 text-sm text-[#8B8BA7]">{record.holder_name}</div>
-                        {record.season_number !== undefined && (
-                          <div className="mt-1 text-xs text-[#4B4B6A]">第 {record.season_number} 赛季</div>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                ) : (
-                  <Card key={type} className="bg-[#12121A] border-2 border-[#2D2D44]/60 opacity-60">
-                    <div className="flex items-start gap-4">
-                      <div className="shrink-0">
-                        <div className="w-12 h-12 bg-[#0D4A4D]/20 border-2 border-[#0D7377]/20 flex items-center justify-center">
-                          <Target className="w-6 h-6 text-[#0D7377]/50" />
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-sm font-bold text-[#8B8BA7] truncate">{RECORD_TYPE_LABELS[type]}</h3>
-                          <span className="text-lg font-bold stat-number pixel-number text-[#4B4B6A]">—</span>
-                        </div>
-                        <div className="mt-1 text-sm text-[#4B4B6A]">暂无该纪录</div>
-                      </div>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
+          <RecordsBoard records={teamRecords} loading={recordsLoading} emptyText="暂无球队纪录" />
         </div>
       )}
     </div>

@@ -21,6 +21,7 @@ import type { LeaderboardType } from '../../types/leaderboard'
 import { CUP_STAGE_CONFIG } from '../../types/cup'
 import { LeaderboardSidebar, getLeaderboardFormat } from '../../components/leaderboard/LeaderboardSidebar'
 import { LeaderboardTable } from '../../components/leaderboard/LeaderboardTable'
+import { RecordsBoard } from '../../components/records/RecordsBoard'
 
 type TabType = 'groups' | 'knockout' | 'fixtures' | 'stats' | 'records' | 'awards'
 
@@ -779,53 +780,7 @@ function CupRecordsTab({ cupId }: { cupId: string | undefined }) {
     fetchRecords()
   }, [cupId])
 
-  if (loading) {
-    return <div className="text-center py-16 text-[#8B8BA7]">加载中...</div>
-  }
-
-  if (!records || (records.team.length === 0 && records.player.length === 0 && records.match.length === 0)) {
-    return (
-      <div className="text-center py-12">
-        <Target className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
-        <p className="text-[#8B8BA7]">暂无杯赛纪录</p>
-      </div>
-    )
-  }
-
-  const allRecords = [
-    ...records.team.map((r: any) => ({ ...r, category: '球队' })),
-    ...records.player.map((r: any) => ({ ...r, category: '球员' })),
-    ...records.match.map((r: any) => ({ ...r, category: '比赛' })),
-  ]
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {allRecords.map((record, idx) => (
-        <div key={idx} className="p-4 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/30 transition-all">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0">
-              <div className="w-12 h-12 bg-[#0D4A4D]/30 border-2 border-[#0D7377]/30 flex items-center justify-center">
-                <Target className="w-6 h-6 text-[#0D7377]" />
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-bold text-white truncate">{record.record_type_label}</h3>
-                <span className="text-lg font-bold stat-number pixel-number text-[#C6F135]">{record.record_value}</span>
-              </div>
-              <div className="mt-1 text-sm text-white font-medium">{record.holder_name}</div>
-              <div className="mt-1 flex items-center gap-2">
-                <span className="text-xs text-[#4B4B6A]">{record.category}</span>
-                {record.season_number !== undefined && (
-                  <span className="text-xs text-[#4B4B6A]">第 {record.season_number} 赛季</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
+  return <RecordsBoard records={records} loading={loading} emptyText="暂无杯赛纪录" />
 }
 
 function CupDetail() {
