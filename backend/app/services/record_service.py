@@ -63,7 +63,7 @@ class RecordService:
 
         # 5. 赛季级纪录增量检测（单赛季最佳纪录）
         if fixture.season_id:
-            await RecordService._check_season_records_incremental(fixture, db)
+            await RecordService._check_season_records_incremental(fixture, result, db)
 
     # ------------------------------------------------------------------
     # 1. 比赛级纪录
@@ -761,9 +761,13 @@ class RecordService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    async def _check_season_records_incremental(fixture: Fixture, db: AsyncSession) -> None:
+    async def _check_season_records_incremental(
+        fixture: Fixture,
+        result: "MatchResult",
+        db: AsyncSession,
+    ) -> None:
         """每场比赛后检测当前赛季最佳纪录是否被刷新
-        
+
         检测内容：
         - 球员单赛季进球/助攻/评分
         - 球队单赛季进球/失球/积分/胜场/零封
@@ -1129,6 +1133,50 @@ class RecordService:
                         db=db,
                     )
 
+                # 单赛季零封最多（球队维度）
+                cs_teams: list[tuple[str, int]] = []
+                if result.home_score == 0 and fixture.away_team_id:
+                    cs_teams.append((fixture.away_team_id, 0))
+                if result.away_score == 0 and fixture.home_team_id:
+                    cs_teams.append((fixture.home_team_id, 0))
+                for cs_team_id, _ in cs_teams:
+                    top_cs = await db.execute(
+                        select(PlayerSeasonStats, Player)
+                        .join(Player, PlayerSeasonStats.player_id == Player.id)
+                        .where(
+                            and_(
+                                PlayerSeasonStats.season_id == season_id,
+                                Player.team_id == cs_team_id,
+                                Player.position == PlayerPosition.GK,
+                                PlayerSeasonStats.clean_sheets > 0,
+                            )
+                        )
+                        .order_by(PlayerSeasonStats.clean_sheets.desc())
+                        .limit(1)
+                    )
+                    cs_row = top_cs.first()
+                    if cs_row:
+                        cs_stats, cs_player = cs_row
+                        for cs_scope, cs_target_id in [
+                            (RecordScope.WORLD, None),
+                            (RecordScope.LEAGUE, fixture.league_id),
+                            (RecordScope.TEAM, cs_team_id),
+                        ]:
+                            if cs_scope == RecordScope.LEAGUE and not cs_target_id:
+                                continue
+                            await RecordService._update_record(
+                                scope=cs_scope,
+                                scope_target_id=cs_target_id,
+                                record_type=RecordType.SEASON_TEAM_CLEAN_SHEETS,
+                                category=RecordCategory.TEAM,
+                                value_str=f"{cs_stats.clean_sheets}场",
+                                value_num=float(cs_stats.clean_sheets),
+                                holder_player_id=cs_player.id,
+                                holder_team_id=cs_team_id,
+                                season_id=season_id,
+                                db=db,
+                            )
+
     # ------------------------------------------------------------------
     # 6. 赛季级纪录批量计算
     # ------------------------------------------------------------------
@@ -1349,18 +1397,22 @@ class RecordService:
         row = top_cs_result.first()
         if row:
             stats, player = row
-            await RecordService._update_record(
-                scope=RecordScope.WORLD,
-                scope_target_id=None,
-                record_type=RecordType.SEASON_TEAM_CLEAN_SHEETS,
-                category=RecordCategory.TEAM,
-                value_str=f"{stats.clean_sheets}场",
-                value_num=float(stats.clean_sheets),
-                holder_player_id=player.id,
-                holder_team_id=player.team_id,
-                season_id=season_id,
-                db=db,
-            )
+            for cs_scope, cs_target_id in [
+                (RecordScope.WORLD, None),
+                (RecordScope.TEAM, player.team_id),
+            ]:
+                await RecordService._update_record(
+                    scope=cs_scope,
+                    scope_target_id=cs_target_id,
+                    record_type=RecordType.SEASON_TEAM_CLEAN_SHEETS,
+                    category=RecordCategory.TEAM,
+                    value_str=f"{stats.clean_sheets}场",
+                    value_num=float(stats.clean_sheets),
+                    holder_player_id=player.id,
+                    holder_team_id=player.team_id,
+                    season_id=season_id,
+                    db=db,
+                )
 
     # ------------------------------------------------------------------
     # 底层工具方法
