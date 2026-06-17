@@ -426,12 +426,6 @@ function PlayerDetail() {
 
           {activeTab === 'overview' && (
             <section className="profile-panel profile-main-panel">
-              <div className="profile-panel-heading">
-                <div>
-                  <h2>总览判断</h2>
-                </div>
-                <strong>{played} 场 · {minutes} 分钟</strong>
-              </div>
               <div className="desk-overview-grid has-radar">
                 <div className="desk-radar-card">
                   <h3><Chart className="h-4 w-4" />能力概览</h3>
@@ -526,12 +520,6 @@ function PlayerDetail() {
 
           {activeTab === 'career' && (
             <section className="profile-panel">
-              <div className="profile-panel-heading">
-                <div>
-                  <h2>生涯赛季</h2>
-                </div>
-                <strong>{seasons.length} 个赛季</strong>
-              </div>
               <div className="career-table-wrap">
                 {seasons.length > 0 ? (
                   <table className="career-table">
@@ -575,12 +563,6 @@ function PlayerDetail() {
 
           {activeTab === 'recent' && (
             <section className="profile-panel">
-              <div className="profile-panel-heading">
-                <div>
-                  <h2>近期比赛</h2>
-                </div>
-                <strong>{recentMatches.length} 场</strong>
-              </div>
               <div className="career-table-wrap">
                 {recentMatches.length > 0 ? (
                   <table className="career-table">
@@ -669,12 +651,6 @@ function PlayerDetail() {
 
           {activeTab === 'timeline' && (
             <section className="profile-panel">
-              <div className="profile-panel-heading">
-                <div>
-                  <h2>生涯轨迹</h2>
-                </div>
-                <strong>{milestones.length}</strong>
-              </div>
               {milestones.length > 0 ? (
                 <div className="career-timeline">
                   {milestones.map((m, i) => (
@@ -694,12 +670,6 @@ function PlayerDetail() {
 
           {activeTab === 'records' && (
             <section className="profile-panel">
-              <div className="profile-panel-heading">
-                <div>
-                  <h2>生涯纪录</h2>
-                </div>
-                <strong>{personalRecords.length} 项</strong>
-              </div>
               {personalRecords.length > 0 ? (
                 <div className="record-grid">
                   {personalRecords.map((r, i) => (
@@ -718,13 +688,6 @@ function PlayerDetail() {
 
           {activeTab === 'honors' && (
             <section className="profile-panel">
-              <div className="profile-panel-heading">
-                <div>
-                  <h2>荣誉室</h2>
-                </div>
-                <strong>{awardSummary?.total_awards || 0} 项</strong>
-              </div>
-
               {/* 荣誉统计摘要 */}
               {awardSummary && (
                 <div className="performance-strip desk-performance-strip mb-6">
