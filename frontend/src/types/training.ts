@@ -254,3 +254,32 @@ export function getTemplateItemId(template: TrainingTemplateDetail, dayOffset: n
   if (!daySchedule) return null
   return daySchedule[slotIndex] ?? null
 }
+
+
+export interface TrainingProgressPoint {
+  season_day: number
+  value: number
+}
+
+export interface TrainingProgressBreakthrough {
+  season_day: number
+  attribute: string
+  before: number
+  after: number
+}
+
+export interface TrainingProgressSeries {
+  player_id: string
+  player_name: string
+  avatar_url?: string
+  values: TrainingProgressPoint[]
+  breakthroughs: TrainingProgressBreakthrough[]
+}
+
+export interface TrainingProgressResponse {
+  metric: string
+  metric_label: string
+  start_day: number
+  end_day: number
+  series: TrainingProgressSeries[]
+}

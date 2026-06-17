@@ -20,6 +20,7 @@ import { checkSlotConflicts } from './components/ConflictEngine'
 import type { TrainingConflict } from './components/ConflictEngine'
 import TrainingPickerModal from './components/TrainingPickerModal'
 import GroupEditorModal from './components/GroupEditorModal'
+import { TrainingTabs } from './components/TrainingTabs'
 import '../../styles/training-system.css'
 
 const DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -582,6 +583,7 @@ export default function WeeklyTraining() {
         <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
+      <TrainingTabs />
       <section className="training-mode-panel">
         {(['team', 'groups_2', 'groups_3'] as TrainingMode[]).map(mode => {
           const config = MODE_LABELS[mode]

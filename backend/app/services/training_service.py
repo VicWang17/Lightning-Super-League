@@ -25,7 +25,19 @@ from app.core.training_config import (
 from app.services.training_growth_service import TrainingGrowthService
 from app.services.player_fatigue_service import PlayerFatigueService
 from app.services.injury_service import InjuryService
+from app.services.player_generator import AttributeGenerator
 from app.core.logging import get_logger
+from collections import defaultdict
+
+
+ATTR_LABELS = {
+    "sho": "射门", "pas": "传球", "dri": "盘带", "spd": "速度",
+    "str_": "力量", "sta": "体能", "acc": "爆发力", "hea": "头球",
+    "bal": "平衡", "defe": "防守意识", "tkl": "抢断", "vis": "视野",
+    "cro": "传中", "con": "控球", "fin": "远射", "com": "镇定",
+    "sav": "扑救", "ref": "反应", "pos": "站位", "rus": "出击",
+    "dec": "球商", "fk": "任意球", "pk": "点球",
+}
 
 logger = get_logger("app.training")
 
@@ -884,4 +896,107 @@ class TrainingService:
             "training_injuries_medium": training_injuries_by_severity[2],
             "training_injuries_major": training_injuries_by_severity[3],
             "injured_players": injured_players,
+        }
+
+
+    async def get_team_training_progress(
+        self,
+        team_id: str,
+        season_id: str,
+        player_ids: list[str],
+        metric: str,
+        start_day: int,
+        end_day: int,
+    ) -> dict:
+        """获取指定球员在某项能力/OVR上的训练成长曲线
+
+        - 按天聚合，同一天多个 slot 取最后一个 slot 的 after_attributes
+        - 缺失天数前向填充，保证折线连续
+        - 同时返回该指标下的整数突破标记
+        """
+        if metric != "ovr" and metric not in ATTR_LABELS:
+            raise ValueError(f"不支持的指标: {metric}")
+
+        slot_order = {"morning": 0, "afternoon": 1, "evening": 2}
+
+        results = await self.db.execute(
+            select(TrainingResult)
+            .where(
+                and_(
+                    TrainingResult.team_id == team_id,
+                    TrainingResult.season_id == season_id,
+                    TrainingResult.player_id.in_(player_ids),
+                    TrainingResult.season_day >= start_day,
+                    TrainingResult.season_day <= end_day,
+                )
+            )
+            .order_by(TrainingResult.season_day, TrainingResult.slot)
+        )
+        results = list(results.scalars().all())
+
+        # 加载球员信息
+        players_result = await self.db.execute(
+            select(Player).where(Player.id.in_(player_ids))
+        )
+        players = {p.id: p for p in players_result.scalars().all()}
+
+        # 按球员 -> 天数 -> 最后一个 slot 的结果
+        by_player_day: dict[str, dict[int, TrainingResult]] = defaultdict(dict)
+        for r in results:
+            slot_value = r.slot.value if hasattr(r.slot, "value") else r.slot
+            slot_idx = slot_order.get(slot_value, 99)
+            existing = by_player_day[r.player_id].get(r.season_day)
+            if existing is None:
+                by_player_day[r.player_id][r.season_day] = r
+            else:
+                existing_slot = existing.slot.value if hasattr(existing.slot, "value") else existing.slot
+                if slot_order.get(existing_slot, 99) < slot_idx:
+                    by_player_day[r.player_id][r.season_day] = r
+
+        series = []
+        for pid in player_ids:
+            player = players.get(pid)
+            if not player:
+                continue
+
+            day_map = by_player_day.get(pid, {})
+            current_value: float | None = None
+            values = []
+            breakthroughs = []
+
+            for day in range(start_day, end_day + 1):
+                r = day_map.get(day)
+                if r:
+                    attrs = r.after_attributes or {}
+                    if metric == "ovr":
+                        current_value = float(AttributeGenerator.calculate_ovr(player.position, attrs))
+                    else:
+                        current_value = float(attrs.get(metric, current_value or 0))
+
+                    for bt in r.breakthroughs or []:
+                        if bt.get("attribute") == metric:
+                            breakthroughs.append({
+                                "season_day": day,
+                                "attribute": metric,
+                                "before": bt.get("before", 0),
+                                "after": bt.get("after", 0),
+                            })
+
+                if current_value is not None:
+                    values.append({"season_day": day, "value": current_value})
+
+            series.append({
+                "player_id": pid,
+                "player_name": player.name,
+                "avatar_url": player.avatar_url,
+                "values": values,
+                "breakthroughs": breakthroughs,
+            })
+
+        return {
+            "metric": metric,
+            "metric_label": "OVR" if metric == "ovr" else ATTR_LABELS.get(metric, metric),
+            "start_day": start_day,
+            "end_day": end_day,
+            "series": series,
         }

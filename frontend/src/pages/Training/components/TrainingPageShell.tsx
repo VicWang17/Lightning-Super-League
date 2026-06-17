@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { TrainingTabs } from './TrainingTabs'
 import '../../../styles/training-system.css'
 
 interface TrainingPageShellProps {
@@ -29,7 +30,10 @@ export function TrainingPageShell({
         </div>
         {actionBar && <div className="training-command-strip">{actionBar}</div>}
       </section>
-      <main style={{ marginTop: 16 }}>{children}</main>
+      <main style={{ marginTop: 16 }}>
+        <TrainingTabs />
+        {children}
+      </main>
     </div>
   )
 }

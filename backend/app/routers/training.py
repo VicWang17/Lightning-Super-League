@@ -21,6 +21,7 @@ from app.schemas.training import (
     AutoGroupResponse,
     TrainingTemplateSchema,
     PlayerFatigueBatchResponse,
+    TrainingProgressResponse,
 )
 from app.models import (
     Player, Team, Season,
@@ -453,3 +454,55 @@ async def get_player_training_progress(
         return ResponseSchema(success=True, data=PlayerTrainingProgressSchema(**progress))
     except ValueError as e:
         return ResponseSchema(success=False, message=str(e), code=404)
+
+
+
+_PROGRESS_METRIC_LABELS = {
+    "ovr": "OVR",
+    "sho": "射门", "pas": "传球", "dri": "盘带", "spd": "速度",
+    "str_": "力量", "sta": "体能", "acc": "爆发力", "hea": "头球",
+    "bal": "平衡", "defe": "防守意识", "tkl": "抢断", "vis": "视野",
+    "cro": "传中", "con": "控球", "fin": "远射", "com": "镇定",
+    "sav": "扑救", "ref": "反应", "pos": "站位", "rus": "出击",
+    "dec": "球商", "fk": "任意球", "pk": "点球",
+}
+
+
+@router.get(
+    "/teams/{team_id}/progress",
+    response_model=ResponseSchema[TrainingProgressResponse],
+    summary="获取球队训练成长曲线",
+)
+async def get_team_training_progress(
+    team_id: str,
+    season_id: str = Query(..., description="赛季ID"),
+    player_ids: list[str] = Query(..., description="球员ID列表，最多5个"),
+    metric: str = Query(..., description="指标：ovr 或具体属性键"),
+    start_day: int = Query(..., ge=1, description="起始天数"),
+    end_day: int = Query(..., ge=1, description="结束天数"),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取指定球员在指定指标上的训练成长折线数据"""
+    if len(player_ids) == 0:
+        return ResponseSchema(success=False, message="至少选择一名球员", code=400)
+    if len(player_ids) > 5:
+        return ResponseSchema(success=False, message="最多选择5名球员", code=400)
+    if metric not in _PROGRESS_METRIC_LABELS:
+        return ResponseSchema(success=False, message=f"不支持的指标: {metric}", code=400)
+    if end_day < start_day:
+        return ResponseSchema(success=False, message="结束天数不能小于起始天数", code=400)
+
+    service = TrainingService(db)
+    try:
+        data = await service.get_team_training_progress(
+            team_id=team_id,
+            season_id=season_id,
+            player_ids=player_ids,
+            metric=metric,
+            start_day=start_day,
+            end_day=end_day,
+        )
+    except ValueError as e:
+        return ResponseSchema(success=False, message=str(e), code=400)
+
+    return ResponseSchema(success=True, data=data)

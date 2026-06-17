@@ -143,3 +143,36 @@ class PlayerFatigueBatchResponse(BaseSchema):
     players: List[PlayerFatigueSchema]
     avg_fitness: float
     avg_fatigue: float
+
+
+
+class TrainingProgressPoint(BaseSchema):
+    """折线图单点"""
+    season_day: int
+    value: float
+
+
+class TrainingProgressBreakthrough(BaseSchema):
+    """整数突破标记"""
+    season_day: int
+    attribute: str
+    before: int
+    after: int
+
+
+class TrainingProgressSeries(BaseSchema):
+    """单个球员在某项指标上的折线序列"""
+    player_id: str
+    player_name: str
+    avatar_url: Optional[str] = None
+    values: List[TrainingProgressPoint] = Field(default_factory=list)
+    breakthroughs: List[TrainingProgressBreakthrough] = Field(default_factory=list)
+
+
+class TrainingProgressResponse(BaseSchema):
+    """训练成长曲线响应"""
+    metric: str
+    metric_label: str
+    start_day: int
+    end_day: int
+    series: List[TrainingProgressSeries] = Field(default_factory=list)
