@@ -1,17 +1,14 @@
 import { NavLink } from 'react-router-dom'
 import { clsx } from 'clsx'
-import type { ComponentType } from 'react'
 
 export interface RouteTab {
   path: string
   label: string
-  icon?: ComponentType<{ className?: string }>
 }
 
 export interface StateTab {
   value: string
   label: string
-  icon?: ComponentType<{ className?: string }>
 }
 
 export type SegmentedTab = RouteTab | StateTab
@@ -43,8 +40,6 @@ export function SegmentedTabs(props: SegmentedTabsProps) {
   return (
     <nav className="flex flex-wrap gap-2 mb-6">
       {tabs.map((tab) => {
-        const Icon = tab.icon
-
         if (mode === 'route') {
           const routeTab = tab as RouteTab
           return (
@@ -54,7 +49,6 @@ export function SegmentedTabs(props: SegmentedTabsProps) {
               end
               className={({ isActive }) => clsx(base, isActive ? active : inactive)}
             >
-              {Icon && <Icon className="w-4 h-4" />}
               {routeTab.label}
             </NavLink>
           )
@@ -73,7 +67,6 @@ export function SegmentedTabs(props: SegmentedTabsProps) {
               'onChange' in props && props.onChange?.(stateTab.value)
             }
           >
-            {Icon && <Icon className="w-4 h-4" />}
             {stateTab.label}
           </button>
         )

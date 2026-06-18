@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, WarningDiamond as AlertCircle } from '../../components/ui/pixel-icons'
+import { Eye, EyeOff } from '../../components/ui/pixel-icons'
 import { useAuthStore } from '../../stores/auth'
 import { api } from '../../api/client'
 import Input from '../../components/ui/Input'
@@ -84,9 +84,8 @@ export default function Login() {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mb-6 p-4 bg-[#EF4444]/10 border-2 border-[#EF4444]/30 flex items-center gap-3"
+              className="mb-6 p-4 bg-[#EF4444]/10 border-2 border-[#EF4444]/30"
             >
-              <AlertCircle className="w-5 h-5 text-[#EF4444] flex-shrink-0" />
               <p className="text-sm text-[#EF4444]">{error}</p>
             </motion.div>
           )}
@@ -100,7 +99,6 @@ export default function Login() {
                 placeholder="请输入邮箱地址"
                 value={formData.email}
                 onChange={handleChange}
-                leftIcon={<Mail className="w-5 h-5" />}
                 required
                 fullWidth
               />
@@ -114,7 +112,6 @@ export default function Login() {
                 placeholder="请输入密码"
                 value={formData.password}
                 onChange={handleChange}
-                leftIcon={<Lock className="w-5 h-5" />}
                 rightIcon={
                   <button
                     type="button"

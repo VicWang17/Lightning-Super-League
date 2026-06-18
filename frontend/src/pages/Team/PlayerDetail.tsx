@@ -1,21 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import {
-  Award,
-  Calendar,
-  Chart,
-  ChevronLeft,
-  Clock,
-  PenSquare,
-  Shield,
-  Target,
-  Trophy,
-  User,
-  Thermometer,
-  SquareAlert,
-  Skull,
-  Medal,
-} from '../../components/ui/pixel-icons'
+
 import { ContractModal } from '../../components/players/ContractModal'
 import {
   getPositionColor,
@@ -45,14 +30,14 @@ interface AttributeGroup {
   items: AttributeItem[]
 }
 
-const TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
-  { id: 'abilities', label: '能力', icon: Chart },
-  { id: 'overview', label: '档案', icon: User },
-  { id: 'career', label: '生涯', icon: Calendar },
-  { id: 'recent', label: '近期比赛', icon: Clock },
-  { id: 'timeline', label: '轨迹', icon: Trophy },
-  { id: 'records', label: '纪录', icon: Award },
-  { id: 'honors', label: '荣誉', icon: Medal },
+const TABS: { id: ProfileTab; label: string }[] = [
+  { id: 'abilities', label: '能力' },
+  { id: 'overview', label: '档案' },
+  { id: 'career', label: '生涯' },
+  { id: 'recent', label: '近期比赛' },
+  { id: 'timeline', label: '轨迹' },
+  { id: 'records', label: '纪录' },
+  { id: 'honors', label: '荣誉' },
 ]
 
 const STATUS_NAMES: Record<string, string> = {
@@ -65,8 +50,7 @@ const STATUS_NAMES: Record<string, string> = {
 function StatusBadge({ status, current_suspension }: { status: string; current_suspension?: Player['current_suspension'] }) {
   if (status === 'INJURED') {
     return (
-      <span className="inline-flex items-center gap-1 text-red-400" title="伤病中，无法出场">
-        <Thermometer className="h-4 w-4" />
+      <span className="text-red-400" title="伤病中，无法出场">
         {STATUS_NAMES[status] || status}
       </span>
     )
@@ -76,16 +60,14 @@ function StatusBadge({ status, current_suspension }: { status: string; current_s
       ? `停赛中，剩余 ${current_suspension.matches_remaining} 场`
       : '停赛中，无法出场'
     return (
-      <span className="inline-flex items-center gap-1 text-amber-400" title={detail}>
-        <SquareAlert className="h-4 w-4" />
+      <span className="text-amber-400" title={detail}>
         {STATUS_NAMES[status] || status}
       </span>
     )
   }
   if (status === 'RETIRED') {
     return (
-      <span className="inline-flex items-center gap-1 text-gray-500" title="已退役">
-        <Skull className="h-4 w-4" />
+      <span className="text-gray-500" title="已退役">
         {STATUS_NAMES[status] || status}
       </span>
     )
@@ -353,12 +335,10 @@ function PlayerDetail() {
     <div className="player-profile-page player-desk-page">
       <div className="player-profile-topbar player-desk-topbar">
         <button type="button" onClick={() => navigate(-1)} className="profile-back-link">
-          <ChevronLeft className="h-4 w-4" />
           返回上一页
         </button>
         {player.team_id && (
           <button className="profile-contract-btn" onClick={() => setShowContractModal(true)}>
-            <PenSquare className="h-4 w-4" />
             {contract ? '合同处理' : '签约'}
           </button>
         )}
@@ -407,7 +387,7 @@ function PlayerDetail() {
         </section>
 
         <SegmentedTabs
-          tabs={TABS.map((tab) => ({ value: tab.id, label: tab.label, icon: tab.icon }))}
+          tabs={TABS.map((tab) => ({ value: tab.id, label: tab.label }))}
           value={activeTab}
           onChange={(v) => setActiveTab(v as ProfileTab)}
         />
@@ -419,7 +399,7 @@ function PlayerDetail() {
             <section className="profile-panel profile-main-panel">
               <div className="desk-overview-grid has-radar">
                 <div className="desk-radar-card">
-                  <h3><Chart className="h-4 w-4" />能力概览</h3>
+                  <h3>能力概览</h3>
                   <AbilityRadar
                     values={[
                       { label: '进攻', value: player.position === 'GK' ? getAbilityValue(player, 'sav') : Math.round((getAbilityValue(player, 'sho') + getAbilityValue(player, 'fin')) / 2) },
@@ -432,13 +412,13 @@ function PlayerDetail() {
                   />
                 </div>
                 <div className="desk-ability-summary">
-                  <h3><Chart className="h-4 w-4" />最强能力</h3>
+                  <h3>最强能力</h3>
                   {highlightedAttributes.map(item => (
                     <AbilityRow key={String(item.key)} label={item.label} value={item.value} />
                   ))}
                 </div>
                 <div className="desk-ability-summary">
-                  <h3><Target className="h-4 w-4" />需要关注</h3>
+                  <h3>需要关注</h3>
                   {weakAttributes.map(item => (
                     <AbilityRow key={String(item.key)} label={item.label} value={item.value} />
                   ))}
@@ -454,21 +434,21 @@ function PlayerDetail() {
               </div>
               <div className="profile-stat-columns">
                 <div>
-                  <h3><Target className="h-4 w-4" />进攻</h3>
+                  <h3>进攻</h3>
                   <ProfileDataLine label="射门 / 射正" value={`${player.shots || 0} / ${player.shots_on_target || 0}`} />
                   <ProfileDataLine label="进球 / 助攻" value={`${player.goals || 0} / ${player.assists || 0}`} />
                   <ProfileDataLine label="盘带 / 成功" value={`${player.dribbles || 0} / ${player.dribbles_succ || 0}`} />
                   <ProfileDataLine label="关键传球" value={formatNumber(player.key_passes)} />
                 </div>
                 <div>
-                  <h3><Shield className="h-4 w-4" />防守</h3>
+                  <h3>防守</h3>
                   <ProfileDataLine label="抢断 / 成功" value={`${player.tackles || 0} / ${player.tackles_succ || 0}`} />
                   <ProfileDataLine label="拦截" value={formatNumber(player.interceptions)} />
                   <ProfileDataLine label="解围" value={formatNumber(player.clearances)} />
                   <ProfileDataLine label="封堵" value={formatNumber(player.blocks)} />
                 </div>
                 <div>
-                  <h3><Clock className="h-4 w-4" />负荷</h3>
+                  <h3>负荷</h3>
                   <ProfileDataLine label="出场时间" value={`${minutes} 分钟`} />
                   <ProfileDataLine label="黄牌 / 红牌" value={`${player.yellow_cards || 0} / ${player.red_cards || 0}`} />
                   <ProfileDataLine label="犯规 / 被犯规" value={`${player.fouls || 0} / ${player.fouls_drawn || 0}`} />
@@ -496,7 +476,7 @@ function PlayerDetail() {
               </div>
               {player.skills?.length ? (
                 <div className="signature-skills">
-                  <h3><Award className="h-4 w-4" />招牌技能</h3>
+                  <h3>招牌技能</h3>
                   <div>
                     {player.skills.map((skill, index) => (
                       <span key={`${skill.skill_id}-${index}`}>{skill.skill_id}<em>{skill.quality || skill.rarity}</em></span>

@@ -1,18 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Archive,
-  Brush,
-  Check,
-  Clock,
-  Goal,
-  MoreHorizontal,
-  Reload,
-  User,
-  Users,
-  WarningDiamond,
-  ChevronLeft,
-} from '../../components/ui/pixel-icons'
+import { MoreHorizontal } from '../../components/ui/pixel-icons'
+import { FatigueStatus } from '../../components/ui/FatigueStatus'
 import { api } from '../../api/client'
 import type { PlayerFatigueItem, TrainingItem, TrainingMode, PlanGroup, PlanSlotData } from '../../types/training'
 import { getTemplateItemId, TRAINING_TEMPLATES, type TrainingTemplateDetail } from '../../types/training'
@@ -29,6 +18,27 @@ const PERIODS = [
   { key: 'afternoon' as const, label: '下午', index: 1 },
   { key: 'evening' as const, label: '晚上', index: 2 },
 ]
+
+const PERIOD_KEY_INDEX: Record<string, number> = {
+  morning: 0,
+  afternoon: 1,
+  evening: 2,
+}
+
+function getCurrentTimeSlotIndex() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 0
+  if (hour < 18) return 1
+  return 2
+}
+
+function isSlotLocked(seasonDay: number, periodIndex: number, currentDay: number) {
+  const currentSlotIndex = getCurrentTimeSlotIndex()
+  if (seasonDay < currentDay) return true
+  if (seasonDay === currentDay && periodIndex <= currentSlotIndex) return true
+  return false
+}
+
 const DEFAULT_TEMPLATE = TRAINING_TEMPLATES[0]
 
 const ATTR_NAMES: Record<string, string> = {
@@ -78,10 +88,10 @@ interface MatchDayInfo {
   isHome?: boolean
 }
 
-const MODE_LABELS: Record<TrainingMode, { label: string; detail: string; icon: ElementType }> = {
-  team: { label: '全队统一', detail: '同一时段所有球员执行同一训练', icon: User },
-  groups_2: { label: '双组训练', detail: '分成两组微调课程，切换会重排计划', icon: Users },
-  groups_3: { label: '三组专项', detail: '进攻、防守、门将分别安排，切换会重排计划', icon: Users },
+const MODE_LABELS: Record<TrainingMode, { label: string; detail: string }> = {
+  team: { label: '全队统一', detail: '同一时段所有球员执行同一训练' },
+  groups_2: { label: '双组训练', detail: '分成两组微调课程，切换会重排计划' },
+  groups_3: { label: '三组专项', detail: '进攻、防守、门将分别安排，切换会重排计划' },
 }
 
 function getTopAttributes(item: TrainingItem, limit = 4) {
@@ -119,10 +129,6 @@ function getTrainingEffectDesc(item: TrainingItem) {
   return `${attrs.length ? `重点提升 ${attrs.join('、')}` : '综合训练'}${positions.length ? `，适合 ${positions.join('、')}` : ''}。`
 }
 
-function clampPercent(value: number) {
-  return Math.max(0, Math.min(100, value))
-}
-
 export default function WeeklyTraining() {
   const navigate = useNavigate()
   const [items, setItems] = useState<TrainingItem[]>([])
@@ -147,6 +153,10 @@ export default function WeeklyTraining() {
   const [isGroupEditorOpen, setIsGroupEditorOpen] = useState(false)
 
   const startDay = currentDay
+
+  const getSlotLocked = useCallback((dayOffset: number, periodIndex: number) => {
+    return isSlotLocked(startDay + dayOffset, periodIndex, currentDay)
+  }, [currentDay, startDay])
 
   const getCellKey = useCallback((dayOffset: number, slot: string) => `${startDay + dayOffset}-${slot}`, [startDay])
   const getCell = useCallback((dayOffset: number, slot: string) => localPlan.get(getCellKey(dayOffset, slot)), [getCellKey, localPlan])
@@ -272,7 +282,21 @@ export default function WeeklyTraining() {
         }
 
         setLocalPlan(planMap)
-        setSelectedCell({ dayOffset: 0, periodIndex: 0 })
+
+        // 默认选中第一个仍可编辑的时段（跳过早于当前时间的已锁定时段）
+        let firstEditable: { dayOffset: number; periodIndex: number } | null = null
+        for (let d = 0; d < 7; d++) {
+          for (let p = 0; p < PERIODS.length; p++) {
+            const key = `${cDay + d}-${PERIODS[p].key}`
+            const cell = planMap.get(key)
+            if (!cell?.isMatchDay && !isSlotLocked(cDay + d, p, cDay)) {
+              firstEditable = { dayOffset: d, periodIndex: p }
+              break
+            }
+          }
+          if (firstEditable) break
+        }
+        setSelectedCell(firstEditable)
 
         if (inferredMode !== 'team') {
           const autoGroupRes = await api.autoGroupPlayers(tid, inferredMode)
@@ -317,6 +341,7 @@ export default function WeeklyTraining() {
 
   const selectedSlot = selectedCell ? PERIODS[selectedCell.periodIndex] : null
   const selectedCellData = selectedCell && selectedSlot ? getCell(selectedCell.dayOffset, selectedSlot.key) : undefined
+  const selectedLocked = selectedCell ? getSlotLocked(selectedCell.dayOffset, selectedCell.periodIndex) : false
   const selectedGroupId = useMemo(() => {
     if (!selectedCell || !selectedCellData?.groups?.length) return null
     const key = `${selectedCell.dayOffset}-${selectedCell.periodIndex}`
@@ -386,6 +411,7 @@ export default function WeeklyTraining() {
         const next = new Map(prev)
         for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
           for (const period of PERIODS) {
+            if (getSlotLocked(dayOffset, period.index)) continue
             const key = getCellKey(dayOffset, period.key)
             const cell = next.get(key)
             if (!cell || cell.isMatchDay) continue
@@ -416,6 +442,7 @@ export default function WeeklyTraining() {
       const next = new Map(prev)
       for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
         for (const period of PERIODS) {
+          if (getSlotLocked(dayOffset, period.index)) continue
           const key = getCellKey(dayOffset, period.key)
           const cell = next.get(key)
           if (!cell || cell.isMatchDay) continue
@@ -431,9 +458,11 @@ export default function WeeklyTraining() {
       }
       return next
     })
-  }, [activeTemplate, getCellKey, globalMode, hasUserChanges, teamId])
+  }, [activeTemplate, getCellKey, getSlotLocked, globalMode, hasUserChanges, teamId])
 
   const applyTrainingItemToSlot = useCallback((trainingId: string, dayOffset: number, periodKey: string, groupId?: string | null) => {
+    const periodIndex = PERIOD_KEY_INDEX[periodKey]
+    if (getSlotLocked(dayOffset, periodIndex)) return false
     const key = getCellKey(dayOffset, periodKey)
     const cell = localPlan.get(key)
     if (!cell || cell.isMatchDay) return false
@@ -454,7 +483,7 @@ export default function WeeklyTraining() {
     setLocalPlan(next)
     setHasUserChanges(true)
     return true
-  }, [getCellKey, localPlan])
+  }, [getCellKey, getSlotLocked, localPlan])
 
   const applyTrainingItem = useCallback((trainingId: string) => {
     if (!selectedCell || !selectedSlot) return
@@ -481,6 +510,7 @@ export default function WeeklyTraining() {
 
   const clearSelectedCell = useCallback(() => {
     if (!selectedCell || !selectedSlot) return
+    if (getSlotLocked(selectedCell.dayOffset, selectedCell.periodIndex)) return
     const key = getCellKey(selectedCell.dayOffset, selectedSlot.key)
     const cell = localPlan.get(key)
     if (!cell || cell.isMatchDay) return
@@ -490,7 +520,7 @@ export default function WeeklyTraining() {
       : { ...cell, groups: cell.groups?.map(group => ({ ...group, training_item_id: null })) || null, isAutoSuggested: false, isUserModified: true })
     setLocalPlan(next)
     setHasUserChanges(true)
-  }, [getCellKey, localPlan, selectedCell, selectedSlot])
+  }, [getCellKey, getSlotLocked, localPlan, selectedCell, selectedSlot])
 
   const applyTemplate = useCallback((template: TrainingTemplateDetail, force = false) => {
     setActiveTemplate(template)
@@ -498,6 +528,7 @@ export default function WeeklyTraining() {
       const next = new Map(prev)
       for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
         for (const period of PERIODS) {
+          if (getSlotLocked(dayOffset, period.index)) continue
           const key = getCellKey(dayOffset, period.key)
           const cell = next.get(key)
           if (!cell || cell.isMatchDay || (!force && cell.isUserModified)) continue
@@ -510,7 +541,7 @@ export default function WeeklyTraining() {
       return next
     })
     setHasUserChanges(true)
-  }, [getCellKey, groupConfig])
+  }, [getCellKey, getSlotLocked, groupConfig])
 
   const savePlan = async () => {
     if (!teamId || !seasonId) return
@@ -527,6 +558,7 @@ export default function WeeklyTraining() {
 
       for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
         for (const period of PERIODS) {
+          if (getSlotLocked(dayOffset, period.index)) continue
           const cell = getCell(dayOffset, period.key)
           if (!cell || cell.isMatchDay) continue
           const base = { season_day: startDay + dayOffset, slot: period.key, mode: cell.mode }
@@ -580,21 +612,18 @@ export default function WeeklyTraining() {
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
       <SegmentedTabs />
       <section className="training-mode-panel">
         {(['team', 'groups_2', 'groups_3'] as TrainingMode[]).map(mode => {
           const config = MODE_LABELS[mode]
-          const Icon = config.icon
           return (
             <button
               key={mode}
               onClick={() => switchMode(mode)}
               className={`training-mode-card ${globalMode === mode ? 'is-active' : ''}`}
             >
-              <Icon className="h-4 w-4" />
               <strong>{config.label}</strong>
               <span>{config.detail}</span>
             </button>
@@ -605,21 +634,17 @@ export default function WeeklyTraining() {
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         {globalMode !== 'team' && (
           <button onClick={() => setIsGroupEditorOpen(true)} className="training-ghost-btn">
-            <Users className="h-4 w-4" />
             调整分组
           </button>
         )}
         <button onClick={() => applyTemplate(activeTemplate, true)} className="training-ghost-btn">
-          <Reload className="h-4 w-4" />
           重置模板
         </button>
         <button onClick={savePlan} disabled={saving} className="training-save-btn">
-          {saving ? <Clock className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
           {hasUserChanges ? '保存修改' : '保存计划'}
         </button>
         {saveMsg && (
           <span className={`training-save-msg ${saveMsg.includes('成功') ? 'is-ok' : 'is-bad'}`}>
-            {saveMsg.includes('成功') && <Check className="h-4 w-4" />}
             {saveMsg}
           </span>
         )}
@@ -654,15 +679,16 @@ export default function WeeklyTraining() {
                   const slotConflicts = conflictsMap.get(`${dayOffset}-${periodIndex}`) || []
                   const topConflict = slotConflicts[0]
                   const isBrushTarget = brushItemId && !cell?.isMatchDay
+                  const locked = getSlotLocked(dayOffset, periodIndex)
                   return (
                     <button
                       key={`${seasonDay}-${period.key}`}
-                      disabled={cell?.isMatchDay}
+                      disabled={cell?.isMatchDay || locked}
                       onClick={() => handleSlotClick(dayOffset, periodIndex)}
-                      title={topConflict?.message || undefined}
-                      className={`training-slot-block ${selected ? 'is-selected' : ''} ${cell?.isMatchDay ? 'is-match' : ''} ${cell?.isUserModified ? 'is-edited' : ''} ${isBrushTarget ? 'is-brush-preview' : ''}`}
+                      title={locked ? '该时段已开始或进行中，不能修改' : topConflict?.message || undefined}
+                      className={`training-slot-block ${selected ? 'is-selected' : ''} ${cell?.isMatchDay ? 'is-match' : ''} ${cell?.isUserModified ? 'is-edited' : ''} ${isBrushTarget ? 'is-brush-preview' : ''} ${locked ? 'is-locked' : ''}`}
                     >
-                      {topConflict && (
+                      {topConflict && !locked && (
                         <div className={`slot-warning ${topConflict.level}`}>
                           {topConflict.level === 'error' ? '!' : '▲'}
                         </div>
@@ -688,9 +714,13 @@ export default function WeeklyTraining() {
           <section className="training-editor-panel">
             {selectedCellData?.isMatchDay ? (
               <div className="training-match-lock">
-                <Goal className="h-5 w-5" />
                 <strong>比赛日程已锁定</strong>
                 <span>比赛时段由赛程决定，不能修改训练内容。</span>
+              </div>
+            ) : selectedLocked ? (
+              <div className="training-match-lock">
+                <strong>该时段已锁定</strong>
+                <span>当前时间已开始或正在进行中，不能修改训练内容。</span>
               </div>
             ) : (
               <>
@@ -774,7 +804,6 @@ export default function WeeklyTraining() {
               style={brushItemId ? { borderColor: 'var(--tr-accent)', color: 'var(--tr-accent)', flex: 1, padding: '7px 8px', fontSize: 12 } : { flex: 1, padding: '7px 8px', fontSize: 12 }}
               title={brushItemId ? '点击取消画笔' : '选择训练后批量填入格子'}
             >
-              <Brush className="h-4 w-4" />
               {brushItemId ? `画笔: ${items.find(i => i.id === brushItemId)?.name?.slice(0, 8) || ''}` : '画笔'}
             </button>
             {selectedCellData && !selectedCellData.isMatchDay && (
@@ -789,7 +818,6 @@ export default function WeeklyTraining() {
       {/* 球员负荷横向条 */}
       <section className="training-fatigue-strip">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, color: 'var(--tr-accent)' }}>
-          <WarningDiamond className="h-4 w-4" />
           <h3 style={{ fontSize: 14, fontWeight: 1000, margin: 0 }}>球员负荷</h3>
         </div>
         {fatigue.length === 0 ? (
@@ -808,18 +836,10 @@ export default function WeeklyTraining() {
                   border: '1px solid var(--tr-border)',
                 }}
               >
-                <span style={{ color: 'var(--tr-text)', fontSize: 12, fontWeight: 800, width: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ color: 'var(--tr-text)', fontSize: 12, fontWeight: 800, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {player.player_name}
                 </span>
-                <div style={{ flex: 1, height: 6, border: '1px solid var(--tr-border)', background: '#050609' }}>
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${clampPercent(player.fatigue)}%`,
-                      background: player.fatigue > 70 ? '#D75A4A' : player.fatigue > 45 ? '#D7A94A' : '#9ECF45',
-                    }}
-                  />
-                </div>
+                <FatigueStatus fatigue={player.fatigue} size={18} />
               </div>
             ))}
           </div>
@@ -858,6 +878,10 @@ export default function WeeklyTraining() {
             const next = new Map(prev)
             for (const [key, cell] of next) {
               if (cell.isMatchDay || cell.mode === 'team') continue
+              const [dayStr, slotKey] = key.split('-')
+              const seasonDay = parseInt(dayStr, 10)
+              const pIndex = PERIOD_KEY_INDEX[slotKey]
+              if (isSlotLocked(seasonDay, pIndex, currentDay)) continue
               const templateItemId = cell.groups?.find(g => g.training_item_id)?.training_item_id || cell.training_item_id
               next.set(key, {
                 ...cell,
@@ -898,7 +922,6 @@ export default function WeeklyTraining() {
 function MatchBlock({ match }: { match?: MatchDayInfo }) {
   return (
     <div className="training-match-block">
-      <Goal className="h-4 w-4" />
       <strong>比赛</strong>
       <span>{match?.opponentName || '赛程已确定'}</span>
     </div>

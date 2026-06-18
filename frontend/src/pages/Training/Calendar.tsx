@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Calendar } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import type { TrainingPlanSlot, TrainingResultItem } from '../../types/training'
 import { TRAINING_CATEGORY_BG } from '../../types/training'
@@ -18,6 +17,7 @@ export default function TrainingCalendar() {
   const [results, setResults] = useState<TrainingResultItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedWeek, setSelectedWeek] = useState(0)
+  const [season, setSeason] = useState<{ current_day: number; total_days: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -30,13 +30,15 @@ export default function TrainingCalendar() {
         if (!teamRes.success || !teamRes.data?.id) return
         if (!seasonRes.success || !seasonRes.data?.id) return
         const currentDay = seasonRes.data.current_day || 1
-        const weekStart = Math.max(1, currentDay - ((currentDay - 1) % 7))
+        const totalDays = seasonRes.data.total_days || currentDay
 
         const [planRes, resultRes] = await Promise.all([
-          api.getTeamTrainingPlan(teamRes.data.id, seasonRes.data.id, weekStart, 14),
-          api.getTrainingResults(teamRes.data.id, seasonRes.data.id, { start_day: Math.max(1, currentDay - 14), days: 21, limit: 500 }),
+          api.getTeamTrainingPlan(teamRes.data.id, seasonRes.data.id, 1, totalDays),
+          api.getTrainingResults(teamRes.data.id, seasonRes.data.id, { start_day: 1, days: totalDays, limit: 2000 }),
         ])
         if (!cancelled) {
+          setSeason({ current_day: currentDay, total_days: totalDays })
+          setSelectedWeek(Math.max(0, Math.floor((currentDay - 1) / 7)))
           if (planRes.success && Array.isArray(planRes.data)) setPlans(planRes.data)
           if (resultRes.success && Array.isArray(resultRes.data)) setResults(resultRes.data)
         }
@@ -51,19 +53,17 @@ export default function TrainingCalendar() {
   }, [])
 
   const weeks = useMemo(() => {
-    if (plans.length === 0) {
-      // 如果没有计划数据，至少显示当前周
+    const totalDays = season?.total_days
+    if (!totalDays) {
       return [{ label: '本周', startDay: 1 }]
     }
-    const minDay = Math.min(...plans.map(p => p.season_day))
-    const start = Math.floor((minDay - 1) / 7) * 7 + 1
     const list: Array<{ label: string; startDay: number }> = []
-    for (let i = 0; i < 4; i++) {
-      const s = start + i * 7
-      list.push({ label: `第 ${s}~${s + 6} 天`, startDay: s })
+    for (let s = 1; s <= totalDays; s += 7) {
+      const e = Math.min(s + 6, totalDays)
+      list.push({ label: `第 ${s}~${e} 天`, startDay: s })
     }
     return list
-  }, [plans])
+  }, [season])
 
   const currentWeekStart = weeks[selectedWeek]?.startDay ?? 1
 
@@ -142,8 +142,7 @@ export default function TrainingCalendar() {
       </div>
 
       <div className="training-panel" style={{ padding: 16, marginBottom: 16 }}>
-        <h3 style={{ color: 'var(--tr-text)', fontSize: 18, fontWeight: 1000, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Calendar className="w-4 h-4" style={{ color: 'var(--tr-accent)' }} />
+        <h3 style={{ color: 'var(--tr-text)', fontSize: 18, fontWeight: 1000, marginBottom: 14 }}>
           训练明细
         </h3>
         <div style={{ overflowX: 'auto' }}>

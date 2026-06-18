@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react'
-import { 
-  Tv,
-  Store,
-  Users,
-  Trophy,
-  Sparkles,
-  Loader
-} from '../../components/ui/pixel-icons'
+import { Loader } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { FinanceTabs } from '../../components/finance/FinanceTabs'
@@ -19,14 +12,14 @@ interface TransactionItem {
   created_at: string
 }
 
-const sourceConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  broadcast: { label: '转播收入', icon: Tv, color: 'text-blue-400' },
-  sponsor: { label: '商业赞助', icon: Store, color: 'text-purple-400' },
-  match_bonus: { label: '比赛奖金', icon: Users, color: 'text-emerald-400' },
-  cup_prize: { label: '杯赛奖金', icon: Trophy, color: 'text-yellow-400' },
-  league_prize: { label: '联赛分红', icon: Sparkles, color: 'text-[#0D7377]' },
-  transfer: { label: '转会收入', icon: Store, color: 'text-emerald-400' },
-  manual_adjustment: { label: '系统调整', icon: Sparkles, color: 'text-gray-400' },
+const sourceConfig: Record<string, { label: string }> = {
+  broadcast: { label: '转播收入' },
+  sponsor: { label: '商业赞助' },
+  match_bonus: { label: '比赛奖金' },
+  cup_prize: { label: '杯赛奖金' },
+  league_prize: { label: '联赛分红' },
+  transfer: { label: '转会收入' },
+  manual_adjustment: { label: '系统调整' },
 }
 
 function formatWan(value: number): string {
@@ -88,7 +81,7 @@ export default function IncomeDetails() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader icon={Sparkles} title="收入明细" subtitle="球队各项收入来源明细" />
+      <PageHeader title="收入明细" subtitle="球队各项收入来源明细" />
 
       <FinanceTabs />
 
@@ -103,13 +96,9 @@ export default function IncomeDetails() {
             <p className="text-sm text-[#4B4B6A]">暂无收入记录</p>
           )}
           {items.map((item) => {
-            const config = sourceConfig[item.source_type] || { label: item.source_type, icon: Sparkles, color: 'text-gray-400' }
-            const Icon = config.icon
+            const config = sourceConfig[item.source_type] || { label: item.source_type }
             return (
               <div key={item.id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
-                <div className="w-10 h-10 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center">
-                  <Icon className={clsx('w-5 h-5', config.color)} />
-                </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-white">{item.description || config.label}</p>
                   <p className="text-xs text-[#4B4B6A]">{formatDate(item.created_at)}</p>
@@ -124,6 +113,4 @@ export default function IncomeDetails() {
   )
 }
 
-function clsx(...args: (string | false | undefined)[]) {
-  return args.filter(Boolean).join(' ')
-}
+

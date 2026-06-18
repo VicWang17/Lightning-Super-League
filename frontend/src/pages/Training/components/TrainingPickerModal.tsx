@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search, Cancel as X } from '../../../components/ui/pixel-icons'
+import { Cancel as X } from '../../../components/ui/pixel-icons'
 import { Modal } from '../../../components/ui/Modal'
 import type { TrainingItem, PlayerFatigueItem, TrainingMode } from '../../../types/training'
 import '../../../styles/training-system.css'
@@ -123,7 +123,6 @@ export default function TrainingPickerModal({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
           {/* 搜索框 */}
           <div style={{ position: 'relative' }}>
-            <Search className="h-4 w-4" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--tr-muted)' }} />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -132,7 +131,7 @@ export default function TrainingPickerModal({
                 width: '100%',
                 border: '2px solid var(--tr-border)',
                 background: 'rgba(5,6,9,0.86)',
-                padding: '9px 10px 9px 32px',
+                padding: '9px 10px',
                 color: 'var(--tr-text)',
                 fontSize: 13,
                 fontWeight: 900,

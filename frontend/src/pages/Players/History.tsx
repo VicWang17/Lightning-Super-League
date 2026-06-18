@@ -1,6 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { ChevronLeft, Trophy, Target, Zap, Calendar } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 import { PlayerTabs } from '../../components/players/PlayerTabs'
 import { api } from '../../api/client'
@@ -90,9 +89,8 @@ function PlayerHistory() {
       {/* 返回按钮 */}
       <Link
         to={`/players/${id}`}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回球员档案
       </Link>
 
@@ -102,8 +100,7 @@ function PlayerHistory() {
       {/* 生涯总计 + 最佳赛季 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <Card className="lg:col-span-2">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-[#C6F135]" />
+          <h3 className="text-lg font-semibold mb-4">
             生涯总计
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -143,8 +140,7 @@ function PlayerHistory() {
         </Card>
 
         <Card>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Target className="w-5 h-5 text-[#C6F135]" />
+          <h3 className="text-lg font-semibold mb-4">
             最佳赛季
           </h3>
           {summary.best_season ? (
@@ -177,8 +173,7 @@ function PlayerHistory() {
 
       {/* 赛季表现表格 */}
       <Card className="mb-6">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-[#0D7377]" />
+        <h3 className="text-lg font-semibold mb-4">
           赛季表现
         </h3>
         {seasons.length === 0 ? (
@@ -231,8 +226,7 @@ function PlayerHistory() {
 
       {/* 生涯里程碑 */}
       <Card>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-[#C6F135]" />
+        <h3 className="text-lg font-semibold mb-4">
           生涯里程碑
         </h3>
         {milestones.length === 0 ? (

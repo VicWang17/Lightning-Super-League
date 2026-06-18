@@ -1,15 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertTriangle, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import {
-  Search,
   Eye,
-  Send,
-  Loader,
   ChevronLeft,
   ChevronRight,
-  Banknote,
-  Target,
 } from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -157,25 +152,23 @@ export default function TransferMarket() {
     <div className="space-y-6 max-w-[1400px]">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
-      <PageHeader icon={Target} title="球员拍卖市场" subtitle="浏览球员并发送转会报价" />
+      <PageHeader title="球员拍卖市场" subtitle="浏览球员并发送转会报价" />
 
       <TransferTabs />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4B4B6A]" />
           <input
             type="text"
             placeholder="搜索球员或球队..."
             value={filters.search}
             onChange={e => handleFilterChange('search', e.target.value)}
-            className="w-full bg-[#12121A] border-2 border-[#2D2D44] pl-10 pr-4 py-2 text-sm text-[#E2E2F0] placeholder:text-[#4B4B6A] focus:outline-none focus:border-[#0D7377]/50"
+            className="w-full bg-[#12121A] border-2 border-[#2D2D44] px-4 py-2 text-sm text-[#E2E2F0] placeholder:text-[#4B4B6A] focus:outline-none focus:border-[#0D7377]/50"
           />
         </div>
         <select
@@ -219,14 +212,12 @@ export default function TransferMarket() {
 
       {/* Loading & Error */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader className="w-6 h-6 text-[#0D7377] animate-spin" />
-          <span className="ml-2 text-sm text-[#8B8BA7]">加载中...</span>
+        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
+          加载中...
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-          <AlertTriangle className="w-4 h-4" />
+        <div className="p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
           {error}
         </div>
       )}
@@ -302,9 +293,8 @@ export default function TransferMarket() {
                           </Link>
                           <button
                             onClick={() => openOfferModal(p)}
-                            className="px-3 py-1.5 bg-[#0D7377] hover:bg-[#0A5A5D] text-white text-xs font-bold border-2 border-[#0A5A5D] transition-colors flex items-center gap-1"
+                            className="px-3 py-1.5 bg-[#0D7377] hover:bg-[#0A5A5D] text-white text-xs font-bold border-2 border-[#0A5A5D] transition-colors"
                           >
-                            <Send className="w-3 h-3" />
                             报价
                           </button>
                         </div>
@@ -360,8 +350,7 @@ export default function TransferMarket() {
             <div className="p-4 space-y-4">
               {offerSuccess ? (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <Banknote className="w-5 h-5" />
+                  <div className="text-emerald-400">
                     <span className="font-bold">报价发送成功！</span>
                   </div>
                   <p className="text-sm text-[#8B8BA7]">
@@ -409,8 +398,7 @@ export default function TransferMarket() {
                   </div>
 
                   {offerError && (
-                    <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-                      <AlertTriangle className="w-4 h-4" />
+                    <div className="p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
                       {offerError}
                     </div>
                   )}

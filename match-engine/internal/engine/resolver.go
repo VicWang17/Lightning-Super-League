@@ -139,6 +139,21 @@ func CalcTackleDefense(holder *domain.PlayerRuntime) float64 {
 	return applySkillDefense(holder, base)
 }
 
+func CalcInterceptAttack(interceptor *domain.PlayerRuntime) float64 {
+	base := interceptor.GetAttrByName("DEF")*0.40 +
+		interceptor.GetAttrByName("POS")*0.30 +
+		interceptor.GetAttrByName("DEC")*0.20 +
+		interceptor.GetAttrByName("ACC")*0.10
+	return applySkillAttack(interceptor, base)
+}
+
+func CalcInterceptDefense(passer *domain.PlayerRuntime) float64 {
+	base := passer.GetAttrByName("PAS")*0.45 +
+		passer.GetAttrByName("VIS")*0.35 +
+		passer.GetAttrByName("COM")*0.20
+	return applySkillDefense(passer, base)
+}
+
 // Cross
 func CalcCrossAttack(crosser *domain.PlayerRuntime) float64 {
 	base := crosser.GetAttrByName("CRO")*0.45 +
@@ -402,7 +417,6 @@ func CalcPressTogetherDefense(holder *domain.PlayerRuntime) float64 {
 		holder.GetAttrByName("COM")*0.4
 	return applySkillDefense(holder, base)
 }
-
 
 // applySkillAttack adds skill attack bonus to a base value
 func applySkillAttack(player *domain.PlayerRuntime, base float64) float64 {

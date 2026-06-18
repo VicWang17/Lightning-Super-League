@@ -1,9 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Star } from 'lucide-react'
-import {
-  Target
-} from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { Card } from '../../components/ui/Card'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -121,7 +117,6 @@ export default function PostMatch() {
   return (
     <div className="space-y-6 max-w-[1200px]">
       <PageHeader
-        icon={Target}
         title="赛后统计"
         subtitle="全场结束"
         action={
@@ -172,9 +167,6 @@ export default function PostMatch() {
       {mvp && (
         <Card className="border-yellow-500/30">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-yellow-500/20 border-2 border-yellow-500/50 flex items-center justify-center">
-              <Star className="w-8 h-8 text-yellow-400" />
-            </div>
             <div>
               <p className="text-xs text-yellow-400 font-bold uppercase tracking-wider">本场最佳</p>
               <h3 className="text-2xl font-bold text-white">{mvp.name}</h3>
@@ -187,8 +179,7 @@ export default function PostMatch() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 球员评分 */}
         <Card >
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Star className="w-4 h-4 text-[#0D7377]" />
+          <h3 className="text-lg font-semibold mb-4">
             球员评分
           </h3>
           {playerStats.length === 0 ? (
@@ -223,8 +214,7 @@ export default function PostMatch() {
 
         {/* 全场数据 */}
         <Card >
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Target className="w-4 h-4 text-[#0D7377]" />
+          <h3 className="text-lg font-semibold mb-4">
             全场数据
           </h3>
           <div className="space-y-4">

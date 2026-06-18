@@ -1,6 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Tools as Construction, ArrowLeft } from '../../components/ui/pixel-icons'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -30,11 +29,6 @@ export default function Register() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="bg-[#12121A] border-2 border-[#2D2D44] p-8 shadow-pixel-lg text-center hover:-translate-x-0.5 hover:-translate-y-0.5 transition-transform"
         >
-          {/* Icon */}
-          <div className="w-20 h-20 mx-auto mb-6 rounded-none bg-[#0D4A4D]/40 border-2 border-[#0D7377]/30 flex items-center justify-center">
-            <Construction className="w-10 h-10 text-[#0D7377]" />
-          </div>
-
           {/* Title */}
           <h1 className="text-2xl font-bold text-white mb-3">
             接口未实现
@@ -75,7 +69,6 @@ export default function Register() {
               onClick={() => navigate(-1)}
               className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 text-[#8B8BA7] hover:text-[#E2E2F0] font-medium transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
               返回上一页
             </button>
           </div>

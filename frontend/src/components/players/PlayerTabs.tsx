@@ -1,11 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
-import {
-  Calendar,
-  Transfer,
-  TrendingUp,
-  User,
-} from '../ui/pixel-icons'
 
 interface PlayerTabsProps {
   playerId: string
@@ -19,16 +13,15 @@ export function PlayerTabs({ playerId }: PlayerTabsProps) {
   const basePath = isTeamRoute ? `/team/players/${playerId}` : `/players/${playerId}`
 
   const tabs = [
-    { path: basePath, label: '球员档案', icon: User },
-    { path: `${basePath}/history`, label: '生涯历史', icon: Calendar },
-    { path: `${basePath}/transfers`, label: '转会记录', icon: Transfer },
-    { path: `${basePath}/growth`, label: '成长曲线', icon: TrendingUp },
+    { path: basePath, label: '球员档案' },
+    { path: `${basePath}/history`, label: '生涯历史' },
+    { path: `${basePath}/transfers`, label: '转会记录' },
+    { path: `${basePath}/growth`, label: '成长曲线' },
   ]
 
   return (
     <div className="flex flex-wrap gap-2 mb-6">
       {tabs.map((tab) => {
-        const Icon = tab.icon
         const isActive =
           tab.path === basePath
             ? path === basePath || path === `${basePath}/`
@@ -45,7 +38,6 @@ export function PlayerTabs({ playerId }: PlayerTabsProps) {
                 : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover border-2 border-transparent'
             )}
           >
-            <Icon className="w-4 h-4" />
             {tab.label}
           </Link>
         )

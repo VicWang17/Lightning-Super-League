@@ -2,14 +2,9 @@ import { useState, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Globe,
-  Trophy,
   Users,
-  Target,
   ChevronRight,
   InfoBox,
-  Award,
-  ChevronLeft,
 } from '../../components/ui/pixel-icons'
 import { useWorldRankings, useTopPlayers, useWorldRecords, useWorldLeaderboard, useWorldTeamLeaderboard } from '../../hooks/useWorld'
 import { useSeasonAwards, useAllLeagueAwardsForSeason } from '../../hooks/useAwards'
@@ -41,6 +36,8 @@ const WORLD_SORT_OPTIONS: WorldSortOption[] = [
   { value: 'average_rating', label: '场均评分', format: 'float1' },
   { value: 'tackles', label: '抢断', format: 'int' },
   { value: 'interceptions', label: '拦截', format: 'int' },
+  { value: 'clearances', label: '解围', format: 'int' },
+  { value: 'blocks', label: '封堵', format: 'int' },
   { value: 'saves', label: '扑救', format: 'int' },
   { value: 'clean_sheets', label: '零封', format: 'int' },
   { value: 'shots', label: '射门', format: 'int' },
@@ -85,10 +82,10 @@ const TEAM_SORT_OPTIONS: WorldTeamSortOption[] = [
 ]
 
 const TABS = [
-  { value: 'rankings' as WorldTab, label: '球队排名', icon: Trophy },
-  { value: 'players' as WorldTab, label: '球员排名', icon: Users },
-  { value: 'records' as WorldTab, label: '世界纪录', icon: Target },
-  { value: 'awards' as WorldTab, label: '赛季奖项', icon: Award },
+  { value: 'rankings' as WorldTab, label: '球队排名' },
+  { value: 'players' as WorldTab, label: '球员排名' },
+  { value: 'records' as WorldTab, label: '世界纪录' },
+  { value: 'awards' as WorldTab, label: '赛季奖项' },
 ]
 
 const POSITION_FILTERS: { value: PlayerPosition; label: string }[] = [
@@ -486,13 +483,11 @@ function WorldPage() {
     <div className="max-w-[1200px]">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
       <PageHeader
-        icon={Globe}
         title="世界排名"
         subtitle="全球球队、球员排名与世界纪录"
       />
@@ -530,7 +525,7 @@ function WorldPage() {
                 </div>
               ) : rankings.length === 0 ? (
                 <div className="text-center py-12">
-                  <Trophy className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+
                   <p className="text-[#8B8BA7]">暂无排名数据</p>
                 </div>
               ) : (
@@ -569,7 +564,7 @@ function WorldPage() {
                 </div>
               ) : teamLbItems.length === 0 ? (
                 <div className="text-center py-12">
-                  <Trophy className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+
                   <p className="text-[#8B8BA7]">暂无排名数据</p>
                 </div>
               ) : (
@@ -644,7 +639,7 @@ function WorldPage() {
               </div>
             ) : players.length === 0 ? (
               <div className="text-center py-12">
-                <Users className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+
                 <p className="text-[#8B8BA7]">暂无球员数据</p>
               </div>
             ) : (

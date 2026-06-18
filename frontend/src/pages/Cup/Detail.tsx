@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../../api/client'
 import { 
-  Trophy, ChevronLeft, Calendar, Grid3x3 as Grid3X3, 
-  GitBranch, ListBox as List, Target 
+  ChevronLeft
 } from '../../components/ui/pixel-icons'
-import { CupBadge } from '../../components/cup/CupBadge'
 import { 
  useCupDetail, 
  useCupGroups, 
@@ -347,7 +345,7 @@ function CupScheduleList({ fixtures }: { fixtures: CupFixture[] }) {
  if (visibleStages.length === 0) {
  return (
  <div className="text-center py-12">
- <Calendar className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+
  <p className="text-[#8B8BA7]">暂无赛程数据</p>
  </div>
  )
@@ -826,14 +824,12 @@ function CupDetail() {
  if (!cup) {
  return (
  <div className="max-w-[1200px] text-center py-20">
- <Trophy className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
  <h2 className="text-xl font-bold text-white mb-2">杯赛未找到</h2>
  <p className="text-[#8B8BA7] mb-2">该杯赛不存在或已被删除</p>
  {cupError && (
  <p className="text-red-400 text-sm mb-6">错误: {cupError}</p>
  )}
  <Link to="/cups" className="btn-primary inline-flex items-center gap-2">
- <ChevronLeft className="w-4 h-4" />
  返回杯赛列表
  </Link>
  </div>
@@ -856,25 +852,20 @@ function CupDetail() {
  <div className="flex items-center justify-between mb-4">
  <button 
  onClick={() => navigate(-1)}
- className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors"
+ className="text-sm text-[#8B8BA7] hover:text-white transition-colors"
  >
- <ChevronLeft className="w-4 h-4" />
  返回上一页
  </button>
  <Link 
  to="/cups/all"
- className="inline-flex items-center gap-1 text-sm text-[#0D7377] hover:text-white transition-colors"
+ className="text-sm text-[#0D7377] hover:text-white transition-colors"
  >
- <List className="w-4 h-4" />
  所有杯赛
  </Link>
  </div>
 
  {/* 杯赛信息头部 */}
  <PageHeader
- icon={() => (
- <CupBadge code={cup.code} size="md" title={`${cup.name} 徽章`} />
- )}
  title={cup.name}
  subtitle={cup.code ? `${cup.code} · ${cup.has_group_stage ? '小组赛+淘汰赛' : '淘汰赛'}` : undefined}
  />
@@ -883,12 +874,12 @@ function CupDetail() {
  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
  <SegmentedTabs
  tabs={[
- ...(cup.has_group_stage ? [{ value: 'groups' as TabType, label: '小组赛', icon: Grid3X3 }] : []),
- { value: 'knockout', label: '淘汰赛', icon: GitBranch },
- { value: 'fixtures', label: '赛程', icon: Calendar },
- { value: 'stats', label: '数据', icon: Target },
- { value: 'records', label: '杯赛纪录', icon: Target },
- { value: 'awards', label: '杯赛奖项', icon: Trophy },
+ ...(cup.has_group_stage ? [{ value: 'groups' as TabType, label: '小组赛' }] : []),
+ { value: 'knockout', label: '淘汰赛' },
+ { value: 'fixtures', label: '赛程' },
+ { value: 'stats', label: '数据' },
+ { value: 'records', label: '杯赛纪录' },
+ { value: 'awards', label: '杯赛奖项' },
  ]}
  value={activeTab}
  onChange={(v) => setActiveTab(v as TabType)}
@@ -925,7 +916,7 @@ function CupDetail() {
  </div>
  ) : groups.length === 0 ? (
  <div className="text-center py-12">
- <Grid3X3 className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+
  <p className="text-[#8B8BA7]">暂无小组赛分组数据</p>
  </div>
  ) : (
@@ -982,7 +973,7 @@ function CupDetail() {
  </div>
  ) : fixtures.length === 0 ? (
  <div className="text-center py-12">
- <Calendar className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+
  <p className="text-[#8B8BA7]">暂无赛程数据</p>
  </div>
  ) : (

@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, X, Check } from 'lucide-react'
+import { X } from 'lucide-react'
 import {
-  Plus,
-  Clock,
-  WarningDiamond,
   Loader,
   ChevronLeft,
   ChevronRight,
-  CornerUpRight,
   Eye,
-  ListBox,
 } from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -254,15 +249,13 @@ export default function MyListings() {
   return (
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader
-        icon={ListBox}
         title="我的挂牌"
         subtitle="管理已挂牌的球员"
         action={
           <button
             onClick={openListModal}
-            className="btn-primary flex items-center gap-2 text-sm"
+            className="btn-primary text-sm"
           >
-            <Plus className="w-4 h-4" />
             挂牌新球员
           </button>
         }
@@ -297,8 +290,7 @@ export default function MyListings() {
       </div>
 
       {/* Tip */}
-      <div className="flex items-center gap-3 p-3 bg-[#0D4A4D]/20 border-2 border-[#0D7377]/30">
-        <WarningDiamond className="w-4 h-4 text-[#0D7377] flex-shrink-0" />
+      <div className="p-3 bg-[#0D4A4D]/20 border-2 border-[#0D7377]/30">
         <p className="text-sm text-[#8B8BA7]">
           挂牌价不得低于系统估值的80%。挂牌后3天内无法成交，期间可接收报价。成交后收取5%交易税。
         </p>
@@ -315,7 +307,6 @@ export default function MyListings() {
           )}
           {listingsError && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-              <AlertTriangle className="w-4 h-4" />
               {listingsError}
             </div>
           )}
@@ -340,8 +331,7 @@ export default function MyListings() {
                   </div>
                   <div className="text-right">
                     {l.deadline && (
-                      <p className="text-xs text-yellow-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
+                      <p className="text-xs text-yellow-400">
                         截止 {new Date(l.deadline).toLocaleDateString()}
                       </p>
                     )}
@@ -377,7 +367,6 @@ export default function MyListings() {
           )}
           {offersError && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-              <AlertTriangle className="w-4 h-4" />
               {offersError}
             </div>
           )}
@@ -492,9 +481,8 @@ export default function MyListings() {
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               {listSuccess ? (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <Check className="w-5 h-5" />
-                    <span className="font-bold">球员已成功挂牌！</span>
+                  <div className="text-emerald-400 font-bold">
+                    球员已成功挂牌！
                   </div>
                   <button
                     onClick={() => setShowListModal(false)}
@@ -513,7 +501,6 @@ export default function MyListings() {
 
                   {listError && (
                     <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-                      <AlertTriangle className="w-4 h-4" />
                       {listError}
                     </div>
                   )}
@@ -616,9 +603,8 @@ export default function MyListings() {
             <div className="p-4 space-y-4">
               {counterSuccess ? (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <CornerUpRight className="w-5 h-5" />
-                    <span className="font-bold">反报价发送成功！</span>
+                  <div className="text-emerald-400 font-bold">
+                    反报价发送成功！
                   </div>
                   <button
                     onClick={closeCounterModal}
@@ -651,7 +637,6 @@ export default function MyListings() {
                   </div>
                   {counterError && (
                     <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-                      <AlertTriangle className="w-4 h-4" />
                       {counterError}
                     </div>
                   )}

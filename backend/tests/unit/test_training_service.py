@@ -157,7 +157,7 @@ class TestPlayerFatigueService:
         
         service.apply_training_load(player, item)
         assert player.fitness == 71  # 80 - 9
-        assert player.fatigue == 44  # 30 + 14
+        assert player.fatigue == 39  # 30 + 9 (hard physical fatigue reduced)
     
     def test_apply_match_load_played(self):
         service = PlayerFatigueService()
@@ -169,10 +169,10 @@ class TestPlayerFatigueService:
         )
         
         service.apply_match_load(player, minutes=70)
-        # 70min -> (56,70) 区间: fitness=-14, fatigue=18
-        # MF position modifier: 18 * 1.1 = 19.8 -> 20
+        # 70min -> (61,75) 区间: fitness=-14, fatigue=13
+        # MF position modifier: 13 * 1.1 = 14.3 -> 14
         assert player.fitness == 66  # 80 - 14
-        assert player.fatigue == 50  # 30 + 20
+        assert player.fatigue == 44  # 30 + 14
     
     def test_apply_match_load_not_played(self):
         service = PlayerFatigueService()
@@ -184,8 +184,8 @@ class TestPlayerFatigueService:
         )
         
         service.apply_match_load(player, minutes=0)
-        assert player.fitness == 68  # 60 + 8
-        assert player.fatigue == 46  # 50 - 4
+        assert player.fitness == 80  # 60 + 20
+        assert player.fatigue == 35  # 50 - 15
     
     def test_calculate_initial_stamina_no_fatigue(self):
         service = PlayerFatigueService()
@@ -212,9 +212,9 @@ class TestPlayerFatigueService:
         
         stamina = service.calculate_initial_stamina(player)
         # base = 95 + 0 = 95
-        # multiplier = 1 - 50*0.0026 = 0.87
-        # 95 * 0.87 = 82.65
-        assert stamina == 82.7
+        # multiplier = 1 - 50*0.0030 = 0.85
+        # 95 * 0.85 = 80.75
+        assert stamina == 80.8
     
     def test_get_fatigue_band(self):
         service = PlayerFatigueService()

@@ -129,15 +129,15 @@ func SelectDefender(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain
 }
 
 // SelectTackler picks a player for direct challenges on the ball carrier.
-// Back-zone tackles should be led by defenders; high-zone tackles still allow
-// midfielders/forwards to participate as pressing actions.
+// The zone is expressed from the possession team's perspective: zone 0 is the
+// defending team's back line, while zone 2 is where the defending team presses high.
 func SelectTackler(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
 	return selectDefensivePlayer(team, zone, "tackle", r)
 }
 
 // SelectInterceptor picks a player for cutting passing lanes.
-// Midfield interceptions can be midfielder-heavy, while dangerous back-zone
-// interceptions should be led by defenders.
+// Midfield interceptions can be midfielder-heavy, while dangerous passes reaching
+// zone 0 should be dealt with primarily by defenders.
 func SelectInterceptor(team *domain.TeamRuntime, zone [2]int, r *rand.Rand) *domain.PlayerRuntime {
 	return selectDefensivePlayer(team, zone, "intercept", r)
 }
@@ -166,42 +166,44 @@ func selectDefensivePlayer(team *domain.TeamRuntime, zone [2]int, action string,
 		zw := zoneWeight(p.Position, zone[0], zone[1])
 		defBonus := 1.0
 		if p.Position == config.PosDF {
-			defBonus = 3.0
-			if zone[0] == 2 {
-				defBonus = 7.0
+			defBonus = 1.2
+			if zone[0] == 0 {
+				defBonus = 4.5
 			} else if zone[0] == 1 {
-				defBonus = 3.6
+				defBonus = 2.8
 			}
-			if action == "tackle" && zone[0] >= 1 {
-				defBonus *= 1.35
+			if action == "tackle" && zone[0] <= 1 {
+				defBonus *= 1.15
 			}
-			if action == "intercept" && zone[0] == 2 {
-				defBonus *= 1.35
+			if action == "intercept" && zone[0] == 0 {
+				defBonus *= 1.20
 			}
 			if manMarking {
 				defBonus *= 1.25
 			}
 		} else if p.Position == config.PosMF {
-			defBonus = 0.65
+			defBonus = 0.9
 			if zone[0] == 1 {
-				defBonus = 0.85
-			} else if zone[0] == 2 {
-				defBonus = 0.22
+				defBonus = 1.1
+			} else if zone[0] == 0 {
+				defBonus = 0.45
 			}
 			if action == "intercept" && zone[0] == 1 {
-				defBonus *= 1.25
+				defBonus *= 1.15
 			}
-			if action == "tackle" && zone[0] == 2 {
-				defBonus *= 0.65
+			if action == "tackle" && zone[0] == 0 {
+				defBonus *= 0.80
 			}
 			if manMarking {
 				defBonus *= 1.1
 			}
 		} else if p.Position == config.PosFW {
 			defBonus = 0.5
-			if zone[0] == 2 {
-				defBonus = 0.08
-			} else if action == "intercept" && zone[0] == 0 {
+			if zone[0] == 0 {
+				defBonus = 0.12
+			} else if zone[0] == 2 {
+				defBonus = 1.3
+			} else if action == "intercept" {
 				defBonus = 0.35
 			}
 		}

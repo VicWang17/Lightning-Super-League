@@ -105,6 +105,7 @@ class PlayerFatigueSchema(BaseSchema):
     """球员疲劳状态 schema"""
     player_id: str
     player_name: str
+    avatar_url: Optional[str] = None
     fitness: int
     fatigue: int
     stamina_preview: float

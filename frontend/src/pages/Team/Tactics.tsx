@@ -16,19 +16,8 @@ import type {
   SituationalRuleOverride,
 } from '../../types/tactics'
 import {
-  Chart,
-  Check,
-  Download,
-  Fire,
-  Flag,
-  Shield,
-  Sword,
-  Target,
-  Users,
-  Zap,
   Cancel,
   Delete,
-  Settings2,
   ChevronDown,
 } from '../../components/ui/pixel-icons'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
@@ -149,54 +138,47 @@ function legacyToTeamInstructions(legacy: TacticsSetup): TeamInstructions {
   }
 }
 
-const presets: Array<{ id: string; name: string; desc: string; icon: typeof Target; teamInstructions: TeamInstructions }> = [
+const presets: Array<{ id: string; name: string; desc: string; teamInstructions: TeamInstructions }> = [
   {
     id: 'balanced',
     name: '均衡默认',
     desc: '观察对手，线间距离保持稳定。',
-    icon: Target,
     teamInstructions: legacyToTeamInstructions({ passing_style: 2, attack_width: 2, attack_tempo: 2, defensive_line_height: 2, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 2, defensive_compactness: 1, marking_strategy: 0, offside_trap: 0, tackling_aggression: 1 }),
   },
   {
     id: 'high_press',
     name: '高位逼抢',
     desc: '压上防线，前场夺回球权。',
-    icon: Zap,
     teamInstructions: legacyToTeamInstructions({ passing_style: 2, attack_width: 2, attack_tempo: 3, defensive_line_height: 4, crossing_strategy: 2, shooting_mentality: 3, playmaker_focus: 0, pressing_intensity: 4, defensive_compactness: 1, marking_strategy: 2, offside_trap: 2, tackling_aggression: 3 }),
   },
   {
     id: 'possession',
     name: '控球推进',
     desc: '短传和组织核心，降低草率射门。',
-    icon: Chart,
     teamInstructions: legacyToTeamInstructions({ passing_style: 4, attack_width: 2, attack_tempo: 1, defensive_line_height: 3, crossing_strategy: 1, shooting_mentality: 1, playmaker_focus: 2, pressing_intensity: 2, defensive_compactness: 2, marking_strategy: 1, offside_trap: 1, tackling_aggression: 1 }),
   },
   {
     id: 'counter',
     name: '极速反击',
     desc: '回收阵型后快速纵向推进。',
-    icon: Fire,
     teamInstructions: legacyToTeamInstructions({ passing_style: 1, attack_width: 2, attack_tempo: 4, defensive_line_height: 1, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 1, defensive_compactness: 2, marking_strategy: 0, offside_trap: 0, tackling_aggression: 1 }),
   },
   {
     id: 'deep_defense',
     name: '深度防反',
     desc: '低位压缩空间，优先降低失球风险。',
-    icon: Shield,
     teamInstructions: legacyToTeamInstructions({ passing_style: 1, attack_width: 1, attack_tempo: 2, defensive_line_height: 0, crossing_strategy: 2, shooting_mentality: 2, playmaker_focus: 0, pressing_intensity: 0, defensive_compactness: 2, marking_strategy: 0, offside_trap: 0, tackling_aggression: 0 }),
   },
   {
     id: 'wide_attack',
     name: '边路冲击',
     desc: '宽度和传中拉满，适合高点前锋。',
-    icon: Flag,
     teamInstructions: legacyToTeamInstructions({ passing_style: 2, attack_width: 4, attack_tempo: 3, defensive_line_height: 2, crossing_strategy: 4, shooting_mentality: 3, playmaker_focus: 0, pressing_intensity: 2, defensive_compactness: 1, marking_strategy: 0, offside_trap: 0, tackling_aggression: 2 }),
   },
   {
     id: 'all_out',
     name: '全力进攻',
     desc: '高节奏高射门，适合必须进球的阶段。',
-    icon: Sword,
     teamInstructions: legacyToTeamInstructions({ passing_style: 1, attack_width: 3, attack_tempo: 4, defensive_line_height: 3, crossing_strategy: 3, shooting_mentality: 4, playmaker_focus: 0, pressing_intensity: 3, defensive_compactness: 0, marking_strategy: 1, offside_trap: 1, tackling_aggression: 3 }),
   },
 ]
@@ -741,7 +723,6 @@ function PresetSelect({
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const current = presets.find((p) => p.id === value)
-  const CurrentIcon = current?.icon || Target
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
@@ -760,9 +741,6 @@ function PresetSelect({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-3 border-2 border-[#14532D] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
       >
-        <div className="grid h-8 w-8 shrink-0 place-items-center border border-[#14532D] bg-[#0D0B07]">
-          <CurrentIcon className="h-4 w-4 text-[#D5B15E]" />
-        </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-black text-[#FFF8DE]">{current?.name || '自定义'}</p>
           <p className="text-[10px] font-bold text-[#786F5A]">{current?.desc || '手动调整'}</p>
@@ -773,33 +751,27 @@ function PresetSelect({
       {open && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#14532D] bg-[#15110A] p-2 shadow-pixel">
           <div className="space-y-1">
-            {presets.map((preset) => {
-              const Icon = preset.icon
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(preset.id)
-                    setOpen(false)
-                  }}
-                  className={clsx(
-                    'flex w-full items-center gap-2 border-2 p-2 text-left transition-all',
-                    value === preset.id
-                      ? 'border-[#D5B15E] bg-[#2A1E0E]'
-                      : 'border-[#14532D] bg-[#0D0B07] hover:border-[#D5B15E]/55',
-                  )}
-                >
-                  <div className="grid h-7 w-7 shrink-0 place-items-center border border-[#14532D] bg-[#15110A]">
-                    <Icon className="h-3.5 w-3.5 text-[#D5B15E]" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black text-[#FFF8DE]">{preset.name}</p>
-                    <p className="text-[10px] font-bold text-[#786F5A]">{preset.desc}</p>
-                  </div>
-                </button>
-              )
-            })}
+            {presets.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => {
+                  onChange(preset.id)
+                  setOpen(false)
+                }}
+                className={clsx(
+                  'flex w-full items-center gap-2 border-2 p-2 text-left transition-all',
+                  value === preset.id
+                    ? 'border-[#D5B15E] bg-[#2A1E0E]'
+                    : 'border-[#14532D] bg-[#0D0B07] hover:border-[#D5B15E]/55',
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black text-[#FFF8DE]">{preset.name}</p>
+                  <p className="text-[10px] font-bold text-[#786F5A]">{preset.desc}</p>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -870,10 +842,7 @@ function TacticsDesignPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Settings2 className="h-4 w-4 text-[#D5B15E]" />
-          <h2 className="font-black text-[#FFF8DE]">战术控制台</h2>
-        </div>
+        <h2 className="font-black text-[#FFF8DE]">战术控制台</h2>
         {activePreset === 'custom' && (
           <button
             type="button"
@@ -888,8 +857,7 @@ function TacticsDesignPanel({
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {(['进攻组织', '防守结构'] as const).map((group) => (
           <div key={group} className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
-            <div className="mb-2 flex items-center gap-2">
-              {group === '进攻组织' ? <Sword className="h-3.5 w-3.5 text-[#E97762]" /> : <Shield className="h-3.5 w-3.5 text-[#63A9E8]" />}
+            <div className="mb-2">
               <h3 className="text-xs font-black text-[#EFE8CE]">{group}</h3>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -981,15 +949,11 @@ function PhaseTacticsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Settings2 className="h-4 w-4 text-[#D5B15E]" />
-        <h2 className="font-black text-[#FFF8DE]">阶段战术</h2>
-      </div>
+      <h2 className="font-black text-[#FFF8DE]">阶段战术</h2>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
-          <div className="mb-2 flex items-center gap-2">
-            <Sword className="h-3.5 w-3.5 text-[#E97762]" />
+          <div className="mb-2">
             <h3 className="text-xs font-black text-[#EFE8CE]">持球进攻</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -1024,8 +988,7 @@ function PhaseTacticsPanel({
         </div>
 
         <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
-          <div className="mb-2 flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-[#D7A94A]" />
+          <div className="mb-2">
             <h3 className="text-xs font-black text-[#EFE8CE]">转换阶段</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -1054,8 +1017,7 @@ function PhaseTacticsPanel({
         </div>
 
         <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
-          <div className="mb-2 flex items-center gap-2">
-            <Shield className="h-3.5 w-3.5 text-[#63A9E8]" />
+          <div className="mb-2">
             <h3 className="text-xs font-black text-[#EFE8CE]">无球防守</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -1086,8 +1048,7 @@ function PhaseTacticsPanel({
         </div>
 
         <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
-          <div className="mb-2 flex items-center gap-2">
-            <Target className="h-3.5 w-3.5 text-[#E2B84B]" />
+          <div className="mb-2">
             <h3 className="text-xs font-black text-[#EFE8CE]">门将出球</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -1326,10 +1287,7 @@ function SituationalRulesPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Flag className="h-4 w-4 text-[#D5B15E]" />
-          <h2 className="font-black text-[#FFF8DE]">情境规则</h2>
-        </div>
+        <h2 className="font-black text-[#FFF8DE]">情境规则</h2>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold text-[#786F5A]">{rules.length}/10</span>
           <button
@@ -1601,7 +1559,6 @@ function BenchPanel({
   return (
     <div className="flex h-full min-h-0 flex-col border-2 border-[#14532D] bg-[#15110A] p-3 shadow-pixel">
       <div className="mb-3 flex items-center gap-2">
-        <Users className="h-4 w-4 text-[#D5B15E]" />
         <h2 className="font-black text-[#FFF8DE]">替补席</h2>
         <span className="ml-auto text-[10px] font-bold text-[#786F5A]">{bench.length}人</span>
       </div>
@@ -1639,10 +1596,7 @@ function PlayerDetailPanel({
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col border-2 border-[#14532D] bg-[#15110A] p-3 shadow-pixel">
-      <div className="mb-3 flex items-center gap-2">
-        <Target className="h-4 w-4 text-[#D5B15E]" />
-        <h2 className="font-black text-[#FFF8DE]">球员详情</h2>
-      </div>
+      <h2 className="mb-3 font-black text-[#FFF8DE]">球员详情</h2>
       <div className="flex-1 overflow-y-auto pr-1">
         {player ? (
           <PlayerPanel
@@ -1654,7 +1608,6 @@ function PlayerDetailPanel({
           />
         ) : (
           <div className="flex h-48 flex-col items-center justify-center gap-3 border-2 border-dashed border-[#14532D] p-4 text-center">
-            <Target className="h-8 w-8 text-[#14532D]" />
             <p className="text-sm font-bold text-[#786F5A]">点击球场或替补球员查看详情</p>
           </div>
         )}
@@ -1674,7 +1627,6 @@ function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => void | Pr
           : 'border-[#6F521B] bg-[#D5B15E] text-[#191007]',
       )}
     >
-      {saved ? <Check className="h-3 w-3" /> : <Download className="h-3 w-3" />}
       {saved ? '已保存' : '保存方案'}
     </button>
   )
@@ -2157,7 +2109,6 @@ export default function Tactics() {
       {activeTab === 'setpiece' && (
         <div className="flex min-h-[50vh] items-center justify-center">
           <div className="flex flex-col items-center gap-4 border-2 border-[#14532D] bg-[#15110A] p-8 text-center shadow-pixel">
-            <Target className="h-12 w-12 text-[#14532D]" />
             <h2 className="text-lg font-black text-[#FFF8DE]">定位球</h2>
             <p className="text-sm font-bold text-[#786F5A]">角球 / 任意球 / 点球主罚人<br />暂未开发，敬请期待</p>
           </div>
@@ -2168,7 +2119,6 @@ export default function Tactics() {
       {activeTab === 'substitution' && (
         <div className="flex min-h-[50vh] items-center justify-center">
           <div className="flex flex-col items-center gap-4 border-2 border-[#14532D] bg-[#15110A] p-8 text-center shadow-pixel">
-            <Users className="h-12 w-12 text-[#14532D]" />
             <h2 className="text-lg font-black text-[#FFF8DE]">换人策略</h2>
             <p className="text-sm font-bold text-[#786F5A]">暂未开发，敬请期待</p>
           </div>

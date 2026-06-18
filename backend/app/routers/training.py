@@ -411,6 +411,7 @@ async def get_team_fatigue(
         items.append(PlayerFatigueSchema(
             player_id=player.id,
             player_name=player.name,
+            avatar_url=player.avatar_url,
             fitness=preview["fitness"],
             fatigue=preview["fatigue"],
             stamina_preview=preview["stamina_preview"],

@@ -15,7 +15,7 @@ import { api } from '../../api/client'
 import { useSeasons } from '../../hooks/useSeasons'
 import { TrainingPageShell } from './components/TrainingPageShell'
 import Avatar from '../../components/ui/Avatar'
-import { User, SquareAlert, TrendingUp } from '../../components/ui/pixel-icons'
+import { User } from '../../components/ui/pixel-icons'
 import type { PlayerListItem } from '../../types/player'
 import type { TrainingProgressResponse } from '../../types/training'
 
@@ -419,7 +419,6 @@ export default function TrainingProgress() {
         {/* 提示 */}
         {selectedIds.length === 0 && !playersLoading && (
           <div className="flex items-center gap-2 text-sm text-[#8B8BA7]">
-            <SquareAlert className="w-4 h-4" />
             请至少选择一名球员
           </div>
         )}
@@ -444,7 +443,6 @@ export default function TrainingProgress() {
 
         {!loading && data && data.series.length === 0 && (
           <div className="text-center py-16 border-2 border-dashed border-[#2D2D44] bg-[#12121A]/50">
-            <TrendingUp className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
             <p className="text-[#8B8BA7]">所选球员在该时间段内暂无训练数据</p>
           </div>
         )}

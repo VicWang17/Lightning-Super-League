@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react'
-import { 
-  Check,
-  Loader,
-  Store,
-  TrendingUp,
-  Shield
-} from '../../components/ui/pixel-icons'
+import { Loader } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { FinanceTabs } from '../../components/finance/FinanceTabs'
@@ -156,7 +150,7 @@ export default function BudgetPlanning() {
 
   return (
     <div className="space-y-6 max-w-[800px]">
-      <PageHeader icon={Store} title="预算规划" subtitle="下赛季预算规划与赞助商选择" />
+      <PageHeader title="预算规划" subtitle="下赛季预算规划与赞助商选择" />
 
       <FinanceTabs />
 
@@ -176,8 +170,7 @@ export default function BudgetPlanning() {
         </div>
 
         {locked && (
-          <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm flex items-center gap-2">
-            <Shield className="w-4 h-4" />
+          <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
             预算计划已锁定，无法修改
           </div>
         )}
@@ -297,7 +290,6 @@ export default function BudgetPlanning() {
             disabled={!isValid || saving}
             className="btn-primary w-full mt-6 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? <Loader className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
             {saving ? '保存中...' : '确认预算分配'}
           </button>
         )}
@@ -346,10 +338,7 @@ export default function BudgetPlanning() {
             {sponsorOptions.map((opt) => (
               <div key={opt.policy} className="p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Store className="w-4 h-4 text-[#0D7377]" />
-                    <span className="text-sm font-medium text-white">{opt.label}</span>
-                  </div>
+                  <span className="text-sm font-medium text-white">{opt.label}</span>
                   <span className="text-sm font-bold text-[#0D7377]">{formatWan(opt.base_amount)}万</span>
                 </div>
                 <p className="text-xs text-[#4B4B6A] mb-3">{opt.description}</p>
@@ -358,7 +347,6 @@ export default function BudgetPlanning() {
                   disabled={signingSponsor}
                   className="btn-primary w-full text-xs py-1.5 flex items-center justify-center gap-1 disabled:opacity-50"
                 >
-                  {signingSponsor ? <Loader className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
                   选择此赞助商
                 </button>
               </div>

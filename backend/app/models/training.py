@@ -133,6 +133,7 @@ class TrainingResult(Base):
     attribute_gains: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)  # {sho: 0.08, ...}
     before_attributes: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)  # 训练前快照
     after_attributes: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)  # 训练后快照
+    attribute_progress: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)  # 训练后小数进度快照
     
     # 体力与疲劳
     fitness_before: Mapped[int] = mapped_column(Integer, nullable=False)

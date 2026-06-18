@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import type { PlayerListItem } from '../../types/player'
 import { Card } from '../../components/ui/Card'
-import { Tree } from '../../components/ui/pixel-icons'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { YouthTabs } from '../../components/youth/YouthTabs'
 
@@ -42,7 +41,6 @@ export default function YoungPlayers() {
   return (
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader
-        icon={Tree}
         title="年轻球员"
         subtitle={`球队中 ${YOUNG_AGE_THRESHOLD} 岁及以下球员`}
       />

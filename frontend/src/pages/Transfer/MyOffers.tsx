@@ -1,12 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import {
-  Loader,
   ChevronLeft,
   ChevronRight,
-  Send,
-  CornerUpRight,
   Eye,
 } from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
@@ -98,19 +95,17 @@ export default function MyOffers() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader icon={Send} title="我的报价" subtitle="查看发出的报价" />
+      <PageHeader title="我的报价" subtitle="查看发出的报价" />
 
       <TransferTabs />
 
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader className="w-6 h-6 text-[#0D7377] animate-spin" />
-          <span className="ml-2 text-sm text-[#8B8BA7]">加载中...</span>
+        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
+          加载中...
         </div>
       )}
       {error && (
         <div className="flex items-center gap-2 p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-          <AlertTriangle className="w-4 h-4" />
           {error}
         </div>
       )}
@@ -125,16 +120,6 @@ export default function MyOffers() {
             <div className="space-y-3">
               {offers.map((o) => (
                 <div key={o.offer_id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
-                  <div className={clsx(
-                    'w-8 h-8 flex items-center justify-center border-2',
-                    o.offer_kind === 'INITIAL' ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' :
-                    o.offer_kind === 'COUNTER' ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400' :
-                    'bg-purple-500/20 border-purple-500/30 text-purple-400'
-                  )}>
-                    {o.offer_kind === 'INITIAL' ? <Send className="w-4 h-4" /> :
-                     o.offer_kind === 'COUNTER' ? <CornerUpRight className="w-4 h-4" /> :
-                     <Send className="w-4 h-4" />}
-                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">
                       <Link to={`/players/${o.player_id}`} className="hover:text-[#0D7377] transition-colors">
@@ -220,9 +205,8 @@ export default function MyOffers() {
             <div className="p-4 space-y-4">
               {finalSuccess ? (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <Send className="w-5 h-5" />
-                    <span className="font-bold">最终报价发送成功！</span>
+                  <div className="text-emerald-400 font-bold">
+                    最终报价发送成功！
                   </div>
                   <p className="text-sm text-[#8B8BA7]">
                     报价金额: <span className="text-white font-bold">{finalAmount}万</span>
@@ -248,7 +232,6 @@ export default function MyOffers() {
                   </div>
                   {finalError && (
                     <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-                      <AlertTriangle className="w-4 h-4" />
                       {finalError}
                     </div>
                   )}

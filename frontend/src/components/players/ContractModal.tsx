@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, FileText, AlertTriangle } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import Button from '../ui/Button'
 import { Card } from '../ui/Card'
@@ -107,7 +107,6 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
       <div className="w-full max-w-lg">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-[#0D7377]" />
             {isRenewal ? '续约合同' : isRookie ? '新人合同 (ROOKIE)' : '新签合同'}
           </h2>
           <button onClick={onClose} className="text-[#8B8BA7] hover:text-white">
@@ -241,13 +240,10 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
                   </span>
                 </div>
                 {preview.warnings.length > 0 && (
-                  <div className="flex items-start gap-1.5 text-amber-400 pt-2 border-t border-[#2D2D44]">
-                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                    <div className="space-y-1">
-                      {preview.warnings.map((w, i) => (
-                        <p key={i}>{w}</p>
-                      ))}
-                    </div>
+                  <div className="space-y-1 text-amber-400 pt-2 border-t border-[#2D2D44]">
+                    {preview.warnings.map((w, i) => (
+                      <p key={i}>{w}</p>
+                    ))}
                   </div>
                 )}
               </div>

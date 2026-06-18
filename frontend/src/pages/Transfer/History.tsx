@@ -1,11 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle } from 'lucide-react'
 import {
-  Transfer,
-  TrendingUp,
-  TrendingDown,
-  Loader,
   ChevronLeft,
   ChevronRight,
 } from '../../components/ui/pixel-icons'
@@ -64,29 +59,26 @@ export default function TransferHistory() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader icon={Transfer} title="转会历史" subtitle="转会历史记录" />
+      <PageHeader title="转会历史" subtitle="转会历史记录" />
 
       <TransferTabs />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="w-4 h-4 text-red-400" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">总支出</span>
           </div>
           <p className="text-2xl font-bold text-red-400 stat-number">{(totalIn / 10000).toFixed(1)}万</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">总收入</span>
           </div>
           <p className="text-2xl font-bold text-emerald-400 stat-number">{(totalOut / 10000).toFixed(1)}万</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <Transfer className="w-4 h-4 text-[#0D7377]" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">净投入</span>
           </div>
           <p className={clsx('text-2xl font-bold stat-number', totalIn - totalOut > 0 ? 'text-red-400' : 'text-emerald-400')}>
@@ -96,14 +88,12 @@ export default function TransferHistory() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader className="w-6 h-6 text-[#0D7377] animate-spin" />
-          <span className="ml-2 text-sm text-[#8B8BA7]">加载中...</span>
+        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
+          加载中...
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-          <AlertTriangle className="w-4 h-4" />
+        <div className="p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
           {error}
         </div>
       )}

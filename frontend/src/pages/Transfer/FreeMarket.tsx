@@ -1,12 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { AlertTriangle, Funnel, X, Check } from 'lucide-react'
+import { X } from 'lucide-react'
 import { 
-  Clock,
-  WarningDiamond,
   ChevronLeft,
   ChevronRight,
   Loader,
-  UserPlus
 } from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -188,15 +185,13 @@ export default function FreeMarket() {
   return (
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader
-        icon={UserPlus}
         title="自由市场"
         subtitle="签约自由球员"
         action={
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-3 py-2 bg-[#12121A] border-2 border-[#2D2D44] text-sm text-[#8B8BA7] hover:text-white hover:border-[#0D7377]/50 transition-colors"
+            className="px-3 py-2 bg-[#12121A] border-2 border-[#2D2D44] text-sm text-[#8B8BA7] hover:text-white hover:border-[#0D7377]/50 transition-colors"
           >
-            <Funnel className="w-4 h-4" />
             筛选
           </button>
         }
@@ -205,8 +200,7 @@ export default function FreeMarket() {
       <TransferTabs />
 
       {/* 提示 */}
-      <div className="flex items-center gap-3 p-3 bg-yellow-500/10 border-2 border-yellow-500/30">
-        <WarningDiamond className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+      <div className="p-3 bg-yellow-500/10 border-2 border-yellow-500/30">
         <p className="text-sm text-yellow-400">
           每48小时内最多从自由市场签约2名球员。价格每24小时自动下调5%。
         </p>
@@ -270,14 +264,12 @@ export default function FreeMarket() {
 
       {/* 加载 & 错误 */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader className="w-6 h-6 text-[#0D7377] animate-spin" />
-          <span className="ml-2 text-sm text-[#8B8BA7]">加载中...</span>
+        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
+          加载中...
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-          <AlertTriangle className="w-4 h-4" />
+        <div className="p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
           {error}
         </div>
       )}
@@ -321,8 +313,7 @@ export default function FreeMarket() {
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t-2 border-[#2D2D44]">
-                  <span className="text-xs text-[#4B4B6A] flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
+                  <span className="text-xs text-[#4B4B6A]">
                     第{p.listed_at_day}天上架
                   </span>
                   <button
@@ -388,16 +379,14 @@ export default function FreeMarket() {
               )}
 
               {previewError && (
-                <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-                  <AlertTriangle className="w-4 h-4" />
+                <div className="p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
                   {previewError}
                 </div>
               )}
 
               {signSuccess && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <Check className="w-5 h-5" />
+                  <div className="text-emerald-400">
                     <span className="font-bold">签约完成！</span>
                   </div>
                   <div className="space-y-2 text-sm text-[#8B8BA7]">
@@ -454,8 +443,7 @@ export default function FreeMarket() {
                   {preview.warnings.length > 0 && (
                     <div className="space-y-1">
                       {preview.warnings.map((w, i) => (
-                        <p key={i} className="text-xs text-yellow-400 flex items-start gap-1">
-                          <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                        <p key={i} className="text-xs text-yellow-400">
                           {w}
                         </p>
                       ))}

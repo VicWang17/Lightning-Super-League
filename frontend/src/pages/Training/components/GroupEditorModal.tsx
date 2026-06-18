@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Dialog } from '@headlessui/react'
-import { Cancel as X, Users, Check } from '../../../components/ui/pixel-icons'
+import { Cancel as X } from '../../../components/ui/pixel-icons'
+import { FatigueStatus } from '../../../components/ui/FatigueStatus'
 import type { PlanGroup, PlayerFatigueItem, TrainingMode } from '../../../types/training'
 
 interface Props {
@@ -75,6 +76,12 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
   }
 
   const modeLabel = mode === 'groups_2' ? '双组训练' : mode === 'groups_3' ? '三组专项' : '全队统一'
+
+  function fatigueLabel(fatigue: number) {
+    if (fatigue <= 35) return '精神'
+    if (fatigue <= 70) return '正常'
+    return '疲劳'
+  }
 
   if (!isOpen) return null
 
@@ -162,10 +169,8 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                                     {p?.player_name || pid.slice(0, 6)}
                                   </div>
                                   {p && (
-                                    <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-                                      <span style={{ color: p.fatigue > 70 ? '#D75A4A' : '#8B8BA7', fontSize: 10, fontWeight: 900 }}>
-                                        疲劳 {p.fatigue}%
-                                      </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                                      <FatigueStatus fatigue={p.fatigue} size={14} />
                                       {!p.can_high_intensity && (
                                         <span style={{ color: '#D75A4A', fontSize: 10, fontWeight: 900 }}>
                                           不宜高强度
@@ -216,7 +221,7 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                             <option value="">＋ 添加球员到该组</option>
                             {available.map(p => (
                               <option key={p.player_id} value={p.player_id}>
-                                {p.player_name}（疲劳{p.fatigue}%）
+                                {p.player_name}（{fatigueLabel(p.fatigue)}）
                               </option>
                             ))}
                           </select>
@@ -229,7 +234,6 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                 {allPlayerIds.length > 0 && (
                   <div style={{ marginTop: 12, padding: 10, background: 'rgba(99,179,255,0.06)', border: '1px solid rgba(99,179,255,0.2)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#63B3FF', fontSize: 12, fontWeight: 1000 }}>
-                      <Users className="h-4 w-4" />
                       全队共 {allPlayerIds.length} 名球员已分配
                     </div>
                   </div>
@@ -273,7 +277,6 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                   cursor: 'pointer',
                 }}
               >
-                <Check className="h-4 w-4" />
                 保存分组
               </button>
             </div>

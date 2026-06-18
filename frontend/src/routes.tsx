@@ -26,7 +26,6 @@ import Tactics from './pages/Team/Tactics'
 import TrainingWeekly from './pages/Training/Weekly'
 import TrainingCalendar from './pages/Training/Calendar'
 import PlayerFatigue from './pages/Training/Fatigue'
-import TrainingHistory from './pages/Training/History'
 import TrainingProgress from './pages/Training/Progress'
 
 // Match Pages
@@ -178,10 +177,6 @@ export const router = createBrowserRouter([
               {
                 path: 'fatigue',
                 element: <PlayerFatigue />,
-              },
-              {
-                path: 'history',
-                element: <TrainingHistory />,
               },
               {
                 path: 'progress',

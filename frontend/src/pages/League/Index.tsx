@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { Trophy, ChevronRight, Users, Sword as Swords, ChevronLeft } from '../../components/ui/pixel-icons'
+import { ChevronRight } from '../../components/ui/pixel-icons'
 import { LeagueBadge } from '../../components/league/LeagueBadge'
 import { useLeagueSystems, useLeagues } from '../../hooks/useLeagues'
 import api from '../../api/client'
@@ -61,14 +61,8 @@ function LeagueCard({ league }: { league: League }) {
  
  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
  <div className="flex items-center gap-4">
- <div className="flex items-center gap-1.5">
- <Users className="w-4 h-4 text-[#8B8BA7]" />
- <span className="text-sm text-[#8B8BA7]">{league.teams_count || 8} 支球队</span>
- </div>
- <div className="flex items-center gap-1.5">
- <Swords className="w-4 h-4 text-[#8B8BA7]" />
- <span className="text-sm text-[#8B8BA7]">14 轮比赛</span>
- </div>
+ <div className="text-sm text-[#8B8BA7]">{league.teams_count || 8} 支球队</div>
+ <div className="text-sm text-[#8B8BA7]">14 轮比赛</div>
  </div>
  <span className={`text-xs px-2 py-1 rounded-none bg-[#2D2D44] border-2 border-white/10`}>
  {league.level === 1 ? '顶级联赛' : `第${league.level}级别`}
@@ -154,13 +148,11 @@ function LeagueList() {
  <div className="max-w-[1200px]">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
  <PageHeader
- icon={Trophy}
  title="联赛体系"
  subtitle="闪电超级联赛共有 4 个联赛体系，32 个联赛，256 支球队"
  />
@@ -179,13 +171,6 @@ function LeagueList() {
  ...systems.map(system => ({
  value: system.code,
  label: system.name,
- icon: () => (
- <LeagueBadge
- systemCode={system.code}
- size="sm"
- title={`${system.name} 徽章`}
- />
- ),
  })),
  ]}
  value={selectedSystem ?? 'all'}

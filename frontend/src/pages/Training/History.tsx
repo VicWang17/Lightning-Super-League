@@ -1,18 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
-import { ClipboardNote, Zap, Target, Shield, Clock, TrendingUp } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import type { TrainingResultItem } from '../../types/training'
 import { Card } from '../../components/ui/Card'
 import { TrainingPageShell } from './components/TrainingPageShell'
-
-const categoryIcons: Record<string, React.ElementType> = {
-  '战术': Target,
-  '技术': Zap,
-  '恢复': Clock,
-  'tactic': Target,
-  'technical': Zap,
-  'recovery': Clock,
-}
 
 const categoryColors: Record<string, string> = {
   '战术': 'text-blue-400 bg-blue-500/10 border-blue-500/30',
@@ -119,28 +109,24 @@ export default function TrainingHistory() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <div className="flex items-center gap-2 mb-2">
-            <ClipboardNote className="w-4 h-4 text-[#0D7377]" />
             <span className="text-sm text-[#8B8BA7]">总训练人次</span>
           </div>
           <p className="text-2xl font-bold text-white">{totalSessions} 次</p>
         </Card>
         <Card>
           <div className="flex items-center gap-2 mb-2">
-            <Zap className="w-4 h-4 text-yellow-500" />
             <span className="text-sm text-[#8B8BA7]">技术训练</span>
           </div>
           <p className="text-2xl font-bold text-white">{techCount} 次</p>
         </Card>
         <Card>
           <div className="flex items-center gap-2 mb-2">
-            <Target className="w-4 h-4 text-blue-400" />
             <span className="text-sm text-[#8B8BA7]">战术训练</span>
           </div>
           <p className="text-2xl font-bold text-white">{tacticCount} 次</p>
         </Card>
         <Card>
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
             <span className="text-sm text-[#8B8BA7]">属性突破</span>
           </div>
           <p className="text-2xl font-bold text-white">{totalBreakthroughs} 次</p>
@@ -170,12 +156,8 @@ export default function TrainingHistory() {
         ) : (
           <div className="space-y-3">
             {filtered.map(r => {
-              const Icon = categoryIcons[r.category] || Shield
               return (
                 <div key={r.training_item_id} className="flex items-center gap-4 bg-[#0A0A0F] border border-[#2D2D44] p-4">
-                  <div className={`w-10 h-10 flex items-center justify-center border ${categoryColors[r.category]}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-white font-medium">{r.training_item_name}</p>

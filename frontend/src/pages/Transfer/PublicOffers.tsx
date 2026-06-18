@@ -1,12 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle } from 'lucide-react'
 import {
-  Loader,
   ChevronLeft,
   ChevronRight,
   Eye,
-  Inbox,
 } from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -47,19 +44,17 @@ export default function PublicOffers() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader icon={Inbox} title="公开报价" subtitle="查看收到的报价" />
+      <PageHeader title="公开报价" subtitle="查看收到的报价" />
 
       <TransferTabs />
 
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader className="w-6 h-6 text-[#0D7377] animate-spin" />
-          <span className="ml-2 text-sm text-[#8B8BA7]">加载中...</span>
+        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
+          加载中...
         </div>
       )}
       {error && (
         <div className="flex items-center gap-2 p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-          <AlertTriangle className="w-4 h-4" />
           {error}
         </div>
       )}

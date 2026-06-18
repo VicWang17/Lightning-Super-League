@@ -4,15 +4,7 @@ import { clsx } from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Mail as MailIcon,
-  MailOpen,
-  Trophy,
-  Calendar,
-  Building,
-  Wallet,
-  Server,
-  Transfer as ArrowLeftRight,
   Check,
-  CheckDouble,
   ChevronRight,
   SquareAlert,
   ArrowBigUp,
@@ -31,15 +23,14 @@ import {
 const CATEGORY_CONFIG: {
   key: MailCategory | 'all'
   label: string
-  icon: React.ElementType
 }[] = [
-  { key: 'all', label: '全部邮件', icon: MailIcon },
-  { key: MailCategory.MATCH_PREVIEW, label: MAIL_CATEGORY_LABELS[MailCategory.MATCH_PREVIEW], icon: Calendar },
-  { key: MailCategory.MATCH_RESULT, label: MAIL_CATEGORY_LABELS[MailCategory.MATCH_RESULT], icon: Trophy },
-  { key: MailCategory.SPONSOR, label: MAIL_CATEGORY_LABELS[MailCategory.SPONSOR], icon: Building },
-  { key: MailCategory.TRANSFER, label: MAIL_CATEGORY_LABELS[MailCategory.TRANSFER], icon: ArrowLeftRight },
-  { key: MailCategory.FINANCE, label: MAIL_CATEGORY_LABELS[MailCategory.FINANCE], icon: Wallet },
-  { key: MailCategory.SYSTEM, label: MAIL_CATEGORY_LABELS[MailCategory.SYSTEM], icon: Server },
+  { key: 'all', label: '全部邮件' },
+  { key: MailCategory.MATCH_PREVIEW, label: MAIL_CATEGORY_LABELS[MailCategory.MATCH_PREVIEW] },
+  { key: MailCategory.MATCH_RESULT, label: MAIL_CATEGORY_LABELS[MailCategory.MATCH_RESULT] },
+  { key: MailCategory.SPONSOR, label: MAIL_CATEGORY_LABELS[MailCategory.SPONSOR] },
+  { key: MailCategory.TRANSFER, label: MAIL_CATEGORY_LABELS[MailCategory.TRANSFER] },
+  { key: MailCategory.FINANCE, label: MAIL_CATEGORY_LABELS[MailCategory.FINANCE] },
+  { key: MailCategory.SYSTEM, label: MAIL_CATEGORY_LABELS[MailCategory.SYSTEM] },
 ]
 
 function CategoryBadge({ category }: { category: MailCategory }) {
@@ -198,7 +189,6 @@ export default function MailPage() {
       <aside className="w-56 shrink-0 flex flex-col gap-3">
         {/* 标题 */}
         <div className="flex items-center gap-3 px-1">
-          <MailIcon className="w-6 h-6 text-[#C6F135]" />
           <h1 className="text-xl font-bold pixel-title">邮件中心</h1>
           {mails && mails.unread_count > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-[#C6F135] text-[#0A0A0F] border-2 border-[#14532D]">
@@ -212,7 +202,6 @@ export default function MailPage() {
           onClick={handleMarkAllRead}
           className="w-full px-4 py-2.5 bg-[#C6F135] text-[#0A0A0F] font-bold text-sm border-2 border-[#14532D] shadow-pixel-green hover:brightness-110 transition-all flex items-center justify-center gap-2"
         >
-          <CheckDouble className="w-4 h-4" />
           全部已读
         </button>
 
@@ -259,7 +248,6 @@ export default function MailPage() {
                     : 'text-[#8B8BA7] border-transparent hover:bg-[#1E1E2D] hover:text-white'
                 )}
               >
-                <cat.icon className="w-4 h-4 shrink-0" />
                 <span className="flex-1 text-left font-medium">{cat.label}</span>
                 {unread > 0 && (
                   <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[#C6F135] text-[#0A0A0F] min-w-[1.25rem] text-center">
@@ -294,7 +282,6 @@ export default function MailPage() {
               onClick={handleMarkAllRead}
               className="text-xs text-[#0D7377] hover:text-[#C6F135] transition-colors flex items-center gap-1"
             >
-              <Check className="w-3 h-3" />
               标记全部已读
             </button>
           )}
@@ -308,7 +295,6 @@ export default function MailPage() {
             </div>
           ) : !mails || mails.items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-[#8B8BA7]">
-              <MailOpen className="w-16 h-16 text-[#2D2D44] mb-4" />
               <p className="text-sm">暂无邮件</p>
               <p className="text-xs text-[#4B4B6A] mt-1">比赛、转会、财务等通知将在这里显示</p>
             </div>

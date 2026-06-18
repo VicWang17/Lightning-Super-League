@@ -488,6 +488,12 @@ body .training-slot-block.is-match {
   background: rgba(8, 16, 26, 0.8);
 }
 
+body .training-slot-block.is-locked {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: grayscale(60%);
+}
+
 body .training-slot-block.is-edited::after {
   content: '';
   position: absolute;

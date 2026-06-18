@@ -19,6 +19,9 @@
     --skin-panel-2: #0D0B07;
     --skin-border: #14532D;
     --skin-border-strong: #14532D;
+    --skin-border-highlight: #2F7A48;
+    --skin-border-shadow: #0B2D1A;
+    --skin-border-outline: #071A0F;
     --skin-accent: #B8E532;
     --skin-accent-soft: #9ECF45;
     --skin-accent-dark: #0C1A0D;
@@ -35,6 +38,9 @@
     --skin-panel-2: #0A101A;
     --skin-border: #222A38;
     --skin-border-strong: #2B3C55;
+    --skin-border-highlight: #3E5878;
+    --skin-border-shadow: #111A28;
+    --skin-border-outline: #03070D;
     --skin-accent: #63B3FF;
     --skin-accent-soft: #3D8FE6;
     --skin-accent-dark: #0A1B2E;
@@ -605,37 +611,57 @@
   }
 
   /* 像素卡片样式 */
-  .card {
-    @apply bg-[#0D0B07] border-2 border-[#14532D] p-6 relative;
-    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+  .card,
+  .pixel-card-frame {
+    position: relative;
+    background: linear-gradient(180deg, #11130E 0%, #0D0B07 100%) !important;
+    box-shadow:
+      inset 2px 2px 0 var(--skin-border-highlight),
+      inset -2px -2px 0 var(--skin-border-shadow),
+      0 0 0 2px var(--skin-border-outline),
+      5px 5px 0 #030805;
   }
 
-  /* 像素卡片四角装饰 */
+  .card {
+    @apply border-2 border-[#14532D] p-6;
+  }
+
+  /* 草绿色角钉只用于主要卡片，不扩散到输入框和列表分隔线 */
   .card::before,
-  .card::after {
+  .card::after,
+  .pixel-card-frame::before,
+  .pixel-card-frame::after {
     content: '';
     position: absolute;
-    width: 6px;
-    height: 6px;
+    z-index: 1;
+    width: 4px;
+    height: 4px;
     background: #B8E532;
+    box-shadow: 0 0 0 1px #071A0F;
     pointer-events: none;
   }
-  .card::before {
+  .card::before,
+  .pixel-card-frame::before {
     top: -2px;
     left: -2px;
   }
-  .card::after {
+  .card::after,
+  .pixel-card-frame::after {
     bottom: -2px;
     right: -2px;
   }
 
   .card-hover {
     @apply hover:border-[#B8E532]/60 transition-all duration-normal;
-    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
   }
 
-  .card-hover:hover {
-    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.6);
+  .card-hover:hover,
+  .pixel-card-interactive:hover {
+    box-shadow:
+      inset 2px 2px 0 #3C9257,
+      inset -2px -2px 0 var(--skin-border-shadow),
+      0 0 0 2px var(--skin-border-outline),
+      7px 7px 0 #020503;
     transform: translate(-2px, -2px);
   }
 
@@ -1863,8 +1889,10 @@
   }
 
   .profile-panel {
-    border: none;
-    background: transparent;
+    border: 2px solid var(--skin-border);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.015), transparent),
+      rgba(5,6,9,0.60);
     padding: 16px 18px;
     box-shadow: none;
   }
@@ -1906,8 +1934,8 @@
   }
 
   .performance-strip div {
-    border: none;
-    background: rgba(7, 8, 10, 0.40);
+    border: 2px solid var(--skin-border);
+    background: rgba(7, 8, 10, 0.55);
     padding: 9px 10px;
   }
 
@@ -1935,8 +1963,9 @@
   }
 
   .profile-stat-columns > div {
-    border-left: 3px solid var(--skin-border-strong);
-    padding-left: 14px;
+    border: 2px solid var(--skin-border);
+    background: rgba(7, 8, 10, 0.55);
+    padding: 12px 14px;
   }
 
   .profile-stat-columns h3,
@@ -2033,8 +2062,8 @@
   }
 
   .ability-cluster {
-    border: none;
-    background: rgba(5,6,9,0.40);
+    border: 2px solid var(--skin-border);
+    background: rgba(5,6,9,0.60);
     padding: 16px;
   }
 
@@ -2136,6 +2165,9 @@
 
   .career-table-wrap {
     overflow-x: auto;
+    border: 2px solid var(--skin-border);
+    background: rgba(5,6,9,0.40);
+    padding: 10px;
   }
 
   .career-table {
@@ -2167,8 +2199,8 @@
 
   .career-empty-note {
     margin-top: 16px;
-    border: none;
-    background: rgba(5,6,9,0.40);
+    border: 2px solid var(--skin-border);
+    background: rgba(5,6,9,0.60);
     padding: 12px 14px;
     font-size: 13px;
     font-weight: 800;
@@ -2182,8 +2214,8 @@
 
   .record-tile {
     min-height: 120px;
-    border: none;
-    background: rgba(5,6,9,0.40);
+    border: 2px solid var(--skin-border);
+    background: rgba(5,6,9,0.60);
     padding: 14px;
     display: flex;
     flex-direction: column;
@@ -2259,6 +2291,9 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    border: 2px solid var(--skin-border);
+    background: rgba(5,6,9,0.60);
+    padding: 10px 12px;
   }
 
   .timeline-season {
@@ -2771,8 +2806,8 @@
   }
 
   .intel-panel {
-    border: none;
-    background: rgba(5,6,9,0.40);
+    border: 2px solid var(--skin-border);
+    background: rgba(5,6,9,0.60);
     box-shadow: none;
   }
 
@@ -4235,9 +4270,13 @@
 
 /* === 全游戏统一主体内容面板 === */
 .panel {
-  background-color: #0D0B07 !important;
+  background: linear-gradient(180deg, #11130E 0%, #0D0B07 100%) !important;
   border: 2px solid #14532D !important;
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45) !important;
+  box-shadow:
+    inset 2px 2px 0 #2F7A48,
+    inset -2px -2px 0 #0B2D1A,
+    0 0 0 2px #071A0F,
+    5px 5px 0 #030805 !important;
   padding: 1rem;
 }
 

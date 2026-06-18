@@ -1,16 +1,8 @@
-import { useEffect, useMemo, useState, type ElementType } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Calendar,
   ChevronRight,
-  Clock,
   Mailbox,
-  Shield,
-  Sword as Swords,
-  Target,
-  Trophy,
-  Users,
-  Wallet,
   Zap,
 } from '../../components/ui/pixel-icons'
 import api from '../../api/client'
@@ -122,12 +114,10 @@ function FormIndicator({ form }: { form: string }) {
 function StatusTile({
   label,
   value,
-  icon: Icon,
   tone = 'default',
 }: {
   label: string
   value: string
-  icon: ElementType
   tone?: 'default' | 'green' | 'amber'
 }) {
   const toneClass = {
@@ -137,10 +127,7 @@ function StatusTile({
   }[tone]
 
   return (
-    <div className={`pixel-panel flex items-center gap-3 p-3 ${toneClass}`}>
-      <div className="flex h-10 w-10 items-center justify-center border-2 border-[#070907] bg-[#070907]">
-        <Icon className="h-5 w-5" />
-      </div>
+    <div className={`pixel-panel p-3 ${toneClass}`}>
       <div className="min-w-0">
         <p className="text-[11px] uppercase tracking-wider text-white/45">{label}</p>
         <p className="truncate text-sm font-bold">{value}</p>
@@ -178,13 +165,11 @@ function PlayerActivityRow({ activity }: { activity: PlayerActivity }) {
 }
 
 function ManagerTask({
-  icon: Icon,
   title,
   detail,
   to,
   urgent,
 }: {
-  icon: ElementType
   title: string
   detail: string
   to: string
@@ -195,15 +180,6 @@ function ManagerTask({
       to={to}
       className={`task-note group ${urgent ? 'task-note-urgent' : ''}`}
     >
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 ${
-          urgent
-            ? 'border-[#6B4C25] bg-[#3B270D] text-[#FFE2A1]'
-            : 'border-[#5E6B3B] bg-[#11141A] text-[#CDEB7B]'
-        }`}
-      >
-        <Icon className="h-5 w-5" />
-      </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-[#E8EAD8]">{title}</p>
         <p className="truncate text-xs font-medium text-[#9CA77A]">{detail}</p>
@@ -374,26 +350,22 @@ function Dashboard() {
 
   const taskItems = [
     {
-      icon: Swords,
       title: nextMatch ? '确认比赛计划' : '制定本周训练',
       detail: nextMatch ? `${nextMatch.date} 对阵 ${nextMatch.opponent}` : '根据体能和阵容短板安排课程',
       to: nextMatch ? '/match/pre' : '/training/weekly',
       urgent: !!nextMatch,
     },
     {
-      icon: Target,
       title: '检查战术板',
       detail: team ? `进攻 ${team.attack || '-'} / 中场 ${team.midfield || '-'} / 防守 ${team.defense || '-'}` : '暂无球队能力数据',
       to: '/team/tactics',
     },
     {
-      icon: Users,
       title: '巡视更衣室',
       detail: players.length > 0 ? `${players.length} 名球员已载入` : '暂无球员数据',
       to: '/team/players',
     },
     {
-      icon: Wallet,
       title: '查看董事会预算',
       detail: '工资帽、青训投入与赛季盈亏',
       to: '/finance',
@@ -429,15 +401,14 @@ function Dashboard() {
                 {currentActivity.action}
               </Link>
               <Link to="/team/players" className="btn-secondary inline-flex items-center gap-2">
-                <Users className="h-4 w-4" />
                 查看球员状态
               </Link>
             </div>
           </div>
 
           <div className="grid content-end gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <StatusTile label="当前状态" value={currentActivity.status} icon={Clock} tone={nextMatch ? 'green' : 'amber'} />
-            <StatusTile label="联赛排名" value={`${leaguePosition}${typeof points === 'number' ? ` · ${points} 分` : ''}`} icon={Trophy} />
+            <StatusTile label="当前状态" value={currentActivity.status} tone={nextMatch ? 'green' : 'amber'} />
+            <StatusTile label="联赛排名" value={`${leaguePosition}${typeof points === 'number' ? ` · ${points} 分` : ''}`} />
             <StatusTile
               label="赛季战绩"
               value={
@@ -445,7 +416,6 @@ function Dashboard() {
                   ? `${won}-${drawn}-${lost}${winRate !== null ? ` · 胜率 ${winRate}%` : ''}`
                   : '暂无战绩'
               }
-              icon={Swords}
             />
           </div>
         </div>
@@ -515,10 +485,7 @@ function Dashboard() {
         <aside className="console-right">
           <section className="fixture-brief">
             <div className="console-heading amber">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-[#FFE2A1]" />
-                <h2 className="text-lg font-black text-[#F7E9C6]">下一场比赛</h2>
-              </div>
+              <h2 className="text-lg font-black text-[#F7E9C6]">下一场比赛</h2>
               <span className="ticket-serial">LSL-{stats?.next_match?.day || '---'}</span>
             </div>
             {nextMatch ? (
@@ -530,9 +497,7 @@ function Dashboard() {
                   </div>
                   <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                     <div className="min-w-0 text-center">
-                      <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]">
-                        <Shield className="h-6 w-6 text-[#CDEB7B]" />
-                      </div>
+                      <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]" />
                       <p className="truncate text-sm font-bold text-[#F7E9C6]">{team?.short_name || team?.name || '我的球队'}</p>
                       <p className="text-xs text-[#BFA56B]">{nextMatch.isHome ? '主场' : '客场'}</p>
                     </div>
@@ -541,16 +506,13 @@ function Dashboard() {
                       <p className="mt-1 text-[10px] font-black text-[#8A6B34]">赛程</p>
                     </div>
                     <div className="min-w-0 text-center">
-                      <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]">
-                        <Trophy className="h-6 w-6 text-[#D7A94A]" />
-                      </div>
+                      <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]" />
                       <p className="truncate text-sm font-bold text-[#F7E9C6]">{nextMatch.opponent}</p>
                       <p className="text-xs text-[#BFA56B]">{nextMatch.isHome ? '客场' : '主场'}</p>
                     </div>
                   </div>
                 </div>
                 <Link to="/match/pre" className="btn-primary mt-3 flex w-full items-center justify-center gap-2 py-2.5">
-                  <Swords className="h-4 w-4" />
                   赛前准备
                 </Link>
               </>
@@ -586,13 +548,12 @@ function Dashboard() {
           <h2 className="text-base font-black text-[#E8EAD8]">快速前往</h2>
           <div className="quick-rail-links">
             {[
-              { label: '战术板', to: '/team/tactics', icon: Target },
-              { label: '更衣室', to: '/team/players', icon: Users },
-              { label: '联赛', to: leagueId ? `/leagues/${leagueId}` : '/leagues', icon: Trophy },
-              { label: '转会市场', to: '/transfer', icon: Wallet },
+              { label: '战术板', to: '/team/tactics' },
+              { label: '更衣室', to: '/team/players' },
+              { label: '联赛', to: leagueId ? `/leagues/${leagueId}` : '/leagues' },
+              { label: '转会市场', to: '/transfer' },
             ].map((item) => (
               <Link key={item.label} to={item.to} className="quick-dock-key">
-                <item.icon className="h-4 w-4 text-[#CDEB7B]" />
                 {item.label}
               </Link>
             ))}

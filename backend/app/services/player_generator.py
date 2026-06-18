@@ -668,12 +668,18 @@ class AttributeGenerator:
 
     @staticmethod
     def calculate_ovr(position: PlayerPosition, attrs: dict) -> int:
+        return int(round(AttributeGenerator.calculate_ovr_decimal(position, attrs)))
+
+    @staticmethod
+    def calculate_ovr_decimal(position: PlayerPosition, attrs: dict, progress: dict | None = None) -> float:
+        """计算带小数进度的 OVR，用于成长曲线等需要精确值的场景。"""
         weights = OVR_WEIGHTS[position]
         weight_total = sum(weight for weight in weights.values() if weight > 0)
         if weight_total <= 0:
-            return 0
-        total = sum((attrs.get(k, 10) / 20.0) * w for k, w in weights.items())
-        return int(round((total / weight_total) * 100))
+            return 0.0
+        progress = progress or {}
+        total = sum(((attrs.get(k, 10) + progress.get(k, 0.0)) / 20.0) * w for k, w in weights.items())
+        return (total / weight_total) * 100
 
     @staticmethod
     def _pick_attribute_profile(style: str, base_ovr: int) -> str:

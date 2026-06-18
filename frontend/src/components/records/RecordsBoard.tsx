@@ -4,10 +4,7 @@ import { clsx } from 'clsx'
 import Avatar from '../ui/Avatar'
 import {
   User,
-  Users,
-  Sword,
   ExternalLink,
-  Target,
 } from '../../components/ui/pixel-icons'
 import {
   RecordCategory,
@@ -23,41 +20,17 @@ export interface RecordsBoardProps {
   emptyText?: string
 }
 
-const CATEGORY_ICONS: Record<RecordCategory, typeof User> = {
-  [RecordCategory.PLAYER]: User,
-  [RecordCategory.TEAM]: Users,
-  [RecordCategory.MATCH]: Sword,
-}
-
-const CATEGORY_ACCENT: Record<RecordCategory, string> = {
-  [RecordCategory.PLAYER]: 'text-[#0D7377] bg-[#0D4A4D]/30 border-[#0D7377]/30',
-  [RecordCategory.TEAM]: 'text-[#3B82F6] bg-[#1E3A8A]/20 border-[#3B82F6]/30',
-  [RecordCategory.MATCH]: 'text-[#D6A619] bg-[#3D2A1A]/40 border-[#D6A619]/30',
-}
-
 function RecordAvatar({ record }: { record: RecordItem }) {
-  if (record.category === RecordCategory.PLAYER) {
-    return (
-      <Avatar
-        src={record.holder_avatar_url ? `/${record.holder_avatar_url}` : undefined}
-        name={record.holder_name}
-        size="sm"
-        fallback={<User className="w-4 h-4 text-[#8B8BA7]" />}
-        className="border-[#2D2D44]"
-      />
-    )
-  }
+  if (record.category !== RecordCategory.PLAYER) return null
 
-  const Icon = record.category === RecordCategory.MATCH ? Sword : Users
   return (
-    <div
-      className={clsx(
-        'w-9 h-9 border-2 flex items-center justify-center shrink-0',
-        CATEGORY_ACCENT[record.category]
-      )}
-    >
-      <Icon className="w-4 h-4" />
-    </div>
+    <Avatar
+      src={record.holder_avatar_url ? `/${record.holder_avatar_url}` : undefined}
+      name={record.holder_name}
+      size="sm"
+      fallback={<User className="w-4 h-4 text-[#8B8BA7]" />}
+      className="border-[#2D2D44]"
+    />
   )
 }
 
@@ -134,7 +107,6 @@ function RecordRow({ record }: { record: RecordItem }) {
 function EmptyState({ text }: { text: string }) {
   return (
     <div className="text-center py-12 border border-dashed border-[#2D2D44]/60 bg-[#12121A]/50">
-      <Target className="w-10 h-10 text-[#4B4B6A] mx-auto mb-3" />
       <p className="text-[#8B8BA7] text-sm">{text}</p>
     </div>
   )
@@ -197,27 +169,23 @@ export function RecordsBoard({
     <div className="space-y-3">
       {categories.length > 1 && (
         <div className="flex gap-1 border-b-2 border-[#2D2D44]">
-          {categories.map((cat) => {
-            const Icon = CATEGORY_ICONS[cat]
-            return (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={clsx(
-                  'flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-0.5 transition-all',
-                  activeCategory === cat
-                    ? 'border-[#C6F135] text-[#C6F135]'
-                    : 'border-transparent text-[#8B8BA7] hover:text-white'
-                )}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {RECORD_CATEGORY_LABELS[cat]}
-                <span className="ml-1 text-[10px] opacity-60">
-                  {records[cat].length}
-                </span>
-              </button>
-            )
-          })}
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={clsx(
+                'flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-0.5 transition-all',
+                activeCategory === cat
+                  ? 'border-[#C6F135] text-[#C6F135]'
+                  : 'border-transparent text-[#8B8BA7] hover:text-white'
+              )}
+            >
+              {RECORD_CATEGORY_LABELS[cat]}
+              <span className="ml-1 text-[10px] opacity-60">
+                {records[cat].length}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 

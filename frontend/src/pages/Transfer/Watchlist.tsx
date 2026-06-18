@@ -1,9 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Eye,
-  Clock
-} from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { api } from '../../api/client'
@@ -38,14 +34,13 @@ export default function Watchlist() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader icon={Eye} title="我的关注" subtitle="关注的球员列表" />
+      <PageHeader title="我的关注" subtitle="关注的球员列表" />
 
       <TransferTabs />
 
       <Card >
         {listings.length === 0 ? (
           <div className="text-center py-12 text-[#4B4B6A]">
-            <Eye className="w-8 h-8 mx-auto mb-3" />
             <p>暂无活跃挂牌</p>
             <p className="text-xs mt-1">转会市场中暂无球员挂牌</p>
           </div>
@@ -62,8 +57,7 @@ export default function Watchlist() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-[#0D7377]">€{(p.list_price / 1000000).toFixed(1)}M</p>
-                  <p className="text-xs text-[#8B8BA7] flex items-center gap-1 justify-end">
-                    <Clock className="w-3 h-3" />
+                  <p className="text-xs text-[#8B8BA7] text-right">
                     市值 €{(p.market_value / 1000000).toFixed(1)}M
                   </p>
                 </div>

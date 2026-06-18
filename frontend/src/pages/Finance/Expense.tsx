@@ -1,12 +1,5 @@
 import { useState, useEffect } from 'react'
-import { 
-  Users,
-  Tree,
-  ToolCase,
-  Transfer,
-  Loader,
-  WarningDiamond
-} from '../../components/ui/pixel-icons'
+import { Loader } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { FinanceTabs } from '../../components/finance/FinanceTabs'
@@ -19,13 +12,13 @@ interface TransactionItem {
   created_at: string
 }
 
-const sourceConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  wage: { label: '球员工资', icon: Users, color: 'text-red-400' },
-  youth: { label: '青训投入', icon: Tree, color: 'text-emerald-400' },
-  transfer: { label: '转会支出', icon: Transfer, color: 'text-yellow-400' },
-  penalty: { label: '罚金', icon: WarningDiamond, color: 'text-orange-400' },
-  facility: { label: '设施维护', icon: ToolCase, color: 'text-blue-400' },
-  manual_adjustment: { label: '系统调整', icon: ToolCase, color: 'text-gray-400' },
+const sourceConfig: Record<string, { label: string }> = {
+  wage: { label: '球员工资' },
+  youth: { label: '青训投入' },
+  transfer: { label: '转会支出' },
+  penalty: { label: '罚金' },
+  facility: { label: '设施维护' },
+  manual_adjustment: { label: '系统调整' },
 }
 
 function formatWan(value: number): string {
@@ -87,7 +80,7 @@ export default function ExpenseDetails() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <PageHeader icon={WarningDiamond} title="支出明细" subtitle="球队各项支出去向明细" />
+      <PageHeader title="支出明细" subtitle="球队各项支出去向明细" />
 
       <FinanceTabs />
 
@@ -102,13 +95,9 @@ export default function ExpenseDetails() {
             <p className="text-sm text-[#4B4B6A]">暂无支出记录</p>
           )}
           {items.map((item) => {
-            const config = sourceConfig[item.source_type] || { label: item.source_type, icon: ToolCase, color: 'text-gray-400' }
-            const Icon = config.icon
+            const config = sourceConfig[item.source_type] || { label: item.source_type }
             return (
               <div key={item.id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
-                <div className="w-10 h-10 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center">
-                  <Icon className={clsx('w-5 h-5', config.color)} />
-                </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-white">{item.description || config.label}</p>
                   <p className="text-xs text-[#4B4B6A]">{formatDate(item.created_at)}</p>
@@ -123,6 +112,4 @@ export default function ExpenseDetails() {
   )
 }
 
-function clsx(...args: (string | false | undefined)[]) {
-  return args.filter(Boolean).join(' ')
-}
+

@@ -1,6 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { ChevronLeft, Transfer, Calendar, Money, Building } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 import { PlayerTabs } from '../../components/players/PlayerTabs'
 import { api } from '../../api/client'
@@ -53,17 +52,15 @@ function PlayerTransfers() {
     <div className="max-w-[1200px]">
       <Link
         to={`/players/${id}`}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回球员档案
       </Link>
 
       <PlayerTabs playerId={id!} />
 
       <Card>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Transfer className="w-5 h-5 text-[#C6F135]" />
+        <h3 className="text-lg font-semibold mb-4">
           转会记录
         </h3>
 
@@ -77,9 +74,6 @@ function PlayerTransfers() {
                 className="flex flex-col md:flex-row md:items-center gap-4 p-4 bg-[#1E1E2D] border border-[#2D2D44]"
               >
                 <div className="flex items-center gap-3 md:w-48">
-                  <div className={`w-2 h-2 ${TRANSFER_TYPE_COLORS[record.transfer_type] || 'text-white'}`}>
-                    <Transfer className="w-5 h-5" />
-                  </div>
                   <span className={`text-sm font-medium ${TRANSFER_TYPE_COLORS[record.transfer_type] || 'text-white'}`}>
                     {TRANSFER_TYPE_NAMES[record.transfer_type] || record.transfer_type}
                   </span>
@@ -87,7 +81,6 @@ function PlayerTransfers() {
 
                 <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
                   <div className="flex items-center gap-2 text-sm">
-                    <Building className="w-4 h-4 text-[#8B8BA7]" />
                     <span className="text-[#8B8BA7]">来自</span>
                     <Link
                       to={record.from_team_id ? `/teams/${record.from_team_id}` : '#'}
@@ -97,13 +90,9 @@ function PlayerTransfers() {
                     </Link>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm">
-                    <Transfer className="w-4 h-4 text-[#8B8BA7]" />
-                    <span className="text-[#8B8BA7]">→</span>
-                  </div>
+                  <div className="text-sm text-[#8B8BA7]">→</div>
 
                   <div className="flex items-center gap-2 text-sm">
-                    <Building className="w-4 h-4 text-[#8B8BA7]" />
                     <span className="text-[#8B8BA7]">前往</span>
                     <Link
                       to={record.to_team_id ? `/teams/${record.to_team_id}` : '#'}
@@ -115,14 +104,12 @@ function PlayerTransfers() {
                 </div>
 
                 <div className="flex items-center gap-4 md:justify-end">
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <Money className="w-4 h-4 text-[#C6F135]" />
+                  <div className="text-sm">
                     <span className="font-bold stat-number pixel-number text-white">
                       €{(record.amount / 1000000).toFixed(1)}M
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-[#8B8BA7]">
-                    <Calendar className="w-3.5 h-3.5" />
+                  <div className="text-xs text-[#8B8BA7]">
                     {new Date(record.completed_at).toLocaleDateString('zh-CN')}
                   </div>
                 </div>

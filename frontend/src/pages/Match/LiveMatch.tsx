@@ -1,9 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  ChevronRight,
-  Zap
-} from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { Card } from '../../components/ui/Card'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -127,7 +123,6 @@ export default function LiveMatch() {
   return (
     <div className="space-y-6 max-w-[1200px]">
       <PageHeader
-        icon={Zap}
         title="比赛直播"
         action={
           <div className="flex items-center gap-3">
@@ -175,8 +170,7 @@ export default function LiveMatch() {
         {/* 文字直播 */}
         <div className="lg:col-span-2">
           <Card >
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-[#0D7377]" />
+            <h3 className="text-lg font-semibold mb-4">
               比赛解说
             </h3>
             <div
@@ -230,7 +224,6 @@ export default function LiveMatch() {
               to={`/match/${match.id}`}
               className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0D7377] border-2 border-[#0A5A5D] text-white text-sm font-medium hover:bg-[#0A5A5D] transition-all"
             >
-              <ChevronRight className="w-4 h-4" />
               查看完整统计
             </Link>
           )}

@@ -119,6 +119,7 @@ export interface TrainingDailySummary {
 export interface PlayerFatigueItem {
   player_id: string
   player_name: string
+  avatar_url?: string
   fitness: number
   fatigue: number
   stamina_preview: number

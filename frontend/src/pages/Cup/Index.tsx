@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { Trophy, ChevronRight, Users, Zap, Sword as Swords, ChevronLeft } from '../../components/ui/pixel-icons'
+import { ChevronRight } from '../../components/ui/pixel-icons'
 import { CupBadge } from '../../components/cup/CupBadge'
 import { useCups } from '../../hooks/useCups'
 import api from '../../api/client'
@@ -56,15 +56,9 @@ function CupCard({ cup }: { cup: CupCompetition }) {
  
  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
  <div className="flex items-center gap-4">
- <div className="flex items-center gap-1.5">
- <Users className="w-4 h-4 text-[#8B8BA7]" />
- <span className="text-sm text-[#8B8BA7]">{cup.total_teams} 支球队</span>
- </div>
- <div className="flex items-center gap-1.5">
- <Swords className="w-4 h-4 text-[#8B8BA7]" />
- <span className="text-sm text-[#8B8BA7]">
+ <div className="text-sm text-[#8B8BA7]">{cup.total_teams} 支球队</div>
+ <div className="text-sm text-[#8B8BA7]">
  {cup.has_group_stage ? '小组赛+淘汰赛' : '淘汰赛'}
- </span>
  </div>
  </div>
  <span className={`text-xs px-2 py-1 rounded-none bg-[#2D2D44] border-2 border-white/10`}>
@@ -117,13 +111,11 @@ function CupList() {
  <div className="max-w-[1200px]">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
  <PageHeader
- icon={Trophy}
  title="杯赛一览"
  subtitle="闪电超级联赛杯赛系统，包含闪电杯和杰尼杯两项赛事"
  />
@@ -132,10 +124,7 @@ function CupList() {
  {myCup && !isAllCupsPage && (
  <div className="mb-8 p-4 bg-[#0D7377]/20 border-2 border-[#0D7377]/30 shadow-pixel-sm">
  <div className="flex items-center justify-between">
- <div className="flex items-center gap-3">
- <Zap className="w-5 h-5 text-[#0D7377]" />
  <span className="text-white font-medium">您正在参加 {myCup.name}</span>
- </div>
  <Link 
  to={`/cups/${myCup.id}`}
  className="px-4 py-2 bg-[#0D7377] text-white text-sm font-bold border-2 hover:bg-[#0A5A5D] transition-colors hover:-translate-x-0.5 hover:-translate-y-0.5"
@@ -155,7 +144,6 @@ function CupList() {
  </>
  ) : cups.length === 0 ? (
  <div className="col-span-2 text-center py-12">
- <Trophy className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
  <h3 className="text-xl font-bold text-white mb-2">暂无杯赛</h3>
  <p className="text-[#8B8BA7]">当前赛季尚未创建杯赛</p>
  </div>

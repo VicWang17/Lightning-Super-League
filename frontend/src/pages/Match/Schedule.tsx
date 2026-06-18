@@ -1,9 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { 
-  Calendar, ChevronLeft, Trophy, MapPin, 
-  Sword as Swords, CircleCheck as CheckCircle
-} from '../../components/ui/pixel-icons'
 import api from '../../api/client'
 import { useSeason } from '../../hooks/useSeason'
 import type { SeasonCalendarDay } from '../../types/season'
@@ -238,11 +234,9 @@ function Schedule() {
  if (error) {
  return (
  <div className="max-w-[1200px] text-center py-20">
- <Calendar className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
  <h2 className="text-xl font-bold text-white mb-2">加载失败</h2>
  <p className="text-[#8B8BA7] mb-6">{error}</p>
  <button onClick={() => navigate(-1)} className="btn-primary inline-flex items-center gap-2">
- <ChevronLeft className="w-4 h-4" />
  返回上一页
  </button>
  </div>
@@ -252,11 +246,9 @@ function Schedule() {
  if (!team) {
  return (
  <div className="max-w-[1200px] text-center py-20">
- <Trophy className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
  <h2 className="text-xl font-bold text-white mb-2">暂无球队</h2>
  <p className="text-[#8B8BA7] mb-6">您还没有创建或加入球队</p>
  <button onClick={() => navigate(-1)} className="btn-primary inline-flex items-center gap-2">
- <ChevronLeft className="w-4 h-4" />
  返回上一页
  </button>
  </div>
@@ -268,14 +260,12 @@ function Schedule() {
  {/* 返回按钮 */}
  <button 
  onClick={() => navigate(-1)}
- className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+ className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
  >
- <ChevronLeft className="w-4 h-4" />
  返回上一页
  </button>
  
  <PageHeader
- icon={Calendar}
  title="赛程安排"
  subtitle={`${team.name} · 第 ${season?.season_number || '-'} 赛季`}
  action={
@@ -290,16 +280,14 @@ function Schedule() {
  {/* 统计卡片 */}
  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
  <div className="card p-4 border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
- <div className="flex items-center gap-2 mb-2">
- <Swords className="w-4 h-4 text-[#0D7377]" />
+ <div className="mb-2">
  <span className="text-xs text-[#8B8BA7]">已赛场次</span>
  </div>
  <p className="text-2xl font-bold pixel-number text-white">{stats.played}</p>
  </div>
  
  <div className="card p-4 border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
- <div className="flex items-center gap-2 mb-2">
- <CheckCircle className="w-4 h-4 text-emerald-400" />
+ <div className="mb-2">
  <span className="text-xs text-[#8B8BA7]">战绩</span>
  </div>
  <p className="text-2xl font-bold pixel-number text-white">
@@ -308,8 +296,7 @@ function Schedule() {
  </div>
  
  <div className="card p-4 border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
- <div className="flex items-center gap-2 mb-2">
- <Trophy className="w-4 h-4 text-amber-400" />
+ <div className="mb-2">
  <span className="text-xs text-[#8B8BA7]">胜率</span>
  </div>
  <p className="text-2xl font-bold pixel-number text-white">
@@ -318,8 +305,7 @@ function Schedule() {
  </div>
  
  <div className="card p-4 border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
- <div className="flex items-center gap-2 mb-2">
- <MapPin className="w-4 h-4 text-[#8B8BA7]" />
+ <div className="mb-2">
  <span className="text-xs text-[#8B8BA7]">净胜球</span>
  </div>
  <p className={`text-2xl font-bold pixel-number ${
@@ -340,7 +326,6 @@ function Schedule() {
  
  {schedule.length === 0 ? (
  <div className="text-center py-12">
- <Calendar className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
  <p className="text-[#8B8BA7]">暂无赛程数据</p>
  </div>
  ) : (

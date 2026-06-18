@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Sword,
-  Shield,
-  Target,
-  Clock,
   ChevronRight
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
@@ -110,7 +106,6 @@ export default function PreMatch() {
   return (
     <div className="space-y-6 max-w-[1200px]">
       <PageHeader
-        icon={Target}
         title="赛前准备"
         subtitle="下一场比赛情报"
         action={
@@ -132,9 +127,8 @@ export default function PreMatch() {
 
           <div className="text-center px-6">
             <p className="text-4xl font-bold pixel-number text-[#0D7377]">VS</p>
-            <div className="flex items-center gap-2 mt-2 text-xs text-[#8B8BA7]">
-              <Clock className="w-3 h-3" />
-              <span>第 {match.season_day} 天</span>
+            <div className="mt-2 text-xs text-[#8B8BA7]">
+              第 {match.season_day} 天
             </div>
             <span className="inline-block mt-2 px-3 py-1 bg-[#0D7377]/20 text-[#0D7377] text-xs border border-[#0D7377]/30">
               {match.fixture_type === 'league' ? `联赛第${match.round_number}轮` : match.fixture_type}
@@ -154,8 +148,7 @@ export default function PreMatch() {
       {lineups && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card >
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Sword className="w-4 h-4 text-[#0D7377]" />
+            <h3 className="text-lg font-semibold mb-4">
               主队阵容
             </h3>
             <div className="space-y-2">
@@ -168,8 +161,7 @@ export default function PreMatch() {
             </div>
           </Card>
           <Card >
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[#0D7377]" />
+            <h3 className="text-lg font-semibold mb-4">
               客队阵容
             </h3>
             <div className="space-y-2">
@@ -186,7 +178,6 @@ export default function PreMatch() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link to="/team/tactics" className="flex items-center gap-3 p-4 bg-[#0A0A0F] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
-          <Target className="w-5 h-5 text-[#0D7377]" />
           <div>
             <p className="text-sm font-medium">调整阵型</p>
             <p className="text-xs text-[#4B4B6A]">当前: {lineups?.home_formation || '-'}</p>
@@ -194,7 +185,6 @@ export default function PreMatch() {
           <ChevronRight className="w-4 h-4 text-[#4B4B6A] ml-auto" />
         </Link>
         <Link to="/team/players" className="flex items-center gap-3 p-4 bg-[#0A0A0F] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
-          <Shield className="w-5 h-5 text-[#0D7377]" />
           <div>
             <p className="text-sm font-medium">更换首发</p>
             <p className="text-xs text-[#4B4B6A]">调整出场球员</p>
@@ -202,7 +192,6 @@ export default function PreMatch() {
           <ChevronRight className="w-4 h-4 text-[#4B4B6A] ml-auto" />
         </Link>
         <Link to="/training/weekly" className="flex items-center gap-3 p-4 bg-[#0A0A0F] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
-          <Sword className="w-5 h-5 text-[#0D7377]" />
           <div>
             <p className="text-sm font-medium">赛前训练</p>
             <p className="text-xs text-[#4B4B6A]">针对性备战</p>

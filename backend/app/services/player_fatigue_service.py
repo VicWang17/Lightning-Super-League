@@ -12,11 +12,12 @@ from app.services.injury_service import InjuryService
 
 
 # 位置疲劳影响系数 (设计文档 5.2)
+# 调高系数：让长期高疲劳真正影响比赛开场体力，100 疲劳时中场约 70%
 _FATIGUE_IMPACT_BY_POSITION = {
-    PlayerPosition.GK: 0.0012,
-    PlayerPosition.DF: 0.0020,
-    PlayerPosition.MF: 0.0026,
-    PlayerPosition.FW: 0.0023,
+    PlayerPosition.GK: 0.0018,
+    PlayerPosition.DF: 0.0025,
+    PlayerPosition.MF: 0.0030,
+    PlayerPosition.FW: 0.0028,
 }
 
 # 疲劳区间与效果 (设计文档 5.3)
@@ -32,15 +33,16 @@ _FATIGUE_BANDS = [
 # 比赛对体力和疲劳的影响 (设计文档 5.5)
 # 格式: (分钟区间): (fitness变化, fatigue变化)
 # fitness + = 恢复, fitness - = 消耗
+# 降低比赛疲劳积累，避免正常轮换下疲劳崩盘
 _MATCH_MINUTES_FITNESS_FATIGUE = {
-    (0, 0): (20, -10),     # 未出场: 恢复20点, 疲劳降低10点
-    (1, 15): (-3, 3),      # 替补15分钟内: 只扣3点, 下轮基本满格
-    (16, 30): (-5, 6),     # 替补30分钟
-    (31, 45): (-8, 10),    # 半场左右
-    (46, 60): (-11, 14),   # 60分钟
-    (61, 75): (-14, 18),   # 75分钟
-    (76, 90): (-18, 24),   # 打满90分钟
-    (91, 999): (-22, 30),  # 加时/点球
+    (0, 0): (20, -15),     # 未出场: 恢复20点, 疲劳降低15点
+    (1, 15): (-3, 2),      # 替补15分钟内: 只扣3点, 下轮基本满格
+    (16, 30): (-5, 4),     # 替补30分钟
+    (31, 45): (-8, 7),     # 半场左右
+    (46, 60): (-11, 10),   # 60分钟
+    (61, 75): (-14, 13),   # 75分钟
+    (76, 90): (-18, 17),   # 打满90分钟
+    (91, 999): (-22, 21),  # 加时/点球
 }
 
 # 比赛强度修正
@@ -147,9 +149,14 @@ class PlayerFatigueService:
             return summary
         
         # 默认恢复体力和疲劳
-        if not had_high_intensity_training:
+        if activity_type == "full_rest":
+            # 完全休息日（无比赛、无训练）恢复更多
+            player.fitness = _clamp(player.fitness + 20)
+            player.fatigue = _clamp(player.fatigue - 20)
+        elif not had_high_intensity_training:
+            # 普通训练日自然恢复
             player.fitness = _clamp(player.fitness + 10)
-            player.fatigue = _clamp(player.fatigue - 8)
+            player.fatigue = _clamp(player.fatigue - 12)
         
         # 伤病恢复倒计时
         recovered = InjuryService.tick_injury_recovery(player)

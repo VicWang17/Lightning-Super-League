@@ -1,15 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { 
-  Trophy, 
   ChevronLeft, 
-  Target,
-  Calendar,
-  TrendingUp,
-  Sword as Swords,
-  Medal,
 } from '../../components/ui/pixel-icons'
-import { LeagueBadge } from '../../components/league/LeagueBadge'
 import { api } from '../../api/client'
 import { useLeagueDetail, useLeagueTable, useLeagueSchedule, useLeagueLeaderboard } from '../../hooks/useLeagues'
 import { useLeagueAwards } from '../../hooks/useAwards'
@@ -179,10 +172,7 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  return (
  <div className="p-3 bg-amber-500/10 border-2 border-amber-500/30 shadow-pixel-sm hover:-translate-y-1 transition-all">
  <div className="flex items-center justify-between mb-2">
- <div className="flex items-center gap-2">
- <Medal className="w-4 h-4 text-amber-400" />
  <span className="text-xs font-medium text-amber-400">{playoff.name}</span>
- </div>
  {isLive && (
  <span className="text-xs px-2 py-0.5 rounded-none bg-red-500 text-white animate-pulse">
  进行中
@@ -304,7 +294,6 @@ function LeagueScheduleList({ matches }: { matches: Match[] }) {
  if (matchdays.length === 0) {
    return (
      <div className="text-center py-12">
-       <Calendar className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
        <p className="text-[#8B8BA7]">暂无赛程数据</p>
      </div>
    )
@@ -375,7 +364,6 @@ function LeagueDetail() {
  if (!league) {
  return (
  <div className="max-w-[1200px] text-center py-20">
- <Trophy className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
  <h2 className="text-xl font-bold text-white mb-2">联赛未找到</h2>
  <p className="text-[#8B8BA7] mb-2">该联赛不存在或已被删除</p>
  {leagueError && (
@@ -383,7 +371,6 @@ function LeagueDetail() {
  )}
  <p className="text-[#4B4B6A] text-xs mb-6">联赛ID: {id || '未提供'}</p>
  <Link to="/leagues" className="btn-primary inline-flex items-center gap-2">
- <ChevronLeft className="w-4 h-4" />
  返回联赛列表
  </Link>
  </div>
@@ -396,30 +383,20 @@ function LeagueDetail() {
  <div className="flex items-center justify-between mb-4">
  <button 
  onClick={() => navigate(-1)}
- className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors"
+ className="text-sm text-[#8B8BA7] hover:text-white transition-colors"
  >
- <ChevronLeft className="w-4 h-4" />
  返回上一页
  </button>
  <Link 
  to="/cups"
- className="inline-flex items-center gap-1 text-sm text-[#0D7377] hover:text-white transition-colors"
+ className="text-sm text-[#0D7377] hover:text-white transition-colors"
  >
- <Swords className="w-4 h-4" />
  查看杯赛
  </Link>
  </div>
 
  {/* 联赛信息头部 */}
  <PageHeader
- icon={() => (
- <LeagueBadge
- systemCode={league.system_code}
- level={league.level}
- size="md"
- title={`${league.name} 徽章`}
- />
- )}
  title={league.name}
  subtitle={`${league.system_name} · 第 ${league.level} 级联赛`}
  />
@@ -427,10 +404,7 @@ function LeagueDetail() {
  {/* 附加赛信息 */}
  {league.playoffs && league.playoffs.length > 0 && (
  <div className="mb-6 p-4 border border-[#2D2D44] bg-[#080B11]">
- <div className="flex items-center gap-2 mb-4">
- <Medal className="w-5 h-5 text-amber-400" />
- <h2 className="text-lg font-semibold text-white">升降级附加赛</h2>
- </div>
+ <h2 className="text-lg font-semibold text-white mb-4">升降级附加赛</h2>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {league.playoffs.map(playoff => (
  <PlayoffCard key={playoff.id} playoff={playoff} />
@@ -443,11 +417,11 @@ function LeagueDetail() {
  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
  <SegmentedTabs
  tabs={[
- { value: 'standings', label: '积分榜', icon: TrendingUp },
- { value: 'schedule', label: '赛程', icon: Calendar },
- { value: 'stats', label: '数据', icon: Target },
- { value: 'records', label: '联赛纪录', icon: Target },
- { value: 'awards', label: '赛季最佳', icon: Trophy },
+ { value: 'standings', label: '积分榜' },
+ { value: 'schedule', label: '赛程' },
+ { value: 'stats', label: '数据' },
+ { value: 'records', label: '联赛纪录' },
+ { value: 'awards', label: '赛季最佳' },
  ]}
  value={activeTab}
  onChange={(v) => setActiveTab(v as 'standings' | 'schedule' | 'stats' | 'records' | 'awards')}
@@ -478,7 +452,7 @@ function LeagueDetail() {
  </div>
  ) : standings.length === 0 ? (
  <div className="text-center py-12">
- <TrendingUp className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
+
  <p className="text-[#8B8BA7]">暂无积分数据</p>
  </div>
  ) : (

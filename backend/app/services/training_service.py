@@ -479,6 +479,7 @@ class TrainingService:
                 attribute_gains=gains,
                 before_attributes=before_snapshot,
                 after_attributes=after_snapshot,
+                attribute_progress=player.attribute_progress or {},
                 fitness_before=fitness_before,
                 fitness_after=player.fitness,
                 fatigue_before=fatigue_before,
@@ -858,6 +859,7 @@ class TrainingService:
                         attribute_gains=gains,
                         before_attributes=before_snapshot,
                         after_attributes=after_snapshot,
+                        attribute_progress=player.attribute_progress or {},
                         fitness_before=fitness_before,
                         fitness_after=player.fitness,
                         fatigue_before=fatigue_before,
@@ -968,10 +970,21 @@ class TrainingService:
                 r = day_map.get(day)
                 if r:
                     attrs = r.after_attributes or {}
+                    progress = r.attribute_progress or {}
                     if metric == "ovr":
-                        current_value = float(AttributeGenerator.calculate_ovr(player.position, attrs))
+                        current_value = float(AttributeGenerator.calculate_ovr_decimal(player.position, attrs, progress))
                     else:
-                        current_value = float(attrs.get(metric, current_value or 0))
+                        base = attrs.get(metric, current_value or 0)
+                        decimal_progress = progress.get(metric)
+                        if decimal_progress is None:
+                            # 兼容旧记录：没有 attribute_progress 快照时，根据本次原始成长估算小数进度
+                            raw_gain = (r.attribute_gains or {}).get(metric, 0.0)
+                            before_val = (r.before_attributes or {}).get(metric, base)
+                            int_change = base - before_val
+                            decimal_progress = max(0.0, raw_gain - int_change)
+                        current_value = float(base) + float(decimal_progress)
+
+                    current_value = round(current_value, 2)
 
                     for bt in r.breakthroughs or []:
                         if bt.get("attribute") == metric:

@@ -526,8 +526,8 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 
 	// Pivot pass: midfield lateral distribution (high-success, low-progression)
 	if zone[0] == 1 {
-		candidates = append(candidates, candidateEvent{typ: config.EventPivotPass, weight: 24})
-		candidates = append(candidates, candidateEvent{typ: config.EventBuildUp, weight: 10})
+		candidates = append(candidates, candidateEvent{typ: config.EventPivotPass, weight: 20})
+		candidates = append(candidates, candidateEvent{typ: config.EventBuildUp, weight: 8})
 	}
 
 	// Defensive events — reduced weights for calmer rhythm
@@ -539,11 +539,14 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 		tackleWeight := 5
 		interceptWeight := 4
 		if zone[0] == 2 {
-			tackleWeight = 7
-			interceptWeight = 6
-		} else if zone[0] == 1 {
 			tackleWeight = 3
-			interceptWeight = 3
+			interceptWeight = 2
+		} else if zone[0] == 1 {
+			tackleWeight = 2
+			interceptWeight = 2
+		} else if zone[0] == 0 {
+			tackleWeight = 5
+			interceptWeight = 6
 		}
 		candidates = append(candidates, candidateEvent{typ: config.EventTackle, weight: tackleWeight})
 		candidates = append(candidates, candidateEvent{typ: config.EventIntercept, weight: interceptWeight})
@@ -555,7 +558,7 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 
 	// Penalty area defense: defenders are always alert in front of goal
 	if zone[0] == 0 {
-		candidates = append(candidates, candidateEvent{typ: config.EventTackle, weight: 3})
+		candidates = append(candidates, candidateEvent{typ: config.EventTackle, weight: 2})
 		candidates = append(candidates, candidateEvent{typ: config.EventIntercept, weight: 3})
 	}
 
@@ -1369,10 +1372,13 @@ func (sim *Simulator) doPassEvent(ms *domain.MatchState, passType string, possTe
 			target.GetAttrByName("ACC")*0.3 +
 			target.GetAttrByName("POS")*0.4
 
-		// Forward chance — reduced to make progression into box harder
-		// High PAS players are more likely to advance the ball after a successful pass
+		// Successful midfield passing should make measurable progress instead of
+		// repeatedly recycling possession in the same zone.
 		passBonus := (holder.GetAttrByName("PAS") - 10.0) * 0.0015
 		forwardProb := 0.02 + sigmoid((passQuality+receiveQuality-20.0+ctrl*3.0)/5.0)*0.14 + passBonus
+		if zone[0] == 1 {
+			forwardProb += 0.04
+		}
 		if forwardProb < 0.01 {
 			forwardProb = 0.01
 		}
@@ -1451,8 +1457,8 @@ func (sim *Simulator) doPivotPassEvent(ms *domain.MatchState, possTeam, oppTeam 
 		ms.BallHolder = defender
 		sim.flipGlobalMomentum(ms)
 	} else {
-		// Pivot pass rarely advances zone (90% chance to stay in midfield)
-		if sim.r.Float64() < 0.10 && zone[0] > 0 {
+		// Pivot play remains patient, but it should occasionally break the midfield line.
+		if sim.r.Float64() < 0.14 && zone[0] > 0 {
 			ms.ActiveZone = [2]int{zone[0] - 1, zone[1]}
 		} else if sim.r.Float64() < 0.20 && zone[0] < 2 {
 			ms.ActiveZone = [2]int{zone[0] + 1, zone[1]}
@@ -2736,6 +2742,12 @@ func (sim *Simulator) doTackleEvent(ms *domain.MatchState, possTeam, oppTeam *do
 	defVal := CalcTackleDefense(holder)
 	// Boost tackle success to make defense more effective
 	atkVal += 1.2
+	switch zone[0] {
+	case 0: // defending team's back line
+		atkVal += 0.45
+	case 1: // midfield challenges are less decisive
+		atkVal -= 0.45
+	}
 	success := ResolveDuel(atkVal, defVal, sim.r)
 
 	ConsumeDefensiveStamina(tackler, config.EventTackle)
@@ -2812,32 +2824,51 @@ func (sim *Simulator) doTackleEvent(ms *domain.MatchState, possTeam, oppTeam *do
 }
 
 func (sim *Simulator) doInterceptEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
-	// Interception: turnover
 	interceptor := SelectInterceptor(oppTeam, zone, sim.r)
 	setSkillContext(interceptor, config.EventIntercept, zone, ms.Minute, ms.Half)
 	passer := ms.BallHolder
 
 	ConsumeDefensiveStamina(interceptor, config.EventIntercept)
 
-	ms.Possession = ms.Possession.Opponent()
-	sim.clearAssistCandidate(ms)
-	ms.ActiveZone = zone
-	ms.BallHolder = interceptor
-	interceptor.Stats.Intercepts++
-	if ms.Possession == domain.SideHome {
-		ms.HomeStats.Interceptions++
-	} else {
-		ms.AwayStats.Interceptions++
+	atkVal := CalcInterceptAttack(interceptor)
+	defVal := CalcInterceptDefense(passer)
+	switch zone[0] {
+	case 0: // defensive third: defenders read dangerous passing lanes better
+		atkVal += 1.20
+	case 1: // midfield interceptions should not stop most progression
+		atkVal -= 0.40
+	case 2: // high pressing interceptions are possible but less reliable
+		atkVal -= 0.60
 	}
-	interceptor.Stats.RatingBase += 0.12
-	sim.flipGlobalMomentum(ms)
-	sim.applyControlShift(ms, zone, 0.12)
-	sim.boostGlobalMomentum(ms, 0.02)
-	// Grant counter-attack boost for next 2 events
-	if ms.Possession == domain.SideHome {
-		ms.CounterBoostRemaining[0] = 2
+	success := ResolveDuel(atkVal, defVal, sim.r, interceptor.GetAttrByName("COM"))
+
+	result := "fail"
+	if success {
+		result = "success"
+		ms.Possession = ms.Possession.Opponent()
+		sim.clearAssistCandidate(ms)
+		ms.ActiveZone = zone
+		ms.BallHolder = interceptor
+		interceptor.Stats.Intercepts++
+		if ms.Possession == domain.SideHome {
+			ms.HomeStats.Interceptions++
+		} else {
+			ms.AwayStats.Interceptions++
+		}
+		interceptor.Stats.RatingBase += 0.12
+		sim.flipGlobalMomentum(ms)
+		sim.applyControlShift(ms, zone, 0.12)
+		sim.boostGlobalMomentum(ms, 0.02)
+		// Grant counter-attack boost for next 2 events
+		if ms.Possession == domain.SideHome {
+			ms.CounterBoostRemaining[0] = 2
+		} else {
+			ms.CounterBoostRemaining[1] = 2
+		}
 	} else {
-		ms.CounterBoostRemaining[1] = 2
+		passer.Stats.RatingBase += 0.03
+		sim.applyControlShift(ms, zone, 0.04)
+		sim.boostGlobalMomentum(ms, 0.01)
 	}
 
 	sim.addEvent(ms, domain.MatchEvent{
@@ -2848,7 +2879,7 @@ func (sim *Simulator) doInterceptEvent(ms *domain.MatchState, possTeam, oppTeam 
 		OpponentID:   passer.PlayerID,
 		OpponentName: passer.Name,
 		Zone:         zoneStr(zone),
-		Result:       "success",
+		Result:       result,
 	})
 }
 

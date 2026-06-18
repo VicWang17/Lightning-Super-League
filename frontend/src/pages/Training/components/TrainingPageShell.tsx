@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { SegmentedTabs } from './SegmentedTabs'
 import '../../../styles/training-system.css'
 
@@ -11,26 +12,23 @@ interface TrainingPageShellProps {
 }
 
 export function TrainingPageShell({
-  title,
-  subtitle,
   children,
   actionBar,
-  spacious = false,
 }: TrainingPageShellProps) {
+  const navigate = useNavigate()
+
   return (
     <div className="training-console-page">
-      <section className={`training-hero ${spacious ? 'training-hero--spacious' : ''}`}>
-        <div className="training-hero-copy">
-          <div className="training-chip">
-            <span />
-            训练场
-          </div>
-          {title && <h1>{title}</h1>}
-          {subtitle && <p>{subtitle}</p>}
-        </div>
-        {actionBar && <div className="training-command-strip">{actionBar}</div>}
-      </section>
       <main style={{ marginTop: 16 }}>
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors"
+          >
+            返回上一页
+          </button>
+          {actionBar && <div className="flex items-center gap-3">{actionBar}</div>}
+        </div>
         <SegmentedTabs />
         {children}
       </main>

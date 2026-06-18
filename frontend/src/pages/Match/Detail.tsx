@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import {
-  ArrowLeft,
-  Calendar,
-  Trophy,
-  Zap,
-  AvatarCircle,
-  Analytics,
-} from '../../components/ui/pixel-icons'
 import api from '../../api/client'
 
 interface MatchPayload {
@@ -125,11 +117,9 @@ export default function MatchDetail() {
   if (error || !match) {
     return (
       <div className="max-w-[1200px] text-center py-20">
-        <Trophy className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
         <h2 className="text-xl font-bold text-white mb-2">比赛加载失败</h2>
         <p className="text-[#8B8BA7] mb-6">{error || '比赛不存在'}</p>
         <Link to="/match/schedule" className="btn-primary inline-flex items-center gap-2">
-          <ArrowLeft className="w-4 h-4" />
           返回赛程
         </Link>
       </div>
@@ -142,15 +132,13 @@ export default function MatchDetail() {
 
   return (
     <div className="max-w-[1200px] space-y-6">
-      <Link to="/match/schedule" className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors">
-        <ArrowLeft className="w-4 h-4" />
+      <Link to="/match/schedule" className="text-sm text-[#8B8BA7] hover:text-white transition-colors">
         返回赛程
       </Link>
 
       <section className="border-2 border-[#2D2D44] bg-[#11111A] px-6 py-6">
         <div className="flex items-center justify-between mb-6">
-          <div className="text-sm text-[#8B8BA7] flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#0D7377]" />
+          <div className="text-sm text-[#8B8BA7]">
             {new Date(match.scheduled_at).toLocaleString('zh-CN')} · 第 {match.round_number} 轮
           </div>
           <StatusBadge status={match.status} resolution={match.engine_result?.resolution} />
@@ -219,7 +207,7 @@ function LineupCard({ title, formation, players }: { title: string; formation?: 
   return (
     <div className="border-2 border-[#2D2D44] bg-[#11111A] p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-white flex items-center gap-2"><AvatarCircle className="w-4 h-4 text-[#0D7377]" />{title}</h3>
+        <h3 className="font-semibold text-white">{title}</h3>
         <span className="text-xs text-[#8B8BA7]">{formation || 'F01'}</span>
       </div>
       <div className="space-y-2">
@@ -245,7 +233,7 @@ function StatsPanel({ stats }: { stats: Record<string, number> }) {
   ]
   return (
     <section className="border-2 border-[#2D2D44] bg-[#11111A] p-4">
-      <h3 className="font-semibold text-white mb-4 flex items-center gap-2"><Analytics className="w-4 h-4 text-[#0D7377]" />技术统计</h3>
+      <h3 className="font-semibold text-white mb-4">技术统计</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {rows.map(([label, home, away, unit]) => <StatRow key={label as string} label={label as string} home={Number(home || 0)} away={Number(away || 0)} unit={unit as string} />)}
       </div>
@@ -273,7 +261,7 @@ function StatRow({ label, home, away, unit }: { label: string; home: number; awa
 function Commentary({ narratives }: { narratives: string[] }) {
   return (
     <section className="border-2 border-[#2D2D44] bg-[#11111A] p-4">
-      <h3 className="font-semibold text-white mb-4 flex items-center gap-2"><Zap className="w-4 h-4 text-[#0D7377]" />比赛解说</h3>
+      <h3 className="font-semibold text-white mb-4">比赛解说</h3>
       {narratives.length === 0 ? (
         <p className="text-sm text-[#8B8BA7]">暂无解说记录</p>
       ) : (

@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  WarningDiamond,
-  Check,
   ChevronRight,
   Loader,
-  ChevronLeft
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -126,20 +120,18 @@ export default function FinanceOverview() {
     <div className="space-y-6 max-w-[1400px]">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
-      <PageHeader icon={Wallet} title="财务总览" subtitle="球队财务总览与预算管理" />
+      <PageHeader title="财务总览" subtitle="球队财务总览与预算管理" />
 
       <FinanceTabs />
 
       {/* 核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <Wallet className="w-4 h-4 text-[#0D7377]" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">当前余额</span>
           </div>
           <p className={clsx('text-2xl font-bold stat-number', balance >= 0 ? 'text-emerald-400' : 'text-red-400')}>
@@ -147,22 +139,19 @@ export default function FinanceOverview() {
           </p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">赛季总收入</span>
           </div>
           <p className="text-2xl font-bold text-white stat-number">{formatWan(totalIncome)}万</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="w-4 h-4 text-red-400" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">赛季总支出</span>
           </div>
           <p className="text-2xl font-bold text-white stat-number">{formatWan(totalExpense)}万</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <Check className="w-4 h-4 text-[#0D7377]" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">财务评级</span>
           </div>
           <div className="flex items-center gap-2">
@@ -203,8 +192,7 @@ export default function FinanceOverview() {
           <span className="text-xs text-[#4B4B6A]">参考线: {formatWan(cap.wage_cap)}万</span>
         </div>
         {cap.wage_pressure_pct > 90 && (
-          <div className="flex items-center gap-2 mt-3 p-2 bg-red-500/10 border border-red-500/20">
-            <WarningDiamond className="w-4 h-4 text-red-400" />
+          <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20">
             <span className="text-xs text-red-400">工资压力偏高，会影响财务健康</span>
           </div>
         )}

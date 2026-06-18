@@ -1,6 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useState, useMemo } from 'react'
-import { ChevronLeft, Chart, TrendingUp, SpeedFast, SpeedMedium, Target, User } from '../../components/ui/pixel-icons'
 import { Card } from '../../components/ui/Card'
 import { PlayerTabs } from '../../components/players/PlayerTabs'
 import { api } from '../../api/client'
@@ -46,9 +45,8 @@ function PlayerGrowth() {
     <div className="max-w-[1200px]">
       <Link
         to={`/players/${id}`}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回球员档案
       </Link>
 
@@ -57,8 +55,7 @@ function PlayerGrowth() {
       {/* 成长概览 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card>
-          <div className="flex items-center gap-2 mb-2">
-            <User className="w-4 h-4 text-[#C6F135]" />
+          <div className="mb-2">
             <span className="text-xs text-[#8B8BA7]">当前年龄 / OVR</span>
           </div>
           <div className="text-2xl font-bold stat-number pixel-number text-white">
@@ -66,8 +63,7 @@ function PlayerGrowth() {
           </div>
         </Card>
         <Card>
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="w-4 h-4 text-[#C6F135]" />
+          <div className="mb-2">
             <span className="text-xs text-[#8B8BA7]">巅峰年龄</span>
           </div>
           <div className="text-2xl font-bold stat-number pixel-number text-white">
@@ -75,8 +71,7 @@ function PlayerGrowth() {
           </div>
         </Card>
         <Card>
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-[#C6F135]" />
+          <div className="mb-2">
             <span className="text-xs text-[#8B8BA7]">成长类型</span>
           </div>
           <div className="text-2xl font-bold stat-number pixel-number text-[#C6F135]">
@@ -84,8 +79,7 @@ function PlayerGrowth() {
           </div>
         </Card>
         <Card>
-          <div className="flex items-center gap-2 mb-2">
-            <SpeedFast className="w-4 h-4 text-[#C6F135]" />
+          <div className="mb-2">
             <span className="text-xs text-[#8B8BA7]">成长速度</span>
           </div>
           <div className="text-2xl font-bold stat-number pixel-number text-white">
@@ -96,8 +90,7 @@ function PlayerGrowth() {
 
       {/* 成长曲线图表 */}
       <Card className="mb-6">
-        <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-          <Chart className="w-5 h-5 text-[#C6F135]" />
+        <h3 className="text-lg font-semibold mb-6">
           能力成长曲线（预测）
         </h3>
 
@@ -150,8 +143,7 @@ function PlayerGrowth() {
 
       {/* 属性成长进度 */}
       <Card>
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <SpeedMedium className="w-5 h-5 text-[#0D7377]" />
+        <h3 className="text-lg font-semibold mb-4">
           属性成长进度（当前值 / 隐藏上限）
         </h3>
 

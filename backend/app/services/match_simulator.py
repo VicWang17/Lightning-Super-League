@@ -808,6 +808,7 @@ class MatchSimulator:
                         attribute_gains=gains,
                         before_attributes=before_snapshot,
                         after_attributes=after_snapshot,
+                        attribute_progress=player.attribute_progress or {},
                         fitness_before=player.fitness,
                         fitness_after=player.fitness,
                         fatigue_before=player.fatigue,

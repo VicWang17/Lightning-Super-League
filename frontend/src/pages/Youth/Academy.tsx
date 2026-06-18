@@ -1,14 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import {
-  Tree,
-  TrendingUp,
-  Sparkles,
-  Check,
-  Cancel,
   Loader,
-  ChevronLeft,
 } from '../../components/ui/pixel-icons'
 import api from '../../api/client'
 import type { ContractPreview } from '../../types/player'
@@ -188,13 +182,11 @@ export default function YouthAcademy() {
     <div className="space-y-6 max-w-[1400px]">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
       >
-        <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
       <PageHeader
-        icon={Tree}
         title="青训营"
         subtitle="观察年轻球员成长，赛季末未签约会进入自由市场"
       />
@@ -204,16 +196,14 @@ export default function YouthAcademy() {
       {/* 青训概况 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <Tree className="w-4 h-4 text-[#0D7377]" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">在营人数</span>
           </div>
           <p className="text-2xl font-bold text-white stat-number">{players.length}/{capacity}</p>
           <p className="text-xs text-[#4B4B6A] mt-1">每赛季刷新 2 次</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-[#0D7377]" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">平均 OVR</span>
           </div>
           <p className="text-2xl font-bold text-white stat-number">
@@ -222,8 +212,7 @@ export default function YouthAcademy() {
           <p className="text-xs text-[#4B4B6A] mt-1">在营球员平均值</p>
         </div>
         <div className="card">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-[#0D7377]" />
+          <div className="mb-2">
             <span className="text-sm text-[#8B8BA7]">高潜球员</span>
           </div>
           <p className="text-2xl font-bold text-white stat-number">
@@ -235,14 +224,12 @@ export default function YouthAcademy() {
 
       {/* 加载 & 错误 */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader className="w-6 h-6 text-[#0D7377] animate-spin" />
-          <span className="ml-2 text-sm text-[#8B8BA7]">加载中...</span>
+        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
+          加载中...
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-          <AlertTriangle className="w-4 h-4" />
+        <div className="p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
           {error}
         </div>
       )}
@@ -298,14 +285,12 @@ export default function YouthAcademy() {
                       onClick={(e) => { e.stopPropagation(); openSignModal(p) }}
                       className="flex-1 px-3 py-2 bg-emerald-500/20 text-emerald-400 text-xs font-bold border-2 border-emerald-500/30 hover:bg-emerald-500/30 transition-colors"
                     >
-                      <Check className="w-3 h-3 inline mr-1" />
                       签约
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleRelease(p.academy_player_id) }}
                       className="flex-1 px-3 py-2 bg-red-500/20 text-red-400 text-xs font-bold border-2 border-red-500/30 hover:bg-red-500/30 transition-colors"
                     >
-                      <Cancel className="w-3 h-3 inline mr-1" />
                       放弃
                     </button>
                   </div>
@@ -337,16 +322,14 @@ export default function YouthAcademy() {
               )}
 
               {previewError && (
-                <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-                  <AlertTriangle className="w-4 h-4" />
+                <div className="p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
                   {previewError}
                 </div>
               )}
 
               {signSuccess && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <Check className="w-5 h-5" />
+                  <div className="text-emerald-400">
                     <span className="font-bold">{signSuccess}</span>
                   </div>
                   <button
@@ -392,8 +375,7 @@ export default function YouthAcademy() {
                   {preview.warnings.length > 0 && (
                     <div className="space-y-1">
                       {preview.warnings.map((w, i) => (
-                        <p key={i} className="text-xs text-yellow-400 flex items-start gap-1">
-                          <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                        <p key={i} className="text-xs text-yellow-400">
                           {w}
                         </p>
                       ))}

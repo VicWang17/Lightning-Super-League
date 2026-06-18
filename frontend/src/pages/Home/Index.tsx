@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { Trophy, Users, Shield, Sword as Swords, Zap } from '../../components/ui/pixel-icons'
+import { Zap } from '../../components/ui/pixel-icons'
 import { useAuthStore } from '../../stores/auth'
 
 // 动画配置
@@ -30,22 +30,18 @@ const staggerContainer = {
 // 核心玩法
 const features = [
   {
-    icon: Trophy,
     title: '联赛征程',
     desc: '从业余联赛起步，一路征战顶级联赛',
   },
   {
-    icon: Swords,
     title: '实时对战',
     desc: '与全球玩家实时较量，即时战术调整',
   },
   {
-    icon: Shield,
     title: '战术布置',
     desc: '深度战术系统，临场指挥调度',
   },
   {
-    icon: Users,
     title: '转会市场',
     desc: '发掘新星，打造梦幻阵容',
   },
@@ -229,9 +225,6 @@ export default function Home() {
                 className="group"
               >
                 <div className="h-full p-6 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#C6F135]/50 transition-all duration-250 hover:-translate-y-1 hover:shadow-pixel">
-                  <div className="w-11 h-11 bg-[#14532D]/40 border-2 border-[#C6F135]/30 flex items-center justify-center mb-4">
-                    <feature.icon className="w-5 h-5 text-white" />
-                  </div>
                   <h3 className="text-base font-semibold text-white mb-2">
                     {feature.title}
                   </h3>

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import {
-  ChevronLeft,
-  Trophy,
   ArrowUp,
   ArrowBigUpDash,
   ArrowBigDown,
@@ -10,10 +8,6 @@ import {
   Thermometer,
   SquareAlert,
   Skull,
-  Users,
-  Chart,
-  Award,
-  Target,
 } from '../../components/ui/pixel-icons'
 import { getPositionColor, type PlayerListItem, type PlayerState } from '../../types/player'
 import { api } from '../../api/client'
@@ -40,10 +34,10 @@ type LockerPlayer = PlayerListItem
 type TeamTab = 'locker' | 'history' | 'honors' | 'records'
 
 const TEAM_TABS = [
-  { value: 'locker' as TeamTab, label: '更衣室', icon: Users },
-  { value: 'history' as TeamTab, label: '历年战绩', icon: Chart },
-  { value: 'honors' as TeamTab, label: '荣誉室', icon: Award },
-  { value: 'records' as TeamTab, label: '球队纪录', icon: Target },
+  { value: 'locker' as TeamTab, label: '更衣室' },
+  { value: 'history' as TeamTab, label: '历年战绩' },
+  { value: 'honors' as TeamTab, label: '荣誉室' },
+  { value: 'records' as TeamTab, label: '球队纪录' },
 ]
 
 const positionOrder = { GK: 0, DF: 1, MF: 2, FW: 3 }
@@ -360,14 +354,12 @@ function TeamDetail() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1 text-sm font-bold text-[#7B8392] hover:text-white"
+          className="text-sm font-bold text-[#7B8392] hover:text-white"
         >
-          <ChevronLeft className="h-4 w-4" />
           返回上一页
         </button>
         {leagueId && (
           <Link to={`/leagues/${leagueId}`} className="locker-link">
-            <Trophy className="h-4 w-4" />
             {team?.league_name || '联赛'}
           </Link>
         )}
@@ -624,7 +616,6 @@ function TeamDetail() {
             </div>
           ) : !teamHistory || teamHistory.seasons.length === 0 ? (
             <div className="text-center py-12">
-              <Chart className="w-12 h-12 text-[#4B4B6A] mx-auto mb-3" />
               <p className="text-[#8B8BA7]">暂无历史战绩数据</p>
             </div>
           ) : (
@@ -686,7 +677,6 @@ function TeamDetail() {
             </div>
           ) : !teamHonors || teamHonors.honors.length === 0 ? (
             <div className="text-center py-16">
-              <Award className="w-16 h-16 text-[#4B4B6A] mx-auto mb-4" />
               <h4 className="text-xl font-bold text-white mb-2">还没有冠军奖杯</h4>
               <p className="text-[#8B8BA7] mb-2">这支球队尚未获得任何冠军荣誉</p>
               <p className="text-[#C6F135] text-sm font-medium">继续加油，冠军就在前方！🏆</p>
@@ -695,12 +685,10 @@ function TeamDetail() {
             <div>
               <div className="flex items-center gap-6 mb-6 text-sm">
                 <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-400" />
                   <span className="text-[#8B8BA7]">联赛冠军:</span>
                   <span className="font-bold text-white">{teamHonors.total_league_titles}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-[#C6F135]" />
                   <span className="text-[#8B8BA7]">杯赛冠军:</span>
                   <span className="font-bold text-white">{teamHonors.total_cup_titles}</span>
                 </div>

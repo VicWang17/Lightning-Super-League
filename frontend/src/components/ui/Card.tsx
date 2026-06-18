@@ -25,7 +25,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
       glass:
         'bg-surface-glass backdrop-blur-sm border-2 border-glass-border shadow-pixel',
       solid:
-        'bg-[#0D0B07] border-2 border-[#14532D] shadow-pixel',
+        'pixel-card-frame border-2 border-[#14532D]',
       outlined:
         'bg-transparent border-2 border-border',
     }
@@ -38,7 +38,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     }
 
     const hoverStyles = hover
-      ? 'hover:border-accent-secondary/40 hover:-translate-y-0.5 hover:shadow-pixel'
+      ? 'pixel-card-interactive hover:border-accent-secondary/60'
       : ''
 
     return (
