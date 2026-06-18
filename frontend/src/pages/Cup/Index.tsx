@@ -6,6 +6,7 @@ import { useCups } from '../../hooks/useCups'
 import api from '../../api/client'
 import type { CupCompetition } from '../../types/cup'
 import { CUP_CONFIG, getCupBaseCode } from '../../types/cup'
+import { PageHeader } from '../../components/ui/PageHeader'
 
 // 杯赛卡片组件
 function CupCard({ cup }: { cup: CupCompetition }) {
@@ -18,7 +19,7 @@ function CupCard({ cup }: { cup: CupCompetition }) {
  to={`/cups/${cup.id}`}
  className="group block"
  >
- <div className={`relative p-5 bg-[#12121A] border-2 border-white/10 shadow-pixel-sm hover:border-[#0D7377]/50 hover:-translate-y-1 transition-all duration-200 overflow-hidden`}>
+ <div className="relative p-5 bg-[#12121A] border-2 border-white/10 shadow-pixel-sm hover:border-[#0D7377]/50 hover:-translate-y-1 transition-all duration-200 overflow-hidden">
  {/* 背景装饰 */}
  <div className="absolute top-0 right-0 w-32 h-32" />
  
@@ -121,18 +122,11 @@ function CupList() {
         <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
- {/* 页面标题 */}
- <div className="mb-8">
- <div className="flex items-center gap-3 mb-2">
- <div className="w-10 h-10 bg-[#0D7377] flex items-center justify-center">
- <Trophy className="w-5 h-5 text-white" />
- </div>
- <h1 className="text-3xl font-bold text-white">杯赛</h1>
- </div>
- <p className="text-[#8B8BA7] ml-13">
- 闪电超级联赛杯赛系统，包含闪电杯和杰尼杯两项赛事
- </p>
- </div>
+ <PageHeader
+ icon={Trophy}
+ title="杯赛一览"
+ subtitle="闪电超级联赛杯赛系统，包含闪电杯和杰尼杯两项赛事"
+ />
 
  {/* 我的杯赛快速入口 */}
  {myCup && !isAllCupsPage && (

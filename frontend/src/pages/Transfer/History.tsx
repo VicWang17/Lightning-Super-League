@@ -12,16 +12,8 @@ import {
 import api from '../../api/client'
 import type { TransferRecordItem } from '../../types/transfer'
 import { TRANSFER_TYPE_NAMES } from '../../types/transfer'
-
-const navTabs = [
-  { id: 'market', label: '拍卖市场', to: '/transfer/market' },
-  { id: 'free', label: '自由市场', to: '/transfer/free-market' },
-  { id: 'watchlist', label: '我的关注', to: '/transfer/watchlist' },
-  { id: 'my-listings', label: '我的挂牌', to: '/transfer/my-listings' },
-  { id: 'public-offers', label: '公开报价', to: '/transfer/public-offers' },
-  { id: 'my-offers', label: '我的报价', to: '/transfer/my-offers' },
-  { id: 'history', label: '转会历史', to: '/transfer/history' },
-]
+import { TransferTabs } from '../../components/transfer/TransferTabs'
+import { PageHeader } from '../../components/ui/PageHeader'
 
 export default function TransferHistory() {
   const [records, setRecords] = useState<TransferRecordItem[]>([])
@@ -72,29 +64,9 @@ export default function TransferHistory() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">转会市场</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">转会历史记录</p>
-        </div>
-      </div>
+      <PageHeader icon={Transfer} title="转会历史" subtitle="转会历史记录" />
 
-      <div className="flex flex-wrap gap-2 border-b-2 border-[#2D2D44]">
-        {navTabs.map((tab) => (
-          <Link
-            key={tab.id}
-            to={tab.to}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-0.5',
-              tab.id === 'history'
-                ? 'border-[#0D7377] text-[#0D7377]'
-                : 'border-transparent text-[#4B4B6A] hover:text-[#8B8BA7]'
-            )}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <TransferTabs />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { 
+import {
   Wallet,
   TrendingUp,
   TrendingDown,
@@ -11,6 +11,8 @@ import {
   ChevronLeft
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { FinanceTabs } from '../../components/finance/FinanceTabs'
 
 interface FinanceData {
   current_balance: number
@@ -129,35 +131,9 @@ export default function FinanceOverview() {
         <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">财务中心</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">球队财务总览与预算管理</p>
-        </div>
-      </div>
+      <PageHeader icon={Wallet} title="财务总览" subtitle="球队财务总览与预算管理" />
 
-      {/* 子导航 */}
-      <div className="flex gap-2 border-b-2 border-[#2D2D44]">
-        {[
-          { id: 'overview', label: '财务总览', to: '/finance/overview' },
-          { id: 'budget', label: '预算规划', to: '/finance/budget' },
-          { id: 'income', label: '收入明细', to: '/finance/income' },
-          { id: 'expense', label: '支出明细', to: '/finance/expense' },
-        ].map((tab) => (
-          <Link
-            key={tab.id}
-            to={tab.to}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-0.5',
-              tab.id === 'overview'
-                ? 'border-[#0D7377] text-[#0D7377]'
-                : 'border-transparent text-[#4B4B6A] hover:text-[#8B8BA7]'
-            )}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <FinanceTabs />
 
       {/* 核心指标 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

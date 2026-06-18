@@ -31,6 +31,7 @@ import {
   Settings2,
   ChevronDown,
 } from '../../components/ui/pixel-icons'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 
 type FormationId = 'F01' | 'F02' | 'F03' | 'F04' | 'F05' | 'F06' | 'F07' | 'F08'
 type SelectionSource = 'starter' | 'bench'
@@ -423,7 +424,7 @@ function TacticSlider({
   onChange: (key: TacticKey, value: number) => void
 }) {
   return (
-    <div className="border-2 border-[#3B3425] bg-[#16120B]/88 p-3">
+    <div className="border-2 border-[#14532D] bg-[#16120B]/88 p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="text-sm font-black text-[#EFE8CE]">{field.label}</span>
         <span className="stat-number text-sm text-[#D5B15E]">{value}/{field.max}</span>
@@ -568,19 +569,19 @@ function PlayerPanel({
           <button
             type="button"
             onClick={onClear}
-            className="grid h-7 w-7 shrink-0 place-items-center border-2 border-[#3B3425] bg-[#0D0B07] text-[#786F5A] hover:text-[#FFF8DE]"
+            className="grid h-7 w-7 shrink-0 place-items-center border-2 border-[#14532D] bg-[#0D0B07] text-[#786F5A] hover:text-[#FFF8DE]"
           >
             <Cancel className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
-      <div className="space-y-2 border-2 border-[#3B3425] bg-[#0D0B07] p-3">
+      <div className="space-y-2 border-2 border-[#14532D] bg-[#0D0B07] p-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-black text-[#786F5A]">体能</span>
           <span className="text-xs font-black text-[#FFF8DE]">{player.fitness}%</span>
         </div>
-        <div className="h-2 border border-[#3B3425] bg-[#1A1610]">
+        <div className="h-2 border border-[#14532D] bg-[#1A1610]">
           <div className={clsx('h-full', fitnessColor)} style={{ width: `${player.fitness}%` }} />
         </div>
         <div className="flex items-center justify-between">
@@ -589,7 +590,7 @@ function PlayerPanel({
         </div>
       </div>
 
-      <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3">
+      <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3">
         <p className="mb-2 text-[10px] font-black text-[#786F5A]">赛季数据</p>
         <div className="grid grid-cols-3 gap-y-1.5 text-xs">
           <span className="font-black text-[#786F5A]">出场 <span className="text-[#FFF8DE]">{player.matches_played}</span></span>
@@ -604,13 +605,13 @@ function PlayerPanel({
         </div>
       </div>
 
-      <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3">
+      <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3">
         <p className="mb-2 text-[10px] font-black text-[#786F5A]">能力值</p>
         <div className="grid grid-cols-3 gap-1.5">
           {abilityOrder.map((ability) => {
             const value = player.abilities[ability.key]
             return (
-              <div key={ability.key} className="border border-[#3B3425] bg-[#15110A] py-1 text-center">
+              <div key={ability.key} className="border border-[#14532D] bg-[#15110A] py-1 text-center">
                 <p className="text-[9px] font-black text-[#786F5A]">{ability.label}</p>
                 <p className={clsx('font-["Press_Start_2P"] text-[11px] font-black', abilityTone(value))}>{value}</p>
               </div>
@@ -619,7 +620,7 @@ function PlayerPanel({
         </div>
       </div>
 
-      <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3">
+      <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-[10px] font-black text-[#786F5A]">个人战术指令</p>
           <button
@@ -648,7 +649,7 @@ function PlayerPanel({
                     updatePlayerInstruction(teamInstructions, player.id, { [field.key]: Number(event.target.value) }),
                   )
                 }
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-none border border-[#3B3425] bg-[#1A1610] accent-[#D5B15E]"
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-none border border-[#14532D] bg-[#1A1610] accent-[#D5B15E]"
               />
               <div className="flex justify-between text-[9px] font-black text-[#786F5A]">
                 <span>{field.left}</span>
@@ -688,7 +689,7 @@ function FormationSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 border-2 border-[#3B3425] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
+        className="flex w-full items-center gap-3 border-2 border-[#14532D] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
       >
         <div className="h-10 w-8 shrink-0">
           <FormationMiniShape formationId={current.id} />
@@ -700,7 +701,7 @@ function FormationSelect({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#3B3425] bg-[#15110A] p-2 shadow-pixel">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#14532D] bg-[#15110A] p-2 shadow-pixel">
           <div className="grid grid-cols-2 gap-2">
             {formations.map((formation) => (
               <button
@@ -714,7 +715,7 @@ function FormationSelect({
                   'flex flex-col items-center gap-1 border-2 p-2 text-center transition-all',
                   value === formation.id
                     ? 'border-[#D5B15E] bg-[#2A1E0E]'
-                    : 'border-[#3B3425] bg-[#0D0B07] hover:border-[#D5B15E]/55',
+                    : 'border-[#14532D] bg-[#0D0B07] hover:border-[#D5B15E]/55',
                 )}
               >
                 <div className="h-8 w-full">
@@ -757,9 +758,9 @@ function PresetSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 border-2 border-[#3B3425] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
+        className="flex w-full items-center gap-3 border-2 border-[#14532D] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
       >
-        <div className="grid h-8 w-8 shrink-0 place-items-center border border-[#3B3425] bg-[#0D0B07]">
+        <div className="grid h-8 w-8 shrink-0 place-items-center border border-[#14532D] bg-[#0D0B07]">
           <CurrentIcon className="h-4 w-4 text-[#D5B15E]" />
         </div>
         <div className="min-w-0 flex-1">
@@ -770,7 +771,7 @@ function PresetSelect({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#3B3425] bg-[#15110A] p-2 shadow-pixel">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#14532D] bg-[#15110A] p-2 shadow-pixel">
           <div className="space-y-1">
             {presets.map((preset) => {
               const Icon = preset.icon
@@ -786,10 +787,10 @@ function PresetSelect({
                     'flex w-full items-center gap-2 border-2 p-2 text-left transition-all',
                     value === preset.id
                       ? 'border-[#D5B15E] bg-[#2A1E0E]'
-                      : 'border-[#3B3425] bg-[#0D0B07] hover:border-[#D5B15E]/55',
+                      : 'border-[#14532D] bg-[#0D0B07] hover:border-[#D5B15E]/55',
                   )}
                 >
-                  <div className="grid h-7 w-7 shrink-0 place-items-center border border-[#3B3425] bg-[#15110A]">
+                  <div className="grid h-7 w-7 shrink-0 place-items-center border border-[#14532D] bg-[#15110A]">
                     <Icon className="h-3.5 w-3.5 text-[#D5B15E]" />
                   </div>
                   <div className="min-w-0">
@@ -830,7 +831,7 @@ function BenchPlayerRow({
         'flex w-full items-center gap-3 border-2 p-2 text-left transition-all',
         selected
           ? 'border-[#D5B15E] bg-[#2A1E0E]'
-          : 'border-[#3B3425] bg-[#15110A] hover:border-[#D5B15E]/55',
+          : 'border-[#14532D] bg-[#15110A] hover:border-[#D5B15E]/55',
       )}
     >
       <div className={clsx('relative h-10 w-10 shrink-0 overflow-hidden rounded-full border-2', tone.ring)}>
@@ -847,7 +848,7 @@ function BenchPlayerRow({
         ) : (
           <p className="text-[10px] font-bold text-[#786F5A]">{tone.label} · OVR {player.ovr}</p>
         )}
-        <div className="mt-1.5 h-1 border border-[#3B3425] bg-[#1A1610]">
+        <div className="mt-1.5 h-1 border border-[#14532D] bg-[#1A1610]">
           <div className={clsx('h-full', fitnessColor)} style={{ width: `${player.fitness}%` }} />
         </div>
       </div>
@@ -886,7 +887,7 @@ function TacticsDesignPanel({
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {(['进攻组织', '防守结构'] as const).map((group) => (
-          <div key={group} className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+          <div key={group} className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
             <div className="mb-2 flex items-center gap-2">
               {group === '进攻组织' ? <Sword className="h-3.5 w-3.5 text-[#E97762]" /> : <Shield className="h-3.5 w-3.5 text-[#63A9E8]" />}
               <h3 className="text-xs font-black text-[#EFE8CE]">{group}</h3>
@@ -915,12 +916,12 @@ function PhaseSelect<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="border-2 border-[#3B3425] bg-[#16120B]/88 p-3">
+    <div className="border-2 border-[#14532D] bg-[#16120B]/88 p-3">
       <label className="mb-2 block text-sm font-black text-[#EFE8CE]">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="w-full border-2 border-[#3B3425] bg-[#0D0B07] px-2 py-1.5 text-xs font-black text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
+        className="w-full border-2 border-[#14532D] bg-[#0D0B07] px-2 py-1.5 text-xs font-black text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value} className="bg-[#0D0B07]">
@@ -944,7 +945,7 @@ function PhaseSlider({
   onChange: (value: number) => void
 }) {
   return (
-    <div className="border-2 border-[#3B3425] bg-[#16120B]/88 p-3">
+    <div className="border-2 border-[#14532D] bg-[#16120B]/88 p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="text-sm font-black text-[#EFE8CE]">{label}</span>
         <span className="stat-number text-sm text-[#D5B15E]">{value}/{max}</span>
@@ -986,7 +987,7 @@ function PhaseTacticsPanel({
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+        <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
           <div className="mb-2 flex items-center gap-2">
             <Sword className="h-3.5 w-3.5 text-[#E97762]" />
             <h3 className="text-xs font-black text-[#EFE8CE]">持球进攻</h3>
@@ -1022,7 +1023,7 @@ function PhaseTacticsPanel({
           </div>
         </div>
 
-        <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+        <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
           <div className="mb-2 flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-[#D7A94A]" />
             <h3 className="text-xs font-black text-[#EFE8CE]">转换阶段</h3>
@@ -1052,7 +1053,7 @@ function PhaseTacticsPanel({
           </div>
         </div>
 
-        <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+        <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
           <div className="mb-2 flex items-center gap-2">
             <Shield className="h-3.5 w-3.5 text-[#63A9E8]" />
             <h3 className="text-xs font-black text-[#EFE8CE]">无球防守</h3>
@@ -1084,7 +1085,7 @@ function PhaseTacticsPanel({
           </div>
         </div>
 
-        <div className="border-2 border-[#3B3425] bg-[#0D0B07] p-3 shadow-pixel">
+        <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
           <div className="mb-2 flex items-center gap-2">
             <Target className="h-3.5 w-3.5 text-[#E2B84B]" />
             <h3 className="text-xs font-black text-[#EFE8CE]">门将出球</h3>
@@ -1335,7 +1336,7 @@ function SituationalRulesPanel({
             type="button"
             onClick={addRule}
             disabled={rules.length >= 10}
-            className="border-2 border-[#3B3425] bg-[#0D0B07] px-2 py-1 text-[10px] font-black text-[#D5B15E] hover:border-[#D5B15E] disabled:opacity-40"
+            className="border-2 border-[#14532D] bg-[#0D0B07] px-2 py-1 text-[10px] font-black text-[#D5B15E] hover:border-[#D5B15E] disabled:opacity-40"
           >
             + 新增规则
           </button>
@@ -1343,7 +1344,7 @@ function SituationalRulesPanel({
       </div>
 
       {rules.length === 0 && (
-        <div className="border-2 border-dashed border-[#3B3425] p-4 text-center text-xs font-bold text-[#786F5A]">
+        <div className="border-2 border-dashed border-[#14532D] p-4 text-center text-xs font-bold text-[#786F5A]">
           暂无情境规则。点击右上角添加，或在预设中恢复默认规则。
         </div>
       )}
@@ -1399,7 +1400,7 @@ function SituationalRulesPanel({
               onDragEnd={() => setDraggingIndex(null)}
               className={clsx(
                 'border-2 bg-[#0D0B07] p-3 shadow-pixel transition-opacity',
-                draggingIndex === index ? 'border-[#D5B15E] opacity-60' : 'border-[#3B3425]',
+                draggingIndex === index ? 'border-[#D5B15E] opacity-60' : 'border-[#14532D]',
               )}
             >
               <div className="mb-3 flex items-center gap-2">
@@ -1413,7 +1414,7 @@ function SituationalRulesPanel({
                   type="text"
                   value={rule.name}
                   onChange={(event) => updateRule(index, { name: event.target.value })}
-                  className="min-w-0 flex-1 border-2 border-[#3B3425] bg-[#15110A] px-2 py-1 text-xs font-black text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
+                  className="min-w-0 flex-1 border-2 border-[#14532D] bg-[#15110A] px-2 py-1 text-xs font-black text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
                 />
                 <label className="flex items-center gap-1.5 text-[10px] font-black text-[#EFE8CE]">
                   <input
@@ -1428,7 +1429,7 @@ function SituationalRulesPanel({
                   type="button"
                   title="删除规则"
                   onClick={() => updateRules(rules.filter((_, i) => i !== index))}
-                  className="grid h-6 w-6 place-items-center border-2 border-[#3B3425] bg-[#15110A] text-[#786F5A] hover:text-[#E97762]"
+                  className="grid h-6 w-6 place-items-center border-2 border-[#14532D] bg-[#15110A] text-[#786F5A] hover:text-[#E97762]"
                 >
                   <Delete className="h-3.5 w-3.5" />
                 </button>
@@ -1468,7 +1469,7 @@ function SituationalRulesPanel({
                           const num = Math.min(field.max, Math.max(field.min, Number(event.target.value)))
                           updateCondition(index, { [key]: num } as Partial<SituationalRuleCondition>)
                         }}
-                        className="w-14 border-2 border-[#3B3425] bg-[#15110A] px-1 py-0.5 text-center font-['Press_Start_2P'] text-[10px] font-black text-[#D5B15E] focus:border-[#D5B15E] focus:outline-none"
+                        className="w-14 border-2 border-[#14532D] bg-[#15110A] px-1 py-0.5 text-center font-['Press_Start_2P'] text-[10px] font-black text-[#D5B15E] focus:border-[#D5B15E] focus:outline-none"
                       />
                       <button
                         type="button"
@@ -1489,7 +1490,7 @@ function SituationalRulesPanel({
                       event.target.value = ''
                     }
                   }}
-                  className="border-2 border-[#3B3425] bg-[#15110A] px-2 py-0.5 text-[10px] font-black text-[#D5B15E]"
+                  className="border-2 border-[#14532D] bg-[#15110A] px-2 py-0.5 text-[10px] font-black text-[#D5B15E]"
                 >
                   <option value="">+ 并且…</option>
                   {situationalConditionFields
@@ -1538,7 +1539,7 @@ function SituationalRulesPanel({
                           onChange={(event) =>
                             updateOverride(index, { [key]: event.target.value } as SituationalRuleOverride)
                           }
-                          className="border-2 border-[#3B3425] bg-[#15110A] px-1 py-0.5 text-[10px] font-black text-[#FFF8DE]"
+                          className="border-2 border-[#14532D] bg-[#15110A] px-1 py-0.5 text-[10px] font-black text-[#FFF8DE]"
                         >
                           {field.options!.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -1566,7 +1567,7 @@ function SituationalRulesPanel({
                       event.target.value = ''
                     }
                   }}
-                  className="border-2 border-[#3B3425] bg-[#15110A] px-2 py-0.5 text-[10px] font-black text-[#D5B15E]"
+                  className="border-2 border-[#14532D] bg-[#15110A] px-2 py-0.5 text-[10px] font-black text-[#D5B15E]"
                 >
                   <option value="">+ 将…调整为…</option>
                   {situationalOverrideFields
@@ -1598,7 +1599,7 @@ function BenchPanel({
   onDragStart: (event: React.DragEvent<HTMLButtonElement>, player: TacticalPlayer, index: number) => void
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col border-2 border-[#3B3425] bg-[#15110A] p-3 shadow-pixel">
+    <div className="flex h-full min-h-0 flex-col border-2 border-[#14532D] bg-[#15110A] p-3 shadow-pixel">
       <div className="mb-3 flex items-center gap-2">
         <Users className="h-4 w-4 text-[#D5B15E]" />
         <h2 className="font-black text-[#FFF8DE]">替补席</h2>
@@ -1614,7 +1615,7 @@ function BenchPanel({
             onDragStart={(event) => onDragStart(event, player, index)}
           />
         )) : (
-          <div className="flex h-24 items-center justify-center border-2 border-dashed border-[#3B3425] text-xs font-bold text-[#786F5A]">
+          <div className="flex h-24 items-center justify-center border-2 border-dashed border-[#14532D] text-xs font-bold text-[#786F5A]">
             暂无可用替补
           </div>
         )}
@@ -1637,7 +1638,7 @@ function PlayerDetailPanel({
   onInstructionChange: (next: TeamInstructions) => void
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col border-2 border-[#3B3425] bg-[#15110A] p-3 shadow-pixel">
+    <div className="flex h-full min-h-0 flex-col border-2 border-[#14532D] bg-[#15110A] p-3 shadow-pixel">
       <div className="mb-3 flex items-center gap-2">
         <Target className="h-4 w-4 text-[#D5B15E]" />
         <h2 className="font-black text-[#FFF8DE]">球员详情</h2>
@@ -1652,8 +1653,8 @@ function PlayerDetailPanel({
             onInstructionChange={onInstructionChange}
           />
         ) : (
-          <div className="flex h-48 flex-col items-center justify-center gap-3 border-2 border-dashed border-[#3B3425] p-4 text-center">
-            <Target className="h-8 w-8 text-[#3B3425]" />
+          <div className="flex h-48 flex-col items-center justify-center gap-3 border-2 border-dashed border-[#14532D] p-4 text-center">
+            <Target className="h-8 w-8 text-[#14532D]" />
             <p className="text-sm font-bold text-[#786F5A]">点击球场或替补球员查看详情</p>
           </div>
         )}
@@ -1953,25 +1954,12 @@ export default function Tactics() {
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4 text-[#EFE8CE]">
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b-2 border-[#3B3425]">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={clsx(
-              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-0.5 transition-all',
-              activeTab === tab.id
-                ? 'border-[#D5B15E] text-[#D5B15E]'
-                : 'border-transparent text-[#786F5A] hover:text-[#FFF8DE]',
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    <div className="tactics-page mx-auto max-w-[1600px] space-y-4 text-[#EFE8CE]">
+      <SegmentedTabs
+        tabs={TABS.map((tab) => ({ value: tab.id, label: tab.label }))}
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as TabId)}
+      />
 
       {/* Tab 1: Personnel */}
       {activeTab === 'personnel' && (
@@ -2168,8 +2156,8 @@ export default function Tactics() {
       {/* Tab 3: Set piece */}
       {activeTab === 'setpiece' && (
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="flex flex-col items-center gap-4 border-2 border-[#3B3425] bg-[#15110A] p-8 text-center shadow-pixel">
-            <Target className="h-12 w-12 text-[#3B3425]" />
+          <div className="flex flex-col items-center gap-4 border-2 border-[#14532D] bg-[#15110A] p-8 text-center shadow-pixel">
+            <Target className="h-12 w-12 text-[#14532D]" />
             <h2 className="text-lg font-black text-[#FFF8DE]">定位球</h2>
             <p className="text-sm font-bold text-[#786F5A]">角球 / 任意球 / 点球主罚人<br />暂未开发，敬请期待</p>
           </div>
@@ -2179,8 +2167,8 @@ export default function Tactics() {
       {/* Tab 4: Substitution */}
       {activeTab === 'substitution' && (
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="flex flex-col items-center gap-4 border-2 border-[#3B3425] bg-[#15110A] p-8 text-center shadow-pixel">
-            <Users className="h-12 w-12 text-[#3B3425]" />
+          <div className="flex flex-col items-center gap-4 border-2 border-[#14532D] bg-[#15110A] p-8 text-center shadow-pixel">
+            <Users className="h-12 w-12 text-[#14532D]" />
             <h2 className="text-lg font-black text-[#FFF8DE]">换人策略</h2>
             <p className="text-sm font-bold text-[#786F5A]">暂未开发，敬请期待</p>
           </div>

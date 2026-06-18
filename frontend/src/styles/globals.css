@@ -13,12 +13,12 @@
 @layer components {
   :root {
     --skin-bg: #050609;
-    --skin-surface: #07080A;
-    --skin-surface-2: #08090C;
-    --skin-panel: #07080A;
-    --skin-panel-2: #08090C;
-    --skin-border: #242832;
-    --skin-border-strong: #2F3740;
+    --skin-surface: #0D0B07;
+    --skin-surface-2: #0D0B07;
+    --skin-panel: #0D0B07;
+    --skin-panel-2: #0D0B07;
+    --skin-border: #14532D;
+    --skin-border-strong: #14532D;
     --skin-accent: #B8E532;
     --skin-accent-soft: #9ECF45;
     --skin-accent-dark: #0C1A0D;
@@ -606,7 +606,7 @@
 
   /* 像素卡片样式 */
   .card {
-    @apply bg-[#12121A] border-2 border-[#2D2D44] p-6 relative;
+    @apply bg-[#0D0B07] border-2 border-[#14532D] p-6 relative;
     box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
   }
 
@@ -645,12 +645,9 @@
   }
 
   .pixel-panel {
-    border-width: 2px;
+    border-width: 0;
     position: relative;
-    box-shadow:
-      4px 4px 0 rgba(0, 0, 0, 0.55),
-      inset 2px 2px 0 rgba(255, 255, 255, 0.035),
-      inset -2px -2px 0 rgba(0, 0, 0, 0.24);
+    box-shadow: none;
   }
 
   /* 旧 HUD 组件样式已废弃 */
@@ -751,11 +748,11 @@
     gap: 12px;
     min-height: 66px;
     padding: 8px 10px;
-    border: 2px solid #242832;
+    border: none;
     background:
       linear-gradient(90deg, var(--skin-accent) 0 4px, transparent 4px),
-      var(--skin-panel);
-    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.32);
+      rgba(7, 8, 10, 0.50);
+    box-shadow: none;
   }
 
   .bulletin-board {
@@ -803,9 +800,9 @@
     gap: 12px;
     min-height: 62px;
     padding: 10px;
-    border: 2px solid #242832;
-    background: var(--skin-panel);
-    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.32);
+    border: none;
+    background: rgba(7, 8, 10, 0.40);
+    box-shadow: none;
     transition: transform 120ms steps(1), box-shadow 120ms steps(1);
   }
 
@@ -814,7 +811,7 @@
   }
 
   .task-note:nth-child(even) {
-    background: var(--skin-bg);
+    background: rgba(5, 6, 9, 0.45);
   }
 
   .task-note-urgent {
@@ -924,9 +921,9 @@
     gap: 12px;
     margin-bottom: 10px;
     padding: 10px;
-    border: 2px solid #242832;
-    background: #08090C;
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+    border: none;
+    background: rgba(7, 8, 10, 0.40);
+    box-shadow: none;
   }
 
   .quick-dock-key {
@@ -976,13 +973,10 @@
   .fixture-brief,
   .result-ledger,
   .quick-rail {
-    border: 2px solid var(--skin-border);
-    background:
-      linear-gradient(var(--skin-grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--skin-grid) 1px, transparent 1px),
-      var(--skin-panel);
-    background-size: 8px 8px;
-    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.42);
+    border: none;
+    background: rgba(5, 6, 9, 0.40);
+    background-size: auto;
+    box-shadow: none;
   }
 
   .roster-ledger,
@@ -1000,7 +994,7 @@
     gap: 12px;
     margin-bottom: 12px;
     padding-bottom: 10px;
-    border-bottom: 2px solid var(--skin-border);
+    border-bottom: 1px solid var(--skin-border);
   }
 
   .console-heading.amber {
@@ -1045,12 +1039,9 @@
   }
 
   .fixture-brief {
-    border-color: #6B4C25;
-    background:
-      linear-gradient(90deg, rgba(255, 226, 161, 0.05) 1px, transparent 1px),
-      linear-gradient(rgba(255, 226, 161, 0.04) 1px, transparent 1px),
-      #120E09;
-    background-size: 12px 12px;
+    border: none;
+    background: rgba(5, 6, 9, 0.40);
+    background-size: auto;
   }
 
   .quick-rail {
@@ -1424,13 +1415,13 @@
   .locker-board,
   .locker-detail,
   .squad-strip {
-    border: 2px solid var(--skin-border);
+    border: none;
     background:
       linear-gradient(90deg, var(--skin-grid) 1px, transparent 1px),
       linear-gradient(var(--skin-grid) 1px, transparent 1px),
       color-mix(in srgb, var(--skin-panel) 82%, transparent);
     background-size: 8px 8px;
-    box-shadow: 4px 4px 0 rgba(0,0,0,0.45);
+    box-shadow: none;
   }
 
   .locker-board {
@@ -1872,14 +1863,10 @@
   }
 
   .profile-panel {
-    border: 2px solid var(--skin-border);
-    background:
-      linear-gradient(90deg, var(--skin-grid) 1px, transparent 1px),
-      linear-gradient(var(--skin-grid) 1px, transparent 1px),
-      rgba(7, 8, 10, 0.94);
-    background-size: 8px 8px;
+    border: none;
+    background: transparent;
     padding: 16px 18px;
-    box-shadow: 4px 4px 0 rgba(0,0,0,0.48);
+    box-shadow: none;
   }
 
   .profile-panel-heading {
@@ -1889,7 +1876,7 @@
     align-items: end;
     margin-bottom: 14px;
     padding-bottom: 10px;
-    border-bottom: 2px solid var(--skin-border);
+    border-bottom: 1px solid var(--skin-border);
   }
 
   .profile-panel-heading.compact {
@@ -1919,8 +1906,8 @@
   }
 
   .performance-strip div {
-    border: 2px solid var(--skin-border);
-    background: var(--skin-surface);
+    border: none;
+    background: rgba(7, 8, 10, 0.40);
     padding: 9px 10px;
   }
 
@@ -2046,10 +2033,8 @@
   }
 
   .ability-cluster {
-    border: 2px solid var(--skin-border);
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.025), transparent),
-      rgba(5,6,9,0.70);
+    border: none;
+    background: rgba(5,6,9,0.40);
     padding: 16px;
   }
 
@@ -2057,7 +2042,7 @@
     position: relative;
     margin-bottom: 12px;
     padding: 0 0 8px 10px;
-    border-bottom: 2px solid var(--skin-border);
+    border-bottom: 1px solid var(--skin-border);
   }
 
   .ability-cluster-title::before {
@@ -2182,8 +2167,8 @@
 
   .career-empty-note {
     margin-top: 16px;
-    border: 2px solid var(--skin-border);
-    background: rgba(5,6,9,0.62);
+    border: none;
+    background: rgba(5,6,9,0.40);
     padding: 12px 14px;
     font-size: 13px;
     font-weight: 800;
@@ -2197,8 +2182,8 @@
 
   .record-tile {
     min-height: 120px;
-    border: 2px solid var(--skin-border);
-    background: rgba(5,6,9,0.70);
+    border: none;
+    background: rgba(5,6,9,0.40);
     padding: 14px;
     display: flex;
     flex-direction: column;
@@ -2312,41 +2297,16 @@
 
   .dossier-card-shell {
     position: relative;
-    border: 2px solid var(--skin-border-strong);
-    background:
-      linear-gradient(180deg, rgba(5, 6, 9, 0.78), rgba(5, 6, 9, 0.94)),
-      url('/player-profile/dossier-card-texture-v1.png') right top / 520px auto no-repeat,
-      linear-gradient(90deg, var(--skin-grid) 1px, transparent 1px),
-      linear-gradient(var(--skin-grid) 1px, transparent 1px),
-      var(--skin-surface);
-    background-size: auto, 520px auto, 6px 6px, 6px 6px, auto;
+    border: none;
+    background: transparent;
     padding: 12px;
-    box-shadow:
-      6px 6px 0 rgba(0,0,0,0.58),
-      inset 0 0 0 2px rgba(255,255,255,0.026);
-    clip-path: polygon(22px 0, 100% 0, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%, 0 22px);
+    box-shadow: none;
+    clip-path: none;
   }
 
-  .dossier-card-shell::before {
-    content: '';
-    position: absolute;
-    inset: 8px;
-    pointer-events: none;
-    border: 2px solid rgba(255,255,255,0.035);
-    clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
-  }
-
+  .dossier-card-shell::before,
   .dossier-card-shell::after {
-    content: '';
-    position: absolute;
-    right: 18px;
-    top: 18px;
-    width: 150px;
-    height: 36px;
-    pointer-events: none;
-    border-top: 2px solid rgba(229,183,94,0.42);
-    border-bottom: 2px solid rgba(229,183,94,0.22);
-    opacity: 0.7;
+    content: none;
   }
 
   .dossier-card-shell > * {
@@ -2361,23 +2321,15 @@
     gap: 10px;
     align-items: center;
     margin-bottom: 0;
-    border: 2px solid color-mix(in srgb, var(--skin-border-strong) 78%, transparent);
-    background:
-      linear-gradient(135deg, transparent 0 18px, rgba(255,255,255,0.018) 18px, transparent 19px),
-      linear-gradient(90deg, rgba(255,255,255,0.025), transparent 38%),
-      rgba(5,6,9,0.78);
+    border: none;
+    background: rgba(5,6,9,0.40);
     padding: 10px;
-    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.26);
-    clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+    box-shadow: none;
+    clip-path: none;
   }
 
   .player-dossier-strip::after {
-    content: '';
-    position: absolute;
-    inset: 6px;
-    pointer-events: none;
-    border: 2px solid rgba(255,255,255,0.028);
-    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    content: none;
   }
 
   .dossier-avatar {
@@ -2819,10 +2771,9 @@
   }
 
   .intel-panel {
-    border: 2px solid var(--skin-border);
-    background:
-      linear-gradient(180deg, rgba(5,6,9,0.92), rgba(5,6,9,0.78));
-    box-shadow: 4px 4px 0 rgba(0,0,0,0.45);
+    border: none;
+    background: rgba(5,6,9,0.40);
+    box-shadow: none;
   }
 
   .intel-panel-header {
@@ -4280,4 +4231,29 @@
   .training-workbench {
     grid-template-columns: 1fr;
   }
+}
+
+/* === 全游戏统一主体内容面板 === */
+.panel {
+  background-color: #0D0B07 !important;
+  border: 2px solid #14532D !important;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45) !important;
+  padding: 1rem;
+}
+
+/* 强制统一主体内容区里五花八门的面板边框/背景 */
+.game-main [class*="bg-[#12121A]"],
+.game-main [class*="bg-[#0B0D14]"],
+.game-main [class*="bg-[#15110A]"],
+.game-main [class*="bg-[#1E1E2D]"],
+.game-main [class*="bg-[#080B11]"],
+.game-main [class*="bg-[#07080A]"] {
+  background-color: #0D0B07 !important;
+}
+
+.game-main [class*="border-[#2D2D44]"],
+.game-main [class*="border-[#242832]"],
+.game-main [class*="border-[#1E1E2D]"],
+.game-main [class*="border-[#4E5A34]"] {
+  border-color: #14532D !important;
 }

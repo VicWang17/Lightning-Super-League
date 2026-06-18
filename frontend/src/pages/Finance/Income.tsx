@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import { 
   Tv,
   Store,
@@ -9,6 +8,8 @@ import {
   Loader
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { FinanceTabs } from '../../components/finance/FinanceTabs'
 
 interface TransactionItem {
   id: string
@@ -87,35 +88,9 @@ export default function IncomeDetails() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">财务中心</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">收入明细</p>
-        </div>
-      </div>
+      <PageHeader icon={Sparkles} title="收入明细" subtitle="球队各项收入来源明细" />
 
-      {/* 子导航 */}
-      <div className="flex gap-2 border-b-2 border-[#2D2D44]">
-        {[
-          { id: 'overview', label: '财务总览', to: '/finance/overview' },
-          { id: 'budget', label: '预算规划', to: '/finance/budget' },
-          { id: 'income', label: '收入明细', to: '/finance/income' },
-          { id: 'expense', label: '支出明细', to: '/finance/expense' },
-        ].map((tab) => (
-          <Link
-            key={tab.id}
-            to={tab.to}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-0.5',
-              tab.id === 'income'
-                ? 'border-[#0D7377] text-[#0D7377]'
-                : 'border-transparent text-[#4B4B6A] hover:text-[#8B8BA7]'
-            )}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <FinanceTabs />
 
       <div className="card">
         <div className="flex items-center justify-between mb-4">

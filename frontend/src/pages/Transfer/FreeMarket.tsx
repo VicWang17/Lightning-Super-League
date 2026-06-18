@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
 import { AlertTriangle, Funnel, X, Check } from 'lucide-react'
 import { 
   Clock,
   WarningDiamond,
   ChevronLeft,
   ChevronRight,
-  Loader
+  Loader,
+  UserPlus
 } from '../../components/ui/pixel-icons'
+import { TransferTabs } from '../../components/transfer/TransferTabs'
+import { PageHeader } from '../../components/ui/PageHeader'
 import api from '../../api/client'
 import type { FreeMarketPlayer, FreeMarketPreview, FreeMarketSignResult } from '../../types/free_market'
 import { ORIGIN_NAMES, ORIGIN_COLORS } from '../../types/free_market'
@@ -185,45 +187,22 @@ export default function FreeMarket() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">转会市场</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">一口价签约，无需竞价</p>
-        </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-3 py-2 bg-[#12121A] border-2 border-[#2D2D44] text-sm text-[#8B8BA7] hover:text-white hover:border-[#0D7377]/50 transition-colors"
-        >
-          <Funnel className="w-4 h-4" />
-          筛选
-        </button>
-      </div>
-
-      {/* 子导航 */}
-      <div className="flex gap-2 border-b-2 border-[#2D2D44]">
-        {[
-          { id: 'market', label: '拍卖市场', to: '/transfer/market' },
-          { id: 'free', label: '自由市场', to: '/transfer/free-market' },
-          { id: 'watchlist', label: '我的关注', to: '/transfer/watchlist' },
-          { id: 'my-listings', label: '我的挂牌', to: '/transfer/my-listings' },
-          { id: 'public-offers', label: '公开报价', to: '/transfer/public-offers' },
-          { id: 'my-offers', label: '我的报价', to: '/transfer/my-offers' },
-          { id: 'history', label: '转会历史', to: '/transfer/history' },
-        ].map((tab) => (
-          <Link
-            key={tab.id}
-            to={tab.to}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-0.5',
-              tab.id === 'free'
-                ? 'border-[#0D7377] text-[#0D7377]'
-                : 'border-transparent text-[#4B4B6A] hover:text-[#8B8BA7]'
-            )}
+      <PageHeader
+        icon={UserPlus}
+        title="自由市场"
+        subtitle="签约自由球员"
+        action={
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-3 py-2 bg-[#12121A] border-2 border-[#2D2D44] text-sm text-[#8B8BA7] hover:text-white hover:border-[#0D7377]/50 transition-colors"
           >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+            <Funnel className="w-4 h-4" />
+            筛选
+          </button>
+        }
+      />
+
+      <TransferTabs />
 
       {/* 提示 */}
       <div className="flex items-center gap-3 p-3 bg-yellow-500/10 border-2 border-yellow-500/30">

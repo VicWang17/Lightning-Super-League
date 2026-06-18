@@ -12,13 +12,33 @@ export default {
           secondary: '#12121A',
           tertiary: '#1E1E2D',
         },
+        surface: {
+          DEFAULT: 'var(--ui-surface-solid)',
+          hover: 'var(--ui-surface-hover)',
+          glass: 'var(--ui-surface-glass)',
+          'glass-weak': 'var(--ui-surface-glass-weak)',
+          'glass-hover': 'var(--ui-surface-glass-hover)',
+        },
+        glass: {
+          border: 'var(--ui-glass-border)',
+          'border-strong': 'var(--ui-glass-border-strong)',
+        },
         border: {
-          DEFAULT: '#2D2D44',
+          DEFAULT: 'var(--ui-border-subtle)',
+          strong: 'var(--ui-border-strong)',
         },
         text: {
-          primary: '#E2E2F0',
-          secondary: '#8B8BA7',
-          muted: '#4B4B6A',
+          primary: 'var(--ui-text-primary)',
+          secondary: 'var(--ui-text-secondary)',
+          muted: 'var(--ui-text-muted)',
+        },
+        accent: {
+          DEFAULT: 'var(--ui-accent)',
+          secondary: 'var(--ui-accent-secondary)',
+          glow: 'var(--ui-accent-glow)',
+          10: 'var(--ui-accent-10)',
+          red: '#EF4444',
+          yellow: '#FCD34D',
         },
         brand: {
           green: '#166534',
@@ -27,10 +47,6 @@ export default {
           blue: '#3B82F6',
           'blue-dark': '#2563EB',
         },
-        accent: {
-          red: '#EF4444',
-          yellow: '#FCD34D',
-        }
       },
       fontFamily: {
         pixel: ['"Press Start 2P"', 'cursive'],
@@ -45,8 +61,10 @@ export default {
         'pixel-sm': '2px 2px 0px rgba(0, 0, 0, 0.5)',
         'pixel-lg': '6px 6px 0px rgba(0, 0, 0, 0.5)',
         'pixel-green': '4px 4px 0px #14532D',
+        'pixel-green-glow': '4px 4px 0 rgba(0, 0, 0, 0.5), 0 0 16px rgba(198, 241, 53, 0.4)',
         'glow-green': '0 0 20px rgba(198, 241, 53, 0.4)',
         'glow-green-lg': '0 0 40px rgba(198, 241, 53, 0.5)',
+        'glow': '0 0 16px var(--ui-accent-glow)',
         'card': '4px 4px 0px rgba(0, 0, 0, 0.3)',
         'card-hover': '6px 6px 0px rgba(0, 0, 0, 0.4)',
       },

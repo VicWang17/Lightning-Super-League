@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import {
   Tree,
@@ -12,6 +12,8 @@ import {
 } from '../../components/ui/pixel-icons'
 import api from '../../api/client'
 import type { ContractPreview } from '../../types/player'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { YouthTabs } from '../../components/youth/YouthTabs'
 
 interface AcademyPlayer {
   academy_player_id: string
@@ -191,16 +193,13 @@ export default function YouthAcademy() {
         <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">青训营</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">观察年轻球员成长，赛季末未签约会进入自由市场</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link to="/youth/young-players" className="btn-secondary text-sm">年轻球员</Link>
-        </div>
-      </div>
+      <PageHeader
+        icon={Tree}
+        title="青训营"
+        subtitle="观察年轻球员成长，赛季末未签约会进入自由市场"
+      />
+
+      <YouthTabs />
 
       {/* 青训概况 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

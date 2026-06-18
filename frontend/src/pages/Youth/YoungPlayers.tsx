@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import type { PlayerListItem } from '../../types/player'
 import { Card } from '../../components/ui/Card'
+import { Tree } from '../../components/ui/pixel-icons'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { YouthTabs } from '../../components/youth/YouthTabs'
 
 const YOUNG_AGE_THRESHOLD = 21
 
@@ -38,17 +41,15 @@ export default function YoungPlayers() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">年轻球员管理</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">球队中 {YOUNG_AGE_THRESHOLD} 岁及以下球员</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link to="/youth/academy" className="px-3 py-1.5 bg-[#0D7377] border-2 border-[#0A5A5D] text-white text-sm font-medium hover:bg-[#0A5A5D] transition-colors">青训营</Link>
-        </div>
-      </div>
+      <PageHeader
+        icon={Tree}
+        title="年轻球员"
+        subtitle={`球队中 ${YOUNG_AGE_THRESHOLD} 岁及以下球员`}
+      />
 
-      <Card>
+      <YouthTabs />
+
+      <Card >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">年轻球员列表</h3>
           <span className="text-xs text-[#4B4B6A]">共 {players.length} 人</span>

@@ -2,7 +2,7 @@ import { HTMLAttributes, forwardRef } from 'react'
 import { clsx } from 'clsx'
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'glass' | 'outlined'
+  variant?: 'glass' | 'solid' | 'outlined'
   padding?: 'none' | 'sm' | 'md' | 'lg'
   hover?: boolean
 }
@@ -11,7 +11,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
   (
     {
       children,
-      variant = 'default',
+      variant = 'solid',
       padding = 'md',
       hover = false,
       className,
@@ -22,10 +22,12 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     const baseStyles = 'transition-all duration-200'
 
     const variants = {
-      default: 'bg-[#12121A] border-2 border-[#2D2D44]',
       glass:
-        'bg-[#12121A]/80 border-2 border-[#2D2D44]/50',
-      outlined: 'bg-transparent border-2 border-[#2D2D44]',
+        'bg-surface-glass backdrop-blur-sm border-2 border-glass-border shadow-pixel',
+      solid:
+        'bg-[#0D0B07] border-2 border-[#14532D] shadow-pixel',
+      outlined:
+        'bg-transparent border-2 border-border',
     }
 
     const paddings = {
@@ -36,7 +38,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     }
 
     const hoverStyles = hover
-      ? 'hover:border-[#0D7377]/40 hover:-translate-y-0.5 hover:shadow-pixel'
+      ? 'hover:border-accent-secondary/40 hover:-translate-y-0.5 hover:shadow-pixel'
       : ''
 
     return (
@@ -79,12 +81,12 @@ const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
       >
         <div className="flex-1">
           {title && (
-            <h3 className="text-lg font-semibold text-[#E2E2F0]">
+            <h3 className="text-lg font-semibold text-text-primary">
               {title}
             </h3>
           )}
           {subtitle && (
-            <p className="text-sm text-[#8B8BA7] mt-1">{subtitle}</p>
+            <p className="text-sm text-text-secondary mt-1">{subtitle}</p>
           )}
           {children}
         </div>
@@ -129,7 +131,7 @@ const CardFooter = forwardRef<HTMLDivElement, CardFooterProps>(
       <div
         ref={ref}
         className={clsx(
-          'flex items-center mt-4 pt-4 border-t-2 border-[#2D2D44]',
+          'flex items-center mt-4 pt-4 border-t-2 border-border',
           alignStyles[align],
           className
         )}

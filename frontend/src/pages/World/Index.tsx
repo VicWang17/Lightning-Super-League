@@ -21,6 +21,8 @@ import type { LeaderboardType, LeaderboardItem, TeamLeaderboardType, TeamLeaderb
 import type { TopPlayer } from '../../types/world'
 import { LeaderboardValue } from '../../components/leaderboard/LeaderboardValue'
 import { RecordsBoard } from '../../components/records/RecordsBoard'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 
 type WorldTab = 'rankings' | 'players' | 'records' | 'awards'
 type PlayerPosition = 'ALL' | 'FW' | 'MF' | 'DF' | 'GK'
@@ -332,7 +334,7 @@ function WorldAwardsTab() {
       </div>
 
       {/* 闪电足球先生 */}
-      <section>
+      <section >
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-5 bg-[#C6F135]" />
           <h3 className="text-lg font-bold text-white">闪电足球先生</h3>
@@ -384,7 +386,7 @@ function WorldAwardsTab() {
       </section>
 
       {/* 赛季数据之王 */}
-      <section>
+      <section >
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-5 bg-[#0D7377]" />
           <h3 className="text-lg font-bold text-white">赛季数据之王</h3>
@@ -399,7 +401,7 @@ function WorldAwardsTab() {
       </section>
 
       {/* 全服年度最佳位置 */}
-      <section>
+      <section >
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-5 bg-[#C6F135]" />
           <h3 className="text-lg font-bold text-white">全服年度最佳位置</h3>
@@ -414,7 +416,7 @@ function WorldAwardsTab() {
 
       {/* 各联赛最佳阵容 */}
       {activeLeagueAwards.length > 0 && (
-        <section>
+        <section >
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-amber-500" />
             <h3 className="text-lg font-bold text-white">各联赛最佳阵容</h3>
@@ -489,37 +491,23 @@ function WorldPage() {
         <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
-      {/* 页面标题 */}
-      <div className="flex items-center gap-3 mb-6">
-        <Globe className="w-7 h-7 text-[#C6F135]" />
-        <h1 className="text-2xl font-bold pixel-title">世界</h1>
-      </div>
+      <PageHeader
+        icon={Globe}
+        title="世界排名"
+        subtitle="全球球队、球员排名与世界纪录"
+      />
 
-      {/* Tab 导航 */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-2 transition-all flex items-center gap-2',
-              activeTab === tab.value
-                ? 'bg-[#C6F135] text-[#0A0A0F] border-[#C6F135]'
-                : 'bg-[#12121A] text-[#8B8BA7] border-[#2D2D44] hover:border-[#0D7377] hover:text-white'
-            )}
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        tabs={TABS}
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as WorldTab)}
+      />
 
       {/* Tab 内容 */}
-      <div className="card">
+      <div className="space-y-6">
         {activeTab === 'rankings' && (
-          <div>
+          <div >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h3 className="text-lg font-semibold">球队世界排名</h3>
               <div className="relative">
                 <select
                   value={teamSortType}
@@ -614,7 +602,7 @@ function WorldPage() {
         )}
 
         {activeTab === 'players' && (
-          <div>
+          <div >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold">球员排名</h3>
               <div className="flex flex-wrap gap-2 items-center">
@@ -695,7 +683,11 @@ function WorldPage() {
           </div>
         )}
 
-        {activeTab === 'records' && <WorldRecordsTab />}
+        {activeTab === 'records' && (
+          <div >
+            <WorldRecordsTab />
+          </div>
+        )}
         {activeTab === 'awards' && <WorldAwardsTab />}
       </div>
     </div>

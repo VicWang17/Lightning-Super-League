@@ -9,6 +9,7 @@ import {
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { Card } from '../../components/ui/Card'
+import { PageHeader } from '../../components/ui/PageHeader'
 
 interface MatchPayload {
   id: string
@@ -108,15 +109,16 @@ export default function PreMatch() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">赛前准备</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">下一场比赛情报</p>
-        </div>
-        <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
-          返回赛程 →
-        </Link>
-      </div>
+      <PageHeader
+        icon={Target}
+        title="赛前准备"
+        subtitle="下一场比赛情报"
+        action={
+          <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
+            返回赛程 →
+          </Link>
+        }
+      />
 
       <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
         <div className="flex items-center justify-center gap-8 py-6">
@@ -151,7 +153,7 @@ export default function PreMatch() {
 
       {lineups && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
+          <Card >
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Sword className="w-4 h-4 text-[#0D7377]" />
               主队阵容
@@ -165,7 +167,7 @@ export default function PreMatch() {
               ))}
             </div>
           </Card>
-          <Card>
+          <Card >
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4 text-[#0D7377]" />
               客队阵容

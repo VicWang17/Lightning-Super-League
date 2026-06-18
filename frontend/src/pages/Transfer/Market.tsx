@@ -9,7 +9,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Banknote,
+  Target,
 } from '../../components/ui/pixel-icons'
+import { TransferTabs } from '../../components/transfer/TransferTabs'
+import { PageHeader } from '../../components/ui/PageHeader'
 import api from '../../api/client'
 import type { MarketPlayer } from '../../types/transfer'
 import { POSITION_COLORS } from '../../types/player'
@@ -39,16 +42,6 @@ interface Filters {
   is_listed: string
   search: string
 }
-
-const navTabs = [
-  { id: 'market', label: '拍卖市场', to: '/transfer/market' },
-  { id: 'free', label: '自由市场', to: '/transfer/free-market' },
-  { id: 'watchlist', label: '我的关注', to: '/transfer/watchlist' },
-  { id: 'my-listings', label: '我的挂牌', to: '/transfer/my-listings' },
-  { id: 'public-offers', label: '公开报价', to: '/transfer/public-offers' },
-  { id: 'my-offers', label: '我的报价', to: '/transfer/my-offers' },
-  { id: 'history', label: '转会历史', to: '/transfer/history' },
-]
 
 export default function TransferMarket() {
   const navigate = useNavigate()
@@ -169,31 +162,9 @@ export default function TransferMarket() {
         <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">转会市场</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">浏览球员并发送转会报价</p>
-        </div>
-      </div>
+      <PageHeader icon={Target} title="球员拍卖市场" subtitle="浏览球员并发送转会报价" />
 
-      {/* Sub Nav */}
-      <div className="flex flex-wrap gap-2 border-b-2 border-[#2D2D44]">
-        {navTabs.map((tab) => (
-          <Link
-            key={tab.id}
-            to={tab.to}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-0.5',
-              tab.id === 'market'
-                ? 'border-[#0D7377] text-[#0D7377]'
-                : 'border-transparent text-[#4B4B6A] hover:text-[#8B8BA7]'
-            )}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <TransferTabs />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">

@@ -30,6 +30,7 @@ import { usePlayerAwards, usePlayerAwardSummary } from '../../hooks/useAwards'
 import { AWARD_LABELS, AWARD_ICONS } from '../../types/awards'
 import type { PlayerAward } from '../../types/awards'
 import { api } from '../../api/client'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 
 type ProfileTab = 'overview' | 'abilities' | 'career' | 'recent' | 'timeline' | 'records' | 'honors'
 
@@ -405,21 +406,11 @@ function PlayerDetail() {
           </div>
         </section>
 
-        <nav className="player-profile-tabs player-workbench-tabs dossier-bookmarks" aria-label="球员详情标签">
-            {TABS.map(tab => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  className={activeTab === tab.id ? 'is-active' : ''}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              )
-            })}
-        </nav>
+        <SegmentedTabs
+          tabs={TABS.map((tab) => ({ value: tab.id, label: tab.label, icon: tab.icon }))}
+          value={activeTab}
+          onChange={(v) => setActiveTab(v as ProfileTab)}
+        />
 
         <div className="player-workbench">
           <main className="player-workbench-main">

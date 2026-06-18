@@ -384,7 +384,7 @@ export default function TrainingProgress() {
   const maxDay = selectedSeason?.current_day || 100
 
   return (
-    <TrainingPageShell title="成长曲线" subtitle="对比球员能力或 OVR 的训练变化趋势">
+    <TrainingPageShell title="球员成长曲线对比" subtitle="对比球员能力或 OVR 的训练变化趋势">
       <div className="space-y-4">
         {/* 控制栏 */}
         <div className="flex flex-col xl:flex-row gap-4 p-4 border-2 border-[#2D2D44] bg-[#12121A]">

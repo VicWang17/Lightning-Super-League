@@ -21,6 +21,8 @@ import type { LeaderboardType } from '../../types/leaderboard'
 import { LeaderboardSidebar, getLeaderboardFormat } from '../../components/leaderboard/LeaderboardSidebar'
 import { LeaderboardTable } from '../../components/leaderboard/LeaderboardTable'
 import { RecordsBoard } from '../../components/records/RecordsBoard'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 
 // 图例组件 — 根据联赛赛制动态显示
 function Legend({ league }: { league: League }) {
@@ -59,22 +61,6 @@ function Legend({ league }: { league: League }) {
       ))}
     </div>
   )
-}
-
-// Tab 按钮组件
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
- return (
- <button
- onClick={onClick}
- className={`px-4 py-2 font-medium text-sm transition-all duration-200 ${
- active
- ? 'bg-[#C6F135] text-[#0A0A0F] border-2 font-bold shadow-pixel shadow-[#C6F135]/25'
- : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D] border-2 border-transparent'
- }`}
- >
- {children}
- </button>
- )
 }
 
 // 赛季选择器组件
@@ -425,15 +411,18 @@ function LeagueDetail() {
  </div>
 
  {/* 联赛信息头部 */}
- <div className="flex items-center gap-3 mb-6">
+ <PageHeader
+ icon={() => (
  <LeagueBadge
  systemCode={league.system_code}
  level={league.level}
  size="md"
  title={`${league.name} 徽章`}
  />
- <h1 className="text-lg font-bold text-white">{league.name}</h1>
- </div>
+ )}
+ title={league.name}
+ subtitle={`${league.system_name} · 第 ${league.level} 级联赛`}
+ />
 
  {/* 附加赛信息 */}
  {league.playoffs && league.playoffs.length > 0 && (
@@ -450,40 +439,19 @@ function LeagueDetail() {
  </div>
  )}
 
- {/* 赛季选择器 + Tab 导航 */}
- <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
- <div className="flex flex-wrap gap-2">
- <TabButton active={activeTab === 'standings'} onClick={() => setActiveTab('standings')}>
- <div className="flex items-center gap-2">
- <TrendingUp className="w-4 h-4" />
- 积分榜
- </div>
- </TabButton>
- <TabButton active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')}>
- <div className="flex items-center gap-2">
- <Calendar className="w-4 h-4" />
- 赛程
- </div>
- </TabButton>
- <TabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>
- <div className="flex items-center gap-2">
- <Target className="w-4 h-4" />
- 数据
- </div>
- </TabButton>
- <TabButton active={activeTab === 'records'} onClick={() => setActiveTab('records')}>
- <div className="flex items-center gap-2">
- <Target className="w-4 h-4" />
- 联赛纪录
- </div>
- </TabButton>
- <TabButton active={activeTab === 'awards'} onClick={() => setActiveTab('awards')}>
- <div className="flex items-center gap-2">
- <Trophy className="w-4 h-4" />
- 赛季最佳
- </div>
- </TabButton>
- </div>
+ {/* Tab 导航 + 赛季选择器 */}
+ <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+ <SegmentedTabs
+ tabs={[
+ { value: 'standings', label: '积分榜', icon: TrendingUp },
+ { value: 'schedule', label: '赛程', icon: Calendar },
+ { value: 'stats', label: '数据', icon: Target },
+ { value: 'records', label: '联赛纪录', icon: Target },
+ { value: 'awards', label: '赛季最佳', icon: Trophy },
+ ]}
+ value={activeTab}
+ onChange={(v) => setActiveTab(v as 'standings' | 'schedule' | 'stats' | 'records' | 'awards')}
+ />
  
  {!seasonsLoading && seasons.length > 0 && (
  <SeasonSelector 
@@ -495,9 +463,9 @@ function LeagueDetail() {
  </div>
 
  {/* Tab 内容 */}
- <div className="px-6 pb-6 pt-2">
+ <div className="space-y-6">
  {activeTab === 'standings' && (
- <div>
+ <div >
  <div className="mb-4">
  <Legend league={league} />
  </div>
@@ -542,7 +510,7 @@ function LeagueDetail() {
  )}
 
  {activeTab === 'schedule' && (
- <div>
+ <div >
  {matchesLoading ? (
  <div className="space-y-4">
  {[1, 2, 3, 4].map(i => (
@@ -556,7 +524,7 @@ function LeagueDetail() {
  )}
 
  {activeTab === 'stats' && (
- <div>
+ <div >
  <div className="flex flex-col md:flex-row gap-4">
  <div className="w-full md:w-40 shrink-0">
  <LeaderboardSidebar
@@ -576,7 +544,7 @@ function LeagueDetail() {
  )}
 
  {activeTab === 'records' && (
- <div>
+ <div >
  <LeagueRecordsTab leagueId={id} />
  </div>
  )}
@@ -593,7 +561,7 @@ function LeagueDetail() {
  ) : (
    <>
      {/* 联赛最佳阵容 */}
-     <section>
+     <section >
        <div className="flex items-center gap-2 mb-4">
          <div className="w-1 h-5 bg-amber-500" />
          <h3 className="text-lg font-bold text-white">联赛最佳阵容</h3>
@@ -606,7 +574,7 @@ function LeagueDetail() {
 
      {/* 联赛最佳位置 */}
      {(leagueAwards?.best_fw || leagueAwards?.best_mf || leagueAwards?.best_df || leagueAwards?.best_gk) && (
-       <section>
+       <section >
          <div className="flex items-center gap-2 mb-4">
            <div className="w-1 h-5 bg-[#C6F135]" />
            <h3 className="text-lg font-bold text-white">联赛最佳位置</h3>
@@ -621,7 +589,7 @@ function LeagueDetail() {
      )}
 
      {/* 联赛数据之王 */}
-     <section>
+     <section >
        <div className="flex items-center gap-2 mb-4">
          <div className="w-1 h-5 bg-[#0D7377]" />
          <h3 className="text-lg font-bold text-white">联赛数据之王</h3>

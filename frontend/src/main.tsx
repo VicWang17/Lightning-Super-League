@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
+import './styles/ui-tokens.css'
 import './styles/globals.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

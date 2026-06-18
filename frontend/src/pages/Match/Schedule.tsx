@@ -7,6 +7,7 @@ import {
 import api from '../../api/client'
 import { useSeason } from '../../hooks/useSeason'
 import type { SeasonCalendarDay } from '../../types/season'
+import { PageHeader } from '../../components/ui/PageHeader'
 
 // 球队类型
 interface Team {
@@ -273,20 +274,18 @@ function Schedule() {
  返回上一页
  </button>
  
- {/* 页面标题 */}
- <div className="flex items-center justify-between mb-6">
- <div>
- <h1 className="text-2xl font-bold text-white">赛程安排</h1>
- <p className="text-sm text-[#8B8BA7] mt-1">
- {team.name} · 第 {season?.season_number || '-'} 赛季
- </p>
- </div>
- {displayStatus && (
+ <PageHeader
+ icon={Calendar}
+ title="赛程安排"
+ subtitle={`${team.name} · 第 ${season?.season_number || '-'} 赛季`}
+ action={
+ displayStatus ? (
  <div className="text-right hidden md:block">
  <p className="text-sm text-[#0D7377]">{displayStatus.display_text}</p>
  </div>
- )}
- </div>
+ ) : undefined
+ }
+ />
  
  {/* 统计卡片 */}
  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

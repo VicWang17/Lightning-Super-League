@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
-import { TrainingTabs } from './TrainingTabs'
+import { SegmentedTabs } from './SegmentedTabs'
 import '../../../styles/training-system.css'
 
 interface TrainingPageShellProps {
-  title: string
+  title?: string
   subtitle?: string
   children: ReactNode
   actionBar?: ReactNode
@@ -25,13 +25,13 @@ export function TrainingPageShell({
             <span />
             训练场
           </div>
-          <h1>{title}</h1>
+          {title && <h1>{title}</h1>}
           {subtitle && <p>{subtitle}</p>}
         </div>
         {actionBar && <div className="training-command-strip">{actionBar}</div>}
       </section>
       <main style={{ marginTop: 16 }}>
-        <TrainingTabs />
+        <SegmentedTabs />
         {children}
       </main>
     </div>

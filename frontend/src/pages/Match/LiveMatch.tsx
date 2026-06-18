@@ -6,6 +6,7 @@ import {
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { Card } from '../../components/ui/Card'
+import { PageHeader } from '../../components/ui/PageHeader'
 
 interface LiveMatchData {
   match_id: string
@@ -125,19 +126,22 @@ export default function LiveMatch() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-white">比赛直播</h1>
-          {isLive && (
-            <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs border border-red-500/30 animate-pulse">
-              ● LIVE
-            </span>
-          )}
-        </div>
-        <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
-          返回赛程 →
-        </Link>
-      </div>
+      <PageHeader
+        icon={Zap}
+        title="比赛直播"
+        action={
+          <div className="flex items-center gap-3">
+            {isLive && (
+              <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs border border-red-500/30 animate-pulse">
+                ● LIVE
+              </span>
+            )}
+            <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
+              返回赛程 →
+            </Link>
+          </div>
+        }
+      />
 
       {/* 比分牌 */}
       <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
@@ -170,7 +174,7 @@ export default function LiveMatch() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 文字直播 */}
         <div className="lg:col-span-2">
-          <Card>
+          <Card >
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Zap className="w-4 h-4 text-[#0D7377]" />
               比赛解说
@@ -210,7 +214,7 @@ export default function LiveMatch() {
 
         {/* 数据统计 */}
         <div className="space-y-6">
-          <Card>
+          <Card >
             <h3 className="text-lg font-semibold mb-4">数据统计</h3>
             <div className="space-y-4">
               <StatRow label="控球率" home={live?.stats?.possession_home ?? 50} away={live?.stats?.possession_away ?? 50} unit="%" />

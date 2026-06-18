@@ -9,19 +9,11 @@ import {
   CornerUpRight,
   Eye,
 } from '../../components/ui/pixel-icons'
+import { TransferTabs } from '../../components/transfer/TransferTabs'
+import { PageHeader } from '../../components/ui/PageHeader'
 import api from '../../api/client'
 import type { TransferOfferItem } from '../../types/transfer'
 import { OFFER_STATUS_NAMES, OFFER_KIND_NAMES } from '../../types/transfer'
-
-const navTabs = [
-  { id: 'market', label: '拍卖市场', to: '/transfer/market' },
-  { id: 'free', label: '自由市场', to: '/transfer/free-market' },
-  { id: 'watchlist', label: '我的关注', to: '/transfer/watchlist' },
-  { id: 'my-listings', label: '我的挂牌', to: '/transfer/my-listings' },
-  { id: 'public-offers', label: '公开报价', to: '/transfer/public-offers' },
-  { id: 'my-offers', label: '我的报价', to: '/transfer/my-offers' },
-  { id: 'history', label: '转会历史', to: '/transfer/history' },
-]
 
 export default function MyOffers() {
   const [offers, setOffers] = useState<TransferOfferItem[]>([])
@@ -106,29 +98,9 @@ export default function MyOffers() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">转会市场</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">我发出的报价</p>
-        </div>
-      </div>
+      <PageHeader icon={Send} title="我的报价" subtitle="查看发出的报价" />
 
-      <div className="flex flex-wrap gap-2 border-b-2 border-[#2D2D44]">
-        {navTabs.map((tab) => (
-          <Link
-            key={tab.id}
-            to={tab.to}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-0.5',
-              tab.id === 'my-offers'
-                ? 'border-[#0D7377] text-[#0D7377]'
-                : 'border-transparent text-[#4B4B6A] hover:text-[#8B8BA7]'
-            )}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <TransferTabs />
 
       {loading && (
         <div className="flex items-center justify-center py-12">

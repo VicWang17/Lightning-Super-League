@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { clsx } from 'clsx'
 import {
   ChevronLeft,
   Trophy,
@@ -21,6 +20,7 @@ import { api } from '../../api/client'
 import { useTeamHistory, useTeamHonors, useTeamRecords } from '../../hooks/useTeamOverview'
 import { RecordsBoard } from '../../components/records/RecordsBoard'
 import { Card } from '../../components/ui/Card'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 
 interface TeamSummary {
   id: string
@@ -373,24 +373,11 @@ function TeamDetail() {
         )}
       </div>
 
-      {/* Tab 导航 */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {TEAM_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-2 transition-all flex items-center gap-2',
-              activeTab === tab.value
-                ? 'bg-[#C6F135] text-[#0A0A0F] border-[#C6F135]'
-                : 'bg-[#12121A] text-[#8B8BA7] border-[#2D2D44] hover:border-[#0D7377] hover:text-white'
-            )}
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        tabs={TEAM_TABS}
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as TeamTab)}
+      />
 
       {activeTab === 'locker' && (
       <>
@@ -628,7 +615,7 @@ function TeamDetail() {
       )}
 
       {activeTab === 'history' && (
-        <div>
+        <div >
           {historyLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -690,7 +677,7 @@ function TeamDetail() {
       )}
 
       {activeTab === 'honors' && (
-        <div>
+        <div >
           {honorsLoading ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
@@ -738,7 +725,9 @@ function TeamDetail() {
       )}
 
       {activeTab === 'records' && (
-        <RecordsBoard records={teamRecords} loading={recordsLoading} emptyText="暂无球队纪录" />
+        <div >
+          <RecordsBoard records={teamRecords} loading={recordsLoading} emptyText="暂无球队纪录" />
+        </div>
       )}
     </div>
   )

@@ -1,0 +1,53 @@
+/* === LSL 统一 UI 设计令牌 ===
+ * 目标：收敛分散的硬编码色值，为 GlassCard / SegmentedTabs / PageHeader
+ * 等统一组件提供语义化变量。页面个性通过 data-ui-theme 覆盖，不局部写死。
+ */
+
+:root {
+  /* 背景 */
+  --ui-bg-base: #050609;
+  --ui-bg-page: #0A0A0F;
+  --ui-surface-solid: #12121A;
+  --ui-surface-hover: #1E1E2D;
+
+  /* 毛玻璃（核心新增） */
+  --ui-surface-glass: rgba(10, 10, 15, 0.72);
+  --ui-surface-glass-weak: rgba(10, 10, 15, 0.30);
+  --ui-surface-glass-hover: rgba(18, 18, 26, 0.82);
+  --ui-glass-border: rgba(255, 255, 255, 0.10);
+  --ui-glass-border-strong: rgba(255, 255, 255, 0.16);
+
+  /* 实色边框 */
+  --ui-border-subtle: #2D2D44;
+  --ui-border-strong: #3B3B55;
+
+  /* 强调色 */
+  --ui-accent: #C6F135;
+  --ui-accent-secondary: #0D7377;
+  --ui-accent-10: rgba(198, 241, 53, 0.10);
+  --ui-accent-glow: rgba(198, 241, 53, 0.35);
+
+  /* 文字 */
+  --ui-text-primary: #E2E2F0;
+  --ui-text-secondary: #8B8BA7;
+  --ui-text-muted: #4B4B6A;
+
+  /* 投影 */
+  --ui-shadow-pixel: 4px 4px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* 页面级主题覆盖：保留少数模块个性，但结构统一 */
+[data-ui-theme="tactics"] {
+  --ui-accent: #D5B15E;
+  --ui-accent-10: rgba(213, 177, 94, 0.10);
+  --ui-accent-glow: rgba(213, 177, 94, 0.35);
+  --ui-surface-glass: rgba(13, 11, 7, 0.78);
+  --ui-surface-glass-weak: rgba(13, 11, 7, 0.32);
+  --ui-glass-border: rgba(255, 255, 255, 0.08);
+}
+
+[data-ui-theme="cup"] {
+  --ui-accent: #63B3FF;
+  --ui-accent-10: rgba(99, 179, 255, 0.10);
+  --ui-accent-glow: rgba(99, 179, 255, 0.35);
+}

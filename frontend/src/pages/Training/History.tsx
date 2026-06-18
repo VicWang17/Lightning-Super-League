@@ -107,14 +107,14 @@ export default function TrainingHistory() {
 
   if (loading) {
     return (
-      <TrainingPageShell title="训练历史" subtitle="训练执行统计与效果分析">
+      <TrainingPageShell title="训练执行统计" subtitle="训练执行统计与效果分析">
         <div className="p-8 text-center text-[#8B8BA7]">加载中...</div>
       </TrainingPageShell>
     )
   }
 
   return (
-    <TrainingPageShell title="训练历史" subtitle="训练执行统计与效果分析">
+    <TrainingPageShell title="训练执行统计" subtitle="训练执行统计与效果分析">
       <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -163,7 +163,7 @@ export default function TrainingHistory() {
         ))}
       </div>
 
-      <Card>
+      <Card >
         <h3 className="text-lg font-semibold mb-4">训练执行统计</h3>
         {filtered.length === 0 ? (
           <p className="text-[#8B8BA7] text-center py-8">暂无训练记录</p>
@@ -200,7 +200,7 @@ export default function TrainingHistory() {
       </Card>
 
       {/* 最近训练明细 */}
-      <Card>
+      <Card >
         <h3 className="text-lg font-semibold mb-4">最近训练明细</h3>
         {results.length === 0 ? (
           <p className="text-[#8B8BA7] text-center py-8">暂无训练明细</p>

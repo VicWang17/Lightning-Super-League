@@ -5,6 +5,8 @@ import { LeagueBadge } from '../../components/league/LeagueBadge'
 import { useLeagueSystems, useLeagues } from '../../hooks/useLeagues'
 import api from '../../api/client'
 import type { League } from '../../types/league'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 
 // 用户球队类型
 interface UserTeam {
@@ -33,7 +35,7 @@ function LeagueCard({ league }: { league: League }) {
  <div className={`relative p-5 bg-[#12121A] border-2 ${config.borderColor} shadow-pixel-sm hover:-translate-y-1 transition-all duration-200 overflow-hidden`}>
  {/* 背景装饰 */}
  <div className="absolute top-0 right-0 w-32 h-32" />
- 
+
  <div className="relative">
  <div className="flex items-start justify-between">
  <div className="flex items-center gap-3">
@@ -157,53 +159,38 @@ function LeagueList() {
         <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
- {/* 页面标题 */}
- <div className="mb-8">
- <div className="flex items-center gap-3 mb-2">
- <div className="w-10 h-10 bg-[#0D7377] flex items-center justify-center">
- <Trophy className="w-5 h-5 text-white" />
- </div>
- <h1 className="text-3xl font-bold text-white">联赛</h1>
- </div>
- <p className="text-[#8B8BA7] ml-13">
- 闪电超级联赛共有 4 个联赛体系，32 个联赛，256 支球队
- </p>
- </div>
+ <PageHeader
+ icon={Trophy}
+ title="联赛体系"
+ subtitle="闪电超级联赛共有 4 个联赛体系，32 个联赛，256 支球队"
+ />
 
  {/* 体系筛选 */}
  {systemsLoading ? (
  <div className="flex gap-3 mb-8">
  {[1, 2, 3, 4].map(i => (
- <div key={i} className="h-10 w-24 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-10 w-24 bg-surface-hover animate-pulse" />
  ))}
  </div>
  ) : (
- <div className="flex flex-wrap gap-3 mb-8">
- <button
- onClick={() => setSelectedSystem(null)}
- className={`px-4 py-2 font-medium transition-all duration-200 ${
- selectedSystem === null
- ? 'bg-[#0D7377] text-white border-2 font-bold shadow-pixel shadow-[#0D7377]/25'
- : 'bg-[#1E1E2D] text-[#8B8BA7] hover:text-white border-2 border-[#2D2D44] hover:border-[#0D7377]/50'
- }`}
- >
- 全部
- </button>
- {systems.map(system => (
- <button
- key={system.code}
- onClick={() => setSelectedSystem(system.code)}
- className={`px-4 py-2 font-medium transition-all duration-200 flex items-center gap-2 ${
- selectedSystem === system.code
- ? 'bg-[#0D7377] text-white border-2 font-bold shadow-pixel shadow-[#0D7377]/25'
- : 'bg-[#1E1E2D] text-[#8B8BA7] hover:text-white border-2 border-[#2D2D44] hover:border-[#0D7377]/50'
- }`}
- >
- <LeagueBadge systemCode={system.code} size="sm" title={`${system.name} 徽章`} />
- {system.name}
- </button>
- ))}
- </div>
+ <SegmentedTabs
+ tabs={[
+ { value: 'all', label: '全部' },
+ ...systems.map(system => ({
+ value: system.code,
+ label: system.name,
+ icon: () => (
+ <LeagueBadge
+ systemCode={system.code}
+ size="sm"
+ title={`${system.name} 徽章`}
+ />
+ ),
+ })),
+ ]}
+ value={selectedSystem ?? 'all'}
+ onChange={(value) => setSelectedSystem(value === 'all' ? null : value)}
+ />
  )}
 
  {/* 联赛列表 */}

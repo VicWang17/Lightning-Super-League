@@ -6,6 +6,7 @@ import {
 } from '../../components/ui/pixel-icons'
 import { api } from '../../api/client'
 import { Card } from '../../components/ui/Card'
+import { PageHeader } from '../../components/ui/PageHeader'
 
 interface MatchPayload {
   id: string
@@ -119,15 +120,16 @@ export default function PostMatch() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">赛后统计</h1>
-          <p className="text-sm text-[#8B8BA7] mt-1">全场结束</p>
-        </div>
-        <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
-          返回赛程 →
-        </Link>
-      </div>
+      <PageHeader
+        icon={Target}
+        title="赛后统计"
+        subtitle="全场结束"
+        action={
+          <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
+            返回赛程 →
+          </Link>
+        }
+      />
 
       {/* 比分结果 */}
       <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
@@ -184,7 +186,7 @@ export default function PostMatch() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 球员评分 */}
-        <Card>
+        <Card >
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Star className="w-4 h-4 text-[#0D7377]" />
             球员评分
@@ -220,7 +222,7 @@ export default function PostMatch() {
         </Card>
 
         {/* 全场数据 */}
-        <Card>
+        <Card >
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Target className="w-4 h-4 text-[#0D7377]" />
             全场数据

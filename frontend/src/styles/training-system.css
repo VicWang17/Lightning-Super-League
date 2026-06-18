@@ -3,9 +3,9 @@
 :root {
   /* 基础色彩 */
   --tr-bg-deep: #050609;
-  --tr-panel: rgba(7, 8, 10, 0.94);
-  --tr-border: rgba(79, 91, 104, 0.62);
-  --tr-border-strong: rgba(126, 151, 91, 0.42);
+  --tr-panel: #0D0B07;
+  --tr-border: #14532D;
+  --tr-border-strong: #14532D;
   --tr-accent: #B8E532;
   --tr-accent-soft: rgba(184, 229, 50, 0.35);
   --tr-accent-dark: rgba(184, 229, 50, 0.15);
@@ -189,47 +189,25 @@
 
 /* === 统一面板 === */
 .training-panel {
-  border: 2px solid var(--tr-border);
-  background: var(--tr-grid), rgba(7, 8, 10, 0.94);
-  background-size: 8px 8px, auto;
-  box-shadow: var(--tr-shadow);
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .training-board {
   position: relative;
   overflow: visible;
   border: 0 !important;
-  background:
-    linear-gradient(90deg, rgba(215, 169, 74, 0.055) 0 3px, transparent 3px),
-    var(--tr-grid),
-    rgba(8, 10, 7, 0.88) !important;
-  background-size: auto, 8px 8px, auto !important;
+  background: transparent !important;
+  background-size: auto !important;
   padding: 56px 44px 48px !important;
   box-shadow: none !important;
   clip-path: none !important;
 }
 
-.training-board::before {
-  content: '';
-  position: absolute;
-  inset: -10px;
-  z-index: 0;
-  pointer-events: none;
-  background: url('/training/training-schedule-board-wood-v1.png') center / 100% 100% no-repeat;
-  filter: drop-shadow(8px 8px 0 rgba(0,0,0,0.52));
-}
-
+.training-board::before,
 .training-board::after {
-  content: '';
-  position: absolute;
-  inset: 42px 34px 34px;
-  z-index: 0;
-  pointer-events: none;
-  border: 1px solid rgba(225, 210, 168, 0.10);
-  background:
-    linear-gradient(90deg, rgba(225, 210, 168, 0.045), transparent 28%, transparent 72%, rgba(184, 229, 50, 0.035)),
-    var(--tr-grid);
-  background-size: auto, 8px 8px, 8px 8px;
+  content: none;
 }
 
 .training-board > * {
@@ -238,8 +216,8 @@
 }
 
 .training-stat-tile {
-  border: 2px solid var(--tr-border);
-  background: var(--tr-grid), rgba(7, 8, 10, 0.92);
+  border: none;
+  background: rgba(7, 8, 10, 0.50);
   background-size: 8px 8px, auto;
   padding: 12px;
 }

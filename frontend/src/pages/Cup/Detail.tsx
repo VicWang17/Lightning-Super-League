@@ -22,6 +22,8 @@ import { CUP_STAGE_CONFIG } from '../../types/cup'
 import { LeaderboardSidebar, getLeaderboardFormat } from '../../components/leaderboard/LeaderboardSidebar'
 import { LeaderboardTable } from '../../components/leaderboard/LeaderboardTable'
 import { RecordsBoard } from '../../components/records/RecordsBoard'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 
 type TabType = 'groups' | 'knockout' | 'fixtures' | 'stats' | 'records' | 'awards'
 
@@ -50,22 +52,6 @@ function SeasonSelector({
  </select>
  <ChevronLeft className="w-4 h-4 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-[-90deg] pointer-events-none" />
  </div>
- )
-}
-
-// Tab 按钮组件
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
- return (
- <button
- onClick={onClick}
- className={`px-4 py-2 font-medium text-sm transition-all duration-200 ${
- active
- ? 'bg-[#0D7377] text-white border-2 font-bold shadow-pixel shadow-[#0D7377]/25'
- : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D] border-2 border-transparent'
- }`}
- >
- {children}
- </button>
  )
 }
 
@@ -885,53 +871,28 @@ function CupDetail() {
  </div>
 
  {/* 杯赛信息头部 */}
- <div className="flex items-center gap-3 mb-6">
+ <PageHeader
+ icon={() => (
  <CupBadge code={cup.code} size="md" title={`${cup.name} 徽章`} />
- <h1 className="text-lg font-bold text-white">{cup.name}</h1>
- </div>
+ )}
+ title={cup.name}
+ subtitle={cup.code ? `${cup.code} · ${cup.has_group_stage ? '小组赛+淘汰赛' : '淘汰赛'}` : undefined}
+ />
 
  {/* Tab 导航 + 赛季选择器 */}
- <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
- <div className="flex flex-wrap gap-2">
- {cup.has_group_stage && (
- <TabButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')}>
- <div className="flex items-center gap-2">
- <Grid3X3 className="w-4 h-4" />
- 小组赛
- </div>
- </TabButton>
- )}
- <TabButton active={activeTab === 'knockout'} onClick={() => setActiveTab('knockout')}>
- <div className="flex items-center gap-2">
- <GitBranch className="w-4 h-4" />
- 淘汰赛
- </div>
- </TabButton>
- <TabButton active={activeTab === 'fixtures'} onClick={() => setActiveTab('fixtures')}>
- <div className="flex items-center gap-2">
- <Calendar className="w-4 h-4" />
- 赛程
- </div>
- </TabButton>
- <TabButton active={activeTab === 'stats'} onClick={() => setActiveTab('stats')}>
- <div className="flex items-center gap-2">
- <Target className="w-4 h-4" />
- 数据
- </div>
- </TabButton>
- <TabButton active={activeTab === 'records'} onClick={() => setActiveTab('records')}>
- <div className="flex items-center gap-2">
- <Target className="w-4 h-4" />
- 杯赛纪录
- </div>
- </TabButton>
- <TabButton active={activeTab === 'awards'} onClick={() => setActiveTab('awards')}>
- <div className="flex items-center gap-2">
- <Trophy className="w-4 h-4" />
- 杯赛奖项
- </div>
- </TabButton>
- </div>
+ <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+ <SegmentedTabs
+ tabs={[
+ ...(cup.has_group_stage ? [{ value: 'groups' as TabType, label: '小组赛', icon: Grid3X3 }] : []),
+ { value: 'knockout', label: '淘汰赛', icon: GitBranch },
+ { value: 'fixtures', label: '赛程', icon: Calendar },
+ { value: 'stats', label: '数据', icon: Target },
+ { value: 'records', label: '杯赛纪录', icon: Target },
+ { value: 'awards', label: '杯赛奖项', icon: Trophy },
+ ]}
+ value={activeTab}
+ onChange={(v) => setActiveTab(v as TabType)}
+ />
  
  {!seasonsLoading && seasons.length > 0 && (
  <SeasonSelector 
@@ -943,10 +904,10 @@ function CupDetail() {
  </div>
 
  {/* Tab 内容 */}
- <div className="px-6 pb-6 pt-2">
+ <div className="space-y-6">
  {/* 小组赛 */}
  {activeTab === 'groups' && cup.has_group_stage && (
- <div>
+ <div >
  <div className="flex justify-end mb-4">
  <div className="flex items-center gap-4 text-xs">
  <div className="flex items-center gap-1.5">
@@ -1000,7 +961,7 @@ function CupDetail() {
  )}
 
  {/* 淘汰赛正赛 */}
- <div>
+ <div >
  {fixturesLoading ? (
  <div className="h-64 bg-[#1E1E2D] animate-pulse" />
  ) : (
@@ -1012,7 +973,7 @@ function CupDetail() {
 
  {/* 赛程 */}
  {activeTab === 'fixtures' && (
- <div>
+ <div >
  {fixturesLoading ? (
  <div className="space-y-4">
  {[1, 2, 3, 4].map(i => (
@@ -1032,7 +993,7 @@ function CupDetail() {
 
  {/* 数据 — 通用排行榜 */}
  {activeTab === 'stats' && (
- <div>
+ <div >
  <div className="flex flex-col md:flex-row gap-4">
  <div className="w-full md:w-40 shrink-0">
  <LeaderboardSidebar
@@ -1053,7 +1014,7 @@ function CupDetail() {
 
  {/* 杯赛纪录 */}
  {activeTab === 'records' && (
- <div>
+ <div >
  <CupRecordsTab cupId={id} />
  </div>
  )}
@@ -1067,7 +1028,7 @@ function CupDetail() {
      </div>
    ) : (
      <>
-       <section>
+       <section >
          <DataKingsRow
            goldenBoot={cupAwards?.golden_boot}
            playmaker={cupAwards?.playmaker}
