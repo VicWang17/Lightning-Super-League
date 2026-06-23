@@ -847,14 +847,12 @@ class AITeamManagementService:
         speed_bonus = {GrowthSpeed.FAST: 10, GrowthSpeed.NORMAL: 5, GrowthSpeed.SLOW: 0}
         score += speed_bonus.get(academy_player.growth_speed, 0)
 
-        # 年龄分（越小越好）
+        # 年龄分（Rookie 仅 17-18 岁，17 岁成长空间略大）
         age = abs(player.birth_offset)
-        if age <= 15:
-            score += 8
-        elif age == 16:
-            score += 5
-        elif age == 17:
-            score += 2
+        if age == 17:
+            score += 3
+        elif age == 18:
+            score += 1
 
         # OVR 分
         score += float(player.ovr) * 0.3

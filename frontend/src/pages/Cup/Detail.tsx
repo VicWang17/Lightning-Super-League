@@ -867,7 +867,7 @@ function CupDetail() {
  {/* 杯赛信息头部 */}
  <PageHeader
  title={cup.name}
- subtitle={cup.code ? `${cup.code} · ${cup.has_group_stage ? '小组赛+淘汰赛' : '淘汰赛'}` : undefined}
+ subtitle={cup.has_group_stage ? '小组赛+淘汰赛' : '淘汰赛'}
  />
 
  {/* Tab 导航 + 赛季选择器 */}

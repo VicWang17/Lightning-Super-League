@@ -71,7 +71,7 @@ class TestRookieScore:
 
         player = MagicMock()
         player.ovr = 50
-        player.birth_offset = -16
+        player.birth_offset = -17
         player.position = PlayerPosition.FW
         player.potential_letter = MagicMock()
         player.potential_letter.value = "A"

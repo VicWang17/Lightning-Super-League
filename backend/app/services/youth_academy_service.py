@@ -199,12 +199,8 @@ class YouthAcademyService:
         return investment_level, league_level
 
     def _determine_growth_speed(self, age: int) -> GrowthSpeed:
-        """根据年龄确定成长速度"""
-        if age <= 15:
-            return _weighted_choice([(GrowthSpeed.FAST, 0.60), (GrowthSpeed.NORMAL, 0.35), (GrowthSpeed.SLOW, 0.05)])
-        elif age == 16:
-            return _weighted_choice([(GrowthSpeed.FAST, 0.35), (GrowthSpeed.NORMAL, 0.50), (GrowthSpeed.SLOW, 0.15)])
-        elif age == 17:
+        """根据年龄确定成长速度（Rookie 仅 17-18 岁）"""
+        if age == 17:
             return _weighted_choice([(GrowthSpeed.FAST, 0.15), (GrowthSpeed.NORMAL, 0.60), (GrowthSpeed.SLOW, 0.25)])
         else:
             return _weighted_choice([(GrowthSpeed.FAST, 0.05), (GrowthSpeed.NORMAL, 0.50), (GrowthSpeed.SLOW, 0.45)])
@@ -257,12 +253,12 @@ class YouthAcademyService:
         old_ovr = player.ovr
         age = season.season_number + abs(player.birth_offset)
 
-        # 成长系数
+        # 成长系数（Rookie 仅 17-18 岁）
         speed_factors = {GrowthSpeed.FAST: 1.30, GrowthSpeed.NORMAL: 1.00, GrowthSpeed.SLOW: 0.70}
-        age_factors = {15: 1.20, 16: 1.10, 17: 1.00, 18: 0.90}
+        age_factors = {17: 1.00, 18: 0.90}
 
         speed_factor = speed_factors.get(academy_player.growth_speed, 1.00)
-        age_factor = age_factors.get(age, 0.80)
+        age_factor = age_factors.get(age, 0.85)
         random_factor = random.uniform(0.85, 1.15)
 
         base_growth = random.uniform(0.12, 0.28)
@@ -477,7 +473,7 @@ class YouthAcademyService:
         )
         roster_count = roster_count_result.scalar() or 0
         if roster_count >= 18:
-            raise ValueError("一线队已满 15 人，无法签约")
+            raise ValueError("一线队已满 18 人，无法签约")
 
         contract_service = ContractService(self.db)
         contract = await contract_service.sign_contract(

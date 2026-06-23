@@ -231,6 +231,12 @@ class PlayerDescriptionService:
             if position == "DF" and role in ("铁闸", "防守大闸", "统帅"):
                 weights[i] += (scores.get("defense", 10) - 10) * 0.2
 
+            # 保底权重，避免极端属性导致 weights 全为非正数
+            weights[i] = max(0.1, weights[i])
+
+        if not roles or sum(weights) <= 0:
+            return "球员"
+
         return self._rng.choices(roles, weights=weights, k=1)[0]
 
     def _maybe_prefix(self, player: Player) -> str:

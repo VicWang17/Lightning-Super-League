@@ -14,7 +14,7 @@ from app.models import SquadRole
 from app.services.youth_academy_service import YouthAcademyService
 from app.core.logging import get_logger
 
-router = APIRouter(prefix="/youth", tags=["青训营"])
+router = APIRouter(tags=["青训营"])
 logger = get_logger("app.youth_academy_router")
 
 
@@ -51,7 +51,7 @@ class YouthPreviewRequest(BaseSchema):
 
 
 @router.post(
-    "/academy/{academy_player_id}/preview-signing",
+    "/youth/academy/{academy_player_id}/preview-signing",
     response_model=ResponseSchema[dict],
     summary="青训签约预览",
 )
@@ -88,7 +88,7 @@ class YouthSignRequest(BaseSchema):
 
 
 @router.post(
-    "/academy/{academy_player_id}/sign",
+    "/youth/academy/{academy_player_id}/sign",
     response_model=ResponseSchema[dict],
     summary="青训签约",
 )
@@ -117,7 +117,7 @@ async def sign_youth_player(
 # =====================================================================
 
 @router.post(
-    "/academy/{academy_player_id}/release",
+    "/youth/academy/{academy_player_id}/release",
     response_model=ResponseSchema[dict],
     summary="放弃青训球员",
 )
@@ -139,7 +139,7 @@ async def release_youth_player(
 # =====================================================================
 
 @router.get(
-    "/academy/{academy_player_id}/growth",
+    "/youth/academy/{academy_player_id}/growth",
     response_model=ResponseSchema[list],
     summary="成长曲线",
 )

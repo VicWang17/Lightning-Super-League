@@ -388,10 +388,10 @@ function LeagueDetail() {
  返回上一页
  </button>
  <Link 
- to="/cups"
+ to="/leagues"
  className="text-sm text-[#0D7377] hover:text-white transition-colors"
  >
- 查看杯赛
+ 所有联赛
  </Link>
  </div>
 

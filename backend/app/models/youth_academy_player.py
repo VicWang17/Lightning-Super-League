@@ -33,7 +33,7 @@ class YouthAcademyPlayer(Base):
     
     说明：
     - 球员基础信息仍写入 players，但 team_id 为空，直到签约进入一线队
-    - 年龄 15-18，由 birth_offset 和当前赛季号计算
+    - Rookie 年龄限定 17-18，由 birth_offset 和当前赛季号计算
     """
     __tablename__ = "youth_academy_players"
     

@@ -1226,7 +1226,7 @@ class PlayerGenerator:
     ) -> Player:
         """生成青训球员（设计文档 8.2-8.3）
         
-        - 年龄 15-18
+        - 年龄 17-18（Rookie 仅 17-18 岁）
         - 投入等级影响潜力、OVR、年龄倾向
         - 联赛级别修正
         - origin_type = academy, team_id = null
@@ -1234,7 +1234,7 @@ class PlayerGenerator:
         # 投入等级基础配置
         investment_config = {
             "low": {
-                "age_weights": [(17, 0.35), (18, 0.35), (16, 0.20), (15, 0.10)],
+                "age_weights": [(17, 0.40), (18, 0.60)],
                 "potential_weights": [
                     (PotentialLetter.S, 0.002), (PotentialLetter.A, 0.045),
                     (PotentialLetter.B, 0.22), (PotentialLetter.C, 0.41), (PotentialLetter.D, 0.323)
@@ -1242,7 +1242,7 @@ class PlayerGenerator:
                 "ovr_range": (30, 44),
             },
             "medium": {
-                "age_weights": [(15, 0.20), (16, 0.25), (17, 0.30), (18, 0.25)],
+                "age_weights": [(17, 0.50), (18, 0.50)],
                 "potential_weights": [
                     (PotentialLetter.S, 0.007), (PotentialLetter.A, 0.09),
                     (PotentialLetter.B, 0.34), (PotentialLetter.C, 0.40), (PotentialLetter.D, 0.163)
@@ -1250,7 +1250,7 @@ class PlayerGenerator:
                 "ovr_range": (32, 47),
             },
             "high": {
-                "age_weights": [(15, 0.35), (16, 0.30), (17, 0.25), (18, 0.10)],
+                "age_weights": [(17, 0.60), (18, 0.40)],
                 "potential_weights": [
                     (PotentialLetter.S, 0.02), (PotentialLetter.A, 0.17),
                     (PotentialLetter.B, 0.41), (PotentialLetter.C, 0.31), (PotentialLetter.D, 0.09)
@@ -1273,8 +1273,8 @@ class PlayerGenerator:
         actual_age = _weighted_choice([(a, w) for a, w in age_weights])
         birth_offset = -actual_age
         
-        # 年龄修正
-        age_ovr_modifier = {15: (-10, -6), 16: (-6, -3), 17: (-3, -1), 18: (1, 2)}.get(actual_age, (0, 0))
+        # 年龄修正（仅 17-18 岁 Rookie）
+        age_ovr_modifier = {17: (-3, -1), 18: (1, 2)}.get(actual_age, (0, 0))
         
         # 潜力（应用联赛修正）
         potential_weights = list(config["potential_weights"])

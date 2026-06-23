@@ -47,6 +47,7 @@ import TransferHistory from './pages/Transfer/History'
 // Youth Pages
 import YouthAcademy from './pages/Youth/Academy'
 import YoungPlayers from './pages/Youth/YoungPlayers'
+import RookieMarket from './pages/Youth/RookieMarket'
 
 // Finance Pages
 import FinanceOverview from './pages/Finance/Overview'
@@ -323,6 +324,10 @@ export const router = createBrowserRouter([
               {
                 path: 'young-players',
                 element: <YoungPlayers />,
+              },
+              {
+                path: 'rookie-market',
+                element: <RookieMarket />,
               },
             ],
           },

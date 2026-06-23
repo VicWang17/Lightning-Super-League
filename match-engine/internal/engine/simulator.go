@@ -3118,8 +3118,8 @@ func (sim *Simulator) doSubstitution(ms *domain.MatchState, team *domain.TeamRun
 }
 
 func (sim *Simulator) doClearanceEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
-	// Clearance: possession team clears the ball under pressure
-	defender := SelectDefender(possTeam, zone, sim.r)
+	// Clearance: defending team clears the ball under pressure in their own final third.
+	defender := SelectDefender(oppTeam, zone, sim.r)
 	setSkillContext(defender, config.EventClearance, zone, ms.Minute, ms.Half)
 	ConsumeDefensiveStamina(defender, config.EventClearance)
 
@@ -3183,17 +3183,18 @@ func (sim *Simulator) doClearanceEvent(ms *domain.MatchState, possTeam, oppTeam 
 
 	sim.addEvent(ms, domain.MatchEvent{
 		Type:       config.EventClearance,
-		Team:       possTeam.Name,
+		Team:       oppTeam.Name,
 		PlayerID:   defender.PlayerID,
 		PlayerName: defender.Name,
 		Zone:       zoneStr(zone),
 		Result:     "success",
 	})
 
+	// The clearing side is the defending team (opposite of current possession).
 	if ms.Possession == domain.SideHome {
-		ms.HomeStats.Clearances++
-	} else {
 		ms.AwayStats.Clearances++
+	} else {
+		ms.HomeStats.Clearances++
 	}
 	sim.flipGlobalMomentum(ms)
 	sim.boostGlobalMomentum(ms, 0.01)

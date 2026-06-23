@@ -37,6 +37,7 @@ const REACTION_COLORS: Record<string, string> = {
 export function ContractModal({ player, teamId, existingContract, contractType: propContractType, signingFee, onClose, onSuccess }: ContractModalProps) {
   const isRenewal = !!existingContract
   const isRookie = propContractType === 'ROOKIE'
+  const yearOptions = isRookie ? [1, 2] : [1, 2, 3, 4]
   const [years, setYears] = useState(isRenewal ? 2 : 2)
   const [wage, setWage] = useState(Math.round(player.wage / 1000) * 1000)
   const [squadRole, setSquadRole] = useState<SquadRole>(isRookie ? 'youngster' : player.squad_role)
@@ -143,7 +144,7 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
             <div>
               <label className="text-sm text-[#8B8BA7] block mb-1">合同年限</label>
               <div className="flex gap-2">
-                {[1, 2, 3, 4].map(y => (
+                {yearOptions.map(y => (
                   <button
                     key={y}
                     onClick={() => { setYears(y); setPreview(null) }}
