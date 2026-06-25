@@ -47,14 +47,14 @@ const formations: Array<{
   lanes: [number, number, number]
   tone: string
 }> = [
-  { id: 'F01', name: '标准均衡', shape: '2-3-2', tag: '基准', desc: '中路和两翼都保留稳定人数，容错最高。', requirements: { DF: 2, MF: 3, FW: 2 }, lanes: [72, 78, 66], tone: 'text-[#9ECF45]' },
-  { id: 'F02', name: '前场压迫', shape: '2-2-3', tag: '高压', desc: '前场三人压迫，适合体能充足的进攻组。', requirements: { DF: 2, MF: 2, FW: 3 }, lanes: [86, 66, 52], tone: 'text-[#D75A4A]' },
-  { id: 'F03', name: '强攻风暴', shape: '1-3-3', tag: '强攻', desc: '压上中前场，后场风险明显提高。', requirements: { DF: 1, MF: 3, FW: 3 }, lanes: [92, 74, 36], tone: 'text-[#F97316]' },
-  { id: 'F04', name: '钢铁防线', shape: '3-2-2', tag: '稳守', desc: '三后卫保护禁区，反击时依赖前场效率。', requirements: { DF: 3, MF: 2, FW: 2 }, lanes: [58, 64, 88], tone: 'text-[#63B3FF]' },
-  { id: 'F05', name: '全员冲锋', shape: '1-2-4', tag: '搏命', desc: '四名前锋压制禁区，体能和失误代价很高。', requirements: { DF: 1, MF: 2, FW: 4 }, lanes: [98, 70, 24], tone: 'text-[#EF4444]' },
-  { id: 'F06', name: '深度防守', shape: '3-3-1', tag: '低位', desc: '低位密集防守，适合保护领先或疲劳阵容。', requirements: { DF: 3, MF: 3, FW: 1 }, lanes: [42, 70, 96], tone: 'text-[#60A5FA]' },
-  { id: 'F07', name: '菱形控球', shape: '2-4-1', tag: '控球', desc: '中场四人控制节奏，依赖传球与决策。', requirements: { DF: 2, MF: 4, FW: 1 }, lanes: [64, 94, 70], tone: 'text-[#50D1C8]' },
-  { id: 'F08', name: '双翼展开', shape: '1-4-2', tag: '边路', desc: '中场与前场拉开宽度，制造传中和转移。', requirements: { DF: 1, MF: 4, FW: 2 }, lanes: [84, 76, 42], tone: 'text-[#D7A94A]' },
+  { id: 'F01', name: '标准均衡', shape: '2-3-2', tag: '基准', desc: '中路和两翼都保留稳定人数，容错最高。', requirements: { DF: 2, MF: 3, FW: 2 }, lanes: [72, 78, 66], tone: 'text-[#B9EF3F]' },
+  { id: 'F02', name: '前场压迫', shape: '2-2-3', tag: '高压', desc: '前场三人压迫，适合体能充足的进攻组。', requirements: { DF: 2, MF: 2, FW: 3 }, lanes: [86, 66, 52], tone: 'text-[#FF6F59]' },
+  { id: 'F03', name: '强攻风暴', shape: '1-3-3', tag: '强攻', desc: '压上中前场，后场风险明显提高。', requirements: { DF: 1, MF: 3, FW: 3 }, lanes: [92, 74, 36], tone: 'text-[#FFC247]' },
+  { id: 'F04', name: '钢铁防线', shape: '3-2-2', tag: '稳守', desc: '三后卫保护禁区，反击时依赖前场效率。', requirements: { DF: 3, MF: 2, FW: 2 }, lanes: [58, 64, 88], tone: 'text-[#59C7EE]' },
+  { id: 'F05', name: '全员冲锋', shape: '1-2-4', tag: '搏命', desc: '四名前锋压制禁区，体能和失误代价很高。', requirements: { DF: 1, MF: 2, FW: 4 }, lanes: [98, 70, 24], tone: 'text-[#FF6F59]' },
+  { id: 'F06', name: '深度防守', shape: '3-3-1', tag: '低位', desc: '低位密集防守，适合保护领先或疲劳阵容。', requirements: { DF: 3, MF: 3, FW: 1 }, lanes: [42, 70, 96], tone: 'text-[#59C7EE]' },
+  { id: 'F07', name: '菱形控球', shape: '2-4-1', tag: '控球', desc: '中场四人控制节奏，依赖传球与决策。', requirements: { DF: 2, MF: 4, FW: 1 }, lanes: [64, 94, 70], tone: 'text-[#59C7EE]' },
+  { id: 'F08', name: '双翼展开', shape: '1-4-2', tag: '边路', desc: '中场与前场拉开宽度，制造传中和转移。', requirements: { DF: 1, MF: 4, FW: 2 }, lanes: [84, 76, 42], tone: 'text-[#FFC247]' },
 ]
 
 function defaultSituationalRules(): SituationalRule[] {
@@ -211,10 +211,10 @@ const legacyStorageKey = 'lsl:tactics:v1'
 const clamp = (value: number, max: number) => Math.min(max, Math.max(0, value))
 
 const positionTone: Record<PlayerPosition, { bg: string; ink: string; ring: string; label: string; token: string; marker: string; fill: string }> = {
-  GK: { bg: 'bg-[#E2B84B]', ink: 'text-[#2B1B08]', ring: 'border-[#7B5514]', label: '门将', token: '/tactics/token-gk-pixel-v6.png', marker: '/tactics/avatar-marker-gk-football-pixel-v1.png', fill: '#C49A32' },
-  DF: { bg: 'bg-[#63A9E8]', ink: 'text-[#071626]', ring: 'border-[#164C7C]', label: '后卫', token: '/tactics/token-df-pixel-v6.png', marker: '/tactics/avatar-marker-df-football-pixel-v1.png', fill: '#5086AE' },
-  MF: { bg: 'bg-[#72D0BB]', ink: 'text-[#06231C]', ring: 'border-[#1F7160]', label: '中场', token: '/tactics/token-mf-pixel-v6.png', marker: '/tactics/avatar-marker-mf-football-pixel-v1.png', fill: '#56A694' },
-  FW: { bg: 'bg-[#E97762]', ink: 'text-[#2B0905]', ring: 'border-[#8E2E20]', label: '前锋', token: '/tactics/token-fw-pixel-v6.png', marker: '/tactics/avatar-marker-fw-football-pixel-v1.png', fill: '#BE5848' },
+  GK: { bg: 'bg-[#FFC247]', ink: 'text-[#173126]', ring: 'border-[#8B5A2B]', label: '门将', token: '/tactics/token-gk-pixel-v6.png', marker: '/tactics/avatar-marker-gk-football-pixel-v1.png', fill: '#FFC247' },
+  DF: { bg: 'bg-[#59C7EE]', ink: 'text-[#173126]', ring: 'border-[#59C7EE]', label: '后卫', token: '/tactics/token-df-pixel-v6.png', marker: '/tactics/avatar-marker-df-football-pixel-v1.png', fill: '#59C7EE' },
+  MF: { bg: 'bg-[#1F5F43]', ink: 'text-[#173126]', ring: 'border-[#1F5F43]', label: '中场', token: '/tactics/token-mf-pixel-v6.png', marker: '/tactics/avatar-marker-mf-football-pixel-v1.png', fill: '#1F5F43' },
+  FW: { bg: 'bg-[#FF6F59]', ink: 'text-[#FF6F59]', ring: 'border-[#FF6F59]', label: '前锋', token: '/tactics/token-fw-pixel-v6.png', marker: '/tactics/avatar-marker-fw-football-pixel-v1.png', fill: '#FF6F59' },
 }
 
 const formationRows: Record<FormationId, Array<{ position: PlayerPosition; count: number; y: number }>> = {
@@ -364,9 +364,9 @@ const abilityOrder: Array<{ key: keyof PlayerAbility; label: string }> = [
 ]
 
 function abilityTone(value: number) {
-  if (value >= 16) return 'text-[#E8C84A]'
-  if (value >= 11) return 'text-[#FFF8DE]'
-  return 'text-[#786F5A]'
+  if (value >= 16) return 'text-[#8B5A2B]'
+  if (value >= 11) return 'text-[#173126]'
+  return 'text-[#466353]'
 }
 
 function FormationMiniShape({ formationId }: { formationId: FormationId }) {
@@ -382,10 +382,10 @@ function FormationMiniShape({ formationId }: { formationId: FormationId }) {
               key={`${row.position}-${i}`}
               className={clsx(
                 'absolute h-1 w-1 rounded-full',
-                row.position === 'GK' && 'bg-[#E2B84B]',
-                row.position === 'DF' && 'bg-[#63A9E8]',
-                row.position === 'MF' && 'bg-[#72D0BB]',
-                row.position === 'FW' && 'bg-[#E97762]',
+                row.position === 'GK' && 'bg-[#FFC247]',
+                row.position === 'DF' && 'bg-[#59C7EE]',
+                row.position === 'MF' && 'bg-[#1F5F43]',
+                row.position === 'FW' && 'bg-[#FF6F59]',
               )}
               style={{ left: `${left}%`, top: `${row.y}%`, transform: 'translate(-50%, -50%)' }}
             />
@@ -406,10 +406,10 @@ function TacticSlider({
   onChange: (key: TacticKey, value: number) => void
 }) {
   return (
-    <div className="border-2 border-[#14532D] bg-[#16120B]/88 p-3">
+    <div className="border-2 border-[#1F5F43] bg-[#ECFFD8]/88 p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-black text-[#EFE8CE]">{field.label}</span>
-        <span className="stat-number text-sm text-[#D5B15E]">{value}/{field.max}</span>
+        <span className="text-sm font-black text-[#173126]">{field.label}</span>
+        <span className="stat-number text-sm text-[#FFC247]">{value}/{field.max}</span>
       </div>
       <input
         type="range"
@@ -418,9 +418,9 @@ function TacticSlider({
         step={1}
         value={value}
         onChange={(event) => onChange(field.key, Number(event.target.value))}
-        className="w-full accent-[#D5B15E]"
+        className="w-full accent-[#FFC247]"
       />
-      <div className="mt-1 flex items-center justify-between text-[11px] font-bold text-[#786F5A]">
+      <div className="mt-1 flex items-center justify-between text-[11px] font-bold text-[#466353]">
         <span>{field.left}</span>
         <span>{field.right}</span>
       </div>
@@ -511,8 +511,8 @@ function PlayerPanel({
   const navigate = useNavigate()
   const tone = positionTone[player.position]
   const instruction = getPlayerInstruction(teamInstructions, player.id)
-  const fitnessColor = player.fitness >= 80 ? 'bg-[#7CB342]' : player.fitness >= 50 ? 'bg-[#E6B800]' : 'bg-[#D75A4A]'
-  const formColor = player.match_form === 'HOT' ? 'text-[#E8C84A]' : player.match_form === 'GOOD' ? 'text-[#7CB342]' : player.match_form === 'LOW' ? 'text-[#D75A4A]' : 'text-[#A99E83]'
+  const fitnessColor = player.fitness >= 80 ? 'bg-[#B9EF3F]' : player.fitness >= 50 ? 'bg-[#FFC247]' : 'bg-[#FF6F59]'
+  const formColor = player.match_form === 'HOT' ? 'text-[#8B5A2B]' : player.match_form === 'GOOD' ? 'text-[#B9EF3F]' : player.match_form === 'LOW' ? 'text-[#FF6F59]' : 'text-[#A99E83]'
 
   return (
     <div className="space-y-4">
@@ -538,11 +538,11 @@ function PlayerPanel({
             onClick={() => navigate(`/players/${player.id}`)}
             className="block text-left transition-opacity hover:opacity-85"
           >
-            <h3 className="truncate text-base font-black text-[#FFF8DE]">{player.name}</h3>
+            <h3 className="truncate text-base font-black text-[#173126]">{player.name}</h3>
           </button>
-          <p className="mt-1 text-sm font-black text-[#D5B15E]">{player.age}岁 · {tone.label}</p>
+          <p className="mt-1 text-sm font-black text-[#FFC247]">{player.age}岁 · {tone.label}</p>
           {slot && (
-            <p className="mt-0.5 text-[11px] font-black text-[#9ECF45]">
+            <p className="mt-0.5 text-[11px] font-black text-[#B9EF3F]">
               当前首发 · 位置 {slot.position}-{slot.id.split('-')[1] ? Number(slot.id.split('-')[1]) + 1 : 1}
             </p>
           )}
@@ -551,50 +551,50 @@ function PlayerPanel({
           <button
             type="button"
             onClick={onClear}
-            className="grid h-7 w-7 shrink-0 place-items-center border-2 border-[#14532D] bg-[#0D0B07] text-[#786F5A] hover:text-[#FFF8DE]"
+            className="grid h-7 w-7 shrink-0 place-items-center border-2 border-[#1F5F43] bg-[#FFF8DC] text-[#466353] hover:text-[#173126]"
           >
             <Cancel className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
-      <div className="space-y-2 border-2 border-[#14532D] bg-[#0D0B07] p-3">
+      <div className="space-y-2 border-2 border-[#1F5F43] bg-[#FFF8DC] p-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-[#786F5A]">体能</span>
-          <span className="text-xs font-black text-[#FFF8DE]">{player.fitness}%</span>
+          <span className="text-xs font-black text-[#466353]">体能</span>
+          <span className="text-xs font-black text-[#173126]">{player.fitness}%</span>
         </div>
-        <div className="h-2 border border-[#14532D] bg-[#1A1610]">
+        <div className="h-2 border border-[#1F5F43] bg-[#ECFFD8]">
           <div className={clsx('h-full', fitnessColor)} style={{ width: `${player.fitness}%` }} />
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-[#786F5A]">状态</span>
+          <span className="text-xs font-black text-[#466353]">状态</span>
           <span className={clsx('text-xs font-black', formColor)}>{formatForm(player.match_form)}</span>
         </div>
       </div>
 
-      <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3">
-        <p className="mb-2 text-[10px] font-black text-[#786F5A]">赛季数据</p>
+      <div className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-3">
+        <p className="mb-2 text-[10px] font-black text-[#466353]">赛季数据</p>
         <div className="grid grid-cols-3 gap-y-1.5 text-xs">
-          <span className="font-black text-[#786F5A]">出场 <span className="text-[#FFF8DE]">{player.matches_played}</span></span>
-          <span className="font-black text-[#786F5A]">进球 <span className="text-[#FFF8DE]">{player.goals}</span></span>
-          <span className="font-black text-[#786F5A]">助攻 <span className="text-[#FFF8DE]">{player.assists}</span></span>
-          <span className="font-black text-[#786F5A]">场均 <span className="text-[#D5B15E]">{player.average_rating.toFixed(1)}</span></span>
-          <span className="font-black text-[#786F5A]">黄牌 <span className="text-yellow-400">{player.yellow_cards}</span></span>
-          <span className="font-black text-[#786F5A]">红牌 <span className="text-red-400">{player.red_cards}</span></span>
+          <span className="font-black text-[#466353]">出场 <span className="text-[#173126]">{player.matches_played}</span></span>
+          <span className="font-black text-[#466353]">进球 <span className="text-[#173126]">{player.goals}</span></span>
+          <span className="font-black text-[#466353]">助攻 <span className="text-[#173126]">{player.assists}</span></span>
+          <span className="font-black text-[#466353]">场均 <span className="text-[#FFC247]">{player.average_rating.toFixed(1)}</span></span>
+          <span className="font-black text-[#466353]">黄牌 <span className="text-[#C77A00]">{player.yellow_cards}</span></span>
+          <span className="font-black text-[#466353]">红牌 <span className="text-[#FF6F59]">{player.red_cards}</span></span>
           {getPositionStats(player).map((stat) => (
-            <span key={stat.label} className="font-black text-[#786F5A]">{stat.label} <span className="text-[#FFF8DE]">{stat.value}</span></span>
+            <span key={stat.label} className="font-black text-[#466353]">{stat.label} <span className="text-[#173126]">{stat.value}</span></span>
           ))}
         </div>
       </div>
 
-      <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3">
-        <p className="mb-2 text-[10px] font-black text-[#786F5A]">能力值</p>
+      <div className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-3">
+        <p className="mb-2 text-[10px] font-black text-[#466353]">能力值</p>
         <div className="grid grid-cols-3 gap-1.5">
           {abilityOrder.map((ability) => {
             const value = player.abilities[ability.key]
             return (
-              <div key={ability.key} className="border border-[#14532D] bg-[#15110A] py-1 text-center">
-                <p className="text-[9px] font-black text-[#786F5A]">{ability.label}</p>
+              <div key={ability.key} className="border border-[#1F5F43] bg-[#ECFFD8] py-1 text-center">
+                <p className="text-[9px] font-black text-[#466353]">{ability.label}</p>
                 <p className={clsx('font-["Press_Start_2P"] text-[11px] font-black', abilityTone(value))}>{value}</p>
               </div>
             )
@@ -602,13 +602,13 @@ function PlayerPanel({
         </div>
       </div>
 
-      <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3">
+      <div className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-3">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-[10px] font-black text-[#786F5A]">个人战术指令</p>
+          <p className="text-[10px] font-black text-[#466353]">个人战术指令</p>
           <button
             type="button"
             onClick={() => onInstructionChange(updatePlayerInstruction(teamInstructions, player.id, defaultPlayerInstruction(player.id)))}
-            className="text-[9px] font-black text-[#D5B15E] hover:text-[#FFF8DE]"
+            className="text-[9px] font-black text-[#FFC247] hover:text-[#173126]"
           >
             重置默认
           </button>
@@ -617,8 +617,8 @@ function PlayerPanel({
           {instructionFields.map((field) => (
             <div key={field.key} className="space-y-1">
               <div className="flex items-center justify-between text-[10px] font-black">
-                <span className="text-[#FFF8DE]">{field.label}</span>
-                <span className='font-["Press_Start_2P"] text-[#D5B15E]'>{instruction[field.key]}</span>
+                <span className="text-[#173126]">{field.label}</span>
+                <span className='font-["Press_Start_2P"] text-[#FFC247]'>{instruction[field.key]}</span>
               </div>
               <input
                 type="range"
@@ -631,9 +631,9 @@ function PlayerPanel({
                     updatePlayerInstruction(teamInstructions, player.id, { [field.key]: Number(event.target.value) }),
                   )
                 }
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-none border border-[#14532D] bg-[#1A1610] accent-[#D5B15E]"
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-none border border-[#1F5F43] bg-[#ECFFD8] accent-[#FFC247]"
               />
-              <div className="flex justify-between text-[9px] font-black text-[#786F5A]">
+              <div className="flex justify-between text-[9px] font-black text-[#466353]">
                 <span>{field.left}</span>
                 <span>{field.right}</span>
               </div>
@@ -671,19 +671,19 @@ function FormationSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 border-2 border-[#14532D] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
+        className="flex w-full items-center gap-3 border-2 border-[#1F5F43] bg-[#ECFFD8] px-3 py-2 text-left transition-colors hover:border-[#FFC247]/55"
       >
         <div className="h-10 w-8 shrink-0">
           <FormationMiniShape formationId={current.id} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black text-[#FFF8DE]">{current.shape}</p>
+          <p className="text-xs font-black text-[#173126]">{current.shape}</p>
         </div>
-        <ChevronDown className={clsx('h-4 w-4 shrink-0 text-[#786F5A] transition-transform', open && 'rotate-180')} />
+        <ChevronDown className={clsx('h-4 w-4 shrink-0 text-[#466353] transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#14532D] bg-[#15110A] p-2 shadow-pixel">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#1F5F43] bg-[#ECFFD8] p-2 shadow-pixel">
           <div className="grid grid-cols-2 gap-2">
             {formations.map((formation) => (
               <button
@@ -696,14 +696,14 @@ function FormationSelect({
                 className={clsx(
                   'flex flex-col items-center gap-1 border-2 p-2 text-center transition-all',
                   value === formation.id
-                    ? 'border-[#D5B15E] bg-[#2A1E0E]'
-                    : 'border-[#14532D] bg-[#0D0B07] hover:border-[#D5B15E]/55',
+                    ? 'border-[#FFC247] bg-[#FFF8DC]'
+                    : 'border-[#1F5F43] bg-[#FFF8DC] hover:border-[#FFC247]/55',
                 )}
               >
                 <div className="h-8 w-full">
                   <FormationMiniShape formationId={formation.id} />
                 </div>
-                <p className="text-[11px] font-black text-[#FFF8DE]">{formation.shape}</p>
+                <p className="text-[11px] font-black text-[#173126]">{formation.shape}</p>
               </button>
             ))}
           </div>
@@ -739,17 +739,17 @@ function PresetSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 border-2 border-[#14532D] bg-[#15110A] px-3 py-2 text-left transition-colors hover:border-[#D5B15E]/55"
+        className="flex w-full items-center gap-3 border-2 border-[#1F5F43] bg-[#ECFFD8] px-3 py-2 text-left transition-colors hover:border-[#FFC247]/55"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black text-[#FFF8DE]">{current?.name || '自定义'}</p>
-          <p className="text-[10px] font-bold text-[#786F5A]">{current?.desc || '手动调整'}</p>
+          <p className="text-xs font-black text-[#173126]">{current?.name || '自定义'}</p>
+          <p className="text-[10px] font-bold text-[#466353]">{current?.desc || '手动调整'}</p>
         </div>
-        <ChevronDown className={clsx('h-4 w-4 shrink-0 text-[#786F5A] transition-transform', open && 'rotate-180')} />
+        <ChevronDown className={clsx('h-4 w-4 shrink-0 text-[#466353] transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#14532D] bg-[#15110A] p-2 shadow-pixel">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 border-2 border-[#1F5F43] bg-[#ECFFD8] p-2 shadow-pixel">
           <div className="space-y-1">
             {presets.map((preset) => (
               <button
@@ -762,13 +762,13 @@ function PresetSelect({
                 className={clsx(
                   'flex w-full items-center gap-2 border-2 p-2 text-left transition-all',
                   value === preset.id
-                    ? 'border-[#D5B15E] bg-[#2A1E0E]'
-                    : 'border-[#14532D] bg-[#0D0B07] hover:border-[#D5B15E]/55',
+                    ? 'border-[#FFC247] bg-[#FFF8DC]'
+                    : 'border-[#1F5F43] bg-[#FFF8DC] hover:border-[#FFC247]/55',
                 )}
               >
                 <div className="min-w-0">
-                  <p className="text-[11px] font-black text-[#FFF8DE]">{preset.name}</p>
-                  <p className="text-[10px] font-bold text-[#786F5A]">{preset.desc}</p>
+                  <p className="text-[11px] font-black text-[#173126]">{preset.name}</p>
+                  <p className="text-[10px] font-bold text-[#466353]">{preset.desc}</p>
                 </div>
               </button>
             ))}
@@ -791,7 +791,7 @@ function BenchPlayerRow({
   onDragStart: (event: React.DragEvent<HTMLButtonElement>) => void
 }) {
   const tone = positionTone[player.position]
-  const fitnessColor = player.fitness >= 80 ? 'bg-[#7CB342]' : player.fitness >= 50 ? 'bg-[#E6B800]' : 'bg-[#D75A4A]'
+  const fitnessColor = player.fitness >= 80 ? 'bg-[#B9EF3F]' : player.fitness >= 50 ? 'bg-[#FFC247]' : 'bg-[#FF6F59]'
 
   return (
     <button
@@ -802,8 +802,8 @@ function BenchPlayerRow({
       className={clsx(
         'flex w-full items-center gap-3 border-2 p-2 text-left transition-all',
         selected
-          ? 'border-[#D5B15E] bg-[#2A1E0E]'
-          : 'border-[#14532D] bg-[#15110A] hover:border-[#D5B15E]/55',
+          ? 'border-[#FFC247] bg-[#FFF8DC]'
+          : 'border-[#1F5F43] bg-[#ECFFD8] hover:border-[#FFC247]/55',
       )}
     >
       <div className={clsx('relative h-10 w-10 shrink-0 overflow-hidden rounded-full border-2', tone.ring)}>
@@ -814,13 +814,13 @@ function BenchPlayerRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-black text-[#FFF8DE]">{player.name}</p>
+        <p className="truncate text-xs font-black text-[#173126]">{player.name}</p>
         {player.short_description ? (
-          <p className="truncate text-[10px] font-black text-[#E8C84A]">{player.short_description}</p>
+          <p className="truncate text-[10px] font-black text-[#8B5A2B]">{player.short_description}</p>
         ) : (
-          <p className="text-[10px] font-bold text-[#786F5A]">{tone.label} · OVR {player.ovr}</p>
+          <p className="text-[10px] font-bold text-[#466353]">{tone.label} · OVR {player.ovr}</p>
         )}
-        <div className="mt-1.5 h-1 border border-[#14532D] bg-[#1A1610]">
+        <div className="mt-1.5 h-1 border border-[#1F5F43] bg-[#ECFFD8]">
           <div className={clsx('h-full', fitnessColor)} style={{ width: `${player.fitness}%` }} />
         </div>
       </div>
@@ -842,12 +842,12 @@ function TacticsDesignPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-black text-[#FFF8DE]">战术控制台</h2>
+        <h2 className="font-black text-[#173126]">战术控制台</h2>
         {activePreset === 'custom' && (
           <button
             type="button"
             onClick={() => onPreset('balanced')}
-            className="text-[10px] font-black text-[#D5B15E] hover:text-[#FFF8DE]"
+            className="text-[10px] font-black text-[#FFC247] hover:text-[#173126]"
           >
             重置
           </button>
@@ -856,9 +856,9 @@ function TacticsDesignPanel({
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {(['进攻组织', '防守结构'] as const).map((group) => (
-          <div key={group} className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
+          <div key={group} className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-3 shadow-pixel">
             <div className="mb-2">
-              <h3 className="text-xs font-black text-[#EFE8CE]">{group}</h3>
+              <h3 className="text-xs font-black text-[#173126]">{group}</h3>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               {tacticFields.filter((field) => field.group === group).map((field) => (
@@ -884,15 +884,15 @@ function PhaseSelect<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="border-2 border-[#14532D] bg-[#16120B]/88 p-3">
-      <label className="mb-2 block text-sm font-black text-[#EFE8CE]">{label}</label>
+    <div className="border-2 border-[#1F5F43] bg-[#ECFFD8]/88 p-3">
+      <label className="mb-2 block text-sm font-black text-[#173126]">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="w-full border-2 border-[#14532D] bg-[#0D0B07] px-2 py-1.5 text-xs font-black text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
+        className="w-full border-2 border-[#1F5F43] bg-[#FFF8DC] px-2 py-1.5 text-xs font-black text-[#173126] focus:border-[#FFC247] focus:outline-none"
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value} className="bg-[#0D0B07]">
+          <option key={opt.value} value={opt.value} className="bg-[#FFF8DC]">
             {opt.label}
           </option>
         ))}
@@ -913,10 +913,10 @@ function PhaseSlider({
   onChange: (value: number) => void
 }) {
   return (
-    <div className="border-2 border-[#14532D] bg-[#16120B]/88 p-3">
+    <div className="border-2 border-[#1F5F43] bg-[#ECFFD8]/88 p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-black text-[#EFE8CE]">{label}</span>
-        <span className="stat-number text-sm text-[#D5B15E]">{value}/{max}</span>
+        <span className="text-sm font-black text-[#173126]">{label}</span>
+        <span className="stat-number text-sm text-[#FFC247]">{value}/{max}</span>
       </div>
       <input
         type="range"
@@ -925,7 +925,7 @@ function PhaseSlider({
         step={1}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="w-full accent-[#D5B15E]"
+        className="w-full accent-[#FFC247]"
       />
     </div>
   )
@@ -949,12 +949,12 @@ function PhaseTacticsPanel({
 
   return (
     <div className="space-y-4">
-      <h2 className="font-black text-[#FFF8DE]">阶段战术</h2>
+      <h2 className="font-black text-[#173126]">阶段战术</h2>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
+        <div className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-3 shadow-pixel">
           <div className="mb-2">
-            <h3 className="text-xs font-black text-[#EFE8CE]">持球进攻</h3>
+            <h3 className="text-xs font-black text-[#173126]">持球进攻</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <PhaseSelect
@@ -987,9 +987,9 @@ function PhaseTacticsPanel({
           </div>
         </div>
 
-        <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
+        <div className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-3 shadow-pixel">
           <div className="mb-2">
-            <h3 className="text-xs font-black text-[#EFE8CE]">转换阶段</h3>
+            <h3 className="text-xs font-black text-[#173126]">转换阶段</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <PhaseSelect
@@ -1016,9 +1016,9 @@ function PhaseTacticsPanel({
           </div>
         </div>
 
-        <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
+        <div className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-3 shadow-pixel">
           <div className="mb-2">
-            <h3 className="text-xs font-black text-[#EFE8CE]">无球防守</h3>
+            <h3 className="text-xs font-black text-[#173126]">无球防守</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <PhaseSelect
@@ -1047,9 +1047,9 @@ function PhaseTacticsPanel({
           </div>
         </div>
 
-        <div className="border-2 border-[#14532D] bg-[#0D0B07] p-3 shadow-pixel">
+        <div className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-3 shadow-pixel">
           <div className="mb-2">
-            <h3 className="text-xs font-black text-[#EFE8CE]">门将出球</h3>
+            <h3 className="text-xs font-black text-[#173126]">门将出球</h3>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <PhaseSelect
@@ -1287,14 +1287,14 @@ function SituationalRulesPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-black text-[#FFF8DE]">情境规则</h2>
+        <h2 className="font-black text-[#173126]">情境规则</h2>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-[#786F5A]">{rules.length}/10</span>
+          <span className="text-[10px] font-bold text-[#466353]">{rules.length}/10</span>
           <button
             type="button"
             onClick={addRule}
             disabled={rules.length >= 10}
-            className="border-2 border-[#14532D] bg-[#0D0B07] px-2 py-1 text-[10px] font-black text-[#D5B15E] hover:border-[#D5B15E] disabled:opacity-40"
+            className="border-2 border-[#1F5F43] bg-[#FFF8DC] px-2 py-1 text-[10px] font-black text-[#FFC247] hover:border-[#FFC247] disabled:opacity-40"
           >
             + 新增规则
           </button>
@@ -1302,7 +1302,7 @@ function SituationalRulesPanel({
       </div>
 
       {rules.length === 0 && (
-        <div className="border-2 border-dashed border-[#14532D] p-4 text-center text-xs font-bold text-[#786F5A]">
+        <div className="border-2 border-dashed border-[#1F5F43] p-4 text-center text-xs font-bold text-[#466353]">
           暂无情境规则。点击右上角添加，或在预设中恢复默认规则。
         </div>
       )}
@@ -1311,7 +1311,7 @@ function SituationalRulesPanel({
         const conflicts = findSituationalConflicts(rules)
         if (conflicts.length === 0) return null
         return (
-          <div className="border-2 border-[#8E2E20] bg-[#2B0905] p-3 text-xs font-black text-[#E97762]">
+          <div className="border-2 border-[#FF6F59] bg-[#FF6F59] p-3 text-xs font-black text-[#FF6F59]">
             <p className="mb-1">检测到规则冲突：</p>
             <ul className="list-inside list-disc space-y-1">
               {conflicts.map((conflict, i) => (
@@ -1357,14 +1357,14 @@ function SituationalRulesPanel({
               }}
               onDragEnd={() => setDraggingIndex(null)}
               className={clsx(
-                'border-2 bg-[#0D0B07] p-3 shadow-pixel transition-opacity',
-                draggingIndex === index ? 'border-[#D5B15E] opacity-60' : 'border-[#14532D]',
+                'border-2 bg-[#FFF8DC] p-3 shadow-pixel transition-opacity',
+                draggingIndex === index ? 'border-[#FFC247] opacity-60' : 'border-[#1F5F43]',
               )}
             >
               <div className="mb-3 flex items-center gap-2">
                 <span
                   title="拖拽排序"
-                  className="cursor-grab pr-1 text-[10px] font-black text-[#786F5A] active:cursor-grabbing"
+                  className="cursor-grab pr-1 text-[10px] font-black text-[#466353] active:cursor-grabbing"
                 >
                   ⠿
                 </span>
@@ -1372,14 +1372,14 @@ function SituationalRulesPanel({
                   type="text"
                   value={rule.name}
                   onChange={(event) => updateRule(index, { name: event.target.value })}
-                  className="min-w-0 flex-1 border-2 border-[#14532D] bg-[#15110A] px-2 py-1 text-xs font-black text-[#FFF8DE] focus:border-[#D5B15E] focus:outline-none"
+                  className="min-w-0 flex-1 border-2 border-[#1F5F43] bg-[#ECFFD8] px-2 py-1 text-xs font-black text-[#173126] focus:border-[#FFC247] focus:outline-none"
                 />
-                <label className="flex items-center gap-1.5 text-[10px] font-black text-[#EFE8CE]">
+                <label className="flex items-center gap-1.5 text-[10px] font-black text-[#173126]">
                   <input
                     type="checkbox"
                     checked={rule.enabled}
                     onChange={(event) => updateRule(index, { enabled: event.target.checked })}
-                    className="accent-[#D5B15E]"
+                    className="accent-[#FFC247]"
                   />
                   启用
                 </label>
@@ -1387,14 +1387,14 @@ function SituationalRulesPanel({
                   type="button"
                   title="删除规则"
                   onClick={() => updateRules(rules.filter((_, i) => i !== index))}
-                  className="grid h-6 w-6 place-items-center border-2 border-[#14532D] bg-[#15110A] text-[#786F5A] hover:text-[#E97762]"
+                  className="grid h-6 w-6 place-items-center border-2 border-[#1F5F43] bg-[#ECFFD8] text-[#466353] hover:text-[#FF6F59]"
                 >
                   <Delete className="h-3.5 w-3.5" />
                 </button>
               </div>
 
               {ruleConflicts.length > 0 && (
-                <div className="mb-2 text-[10px] font-black text-[#E97762]">
+                <div className="mb-2 text-[10px] font-black text-[#FF6F59]">
                   与
                   {ruleConflicts.map((c, ci) => (
                     <span key={ci}>
@@ -1408,16 +1408,16 @@ function SituationalRulesPanel({
 
               {/* Sentence editor: conditions */}
               <div className="mb-3 flex flex-wrap items-center gap-2 text-xs leading-7">
-                <span className="font-black text-[#786F5A]">当</span>
+                <span className="font-black text-[#466353]">当</span>
                 {conditionKeys.length === 0 && (
-                  <span className="font-bold text-[#786F5A]">（无条件，始终触发）</span>
+                  <span className="font-bold text-[#466353]">（无条件，始终触发）</span>
                 )}
                 {conditionKeys.map((key, ci) => {
                   const field = situationalConditionFields.find((f) => f.key === key)!
                   return (
                     <div key={key} className="inline-flex items-center gap-1">
-                      {ci > 0 && <span className="font-black text-[#D5B15E]">并且</span>}
-                      <span className="font-black text-[#EFE8CE]">{field.label}</span>
+                      {ci > 0 && <span className="font-black text-[#FFC247]">并且</span>}
+                      <span className="font-black text-[#173126]">{field.label}</span>
                       <input
                         type="number"
                         min={field.min}
@@ -1427,13 +1427,13 @@ function SituationalRulesPanel({
                           const num = Math.min(field.max, Math.max(field.min, Number(event.target.value)))
                           updateCondition(index, { [key]: num } as Partial<SituationalRuleCondition>)
                         }}
-                        className="w-14 border-2 border-[#14532D] bg-[#15110A] px-1 py-0.5 text-center font-['Press_Start_2P'] text-[10px] font-black text-[#D5B15E] focus:border-[#D5B15E] focus:outline-none"
+                        className="w-14 border-2 border-[#1F5F43] bg-[#ECFFD8] px-1 py-0.5 text-center font-['Press_Start_2P'] text-[10px] font-black text-[#FFC247] focus:border-[#FFC247] focus:outline-none"
                       />
                       <button
                         type="button"
                         title="移除条件"
                         onClick={() => removeConditionField(index, key)}
-                        className="grid h-5 w-5 place-items-center text-[#786F5A] hover:text-[#E97762]"
+                        className="grid h-5 w-5 place-items-center text-[#466353] hover:text-[#FF6F59]"
                       >
                         <Delete className="h-3 w-3" />
                       </button>
@@ -1448,7 +1448,7 @@ function SituationalRulesPanel({
                       event.target.value = ''
                     }
                   }}
-                  className="border-2 border-[#14532D] bg-[#15110A] px-2 py-0.5 text-[10px] font-black text-[#D5B15E]"
+                  className="border-2 border-[#1F5F43] bg-[#ECFFD8] px-2 py-0.5 text-[10px] font-black text-[#FFC247]"
                 >
                   <option value="">+ 并且…</option>
                   {situationalConditionFields
@@ -1463,17 +1463,17 @@ function SituationalRulesPanel({
 
               {/* Sentence editor: overrides */}
               <div className="flex flex-wrap items-center gap-2 text-xs leading-7">
-                <span className="font-black text-[#786F5A]">时，将</span>
+                <span className="font-black text-[#466353]">时，将</span>
                 {overrideKeys.length === 0 && (
-                  <span className="font-bold text-[#786F5A]">（无覆盖）</span>
+                  <span className="font-bold text-[#466353]">（无覆盖）</span>
                 )}
                 {overrideKeys.map((key) => {
                   const field = situationalOverrideFields.find((f) => f.key === key)!
                   const value = rule.override[key] as number | string
                   return (
                     <div key={key} className="inline-flex items-center gap-1.5">
-                      <span className="font-black text-[#EFE8CE]">{field.label}</span>
-                      <span className="font-black text-[#786F5A]">调整为</span>
+                      <span className="font-black text-[#173126]">{field.label}</span>
+                      <span className="font-black text-[#466353]">调整为</span>
                       {field.type === 'slider' ? (
                         <>
                           <input
@@ -1485,9 +1485,9 @@ function SituationalRulesPanel({
                             onChange={(event) =>
                               updateOverride(index, { [key]: Number(event.target.value) } as SituationalRuleOverride)
                             }
-                            className="w-20 accent-[#D5B15E]"
+                            className="w-20 accent-[#FFC247]"
                           />
-                          <span className='font-["Press_Start_2P"] w-3 text-center text-[10px] font-black text-[#D5B15E]'>
+                          <span className='font-["Press_Start_2P"] w-3 text-center text-[10px] font-black text-[#FFC247]'>
                             {value}
                           </span>
                         </>
@@ -1497,7 +1497,7 @@ function SituationalRulesPanel({
                           onChange={(event) =>
                             updateOverride(index, { [key]: event.target.value } as SituationalRuleOverride)
                           }
-                          className="border-2 border-[#14532D] bg-[#15110A] px-1 py-0.5 text-[10px] font-black text-[#FFF8DE]"
+                          className="border-2 border-[#1F5F43] bg-[#ECFFD8] px-1 py-0.5 text-[10px] font-black text-[#173126]"
                         >
                           {field.options!.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -1510,7 +1510,7 @@ function SituationalRulesPanel({
                         type="button"
                         title="移除覆盖"
                         onClick={() => removeOverride(index, key)}
-                        className="grid h-5 w-5 place-items-center text-[#786F5A] hover:text-[#E97762]"
+                        className="grid h-5 w-5 place-items-center text-[#466353] hover:text-[#FF6F59]"
                       >
                         <Delete className="h-3 w-3" />
                       </button>
@@ -1525,7 +1525,7 @@ function SituationalRulesPanel({
                       event.target.value = ''
                     }
                   }}
-                  className="border-2 border-[#14532D] bg-[#15110A] px-2 py-0.5 text-[10px] font-black text-[#D5B15E]"
+                  className="border-2 border-[#1F5F43] bg-[#ECFFD8] px-2 py-0.5 text-[10px] font-black text-[#FFC247]"
                 >
                   <option value="">+ 将…调整为…</option>
                   {situationalOverrideFields
@@ -1557,10 +1557,10 @@ function BenchPanel({
   onDragStart: (event: React.DragEvent<HTMLButtonElement>, player: TacticalPlayer, index: number) => void
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col border-2 border-[#14532D] bg-[#15110A] p-3 shadow-pixel">
+    <div className="flex h-full min-h-0 flex-col border-2 border-[#1F5F43] bg-[#ECFFD8] p-3 shadow-pixel">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="font-black text-[#FFF8DE]">替补席</h2>
-        <span className="ml-auto text-[10px] font-bold text-[#786F5A]">{bench.length}人</span>
+        <h2 className="font-black text-[#173126]">替补席</h2>
+        <span className="ml-auto text-[10px] font-bold text-[#466353]">{bench.length}人</span>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto pr-1">
         {bench.length ? bench.map((player, index) => (
@@ -1572,7 +1572,7 @@ function BenchPanel({
             onDragStart={(event) => onDragStart(event, player, index)}
           />
         )) : (
-          <div className="flex h-24 items-center justify-center border-2 border-dashed border-[#14532D] text-xs font-bold text-[#786F5A]">
+          <div className="flex h-24 items-center justify-center border-2 border-dashed border-[#1F5F43] text-xs font-bold text-[#466353]">
             暂无可用替补
           </div>
         )}
@@ -1595,8 +1595,8 @@ function PlayerDetailPanel({
   onInstructionChange: (next: TeamInstructions) => void
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col border-2 border-[#14532D] bg-[#15110A] p-3 shadow-pixel">
-      <h2 className="mb-3 font-black text-[#FFF8DE]">球员详情</h2>
+    <div className="flex h-full min-h-0 flex-col border-2 border-[#1F5F43] bg-[#ECFFD8] p-3 shadow-pixel">
+      <h2 className="mb-3 font-black text-[#173126]">球员详情</h2>
       <div className="flex-1 overflow-y-auto pr-1">
         {player ? (
           <PlayerPanel
@@ -1607,8 +1607,8 @@ function PlayerDetailPanel({
             onInstructionChange={onInstructionChange}
           />
         ) : (
-          <div className="flex h-48 flex-col items-center justify-center gap-3 border-2 border-dashed border-[#14532D] p-4 text-center">
-            <p className="text-sm font-bold text-[#786F5A]">点击球场或替补球员查看详情</p>
+          <div className="flex h-48 flex-col items-center justify-center gap-3 border-2 border-dashed border-[#1F5F43] p-4 text-center">
+            <p className="text-sm font-bold text-[#466353]">点击球场或替补球员查看详情</p>
           </div>
         )}
       </div>
@@ -1623,8 +1623,8 @@ function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => void | Pr
       className={clsx(
         'inline-flex items-center gap-1.5 border-2 px-3 py-2 text-xs font-black shadow-pixel-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:brightness-110',
         saved
-          ? 'border-[#4A7C23] bg-[#7CB342] text-[#0D1A05]'
-          : 'border-[#6F521B] bg-[#D5B15E] text-[#191007]',
+          ? 'border-[#1F5F43] bg-[#B9EF3F] text-[#1F5F43]'
+          : 'border-[#8B5A2B] bg-[#FFC247] text-[#ECFFD8]',
       )}
     >
       {saved ? '已保存' : '保存方案'}
@@ -1902,11 +1902,11 @@ export default function Tactics() {
   }
 
   if (loading) {
-    return <div className="max-w-[1440px] p-8 text-center text-[#8B8BA7]">加载战术室...</div>
+    return <div className="max-w-[1440px] p-8 text-center text-[#466353]">加载战术室...</div>
   }
 
   return (
-    <div className="tactics-page mx-auto max-w-[1600px] space-y-4 text-[#EFE8CE]">
+    <div className="tactics-page mx-auto max-w-[1600px] space-y-4 text-[#173126]">
       <SegmentedTabs
         tabs={TABS.map((tab) => ({ value: tab.id, label: tab.label }))}
         value={activeTab}
@@ -1925,7 +1925,7 @@ export default function Tactics() {
             <div className="flex items-center gap-3">
               <button
                 onClick={autoPick}
-                className="border border-[#6F521B] px-3 py-2 text-[11px] font-black text-[#D5B15E] hover:bg-[#2A1E0E]"
+                className="border border-[#8B5A2B] px-3 py-2 text-[11px] font-black text-[#FFC247] hover:bg-[#FFF8DC]"
               >
                 自动排阵
               </button>
@@ -1934,7 +1934,7 @@ export default function Tactics() {
           </div>
 
           {saveError && (
-            <div className="border-2 border-[#8E2E20] bg-[#2B0905] px-3 py-2 text-xs font-black text-[#E97762]">
+            <div className="border-2 border-[#FF6F59] bg-[#FF6F59] px-3 py-2 text-xs font-black text-[#FF6F59]">
               保存失败：{saveError}
             </div>
           )}
@@ -1948,13 +1948,13 @@ export default function Tactics() {
             />
 
             <div className="flex flex-col items-center">
-              <div className="relative aspect-[1037/1517] h-[min(78vh,740px)] w-full max-w-[560px] overflow-hidden border-4 border-[#33291A] bg-[#D6C08E] shadow-pixel-lg">
+              <div className="relative aspect-[1037/1517] h-[min(78vh,740px)] w-full max-w-[560px] overflow-hidden border-4 border-[#1F5F43] bg-[#ECFFD8] shadow-pixel-lg">
                 <img
                   src="/tactics/hand-drawn-board-portrait-pixel-v2.png"
                   alt=""
                   className="absolute inset-0 h-full w-full object-cover opacity-95"
                 />
-                <div className="absolute inset-0 bg-[#F2DFA6]/10 mix-blend-multiply" />
+                <div className="absolute inset-0 bg-[#B9EF3F]/10 mix-blend-multiply" />
 
                 {lineup.map((slot, index) => {
                   const player = slot.player
@@ -2021,20 +2021,20 @@ export default function Tactics() {
                             />
                           )}
                         </div>
-                        <span className="absolute -right-1 -top-2 rounded-full border-2 border-[#60471F] bg-[#F8E8B6] px-1.5 text-[10px] font-black text-[#2B1B08] font-['Press_Start_2P']">
+                        <span className="absolute -right-1 -top-2 rounded-full border-2 border-[#1F5F43] bg-[#FFF8DC] px-1.5 text-[10px] font-black text-[#173126] font-['Press_Start_2P']">
                           {index + 1}
                         </span>
                       </div>
                       <div className="absolute left-1/2 top-[74px] w-24 -translate-x-1/2 text-center">
                         <p className={clsx(
-                          'truncate rounded-sm border border-[#5A4420] px-1 text-[10px] font-black shadow-[2px_2px_0_rgba(31,21,9,0.34)]',
-                          isSelected ? 'bg-[#FFF4B8] text-[#2B1B08]' : 'bg-[#F7E5B5] text-[#241808]',
+                          'truncate rounded-sm border border-[#1F5F43] px-1 text-[10px] font-black shadow-[2px_2px_0_rgba(31,95,67,0.34)]',
+                          isSelected ? 'bg-[#FFFFFF] text-[#173126]' : 'bg-[#FFF8DC] text-[#173126]',
                         )}>
                           {player?.name || '空位'}
                         </p>
                       </div>
                       {isDragTarget && isEmpty && (
-                        <div className="absolute left-1/2 top-1/2 h-[74px] w-[74px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-[#D5B15E] bg-[#D5B15E]/10" />
+                        <div className="absolute left-1/2 top-1/2 h-[74px] w-[74px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-[#FFC247] bg-[#FFC247]/10" />
                       )}
                     </button>
                   )
@@ -2073,7 +2073,7 @@ export default function Tactics() {
           </div>
 
           {saveError && (
-            <div className="border-2 border-[#8E2E20] bg-[#2B0905] px-3 py-2 text-xs font-black text-[#E97762]">
+            <div className="border-2 border-[#FF6F59] bg-[#FF6F59] px-3 py-2 text-xs font-black text-[#FF6F59]">
               保存失败：{saveError}
             </div>
           )}
@@ -2108,9 +2108,9 @@ export default function Tactics() {
       {/* Tab 3: Set piece */}
       {activeTab === 'setpiece' && (
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="flex flex-col items-center gap-4 border-2 border-[#14532D] bg-[#15110A] p-8 text-center shadow-pixel">
-            <h2 className="text-lg font-black text-[#FFF8DE]">定位球</h2>
-            <p className="text-sm font-bold text-[#786F5A]">角球 / 任意球 / 点球主罚人<br />暂未开发，敬请期待</p>
+          <div className="flex flex-col items-center gap-4 border-2 border-[#1F5F43] bg-[#ECFFD8] p-8 text-center shadow-pixel">
+            <h2 className="text-lg font-black text-[#173126]">定位球</h2>
+            <p className="text-sm font-bold text-[#466353]">角球 / 任意球 / 点球主罚人<br />暂未开发，敬请期待</p>
           </div>
         </div>
       )}
@@ -2118,9 +2118,9 @@ export default function Tactics() {
       {/* Tab 4: Substitution */}
       {activeTab === 'substitution' && (
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="flex flex-col items-center gap-4 border-2 border-[#14532D] bg-[#15110A] p-8 text-center shadow-pixel">
-            <h2 className="text-lg font-black text-[#FFF8DE]">换人策略</h2>
-            <p className="text-sm font-bold text-[#786F5A]">暂未开发，敬请期待</p>
+          <div className="flex flex-col items-center gap-4 border-2 border-[#1F5F43] bg-[#ECFFD8] p-8 text-center shadow-pixel">
+            <h2 className="text-lg font-black text-[#173126]">换人策略</h2>
+            <p className="text-sm font-bold text-[#466353]">暂未开发，敬请期待</p>
           </div>
         </div>
       )}

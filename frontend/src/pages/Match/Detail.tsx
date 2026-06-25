@@ -111,14 +111,14 @@ export default function MatchDetail() {
   }, [match])
 
   if (loading) {
-    return <div className="max-w-[1200px] space-y-4"><div className="h-10 bg-[#1E1E2D] animate-pulse" /><div className="h-80 bg-[#1E1E2D] animate-pulse" /></div>
+    return <div className="max-w-[1200px] space-y-4"><div className="h-10 bg-[#FFF8DC]/80 animate-pulse" /><div className="h-80 bg-[#FFF8DC]/80 animate-pulse" /></div>
   }
 
   if (error || !match) {
     return (
       <div className="max-w-[1200px] text-center py-20">
-        <h2 className="text-xl font-bold text-white mb-2">比赛加载失败</h2>
-        <p className="text-[#8B8BA7] mb-6">{error || '比赛不存在'}</p>
+        <h2 className="text-xl font-bold text-[#173126] mb-2">比赛加载失败</h2>
+        <p className="text-[#466353] mb-6">{error || '比赛不存在'}</p>
         <Link to="/match/schedule" className="btn-primary inline-flex items-center gap-2">
           返回赛程
         </Link>
@@ -132,13 +132,13 @@ export default function MatchDetail() {
 
   return (
     <div className="max-w-[1200px] space-y-6">
-      <Link to="/match/schedule" className="text-sm text-[#8B8BA7] hover:text-white transition-colors">
+      <Link to="/match/schedule" className="text-sm text-[#466353] hover:text-[#173126] transition-colors">
         返回赛程
       </Link>
 
-      <section className="border-2 border-[#2D2D44] bg-[#11111A] px-6 py-6">
+      <section className="border-2 border-[#1F5F43]/20 bg-[#ECFFD8] px-6 py-6">
         <div className="flex items-center justify-between mb-6">
-          <div className="text-sm text-[#8B8BA7]">
+          <div className="text-sm text-[#466353]">
             {new Date(match.scheduled_at).toLocaleString('zh-CN')} · 第 {match.round_number} 轮
           </div>
           <StatusBadge status={match.status} resolution={match.engine_result?.resolution} />
@@ -150,14 +150,14 @@ export default function MatchDetail() {
             {hasResult ? (
               <div className="pixel-scoreboard">
                 <span>{match.home_score}</span>
-                <span className="mx-3 text-[#4B4B6A]">:</span>
+                <span className="mx-3 text-[#8B5A2B]/40">:</span>
                 <span>{match.away_score}</span>
               </div>
             ) : (
-              <div className="text-2xl font-bold text-[#4B4B6A]">VS</div>
+              <div className="text-2xl font-bold text-[#8B5A2B]/40">VS</div>
             )}
             {match.engine_result?.penalty_score && (
-              <p className="text-xs text-[#8B8BA7] mt-2">
+              <p className="text-xs text-[#466353] mt-2">
                 点球 {match.engine_result.penalty_score.home}:{match.engine_result.penalty_score.away}
               </p>
             )}
@@ -181,16 +181,16 @@ export default function MatchDetail() {
 
 function TeamBlock({ name, teamId, align }: { name: string; teamId: string; align: 'left' | 'right' }) {
   return (
-    <Link to={`/teams/${teamId}`} className={`block ${align === 'right' ? 'text-right' : 'text-left'} hover:text-[#0D7377] transition-colors`}>
-      <p className="text-xl font-bold text-white">{name}</p>
-      <p className="text-xs text-[#8B8BA7] mt-1">{align === 'right' ? '主队' : '客队'}</p>
+    <Link to={`/teams/${teamId}`} className={`block ${align === 'right' ? 'text-right' : 'text-left'} hover:text-[#1F5F43] transition-colors`}>
+      <p className="text-xl font-bold text-[#173126]">{name}</p>
+      <p className="text-xs text-[#466353] mt-1">{align === 'right' ? '主队' : '客队'}</p>
     </Link>
   )
 }
 
 function StatusBadge({ status, resolution }: { status: string; resolution?: string }) {
   const label = status === 'scheduled' ? '未开始' : status === 'ongoing' ? '进行中' : resolutionLabel(resolution)
-  const cls = status === 'ongoing' ? 'border-red-500/30 bg-red-500/20 text-red-400' : 'border-[#0D7377]/30 bg-[#0D4A4D]/40 text-[#0D7377]'
+  const cls = status === 'ongoing' ? 'border-[#FF6F59]/30 bg-[#FF6F59]/15 text-[#FF6F59]' : 'border-[#1F5F43]/25 bg-[#B9EF3F]/15 text-[#1F5F43]'
   return <span className={`text-xs px-2 py-1 border ${cls}`}>{label}</span>
 }
 
@@ -205,16 +205,16 @@ function PreMatchView({ lineups }: { lineups: LineupsPayload | null }) {
 
 function LineupCard({ title, formation, players }: { title: string; formation?: string; players: PlayerSetup[] }) {
   return (
-    <div className="border-2 border-[#2D2D44] bg-[#11111A] p-4">
+    <div className="border-2 border-[#1F5F43]/20 bg-[#ECFFD8] p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-white">{title}</h3>
-        <span className="text-xs text-[#8B8BA7]">{formation || 'F01'}</span>
+        <h3 className="font-semibold text-[#173126]">{title}</h3>
+        <span className="text-xs text-[#466353]">{formation || 'F01'}</span>
       </div>
       <div className="space-y-2">
         {players.map(player => (
-          <div key={player.player_id} className="flex items-center justify-between text-sm border-b border-[#2D2D44]/50 pb-2">
-            <span className="text-white">{player.name}</span>
-            <span className="text-[#8B8BA7]">{player.position}</span>
+          <div key={player.player_id} className="flex items-center justify-between text-sm border-b border-[#1F5F43]/20 pb-2">
+            <span className="text-[#173126]">{player.name}</span>
+            <span className="text-[#466353]">{player.position}</span>
           </div>
         ))}
       </div>
@@ -232,8 +232,8 @@ function StatsPanel({ stats }: { stats: Record<string, number> }) {
     ['犯规', stats.fouls_home, stats.fouls_away, ''],
   ]
   return (
-    <section className="border-2 border-[#2D2D44] bg-[#11111A] p-4">
-      <h3 className="font-semibold text-white mb-4">技术统计</h3>
+    <section className="border-2 border-[#1F5F43]/20 bg-[#ECFFD8] p-4">
+      <h3 className="font-semibold text-[#173126] mb-4">技术统计</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {rows.map(([label, home, away, unit]) => <StatRow key={label as string} label={label as string} home={Number(home || 0)} away={Number(away || 0)} unit={unit as string} />)}
       </div>
@@ -247,12 +247,12 @@ function StatRow({ label, home, away, unit }: { label: string; home: number; awa
   return (
     <div>
       <div className="flex justify-between text-sm mb-1">
-        <span className="text-white font-bold">{Math.round(home)}{unit}</span>
-        <span className="text-[#8B8BA7]">{label}</span>
-        <span className="text-white font-bold">{Math.round(away)}{unit}</span>
+        <span className="text-[#173126] font-bold">{Math.round(home)}{unit}</span>
+        <span className="text-[#466353]">{label}</span>
+        <span className="text-[#173126] font-bold">{Math.round(away)}{unit}</span>
       </div>
-      <div className="flex h-2 bg-[#2D2D44]">
-        <div className="bg-[#0D7377]" style={{ width: `${pct}%` }} />
+      <div className="flex h-2 bg-[#F8FFD2]">
+        <div className="bg-[#1F5F43]" style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
@@ -260,14 +260,14 @@ function StatRow({ label, home, away, unit }: { label: string; home: number; awa
 
 function Commentary({ narratives }: { narratives: string[] }) {
   return (
-    <section className="border-2 border-[#2D2D44] bg-[#11111A] p-4">
-      <h3 className="font-semibold text-white mb-4">比赛解说</h3>
+    <section className="border-2 border-[#1F5F43]/20 bg-[#ECFFD8] p-4">
+      <h3 className="font-semibold text-[#173126] mb-4">比赛解说</h3>
       {narratives.length === 0 ? (
-        <p className="text-sm text-[#8B8BA7]">暂无解说记录</p>
+        <p className="text-sm text-[#466353]">暂无解说记录</p>
       ) : (
         <div className="space-y-2 max-h-[520px] overflow-y-auto pr-2">
           {narratives.map((line, index) => (
-            <div key={index} className="text-sm text-[#E2E2F0] border-l-2 border-[#2D2D44] pl-3 py-1">{line}</div>
+            <div key={index} className="text-sm text-[#173126] border-l-2 border-[#1F5F43]/20 pl-3 py-1">{line}</div>
           ))}
         </div>
       )}
@@ -278,11 +278,11 @@ function Commentary({ narratives }: { narratives: string[] }) {
 function PlayerStats({ stats }: { stats: PlayerStat[] }) {
   if (stats.length === 0) return null
   return (
-    <section className="border-2 border-[#2D2D44] bg-[#11111A] p-4">
-      <h3 className="font-semibold text-white mb-4">球员数据</h3>
+    <section className="border-2 border-[#1F5F43]/20 bg-[#ECFFD8] p-4">
+      <h3 className="font-semibold text-[#173126] mb-4">球员数据</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-[#8B8BA7] border-b border-[#2D2D44]">
+          <thead className="text-[#466353] border-b border-[#1F5F43]/20">
             <tr>
               <th className="text-left py-2">球员</th>
               <th>队</th>
@@ -298,17 +298,17 @@ function PlayerStats({ stats }: { stats: PlayerStat[] }) {
           </thead>
           <tbody>
             {stats.map(player => (
-              <tr key={player.player_id} className="border-b border-[#2D2D44]/40 text-center">
-                <td className="text-left py-2 text-white">{player.name}</td>
-                <td className="text-[#8B8BA7]">{player.team === 'home' ? '主' : '客'}</td>
-                <td className="text-[#8B8BA7]">{player.position}</td>
+              <tr key={player.player_id} className="border-b border-[#1F5F43]/20 text-center">
+                <td className="text-left py-2 text-[#173126]">{player.name}</td>
+                <td className="text-[#466353]">{player.team === 'home' ? '主' : '客'}</td>
+                <td className="text-[#466353]">{player.position}</td>
                 <td>{player.goals}</td>
                 <td>{player.assists}</td>
                 <td>{player.shots}</td>
                 <td>{player.passes}</td>
                 <td>{player.tackles}</td>
                 <td>{player.saves}</td>
-                <td className="text-[#0D7377] font-bold">{player.rating?.toFixed?.(1) || player.rating}</td>
+                <td className="text-[#1F5F43] font-bold">{player.rating?.toFixed?.(1) || player.rating}</td>
               </tr>
             ))}
           </tbody>

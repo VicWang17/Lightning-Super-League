@@ -50,10 +50,10 @@ const formLabel: Record<string, string> = {
 }
 
 const formColor: Record<string, string> = {
-  HOT: 'text-red-400',
-  GOOD: 'text-[#9ECF45]',
-  NEUTRAL: 'text-[#8A927B]',
-  LOW: 'text-amber-400',
+  HOT: 'text-[#FF6F59]',
+  GOOD: 'text-[#1F5F43]',
+  NEUTRAL: 'text-[#7b927f]',
+  LOW: 'text-[#C77A00]',
 }
 
 const formOrder: Record<string, number> = {
@@ -80,15 +80,17 @@ function ratingValue(value: unknown) {
 }
 
 function fitnessTone(fitness?: number) {
-  if (typeof fitness !== 'number') return 'bg-[#3A3F4A]'
-  return 'bg-[#8A927B]'
+  if (typeof fitness !== 'number') return 'bg-[#8B5A2B]/40'
+  if (fitness < 55) return 'bg-[#FF6F59]'
+  if (fitness < 75) return 'bg-[#FFC247]'
+  return 'bg-[#B9EF3F]'
 }
 
 function StatusIcon({ player }: { player: LockerPlayer }) {
   if (player.status === 'INJURED') {
     return (
       <span title="伤病中，无法出场">
-        <Thermometer className="h-4 w-4 text-red-400" />
+        <Thermometer className="h-4 w-4 text-[#FF6F59]" />
       </span>
     )
   }
@@ -98,14 +100,14 @@ function StatusIcon({ player }: { player: LockerPlayer }) {
       : '停赛中，无法出场'
     return (
       <span title={detail}>
-        <SquareAlert className="h-4 w-4 text-amber-400" />
+        <SquareAlert className="h-4 w-4 text-[#C77A00]" />
       </span>
     )
   }
   if (player.status === 'RETIRED') {
     return (
       <span title="已退役">
-        <Skull className="h-4 w-4 text-gray-500" />
+        <Skull className="h-4 w-4 text-[#466353]" />
       </span>
     )
   }
@@ -125,7 +127,7 @@ function PlayerAvatar({ player, size = 'sm' }: { player: LockerPlayer; size?: 's
   const sizeClass = size === 'lg' ? 'h-24 w-24' : 'h-10 w-10'
 
   return (
-    <div className={`${sizeClass} overflow-hidden border-2 border-[#242832] bg-[#0B0D12]`}>
+    <div className={`${sizeClass} overflow-hidden border-2 border-[#1F5F43]/30 bg-white`}>
       {player.avatar_url ? (
         <img src={`/${player.avatar_url}`} alt={player.name} className="h-full w-full object-cover" />
       ) : (
@@ -149,14 +151,14 @@ function SortHeader({
   const isActive = sort.field === field
   return (
     <th
-      className="cursor-pointer select-none hover:text-white transition-colors"
+      className="cursor-pointer select-none hover:text-[#173126] transition-colors"
       onClick={() => onSort(field)}
     >
       <div className="flex items-center gap-1">
         {label}
         <span className="inline-flex flex-col items-center leading-none">
-          <span className={`text-[8px] ${isActive && sort.direction === 'asc' ? 'text-[#C6F135]' : 'text-[#4B4B6A]'}`}>▲</span>
-          <span className={`text-[8px] -mt-1 ${isActive && sort.direction === 'desc' ? 'text-[#C6F135]' : 'text-[#4B4B6A]'}`}>▼</span>
+          <span className={`text-[8px] ${isActive && sort.direction === 'asc' ? 'text-[#1F5F43]' : 'text-[#8B5A2B]/40'}`}>▲</span>
+          <span className={`text-[8px] -mt-1 ${isActive && sort.direction === 'desc' ? 'text-[#1F5F43]' : 'text-[#8B5A2B]/40'}`}>▼</span>
         </span>
       </div>
     </th>
@@ -354,7 +356,7 @@ function TeamDetail() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="text-sm font-bold text-[#7B8392] hover:text-white"
+          className="text-sm font-bold text-[#466353] hover:text-[#173126]"
         >
           返回上一页
         </button>
@@ -376,7 +378,7 @@ function TeamDetail() {
       <section className="locker-layout">
         <main className="locker-board">
           <div className="locker-board-header">
-            <span className="ml-auto text-sm font-bold text-[#7B8392]">{players.length} 名球员</span>
+            <span className="ml-auto text-sm font-bold text-[#466353]">{players.length} 名球员</span>
           </div>
 
           {loading ? (
@@ -415,13 +417,13 @@ function TeamDetail() {
                           <div className="flex items-center gap-3">
                             <PlayerAvatar player={player} />
                             <div className="min-w-0">
-                              <Link to={`/players/${player.id}`} className="block truncate font-black text-[var(--skin-text)] hover:text-[var(--skin-accent)]">
+                              <Link to={`/players/${player.id}`} className="block truncate font-black text-[#173126] hover:text-[#1F5F43]">
                                 {player.name}
                               </Link>
                               {player.short_description ? (
-                                <p className="text-xs font-medium text-[#E8C84A] truncate">{player.short_description}</p>
+                                <p className="text-xs font-medium text-[#8B5A2B] truncate">{player.short_description}</p>
                               ) : (
-                                <p className="text-xs text-[#707A8A]">{player.team_id ? '一线队' : '未归属'}</p>
+                                <p className="text-xs text-[#7b927f]">{player.team_id ? '一线队' : '未归属'}</p>
                               )}
                             </div>
                           </div>
@@ -435,7 +437,7 @@ function TeamDetail() {
                           <span className={`position-chip ${getPositionColor(player.position)}`}>{player.position}</span>
                         </td>
                         <td>{player.age}</td>
-                        <td className="font-black text-[var(--skin-accent)]">{player.ovr}</td>
+                        <td className="font-black text-[#1F5F43]">{player.ovr}</td>
                         <td>
                           <div className="flex items-center gap-1.5">
                             <StatusIcon player={player} />
@@ -478,13 +480,13 @@ function TeamDetail() {
               <div className="locker-detail-top">
                 <PlayerAvatar player={selectedPlayer} size="lg" />
                 <div>
-                  <h2 className="text-2xl font-black text-[var(--skin-text)]">{selectedPlayer.name}</h2>
-                  <p className="text-sm font-bold text-[#7B8392]">
+                  <h2 className="text-2xl font-black text-[#173126]">{selectedPlayer.name}</h2>
+                  <p className="text-sm font-bold text-[#466353]">
                     {selectedPlayer.squad_number ? `#${selectedPlayer.squad_number} · ` : ''}
                     {selectedPlayer.position} · {selectedPlayer.age}岁
                   </p>
                   {selectedPlayer.short_description && (
-                    <p className="mt-1 text-sm font-black text-[#E8C84A]">{selectedPlayer.short_description}</p>
+                    <p className="mt-1 text-sm font-black text-[#8B5A2B]">{selectedPlayer.short_description}</p>
                   )}
                 </div>
               </div>
@@ -556,8 +558,8 @@ function TeamDetail() {
 
               <div className="selected-season">
                 <h3>纪律</h3>
-                <div><span>黄牌</span><strong className="text-yellow-400">{statValue(selectedPlayer.yellow_cards)}</strong></div>
-                <div><span>红牌</span><strong className="text-red-400">{statValue(selectedPlayer.red_cards)}</strong></div>
+                <div><span>黄牌</span><strong className="text-[#C77A00]">{statValue(selectedPlayer.yellow_cards)}</strong></div>
+                <div><span>红牌</span><strong className="text-[#FF6F59]">{statValue(selectedPlayer.red_cards)}</strong></div>
                 <div><span>犯规</span><strong>{statValue(selectedPlayer.fouls)}</strong></div>
                 <div><span>越位</span><strong>{statValue(selectedPlayer.offsides)}</strong></div>
               </div>
@@ -611,18 +613,18 @@ function TeamDetail() {
           {historyLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-12 bg-[#1E1E2D] animate-pulse" />
+                <div key={i} className="h-12 bg-[#FFF8DC]/80 animate-pulse" />
               ))}
             </div>
           ) : !teamHistory || teamHistory.seasons.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-[#8B8BA7]">暂无历史战绩数据</p>
+              <p className="text-[#466353]">暂无历史战绩数据</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+                  <tr className="text-left text-xs text-[#466353] border-b border-[#1F5F43]/20">
                     <th className="py-2 px-4 font-medium">赛季</th>
                     <th className="py-2 px-4 font-medium">联赛</th>
                     <th className="py-2 px-4 font-medium text-center">排名</th>
@@ -636,24 +638,24 @@ function TeamDetail() {
                 </thead>
                 <tbody>
                   {teamHistory.seasons.map((season) => (
-                    <tr key={season.season_number} className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
-                      <td className="py-3 px-4 text-[#8B8BA7]">第 {season.season_number} 赛季</td>
+                    <tr key={season.season_number} className="border-b border-[#1F5F43]/20 hover:bg-[#FFF8DC]/60 transition-colors">
+                      <td className="py-3 px-4 text-[#466353]">第 {season.season_number} 赛季</td>
                       <td className="py-3 px-4">{season.league_name}</td>
                       <td className="py-3 px-4 text-center">
-                        <span className={`font-bold pixel-number ${season.position === 1 ? 'text-amber-400' : season.position <= 3 ? 'text-slate-300' : 'text-[#8B8BA7]'}`}>
+                        <span className={`font-bold pixel-number ${season.position === 1 ? 'text-[#FF6F59]' : season.position <= 3 ? 'text-[#173126]' : 'text-[#466353]'}`}>
                           {season.position}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center stat-number">{season.played}</td>
                       <td className="py-3 px-4 text-center text-sm">
-                        <span className="text-emerald-400">{season.won}</span>
-                        <span className="text-[#4B4B6A]">/</span>
-                        <span className="text-[#8B8BA7]">{season.drawn}</span>
-                        <span className="text-[#4B4B6A]">/</span>
-                        <span className="text-red-400">{season.lost}</span>
+                        <span className="text-[#1F5F43]">{season.won}</span>
+                        <span className="text-[#8B5A2B]/40">/</span>
+                        <span className="text-[#466353]">{season.drawn}</span>
+                        <span className="text-[#8B5A2B]/40">/</span>
+                        <span className="text-[#FF6F59]">{season.lost}</span>
                       </td>
-                      <td className="py-3 px-4 text-center stat-number text-emerald-400">{season.goals_for}</td>
-                      <td className="py-3 px-4 text-center stat-number text-red-400">{season.goals_against}</td>
+                      <td className="py-3 px-4 text-center stat-number text-[#1F5F43]">{season.goals_for}</td>
+                      <td className="py-3 px-4 text-center stat-number text-[#FF6F59]">{season.goals_against}</td>
                       <td className="py-3 px-4 text-center stat-number">{season.goal_difference > 0 ? '+' : ''}{season.goal_difference}</td>
                       <td className="py-3 px-4 text-center">
                         <span className="font-bold pixel-number text-lg">{season.points}</span>
@@ -672,35 +674,35 @@ function TeamDetail() {
           {honorsLoading ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-24 bg-[#1E1E2D] animate-pulse" />
+                <div key={i} className="h-24 bg-[#FFF8DC]/80 animate-pulse" />
               ))}
             </div>
           ) : !teamHonors || teamHonors.honors.length === 0 ? (
             <div className="text-center py-16">
-              <h4 className="text-xl font-bold text-white mb-2">还没有冠军奖杯</h4>
-              <p className="text-[#8B8BA7] mb-2">这支球队尚未获得任何冠军荣誉</p>
-              <p className="text-[#C6F135] text-sm font-medium">继续加油，冠军就在前方！🏆</p>
+              <h4 className="text-xl font-bold text-[#173126] mb-2">还没有冠军奖杯</h4>
+              <p className="text-[#466353] mb-2">这支球队尚未获得任何冠军荣誉</p>
+              <p className="text-[#1F5F43] text-sm font-medium">继续加油，冠军就在前方！🏆</p>
             </div>
           ) : (
             <div>
               <div className="flex items-center gap-6 mb-6 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-[#8B8BA7]">联赛冠军:</span>
-                  <span className="font-bold text-white">{teamHonors.total_league_titles}</span>
+                  <span className="text-[#466353]">联赛冠军:</span>
+                  <span className="font-bold text-[#173126]">{teamHonors.total_league_titles}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[#8B8BA7]">杯赛冠军:</span>
-                  <span className="font-bold text-white">{teamHonors.total_cup_titles}</span>
+                  <span className="text-[#466353]">杯赛冠军:</span>
+                  <span className="font-bold text-[#173126]">{teamHonors.total_cup_titles}</span>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {teamHonors.honors.map((honor, idx) => (
-                  <Card key={idx} className="bg-[#12121A] border-2 border-[#2D2D44] p-4 text-center hover:border-amber-500/50 transition-all">
+                  <Card key={idx} className="bg-white/70 border-2 border-[#1F5F43]/20 p-4 text-center hover:border-[#FF6F59] transition-all">
                     <div className="text-3xl mb-2">{honor.honor_type === 'league_champion' ? '🏆' : '🥇'}</div>
-                    <h4 className="font-bold text-white text-sm mb-1">{honor.competition_name}</h4>
-                    <p className="text-xs text-[#8B8BA7]">第 {honor.season_number} 赛季</p>
+                    <h4 className="font-bold text-[#173126] text-sm mb-1">{honor.competition_name}</h4>
+                    <p className="text-xs text-[#466353]">第 {honor.season_number} 赛季</p>
                     {honor.competition_level && honor.competition_level > 0 && (
-                      <span className="inline-block mt-2 px-2 py-0.5 text-[10px] bg-[#1E1E2D] border border-[#2D2D44] text-[#8B8BA7]">
+                      <span className="inline-block mt-2 px-2 py-0.5 text-[10px] bg-[#FFF8DC]/80 border border-[#1F5F43]/20 text-[#466353]">
                         L{honor.competition_level}
                       </span>
                     )}

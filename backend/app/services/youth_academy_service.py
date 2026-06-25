@@ -254,14 +254,16 @@ class YouthAcademyService:
         age = season.season_number + abs(player.birth_offset)
 
         # 成长系数（Rookie 仅 17-18 岁）
-        speed_factors = {GrowthSpeed.FAST: 1.30, GrowthSpeed.NORMAL: 1.00, GrowthSpeed.SLOW: 0.70}
-        age_factors = {17: 1.00, 18: 0.90}
+        # 上调基础成长值，使青训球员每 2-4 次训练即可看到 OVR 变化，
+        # 一个 25 天赛季约成长 5-10 点 OVR（视速度与潜力而定）。
+        speed_factors = {GrowthSpeed.FAST: 1.45, GrowthSpeed.NORMAL: 1.00, GrowthSpeed.SLOW: 0.68}
+        age_factors = {17: 1.10, 18: 1.00}
 
         speed_factor = speed_factors.get(academy_player.growth_speed, 1.00)
-        age_factor = age_factors.get(age, 0.85)
-        random_factor = random.uniform(0.85, 1.15)
+        age_factor = age_factors.get(age, 0.90)
+        random_factor = random.uniform(0.90, 1.10)
 
-        base_growth = random.uniform(0.12, 0.28)
+        base_growth = random.uniform(0.70, 1.40)
         growth_budget = base_growth * speed_factor * age_factor * random_factor
 
         # 应用属性增长
@@ -347,7 +349,7 @@ class YouthAcademyService:
         for attr in primary_attrs:
             if remaining_budget <= 0:
                 break
-            try_grow(attr, chance=0.62, budget_share=0.18)
+            try_grow(attr, chance=0.82, budget_share=0.40)
 
         # 少量随机提升其他属性
         if remaining_budget > 0.12:
@@ -356,7 +358,7 @@ class YouthAcademyService:
             for attr in secondary[:3]:
                 if remaining_budget <= 0:
                     break
-                try_grow(attr, chance=0.20, budget_share=0.08)
+                try_grow(attr, chance=0.30, budget_share=0.12)
 
         return attrs_gained
 

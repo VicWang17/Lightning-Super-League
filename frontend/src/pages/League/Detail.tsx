@@ -22,11 +22,11 @@ function Legend({ league }: { league: League }) {
   const items: { color: string; label: string }[] = []
 
   // 冠军（所有联赛都有）
-  items.push({ color: 'bg-amber-500', label: '冠军' })
+  items.push({ color: 'bg-[#FFC247]', label: '冠军' })
 
   // 直升升级
   if (league.promotion_spots > 0) {
-    items.push({ color: 'bg-emerald-500', label: '升级区' })
+    items.push({ color: 'bg-[#1F5F43]', label: '升级区' })
   }
 
   // 附加赛升级
@@ -41,7 +41,7 @@ function Legend({ league }: { league: League }) {
 
   // 降级
   if (league.relegation_spots > 0) {
-    items.push({ color: 'bg-red-500', label: '降级区' })
+    items.push({ color: 'bg-[#FF6F59]', label: '降级区' })
   }
 
   return (
@@ -49,7 +49,7 @@ function Legend({ league }: { league: League }) {
       {items.map((item) => (
         <div key={item.label + item.color} className="flex items-center gap-1.5">
           <div className={`w-3 h-3 ${item.color}`} />
-          <span className="text-[#8B8BA7]">{item.label}</span>
+          <span className="text-[#466353]">{item.label}</span>
         </div>
       ))}
     </div>
@@ -71,7 +71,7 @@ function SeasonSelector({
  <select
  value={selectedSeasonId || ''}
  onChange={(e) => onChange(e.target.value)}
- className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#C6F135] focus:ring-1 focus:ring-[#C6F135] cursor-pointer"
+ className="appearance-none bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#1F5F43] focus:ring-1 focus:ring-[#1F5F43] cursor-pointer"
  >
  {seasons.map((season) => (
  <option key={season.id} value={season.id}>
@@ -79,7 +79,7 @@ function SeasonSelector({
  </option>
  ))}
  </select>
- <ChevronLeft className="w-4 h-4 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-[-90deg] pointer-events-none" />
+ <ChevronLeft className="w-4 h-4 text-[#466353] absolute right-2 top-1/2 -translate-y-1/2 rotate-[-90deg] pointer-events-none" />
  </div>
  )
 }
@@ -99,12 +99,12 @@ function getZoneType(position: number, league: League): ZoneType {
 }
 
 const zoneColors: Record<ZoneType, { bg: string; text: string; row: string; label: string }> = {
-  champion: { bg: 'bg-amber-500', text: 'text-black', row: 'bg-amber-500/5', label: '冠军' },
-  promotion: { bg: 'bg-emerald-500', text: 'text-white', row: 'bg-emerald-500/5', label: '升级区' },
-  promotion_playoff: { bg: 'bg-sky-500', text: 'text-white', row: 'bg-sky-500/5', label: '附加赛' },
-  safe: { bg: 'bg-[#1E1E2D]', text: 'text-[#8B8BA7]', row: '', label: '' },
-  relegation_playoff: { bg: 'bg-orange-500', text: 'text-white', row: 'bg-orange-500/5', label: '附加赛' },
-  relegation: { bg: 'bg-red-500', text: 'text-white', row: 'bg-red-500/5', label: '降级区' },
+  champion: { bg: 'bg-[#FFC247]', text: 'text-[#173126]', row: 'bg-[#FFC247]/5', label: '冠军' },
+  promotion: { bg: 'bg-[#1F5F43]', text: 'text-[#173126]', row: 'bg-[#1F5F43]/5', label: '升级区' },
+  promotion_playoff: { bg: 'bg-sky-500', text: 'text-[#173126]', row: 'bg-sky-500/5', label: '附加赛' },
+  safe: { bg: 'bg-[#FFF8DC]/80', text: 'text-[#466353]', row: '', label: '' },
+  relegation_playoff: { bg: 'bg-orange-500', text: 'text-[#173126]', row: 'bg-orange-500/5', label: '附加赛' },
+  relegation: { bg: 'bg-[#FF6F59]', text: 'text-[#173126]', row: 'bg-[#FF6F59]/5', label: '降级区' },
 }
 
 // 积分榜行组件
@@ -112,11 +112,11 @@ function StandingRow({ standing, league }: { standing: LeagueStanding; league: L
   const zone = getZoneType(standing.position, league)
   const colors = zoneColors[zone]
 
-  let rowClass = 'hover:bg-[#1E1E2D]/50 transition-colors'
+  let rowClass = 'hover:bg-[#FFF8DC]/80 transition-colors'
   if (colors.row) rowClass += ' ' + colors.row
 
   return (
-    <tr className={`border-b border-[#2D2D44] ${rowClass}`}>
+    <tr className={`border-b border-[#1F5F43]/20 ${rowClass}`}>
       <td className="py-3 px-4">
         <div className={`w-7 h-7 flex items-center justify-center text-sm font-bold pixel-number ${colors.bg} ${colors.text}`}>
           {standing.position}
@@ -125,15 +125,15 @@ function StandingRow({ standing, league }: { standing: LeagueStanding; league: L
       <td className="py-3 px-4">
         <Link
           to={`/teams/${standing.team.id}`}
-          className="font-medium text-white hover:text-[#C6F135] transition-colors"
+          className="font-medium text-[#173126] hover:text-[#1F5F43] transition-colors"
         >
           {standing.team.name}
         </Link>
       </td>
  <td className="py-3 px-4 text-center stat-number">{standing.played}</td>
- <td className="py-3 px-4 text-center stat-number text-emerald-400">{standing.won}</td>
- <td className="py-3 px-4 text-center stat-number text-[#8B8BA7]">{standing.drawn}</td>
- <td className="py-3 px-4 text-center stat-number text-red-400">{standing.lost}</td>
+ <td className="py-3 px-4 text-center stat-number text-[#1F5F43]">{standing.won}</td>
+ <td className="py-3 px-4 text-center stat-number text-[#466353]">{standing.drawn}</td>
+ <td className="py-3 px-4 text-center stat-number text-[#FF6F59]">{standing.lost}</td>
  <td className="py-3 px-4 text-center stat-number">{standing.goals_for}:{standing.goals_against}</td>
  <td className="py-3 px-4 text-center stat-number">{standing.goal_difference > 0 ? '+' : ''}{standing.goal_difference}</td>
  <td className="py-3 px-4 text-center">
@@ -144,14 +144,14 @@ function StandingRow({ standing, league }: { standing: LeagueStanding; league: L
  <div className="flex items-center gap-1">
  {standing.form.split('').map((result, idx) => {
  const colors = {
- 'W': 'bg-emerald-500',
- 'D': 'bg-[#4B4B6A]',
- 'L': 'bg-red-500'
+ 'W': 'bg-[#1F5F43]',
+ 'D': 'bg-[#8B5A2B]/40',
+ 'L': 'bg-[#FF6F59]'
  }
  return (
  <div 
  key={idx} 
- className={`w-5 h-5 ${colors[result as keyof typeof colors]} flex items-center justify-center text-[10px] font-bold text-white`}
+ className={`w-5 h-5 ${colors[result as keyof typeof colors]} flex items-center justify-center text-[10px] font-bold text-[#173126]`}
  >
  {result}
  </div>
@@ -170,16 +170,16 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  const isLive = playoff.status === 'ongoing'
 
  return (
- <div className="p-3 bg-amber-500/10 border-2 border-amber-500/30 shadow-pixel-sm hover:-translate-y-1 transition-all">
+ <div className="p-3 bg-[#FFC247]/10 border-2 border-amber-500/30 shadow-pixel-sm hover:-translate-y-1 transition-all">
  <div className="flex items-center justify-between mb-2">
- <span className="text-xs font-medium text-amber-400">{playoff.name}</span>
+ <span className="text-xs font-medium text-[#C77A00]">{playoff.name}</span>
  {isLive && (
- <span className="text-xs px-2 py-0.5 rounded-none bg-red-500 text-white animate-pulse">
+ <span className="text-xs px-2 py-0.5 rounded-none bg-[#FF6F59] text-[#F8FFD2] animate-pulse">
  进行中
  </span>
  )}
  {isFinished && (
- <span className="text-xs px-2 py-0.5 rounded-none bg-[#1E1E2D] text-[#8B8BA7]">
+ <span className="text-xs px-2 py-0.5 rounded-none bg-[#FFF8DC]/80 text-[#466353]">
  已结束
  </span>
  )}
@@ -189,7 +189,7 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  <div className="flex-1 text-center">
  <Link
  to={`/teams/${playoff.home_team.id}`}
- className="font-medium text-white text-sm hover:text-[#C6F135] transition-colors"
+ className="font-medium text-[#173126] text-sm hover:text-[#1F5F43] transition-colors"
  >
  {playoff.home_team.name}
  </Link>
@@ -198,18 +198,18 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  <div className="px-3 text-center">
  {isFinished || isLive ? (
  <div className="text-xl font-bold pixel-number">
- <span className={isLive ? 'text-red-400' : 'text-white'}>
+ <span className={isLive ? 'text-[#FF6F59]' : 'text-[#173126]'}>
  {playoff.home_score}
  </span>
- <span className="text-[#4B4B6A] mx-1">:</span>
- <span className={isLive ? 'text-red-400' : 'text-white'}>
+ <span className="text-[#8B5A2B]/40 mx-1">:</span>
+ <span className={isLive ? 'text-[#FF6F59]' : 'text-[#173126]'}>
  {playoff.away_score}
  </span>
  </div>
  ) : (
- <div className="text-sm font-bold pixel-number text-[#4B4B6A]">VS</div>
+ <div className="text-sm font-bold pixel-number text-[#8B5A2B]/40">VS</div>
  )}
- <p className="text-xs text-[#8B8BA7] mt-1">
+ <p className="text-xs text-[#466353] mt-1">
  {new Date(playoff.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
  </p>
  </div>
@@ -217,7 +217,7 @@ function PlayoffCard({ playoff }: { playoff: PlayoffMatch }) {
  <div className="flex-1 text-center">
  <Link
  to={`/teams/${playoff.away_team.id}`}
- className="font-medium text-white text-sm hover:text-[#C6F135] transition-colors"
+ className="font-medium text-[#173126] text-sm hover:text-[#1F5F43] transition-colors"
  >
  {playoff.away_team.name}
  </Link>
@@ -237,14 +237,14 @@ function FixtureRow({ match }: { match: Match }) {
 
  return (
  <div
-   className="bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/50 transition-colors cursor-pointer"
+   className="bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 shadow-pixel-sm hover:border-[#1F5F43] transition-colors cursor-pointer"
    onClick={() => window.location.href = `/match/${match.id}`}
  >
    <div className="grid grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] items-center gap-3 px-4 py-3">
-     <div className={`min-w-0 ${winner === 'home' ? 'text-[#C6F135]' : 'text-white'}`}>
+     <div className={`min-w-0 ${winner === 'home' ? 'text-[#1F5F43]' : 'text-[#173126]'}`}>
        <Link
          to={`/teams/${match.home_team.id}`}
-         className="block truncate font-bold hover:text-[#C6F135] transition-colors"
+         className="block truncate font-bold hover:text-[#1F5F43] transition-colors"
          onClick={(e) => e.stopPropagation()}
        >
          {match.home_team.name}
@@ -253,21 +253,21 @@ function FixtureRow({ match }: { match: Match }) {
 
      <div className="text-center">
        {isFinished || isLive ? (
-         <div className={`text-lg font-black stat-number ${isLive ? 'text-red-400' : 'text-white'}`}>
+         <div className={`text-lg font-black stat-number ${isLive ? 'text-[#FF6F59]' : 'text-[#173126]'}`}>
            {match.home_score ?? '-'}:{match.away_score ?? '-'}
          </div>
        ) : (
-         <div className="text-xs font-black pixel-number text-[#4B4B6A]">VS</div>
+         <div className="text-xs font-black pixel-number text-[#8B5A2B]/40">VS</div>
        )}
-       <div className="mt-1 text-[10px] font-bold text-[#4B4B6A]">
+       <div className="mt-1 text-[10px] font-bold text-[#8B5A2B]/40">
          {new Date(match.scheduled_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
        </div>
      </div>
 
-     <div className={`min-w-0 text-right ${winner === 'away' ? 'text-[#C6F135]' : 'text-white'}`}>
+     <div className={`min-w-0 text-right ${winner === 'away' ? 'text-[#1F5F43]' : 'text-[#173126]'}`}>
        <Link
          to={`/teams/${match.away_team.id}`}
-         className="block truncate font-bold hover:text-[#C6F135] transition-colors"
+         className="block truncate font-bold hover:text-[#1F5F43] transition-colors"
          onClick={(e) => e.stopPropagation()}
        >
          {match.away_team.name}
@@ -275,7 +275,7 @@ function FixtureRow({ match }: { match: Match }) {
      </div>
    </div>
    {isLive && (
-     <div className="border-t border-[#2D2D44] px-4 py-1 text-xs font-bold text-red-400">进行中</div>
+     <div className="border-t border-[#1F5F43]/20 px-4 py-1 text-xs font-bold text-[#FF6F59]">进行中</div>
    )}
  </div>
  )
@@ -294,7 +294,7 @@ function LeagueScheduleList({ matches }: { matches: Match[] }) {
  if (matchdays.length === 0) {
    return (
      <div className="text-center py-12">
-       <p className="text-[#8B8BA7]">暂无赛程数据</p>
+       <p className="text-[#466353]">暂无赛程数据</p>
      </div>
    )
  }
@@ -304,21 +304,21 @@ function LeagueScheduleList({ matches }: { matches: Match[] }) {
      {matchdays.map((matchday, index) => {
        const roundMatches = matchesByMatchday[matchday]
        return (
-         <section key={matchday} className="border-2 border-[#2D2D44] bg-[#0B0D14] shadow-pixel-sm overflow-hidden">
-           <div className="flex items-center justify-between border-b-2 border-[#2D2D44] bg-[#12121A] px-4 py-3">
+         <section key={matchday} className="border-2 border-[#1F5F43]/20 bg-white/70 shadow-pixel-sm overflow-hidden">
+           <div className="flex items-center justify-between border-b-2 border-[#1F5F43]/20 bg-[#FFF8DC]/80 px-4 py-3">
              <div className="flex items-center gap-3">
-               <div className="h-6 w-2 bg-[#0D7377]" />
-               <h4 className="text-lg font-black text-white">第 {matchday} 轮</h4>
+               <div className="h-6 w-2 bg-[#1F5F43]" />
+               <h4 className="text-lg font-black text-[#173126]">第 {matchday} 轮</h4>
              </div>
-             <span className="text-xs font-bold text-[#8B8BA7]">{roundMatches.length} 场</span>
+             <span className="text-xs font-bold text-[#466353]">{roundMatches.length} 场</span>
            </div>
-           <div className="divide-y divide-[#2D2D44]">
+           <div className="divide-y divide-[#1F5F43]/20">
              {roundMatches.map(match => (
                <FixtureRow key={match.id} match={match} />
              ))}
            </div>
            {index < matchdays.length - 1 && (
-             <div className="border-t border-[#2D2D44] px-4 py-2 text-xs text-[#4B4B6A]">
+             <div className="border-t border-[#1F5F43]/20 px-4 py-2 text-xs text-[#8B5A2B]/40">
                下一轮：第 {matchdays[index + 1]} 轮
              </div>
            )}
@@ -355,8 +355,8 @@ function LeagueDetail() {
  if (leagueLoading) {
  return (
  <div className="max-w-[1200px]">
- <div className="h-8 w-32 bg-[#1E1E2D] animate-pulse mb-4" />
- <div className="h-48 bg-[#1E1E2D] animate-pulse" />
+ <div className="h-8 w-32 bg-[#FFF8DC]/80 animate-pulse mb-4" />
+ <div className="h-48 bg-[#FFF8DC]/80 animate-pulse" />
  </div>
  )
  }
@@ -364,12 +364,12 @@ function LeagueDetail() {
  if (!league) {
  return (
  <div className="max-w-[1200px] text-center py-20">
- <h2 className="text-xl font-bold text-white mb-2">联赛未找到</h2>
- <p className="text-[#8B8BA7] mb-2">该联赛不存在或已被删除</p>
+ <h2 className="text-xl font-bold text-[#173126] mb-2">联赛未找到</h2>
+ <p className="text-[#466353] mb-2">该联赛不存在或已被删除</p>
  {leagueError && (
- <p className="text-red-400 text-sm mb-6">错误: {leagueError}</p>
+ <p className="text-[#FF6F59] text-sm mb-6">错误: {leagueError}</p>
  )}
- <p className="text-[#4B4B6A] text-xs mb-6">联赛ID: {id || '未提供'}</p>
+ <p className="text-[#8B5A2B]/40 text-xs mb-6">联赛ID: {id || '未提供'}</p>
  <Link to="/leagues" className="btn-primary inline-flex items-center gap-2">
  返回联赛列表
  </Link>
@@ -383,13 +383,13 @@ function LeagueDetail() {
  <div className="flex items-center justify-between mb-4">
  <button 
  onClick={() => navigate(-1)}
- className="text-sm text-[#8B8BA7] hover:text-white transition-colors"
+ className="text-sm text-[#466353] hover:text-[#173126] transition-colors"
  >
  返回上一页
  </button>
  <Link 
  to="/leagues"
- className="text-sm text-[#0D7377] hover:text-white transition-colors"
+ className="text-sm text-[#1F5F43] hover:text-[#173126] transition-colors"
  >
  所有联赛
  </Link>
@@ -403,8 +403,8 @@ function LeagueDetail() {
 
  {/* 附加赛信息 */}
  {league.playoffs && league.playoffs.length > 0 && (
- <div className="mb-6 p-4 border border-[#2D2D44] bg-[#080B11]">
- <h2 className="text-lg font-semibold text-white mb-4">升降级附加赛</h2>
+ <div className="mb-6 p-4 border border-[#1F5F43]/20 bg-[#ECFFD8]">
+ <h2 className="text-lg font-semibold text-[#173126] mb-4">升降级附加赛</h2>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {league.playoffs.map(playoff => (
  <PlayoffCard key={playoff.id} playoff={playoff} />
@@ -447,19 +447,19 @@ function LeagueDetail() {
  {standingsLoading ? (
  <div className="space-y-2">
  {[1, 2, 3, 4, 5].map(i => (
- <div key={i} className="h-12 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-12 bg-[#FFF8DC]/80 animate-pulse" />
  ))}
  </div>
  ) : standings.length === 0 ? (
  <div className="text-center py-12">
 
- <p className="text-[#8B8BA7]">暂无积分数据</p>
+ <p className="text-[#466353]">暂无积分数据</p>
  </div>
  ) : (
  <div className="overflow-x-auto">
  <table className="w-full">
  <thead>
- <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+ <tr className="text-left text-xs text-[#466353] border-b border-[#1F5F43]/20">
  <th className="py-2 px-4 font-medium">排名</th>
  <th className="py-2 px-4 font-medium">球队</th>
  <th className="py-2 px-4 font-medium text-center">赛</th>
@@ -488,7 +488,7 @@ function LeagueDetail() {
  {matchesLoading ? (
  <div className="space-y-4">
  {[1, 2, 3, 4].map(i => (
- <div key={i} className="h-28 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-28 bg-[#FFF8DC]/80 animate-pulse" />
  ))}
  </div>
  ) : (
@@ -527,9 +527,9 @@ function LeagueDetail() {
  <div className="space-y-8">
  {awardsLoading ? (
    <div className="space-y-4">
-     <div className="h-10 bg-[#1E1E2D] animate-pulse" />
+     <div className="h-10 bg-[#FFF8DC]/80 animate-pulse" />
      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-       {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />)}
+       {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#FFF8DC]/80 animate-pulse" />)}
      </div>
    </div>
  ) : (
@@ -537,8 +537,8 @@ function LeagueDetail() {
      {/* 联赛最佳阵容 */}
      <section >
        <div className="flex items-center gap-2 mb-4">
-         <div className="w-1 h-5 bg-amber-500" />
-         <h3 className="text-lg font-bold text-white">联赛最佳阵容</h3>
+         <div className="w-1 h-5 bg-[#FFC247]" />
+         <h3 className="text-lg font-bold text-[#173126]">联赛最佳阵容</h3>
        </div>
        <TeamOfSeasonGrid
          team={leagueAwards?.team_of_season || []}
@@ -550,8 +550,8 @@ function LeagueDetail() {
      {(leagueAwards?.best_fw || leagueAwards?.best_mf || leagueAwards?.best_df || leagueAwards?.best_gk) && (
        <section >
          <div className="flex items-center gap-2 mb-4">
-           <div className="w-1 h-5 bg-[#C6F135]" />
-           <h3 className="text-lg font-bold text-white">联赛最佳位置</h3>
+           <div className="w-1 h-5 bg-[#B9EF3F]" />
+           <h3 className="text-lg font-bold text-[#173126]">联赛最佳位置</h3>
          </div>
          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
            <AwardCard award={leagueAwards?.best_fw} size="lg" />
@@ -565,8 +565,8 @@ function LeagueDetail() {
      {/* 联赛数据之王 */}
      <section >
        <div className="flex items-center gap-2 mb-4">
-         <div className="w-1 h-5 bg-[#0D7377]" />
-         <h3 className="text-lg font-bold text-white">联赛数据之王</h3>
+         <div className="w-1 h-5 bg-[#1F5F43]" />
+         <h3 className="text-lg font-bold text-[#173126]">联赛数据之王</h3>
        </div>
        <DataKingsRow
          goldenBoot={leagueAwards?.golden_boot}

@@ -610,7 +610,7 @@ export default function WeeklyTraining() {
     <div className="training-console-page">
       <button
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="inline-flex items-center gap-1 text-sm text-[#466353] hover:text-[#173126] transition-colors mb-4"
       >
         返回上一页
       </button>
@@ -832,7 +832,7 @@ export default function WeeklyTraining() {
                   alignItems: 'center',
                   gap: 8,
                   padding: '6px 10px',
-                  background: 'rgba(5,6,9,0.88)',
+                  background: 'var(--tr-panel)',
                   border: '1px solid var(--tr-border)',
                 }}
               >

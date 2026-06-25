@@ -27,11 +27,11 @@ const SQUAD_ROLE_LABELS: Record<SquadRole, string> = {
 }
 
 const REACTION_COLORS: Record<string, string> = {
-  '非常满意': 'text-emerald-400',
+  '非常满意': 'text-[#1F5F43]',
   '满意': 'text-emerald-300',
-  '平常': 'text-[#8B8BA7]',
-  '不满': 'text-amber-400',
-  '非常不满': 'text-red-400',
+  '平常': 'text-[#466353]',
+  '不满': 'text-[#C77A00]',
+  '非常不满': 'text-[#FF6F59]',
 }
 
 export function ContractModal({ player, teamId, existingContract, contractType: propContractType, signingFee, onClose, onSuccess }: ContractModalProps) {
@@ -107,34 +107,34 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
     <Modal isOpen={true} onClose={onClose}>
       <div className="w-full max-w-lg">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold text-[#173126] flex items-center gap-2">
             {isRenewal ? '续约合同' : isRookie ? '新人合同 (ROOKIE)' : '新签合同'}
           </h2>
-          <button onClick={onClose} className="text-[#8B8BA7] hover:text-white">
+          <button onClick={onClose} className="text-[#466353] hover:text-[#173126]">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="space-y-4">
           {/* 球员信息 */}
-          <div className="flex items-center gap-3 p-3 bg-[#1E1E2D] rounded">
+          <div className="flex items-center gap-3 p-3 bg-[#FFF8DC]/80 rounded">
             <span className="text-lg">👤</span>
             <div>
-              <p className="font-medium text-white">{player.name}</p>
-              <p className="text-xs text-[#8B8BA7]">{player.position} · OVR {player.ovr}</p>
+              <p className="font-medium text-[#173126]">{player.name}</p>
+              <p className="text-xs text-[#466353]">{player.position} · OVR {player.ovr}</p>
             </div>
           </div>
 
           {/* 当前合同 */}
           {existingContract && (
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="p-2 bg-[#1E1E2D]">
-                <span className="text-[#8B8BA7]">当前工资</span>
-                <p className="text-white font-bold">€{(existingContract.wage / 1000).toFixed(0)}K</p>
+              <div className="p-2 bg-[#FFF8DC]/80">
+                <span className="text-[#466353]">当前工资</span>
+                <p className="text-[#173126] font-bold">€{(existingContract.wage / 1000).toFixed(0)}K</p>
               </div>
-              <div className="p-2 bg-[#1E1E2D]">
-                <span className="text-[#8B8BA7]">合同到期</span>
-                <p className="text-white font-bold">第 {existingContract.end_season_number} 赛季</p>
+              <div className="p-2 bg-[#FFF8DC]/80">
+                <span className="text-[#466353]">合同到期</span>
+                <p className="text-[#173126] font-bold">第 {existingContract.end_season_number} 赛季</p>
               </div>
             </div>
           )}
@@ -142,7 +142,7 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
           {/* 合同参数 */}
           <div className="space-y-3">
             <div>
-              <label className="text-sm text-[#8B8BA7] block mb-1">合同年限</label>
+              <label className="text-sm text-[#466353] block mb-1">合同年限</label>
               <div className="flex gap-2">
                 {yearOptions.map(y => (
                   <button
@@ -150,8 +150,8 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
                     onClick={() => { setYears(y); setPreview(null) }}
                     className={`px-4 py-2 text-sm border-2 transition-colors ${
                       years === y
-                        ? 'border-[#0D7377] text-[#0D7377] bg-[#0D7377]/10'
-                        : 'border-[#2D2D44] text-[#8B8BA7] hover:border-[#0D7377]/50'
+                        ? 'border-[#1F5F43] text-[#1F5F43] bg-[#B9EF3F]/20'
+                        : 'border-[#1F5F43]/20 text-[#466353] hover:border-[#1F5F43]'
                     }`}
                   >
                     {y} 年
@@ -161,12 +161,12 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
             </div>
 
             <div>
-              <label className="text-sm text-[#8B8BA7] block mb-1">赛季工资 (€)</label>
+              <label className="text-sm text-[#466353] block mb-1">赛季工资 (€)</label>
               <input
                 type="number"
                 value={wage}
                 onChange={e => { setWage(Number(e.target.value)); setPreview(null) }}
-                className="w-full px-3 py-2 bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm focus:border-[#0D7377] outline-none"
+                className="w-full px-3 py-2 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-sm focus:border-[#1F5F43] outline-none"
                 step={1000}
                 min={0}
               />
@@ -176,7 +176,7 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
                     <button
                       key={btn.label}
                       onClick={() => { setWage(btn.value); setPreview(null) }}
-                      className="px-2 py-1 text-xs bg-[#2D2D44] text-[#8B8BA7] hover:text-white border border-[#2D2D44] hover:border-[#0D7377]/50 transition-colors"
+                      className="px-2 py-1 text-xs bg-[#F8FFD2] text-[#466353] hover:text-[#173126] border border-[#1F5F43]/20 hover:border-[#1F5F43] transition-colors"
                     >
                       {btn.label}
                     </button>
@@ -186,11 +186,11 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
             </div>
 
             <div>
-              <label className="text-sm text-[#8B8BA7] block mb-1">阵容角色</label>
+              <label className="text-sm text-[#466353] block mb-1">阵容角色</label>
               <select
                 value={squadRole}
                 onChange={e => { setSquadRole(e.target.value as SquadRole); setPreview(null) }}
-                className="w-full px-3 py-2 bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm focus:border-[#0D7377] outline-none"
+                className="w-full px-3 py-2 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-sm focus:border-[#1F5F43] outline-none"
               >
                 {Object.entries(SQUAD_ROLE_LABELS).map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
@@ -210,38 +210,38 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
 
           {/* 预览结果 */}
           {preview && (
-            <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
+            <Card className="bg-[#B9EF3F]/15 border-[#1F5F43]/25">
               <div className="space-y-2 text-sm">
                 {signingFee !== undefined && signingFee > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-[#8B8BA7]">签字费</span>
-                    <span className="text-[#0D7377] font-bold">€{(signingFee / 1000).toFixed(0)}K</span>
+                    <span className="text-[#466353]">签字费</span>
+                    <span className="text-[#1F5F43] font-bold">€{(signingFee / 1000).toFixed(0)}K</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-[#8B8BA7]">建议工资</span>
-                  <span className="text-white">€{(preview.recommended_wage / 1000).toFixed(0)}K</span>
+                  <span className="text-[#466353]">建议工资</span>
+                  <span className="text-[#173126]">€{(preview.recommended_wage / 1000).toFixed(0)}K</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#8B8BA7]">工资比例</span>
-                  <span className={preview.wage_ratio >= 1.0 ? 'text-emerald-400' : 'text-amber-400'}>
+                  <span className="text-[#466353]">工资比例</span>
+                  <span className={preview.wage_ratio >= 1.0 ? 'text-[#1F5F43]' : 'text-[#C77A00]'}>
                     {(preview.wage_ratio * 100).toFixed(0)}%
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#8B8BA7]">球员反应</span>
-                  <span className={REACTION_COLORS[preview.visible_reaction] || 'text-white'}>
+                  <span className="text-[#466353]">球员反应</span>
+                  <span className={REACTION_COLORS[preview.visible_reaction] || 'text-[#173126]'}>
                     {preview.visible_reaction}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#8B8BA7]">工资帽压力</span>
-                  <span className={preview.wage_cap_after_pct > 100 ? 'text-red-400' : 'text-white'}>
+                  <span className="text-[#466353]">工资帽压力</span>
+                  <span className={preview.wage_cap_after_pct > 100 ? 'text-[#FF6F59]' : 'text-[#173126]'}>
                     {preview.wage_cap_after_pct}%
                   </span>
                 </div>
                 {preview.warnings.length > 0 && (
-                  <div className="space-y-1 text-amber-400 pt-2 border-t border-[#2D2D44]">
+                  <div className="space-y-1 text-[#C77A00] pt-2 border-t border-[#1F5F43]/20">
                     {preview.warnings.map((w, i) => (
                       <p key={i}>{w}</p>
                     ))}
@@ -253,7 +253,7 @@ export function ContractModal({ player, teamId, existingContract, contractType: 
 
           {/* 错误 */}
           {error && (
-            <p className="text-red-400 text-sm">{error}</p>
+            <p className="text-[#FF6F59] text-sm">{error}</p>
           )}
 
           {/* 提交 */}

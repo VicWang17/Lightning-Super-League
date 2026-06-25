@@ -59,8 +59,8 @@ export function LeaderboardSidebar({ activeType, onChange }: LeaderboardSidebarP
           onClick={() => onChange(lb.type)}
           className={`text-left px-3 py-2 text-sm rounded-none transition-all ${
             activeType === lb.type
-              ? 'bg-[#C6F135] text-[#0A0A0F] font-bold'
-              : 'text-[#8B8BA7] hover:text-white hover:bg-[#1E1E2D]'
+              ? 'bg-[#B9EF3F] text-[#173126] font-bold'
+              : 'text-[#466353] hover:text-[#173126] hover:bg-[#FFF8DC]/80'
           }`}
         >
           {lb.label}

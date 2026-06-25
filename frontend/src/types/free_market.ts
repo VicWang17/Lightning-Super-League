@@ -79,8 +79,8 @@ export const ORIGIN_NAMES: Record<FreeAgentOrigin, string> = {
 }
 
 export const ORIGIN_COLORS: Record<FreeAgentOrigin, string> = {
-  CONTRACT_EXPIRED: 'text-blue-400',
-  RELEASED: 'text-red-400',
-  ACADEMY_RELEASED: 'text-emerald-400',
-  AUTO_GENERATED: 'text-[#8B8BA7]',
+  CONTRACT_EXPIRED: 'text-[#1F5F43]',
+  RELEASED: 'text-[#FF6F59]',
+  ACADEMY_RELEASED: 'text-[#1F5F43]',
+  AUTO_GENERATED: 'text-[#466353]',
 }

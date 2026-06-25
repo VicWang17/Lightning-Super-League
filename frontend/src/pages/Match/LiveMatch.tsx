@@ -106,14 +106,14 @@ export default function LiveMatch() {
     .sort((a, b) => a.time - b.time)
 
   if (loading) {
-    return <div className="max-w-[1200px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return <div className="max-w-[1200px] p-8 text-center text-[#466353]">加载中...</div>
   }
 
   if (error || !match) {
     return (
       <div className="max-w-[1200px] p-8 text-center">
-        <p className="text-[#8B8BA7]">{error || '暂无比赛数据'}</p>
-        <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white mt-4 inline-block">
+        <p className="text-[#466353]">{error || '暂无比赛数据'}</p>
+        <Link to="/match/schedule" className="text-sm text-[#1F5F43] hover:text-[#173126] mt-4 inline-block">
           查看赛程 →
         </Link>
       </div>
@@ -127,11 +127,11 @@ export default function LiveMatch() {
         action={
           <div className="flex items-center gap-3">
             {isLive && (
-              <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs border border-red-500/30 animate-pulse">
+              <span className="px-2 py-0.5 bg-[#FF6F59]/15 text-[#FF6F59] text-xs border border-[#FF6F59]/30 animate-pulse">
                 ● LIVE
               </span>
             )}
-            <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
+            <Link to="/match/schedule" className="text-sm text-[#1F5F43] hover:text-[#173126] transition-colors">
               返回赛程 →
             </Link>
           </div>
@@ -139,26 +139,26 @@ export default function LiveMatch() {
       />
 
       {/* 比分牌 */}
-      <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
+      <Card className="bg-[#B9EF3F]/15 border-[#1F5F43]/25">
         <div className="flex items-center justify-center gap-6 py-8">
           <div className="text-center">
-            <div className="w-16 h-16 bg-[#0D7377] border-2 border-[#0D7377]/50 flex items-center justify-center mx-auto mb-2 shadow-pixel-green">
+            <div className="w-16 h-16 bg-[#1F5F43] border-2 border-[#1F5F43]/50 flex items-center justify-center mx-auto mb-2 shadow-pixel">
               <span className="text-2xl">🏠</span>
             </div>
             <p className="text-sm font-bold">{homeName}</p>
           </div>
 
           <div className="text-center px-8">
-            <div className="text-5xl font-bold pixel-number text-white">
+            <div className="text-5xl font-bold pixel-number text-[#173126]">
               {homeScore} : {awayScore}
             </div>
-            <p className="text-sm text-[#0D7377] font-bold mt-2">
+            <p className="text-sm text-[#1F5F43] font-bold mt-2">
               {isLive ? `${currentMinute}' 进行中` : '已结束'}
             </p>
           </div>
 
           <div className="text-center">
-            <div className="w-16 h-16 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center mx-auto mb-2">
+            <div className="w-16 h-16 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 flex items-center justify-center mx-auto mb-2">
               <span className="text-2xl">✈</span>
             </div>
             <p className="text-sm font-bold">{awayName}</p>
@@ -178,30 +178,30 @@ export default function LiveMatch() {
               className="space-y-2 max-h-[500px] overflow-y-auto pr-2"
             >
               {allEvents.length === 0 && (
-                <p className="text-sm text-[#4B4B6A] text-center py-8">暂无比赛事件</p>
+                <p className="text-sm text-[#8B5A2B]/40 text-center py-8">暂无比赛事件</p>
               )}
               {allEvents.map((ev, i) => (
                 <div
                   key={i}
                   className={`flex items-start gap-3 p-2 border-l-2 ${
-                    ev.type === 'goal' ? 'bg-yellow-500/10 border-yellow-500' :
-                    ev.type === 'yellow' ? 'bg-yellow-500/5 border-yellow-500' :
-                    ev.type === 'red' ? 'bg-red-500/10 border-red-500' :
-                    ev.type === 'half' || ev.type === 'full' ? 'bg-[#0D7377]/10 border-[#0D7377]' :
-                    'border-[#2D2D44]'
+                    ev.type === 'goal' ? 'bg-[#FFC247]/15 border-yellow-500' :
+                    ev.type === 'yellow' ? 'bg-[#FFC247]/10 border-[#FFC247]' :
+                    ev.type === 'red' ? 'bg-[#FF6F59]/10 border-red-500' :
+                    ev.type === 'half' || ev.type === 'full' ? 'bg-[#B9EF3F]/20 border-[#1F5F43]' :
+                    'border-[#1F5F43]/20'
                   }`}
                 >
-                  {ev.time ? <span className="text-xs text-[#4B4B6A] font-mono w-8">{ev.time}'</span> : null}
+                  {ev.time ? <span className="text-xs text-[#8B5A2B]/40 font-mono w-8">{ev.time}'</span> : null}
                   <span className={`text-sm ${
-                    ev.type === 'goal' ? 'text-yellow-400 font-bold' :
-                    ev.type === 'half' || ev.type === 'full' ? 'text-[#0D7377] font-bold' :
-                    'text-[#E2E2F0]'
+                    ev.type === 'goal' ? 'text-[#C77A00] font-bold' :
+                    ev.type === 'half' || ev.type === 'full' ? 'text-[#1F5F43] font-bold' :
+                    'text-[#173126]'
                   }`}>
                     {ev.text}
                   </span>
                 </div>
               ))}
-              {isLive && <div className="animate-pulse text-xs text-[#4B4B6A]">实时更新中...</div>}
+              {isLive && <div className="animate-pulse text-xs text-[#8B5A2B]/40">实时更新中...</div>}
             </div>
           </Card>
         </div>
@@ -222,7 +222,7 @@ export default function LiveMatch() {
           {!isLive && match && (
             <Link
               to={`/match/${match.id}`}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0D7377] border-2 border-[#0A5A5D] text-white text-sm font-medium hover:bg-[#0A5A5D] transition-all"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[#1F5F43] border-2 border-[#173126] text-[#F8FFD2] text-sm font-medium hover:bg-[#173126] transition-all"
             >
               查看完整统计
             </Link>
@@ -240,13 +240,13 @@ function StatRow({ label, home, away, unit = '' }: { label: string; home: number
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-bold text-white">{home}{unit}</span>
-        <span className="text-xs text-[#8B8BA7]">{label}</span>
-        <span className="text-sm font-bold text-white">{away}{unit}</span>
+        <span className="text-sm font-bold text-[#173126]">{home}{unit}</span>
+        <span className="text-xs text-[#466353]">{label}</span>
+        <span className="text-sm font-bold text-[#173126]">{away}{unit}</span>
       </div>
       <div className="flex h-2">
-        <div className="bg-[#0D7377]" style={{ width: `${homePct}%` }} />
-        <div className="bg-[#4B4B6A]" style={{ width: `${100 - homePct}%` }} />
+        <div className="bg-[#1F5F43]" style={{ width: `${homePct}%` }} />
+        <div className="bg-[#8B5A2B]/40" style={{ width: `${100 - homePct}%` }} />
       </div>
     </div>
   )

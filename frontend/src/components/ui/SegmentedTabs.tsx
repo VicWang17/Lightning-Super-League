@@ -31,11 +31,11 @@ export function SegmentedTabs(props: SegmentedTabsProps) {
   const { tabs, mode } = props
 
   const base =
-    'px-4 py-2 font-medium text-sm transition-all duration-200 flex items-center gap-2'
+    'px-4 py-2 font-black text-sm transition-all duration-200 flex items-center gap-2 border-2'
   const inactive =
-    'text-text-secondary hover:text-text-primary hover:bg-surface-hover border-2 border-transparent'
+    'text-[#466353] hover:text-[#173126] hover:bg-white border-[#1F5F43]/20 bg-white/45'
   const active =
-    'bg-[#C6F135] text-[#0A0A0F] border-2 border-transparent font-bold shadow-pixel-green'
+    'bg-[#FFC247] text-[#173126] border-[#1F5F43] shadow-[3px_3px_0_rgba(31,95,67,0.18)]'
 
   return (
     <nav className="flex flex-wrap gap-2 mb-6">
@@ -46,7 +46,6 @@ export function SegmentedTabs(props: SegmentedTabsProps) {
             <NavLink
               key={routeTab.path}
               to={routeTab.path}
-              end
               className={({ isActive }) => clsx(base, isActive ? active : inactive)}
             >
               {routeTab.label}

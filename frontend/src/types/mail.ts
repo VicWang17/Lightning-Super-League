@@ -60,12 +60,12 @@ export const MAIL_CATEGORY_LABELS: Record<MailCategory, string> = {
 }
 
 export const MAIL_CATEGORY_COLORS: Record<MailCategory, string> = {
-  [MailCategory.MATCH_PREVIEW]: '#0D7377',
-  [MailCategory.MATCH_RESULT]: '#C6F135',
-  [MailCategory.SPONSOR]: '#F59E0B',
-  [MailCategory.TRANSFER]: '#3B82F6',
-  [MailCategory.FINANCE]: '#10B981',
-  [MailCategory.SYSTEM]: '#8B8BA7',
+  [MailCategory.MATCH_PREVIEW]: '#1F5F43',
+  [MailCategory.MATCH_RESULT]: '#B9EF3F',
+  [MailCategory.SPONSOR]: '#FFC247',
+  [MailCategory.TRANSFER]: '#59C7EE',
+  [MailCategory.FINANCE]: '#1F5F43',
+  [MailCategory.SYSTEM]: '#466353',
 }
 
 export const MAIL_CATEGORY_ICONS: Record<MailCategory, string> = {

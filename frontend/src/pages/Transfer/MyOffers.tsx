@@ -100,12 +100,12 @@ export default function MyOffers() {
       <TransferTabs />
 
       {loading && (
-        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
+        <div className="flex items-center justify-center py-12 text-sm text-[#466353]">
           加载中...
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
+        <div className="flex items-center gap-2 p-4 bg-[#FF6F59]/10 border-2 border-[#FF6F59]/30 text-[#FF6F59] text-sm">
           {error}
         </div>
       )}
@@ -115,28 +115,28 @@ export default function MyOffers() {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">已发报价</h3>
-              <span className="text-xs text-[#4B4B6A]">共 {offers.length} 条</span>
+              <span className="text-xs text-[#8B5A2B]/40">共 {offers.length} 条</span>
             </div>
             <div className="space-y-3">
               {offers.map((o) => (
-                <div key={o.offer_id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
+                <div key={o.offer_id} className="flex items-center gap-4 p-3 bg-white/70 border-2 border-[#1F5F43]/20">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
-                      <Link to={`/players/${o.player_id}`} className="hover:text-[#0D7377] transition-colors">
+                    <p className="text-sm font-medium text-[#173126] truncate">
+                      <Link to={`/players/${o.player_id}`} className="hover:text-[#1F5F43] transition-colors">
                         {o.player_name}
                       </Link>
                     </p>
-                    <p className="text-xs text-[#4B4B6A]">
+                    <p className="text-xs text-[#8B5A2B]/40">
                       {OFFER_KIND_NAMES[o.offer_kind]} · {(o.amount / 10000).toFixed(1)}万
                     </p>
                   </div>
                   <div className="text-right min-w-[80px]">
                     <span className={clsx(
                       'text-xs px-2 py-0.5',
-                      o.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30' :
-                      o.status === 'ACCEPTED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' :
-                      o.status === 'REJECTED' ? 'bg-red-500/10 text-red-400 border border-red-500/30' :
-                      'bg-[#2D2D44] text-[#4B4B6A]'
+                      o.status === 'PENDING' ? 'bg-[#FFC247]/15 text-[#C77A00] border border-[#FFC247]/40' :
+                      o.status === 'ACCEPTED' ? 'bg-[#B9EF3F]/20 text-[#1F5F43] border border-[#1F5F43]/30' :
+                      o.status === 'REJECTED' ? 'bg-[#FF6F59]/10 text-[#FF6F59] border border-[#FF6F59]/30' :
+                      'bg-[#F8FFD2] text-[#8B5A2B]/40'
                     )}>
                       {OFFER_STATUS_NAMES[o.status]}
                     </span>
@@ -145,14 +145,14 @@ export default function MyOffers() {
                     {o.status === 'PENDING' && o.offer_kind === 'COUNTER' && (
                       <button
                         onClick={() => openFinalModal(o)}
-                        className="px-3 py-1.5 bg-[#0D7377] hover:bg-[#0A5A5D] text-white text-xs font-bold border-2 border-[#0A5A5D] transition-colors"
+                        className="px-3 py-1.5 bg-[#1F5F43] hover:bg-[#173126] text-[#F8FFD2] text-xs font-bold border-2 border-[#173126] transition-colors"
                       >
                         最终报价
                       </button>
                     )}
                     <Link
                       to={`/players/${o.player_id}`}
-                      className="p-1.5 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 text-[#8B8BA7] hover:text-white transition-colors"
+                      className="p-1.5 bg-[#FFF8DC] border-2 border-[#1F5F43]/20 hover:border-[#1F5F43] text-[#466353] hover:text-[#173126] transition-colors"
                     >
                       <Eye className="w-3 h-3" />
                     </Link>
@@ -160,7 +160,7 @@ export default function MyOffers() {
                 </div>
               ))}
               {offers.length === 0 && (
-                <div className="text-center py-12 text-[#8B8BA7]">
+                <div className="text-center py-12 text-[#466353]">
                   <p className="text-sm">暂无发出的报价</p>
                   <p className="text-xs mt-1">在拍卖市场找到心仪球员后点击「报价」</p>
                 </div>
@@ -173,15 +173,15 @@ export default function MyOffers() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 bg-[#12121A] border-2 border-[#2D2D44] text-[#8B8BA7] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-2 bg-[#FFF8DC] border-2 border-[#1F5F43]/20 text-[#466353] hover:text-[#173126] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm text-[#8B8BA7]">第 {page} / {totalPages} 页</span>
+              <span className="text-sm text-[#466353]">第 {page} / {totalPages} 页</span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-2 bg-[#12121A] border-2 border-[#2D2D44] text-[#8B8BA7] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-2 bg-[#FFF8DC] border-2 border-[#1F5F43]/20 text-[#466353] hover:text-[#173126] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -192,28 +192,28 @@ export default function MyOffers() {
 
       {/* Final Offer Modal */}
       {finalNegotiation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-lg">
-            <div className="flex items-center justify-between p-4 border-b-2 border-[#2D2D44]">
-              <h3 className="text-lg font-bold text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1F5F43]/35 p-4">
+          <div className="w-full max-w-md bg-[#FFF8DC] border-2 border-[#1F5F43]/20 shadow-pixel-lg">
+            <div className="flex items-center justify-between p-4 border-b-2 border-[#1F5F43]/20">
+              <h3 className="text-lg font-bold text-[#173126]">
                 {finalSuccess ? '最终报价已发送' : `最终报价: ${finalNegotiation.playerName}`}
               </h3>
-              <button onClick={closeFinalModal} className="text-[#8B8BA7] hover:text-white">
+              <button onClick={closeFinalModal} className="text-[#466353] hover:text-[#173126]">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-4 space-y-4">
               {finalSuccess ? (
                 <div className="space-y-4">
-                  <div className="text-emerald-400 font-bold">
+                  <div className="text-[#1F5F43] font-bold">
                     最终报价发送成功！
                   </div>
-                  <p className="text-sm text-[#8B8BA7]">
-                    报价金额: <span className="text-white font-bold">{finalAmount}万</span>
+                  <p className="text-sm text-[#466353]">
+                    报价金额: <span className="text-[#173126] font-bold">{finalAmount}万</span>
                   </p>
                   <button
                     onClick={closeFinalModal}
-                    className="w-full py-2 bg-[#0D7377] hover:bg-[#0A5A5D] text-white text-sm font-bold border-2 border-[#0A5A5D] transition-colors"
+                    className="w-full py-2 bg-[#1F5F43] hover:bg-[#173126] text-[#F8FFD2] text-sm font-bold border-2 border-[#173126] transition-colors"
                   >
                     确定
                   </button>
@@ -221,31 +221,31 @@ export default function MyOffers() {
               ) : (
                 <>
                   <div className="pt-2">
-                    <label className="text-xs text-[#8B8BA7] mb-1 block">最终报价金额（万）</label>
+                    <label className="text-xs text-[#466353] mb-1 block">最终报价金额（万）</label>
                     <input
                       type="number"
                       value={finalAmount}
                       onChange={e => setFinalAmount(e.target.value)}
-                      className="w-full bg-[#1A1A2E] border-2 border-[#2D2D44] px-3 py-2 text-sm text-white focus:border-[#0D7377] outline-none"
+                      className="w-full bg-white border-2 border-[#1F5F43]/20 px-3 py-2 text-sm text-[#173126] focus:border-[#1F5F43] outline-none"
                       placeholder="输入最终报价金额（需高于初始报价）"
                     />
                   </div>
                   {finalError && (
-                    <div className="flex items-center gap-2 p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
+                    <div className="flex items-center gap-2 p-3 bg-[#FF6F59]/10 border-2 border-[#FF6F59]/30 text-[#FF6F59] text-sm">
                       {finalError}
                     </div>
                   )}
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={closeFinalModal}
-                      className="flex-1 py-2 bg-[#2D2D44] hover:bg-[#3D3D5C] text-white text-sm font-bold border-2 border-[#2D2D44] transition-colors"
+                      className="flex-1 py-2 bg-[#FFF8DC] hover:bg-[#F8FFD2] text-[#173126] text-sm font-bold border-2 border-[#1F5F43]/20 transition-colors"
                     >
                       取消
                     </button>
                     <button
                       onClick={submitFinalOffer}
                       disabled={finalLoading || !finalAmount || Number(finalAmount) <= 0}
-                      className="flex-1 py-2 bg-[#0D7377] hover:bg-[#0A5A5D] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold border-2 border-[#0A5A5D] transition-colors"
+                      className="flex-1 py-2 bg-[#1F5F43] hover:bg-[#173126] disabled:opacity-40 disabled:cursor-not-allowed text-[#F8FFD2] text-sm font-bold border-2 border-[#173126] transition-colors"
                     >
                       {finalLoading ? '发送中...' : '提交最终报价'}
                     </button>

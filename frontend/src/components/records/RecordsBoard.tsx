@@ -28,17 +28,17 @@ function RecordAvatar({ record }: { record: RecordItem }) {
       src={record.holder_avatar_url ? `/${record.holder_avatar_url}` : undefined}
       name={record.holder_name}
       size="sm"
-      fallback={<User className="w-4 h-4 text-[#8B8BA7]" />}
-      className="border-[#2D2D44]"
+      fallback={<User className="w-4 h-4 text-[#466353]" />}
+      className="border-[#1F5F43]/20"
     />
   )
 }
 
 function RecordMeta({ record }: { record: RecordItem }) {
   return (
-    <div className="flex items-center gap-2 text-[10px] sm:text-xs text-[#4B4B6A]">
+    <div className="flex items-center gap-2 text-[10px] sm:text-xs text-[#8B5A2B]/40">
       {record.season_number !== undefined && (
-        <span className="px-1 py-0.5 bg-[#1E1E2D] border border-[#2D2D44]">
+        <span className="px-1 py-0.5 bg-[#FFF8DC]/80 border border-[#1F5F43]/20">
           第 {record.season_number} 赛季
         </span>
       )}
@@ -46,7 +46,7 @@ function RecordMeta({ record }: { record: RecordItem }) {
       {record.fixture_id && (
         <Link
           to={`/match/${record.fixture_id}`}
-          className="inline-flex items-center gap-0.5 text-[#0D7377] hover:text-[#C6F135] transition-colors"
+          className="inline-flex items-center gap-0.5 text-[#1F5F43] hover:text-[#1F5F43] transition-colors"
         >
           比赛
           <ExternalLink className="w-3 h-3" />
@@ -63,12 +63,12 @@ function RecordRow({ record }: { record: RecordItem }) {
       : `/teams/${record.holder_id}`
 
   return (
-    <div className="group flex items-center gap-3 px-3 py-2.5 bg-[#12121A] border border-[#2D2D44]/60 hover:border-[#0D7377]/50 hover:bg-[#1A1A26] transition-all">
+    <div className="group flex items-center gap-3 px-3 py-2.5 bg-[#FFF8DC]/80 border border-[#1F5F43]/20 hover:border-[#1F5F43] hover:bg-[#FFF8DC]/60 transition-all">
       <RecordAvatar record={record} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-[#8B8BA7]">
+          <span className="text-xs font-medium text-[#466353]">
             {record.record_type_label}
           </span>
           <RecordMeta record={record} />
@@ -77,16 +77,16 @@ function RecordRow({ record }: { record: RecordItem }) {
         <div className="mt-0.5 flex items-center gap-1.5 text-sm min-w-0">
           <Link
             to={holderLink}
-            className="font-semibold text-white hover:text-[#C6F135] truncate transition-colors"
+            className="font-semibold text-[#173126] hover:text-[#1F5F43] truncate transition-colors"
           >
             {record.holder_name}
           </Link>
           {record.category === RecordCategory.PLAYER && record.holder_team_name && (
             <>
-              <span className="text-[#4B4B6A]">·</span>
+              <span className="text-[#8B5A2B]/40">·</span>
               <Link
                 to={`/teams/${record.holder_team_id}`}
-                className="text-[#8B8BA7] hover:text-white truncate transition-colors"
+                className="text-[#466353] hover:text-[#173126] truncate transition-colors"
               >
                 {record.holder_team_name}
               </Link>
@@ -96,7 +96,7 @@ function RecordRow({ record }: { record: RecordItem }) {
       </div>
 
       <div className="shrink-0 text-right pl-2">
-        <div className="text-base sm:text-lg font-bold stat-number pixel-number text-[#C6F135] leading-none">
+        <div className="text-base sm:text-lg font-bold stat-number pixel-number text-[#1F5F43] leading-none">
           {record.record_value}
         </div>
       </div>
@@ -106,8 +106,8 @@ function RecordRow({ record }: { record: RecordItem }) {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="text-center py-12 border border-dashed border-[#2D2D44]/60 bg-[#12121A]/50">
-      <p className="text-[#8B8BA7] text-sm">{text}</p>
+    <div className="text-center py-12 border border-dashed border-[#1F5F43]/20 bg-[#FFF8DC]/80">
+      <p className="text-[#466353] text-sm">{text}</p>
     </div>
   )
 }
@@ -118,14 +118,14 @@ function SkeletonRows() {
       {[1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="flex items-center gap-3 px-3 py-3 bg-[#12121A] border border-[#2D2D44]/60"
+          className="flex items-center gap-3 px-3 py-3 bg-[#FFF8DC]/80 border border-[#1F5F43]/20"
         >
-          <div className="w-9 h-9 bg-[#1E1E2D]" />
+          <div className="w-9 h-9 bg-[#FFF8DC]/80" />
           <div className="flex-1 space-y-2">
-            <div className="h-3 bg-[#1E1E2D] w-1/3" />
-            <div className="h-3 bg-[#1E1E2D] w-1/2" />
+            <div className="h-3 bg-[#FFF8DC]/80 w-1/3" />
+            <div className="h-3 bg-[#FFF8DC]/80 w-1/2" />
           </div>
-          <div className="w-16 h-5 bg-[#1E1E2D]" />
+          <div className="w-16 h-5 bg-[#FFF8DC]/80" />
         </div>
       ))}
     </div>
@@ -168,7 +168,7 @@ export function RecordsBoard({
   return (
     <div className="space-y-3">
       {categories.length > 1 && (
-        <div className="flex gap-1 border-b-2 border-[#2D2D44]">
+        <div className="flex gap-1 border-b-2 border-[#1F5F43]/20">
           {categories.map((cat) => (
             <button
               key={cat}
@@ -176,8 +176,8 @@ export function RecordsBoard({
               className={clsx(
                 'flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-0.5 transition-all',
                 activeCategory === cat
-                  ? 'border-[#C6F135] text-[#C6F135]'
-                  : 'border-transparent text-[#8B8BA7] hover:text-white'
+                  ? 'border-[#B9EF3F] text-[#1F5F43]'
+                  : 'border-transparent text-[#466353] hover:text-[#173126]'
               )}
             >
               {RECORD_CATEGORY_LABELS[cat]}

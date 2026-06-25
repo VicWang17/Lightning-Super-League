@@ -40,7 +40,7 @@ function SeasonSelector({
  <select
  value={selectedSeasonId || ''}
  onChange={(e) => onChange(e.target.value)}
- className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#0D7377] focus:ring-1 focus:ring-[#0D7377] cursor-pointer"
+ className="appearance-none bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#1F5F43] focus:ring-1 focus:ring-[#1F5F43] cursor-pointer"
  >
  {seasons.map((season) => (
  <option key={season.id} value={season.id}>
@@ -48,7 +48,7 @@ function SeasonSelector({
  </option>
  ))}
  </select>
- <ChevronLeft className="w-4 h-4 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-[-90deg] pointer-events-none" />
+ <ChevronLeft className="w-4 h-4 text-[#466353] absolute right-2 top-1/2 -translate-y-1/2 rotate-[-90deg] pointer-events-none" />
  </div>
  )
 }
@@ -76,7 +76,7 @@ function MatchScore({ match, className = '' }: { match: CupFixture; className?: 
  {match.home_score ?? '-'}:{match.away_score ?? '-'}
  </div>
  {hasPenaltyScore(match) && (
- <div className="mt-0.5 text-[10px] font-black text-[#D6A619]">
+ <div className="mt-0.5 text-[10px] font-black text-[#C77A00]">
  点球 {match.penalty_score!.home}:{match.penalty_score!.away}
  </div>
  )}
@@ -91,27 +91,27 @@ function MatchCard({ match }: { match: CupFixture }) {
  const stageConfig = match.cup_stage ? CUP_STAGE_CONFIG[match.cup_stage] : null
 
  return (
- <div className="p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/30 hover:-translate-y-1 transition-all">
+ <div className="p-4 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 shadow-pixel-sm hover:border-[#1F5F43] hover:-translate-y-1 transition-all">
  <div className="flex items-center justify-between mb-3">
  <div className="flex items-center gap-2">
  {match.cup_group_name && (
- <span className="text-xs px-2 py-0.5 rounded-none bg-[#1E1E2D] text-[#8B8BA7]">
+ <span className="text-xs px-2 py-0.5 rounded-none bg-[#FFF8DC]/80 text-[#466353]">
  小组 {match.cup_group_name}
  </span>
  )}
  {stageConfig && (
- <span className={`text-xs px-2 py-0.5 rounded-none bg-[#2D2D44] text-white`}>
+ <span className={`text-xs px-2 py-0.5 rounded-none bg-[#F8FFD2] text-[#173126]`}>
  {stageConfig.name}
  </span>
  )}
  </div>
  {isLive && (
- <span className="text-xs px-2 py-0.5 rounded-none bg-red-500 text-white animate-pulse">
+ <span className="text-xs px-2 py-0.5 rounded-none bg-[#FF6F59] text-[#F8FFD2] animate-pulse">
  进行中
  </span>
  )}
  {isFinished && (
- <span className="text-xs px-2 py-0.5 rounded-none bg-[#1E1E2D] text-[#8B8BA7]">
+ <span className="text-xs px-2 py-0.5 rounded-none bg-[#FFF8DC]/80 text-[#466353]">
  已结束
  </span>
  )}
@@ -121,20 +121,20 @@ function MatchCard({ match }: { match: CupFixture }) {
  <div className="flex-1 text-center">
  <Link
  to={`/teams/${match.home_team.id}`}
- className="font-medium text-white hover:text-[#C6F135] transition-colors"
+ className="font-medium text-[#173126] hover:text-[#1F5F43] transition-colors"
  >
  {match.home_team.name}
  </Link>
- <p className="text-xs text-[#8B8BA7]">主</p>
+ <p className="text-xs text-[#466353]">主</p>
  </div>
 
  <div className="px-4">
  {isFinished || isLive ? (
- <MatchScore match={match} className={`text-2xl font-bold stat-number ${isLive ? 'text-red-400' : 'text-white'}`} />
+ <MatchScore match={match} className={`text-2xl font-bold stat-number ${isLive ? 'text-[#FF6F59]' : 'text-[#173126]'}`} />
  ) : (
- <div className="text-lg font-bold pixel-number text-[#4B4B6A]">VS</div>
+ <div className="text-lg font-bold pixel-number text-[#8B5A2B]/40">VS</div>
  )}
- <p className="text-xs text-[#8B8BA7] mt-1">
+ <p className="text-xs text-[#466353] mt-1">
  第{match.season_day}天
  </p>
  </div>
@@ -142,11 +142,11 @@ function MatchCard({ match }: { match: CupFixture }) {
  <div className="flex-1 text-center">
  <Link
  to={`/teams/${match.away_team.id}`}
- className="font-medium text-white hover:text-[#C6F135] transition-colors"
+ className="font-medium text-[#173126] hover:text-[#1F5F43] transition-colors"
  >
  {match.away_team.name}
  </Link>
- <p className="text-xs text-[#8B8BA7]">客</p>
+ <p className="text-xs text-[#466353]">客</p>
  </div>
  </div>
  </div>
@@ -182,24 +182,24 @@ function GroupStandingRow({
  const goalDiff = goalsFor - goalsAgainst
 
  return (
- <tr className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+ <tr className="border-b border-[#1F5F43]/20 hover:bg-[#FFF8DC]/80 transition-colors">
  <td className="py-2 px-3">
  <div className={`w-6 h-6 flex items-center justify-center text-xs font-bold pixel-number ${
- position <= 2 ? 'bg-emerald-500 text-white' : 'bg-[#1E1E2D] text-[#8B8BA7]'
+ position <= 2 ? 'bg-[#1F5F43] text-[#173126]' : 'bg-[#FFF8DC]/80 text-[#466353]'
  }`}>
  {position}
  </div>
  </td>
  <td className="py-2 px-3">
- <Link to={`/teams/${teamId}`} className="text-sm text-white hover:text-[#C6F135] transition-colors">
+ <Link to={`/teams/${teamId}`} className="text-sm text-[#173126] hover:text-[#1F5F43] transition-colors">
  {teamName}
  </Link>
- {isQualified && <span className="ml-2 text-xs text-emerald-400">✓</span>}
+ {isQualified && <span className="ml-2 text-xs text-[#1F5F43]">✓</span>}
  </td>
  <td className="py-2 px-3 text-center text-sm stat-number">{played}</td>
- <td className="py-2 px-3 text-center text-sm stat-number text-emerald-400">{won}</td>
+ <td className="py-2 px-3 text-center text-sm stat-number text-[#1F5F43]">{won}</td>
  <td className="py-2 px-3 text-center text-sm stat-number">{drawn}</td>
- <td className="py-2 px-3 text-center text-sm stat-number text-red-400">{lost}</td>
+ <td className="py-2 px-3 text-center text-sm stat-number text-[#FF6F59]">{lost}</td>
  <td className="py-2 px-3 text-center text-sm stat-number">{goalsFor}:{goalsAgainst}</td>
  <td className="py-2 px-3 text-center text-sm stat-number">{goalDiff > 0 ? '+' : ''}{goalDiff}</td>
  <td className="py-2 px-3 text-center">
@@ -233,14 +233,14 @@ function GroupSection({ group }: { group: CupGroup }) {
  })
 
  return (
- <div className="bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm overflow-hidden hover:-translate-y-1 transition-all">
- <div className="px-4 py-3 bg-[#0D7377]/20 border-b border-[#2D2D44]">
- <h4 className="font-bold text-white">小组 {group.name}</h4>
+ <div className="bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 shadow-pixel-sm overflow-hidden hover:-translate-y-1 transition-all">
+ <div className="px-4 py-3 bg-[#B9EF3F]/25 border-b border-[#1F5F43]/20">
+ <h4 className="font-bold text-[#173126]">小组 {group.name}</h4>
  </div>
  <div className="overflow-x-auto">
  <table className="w-full text-sm">
  <thead>
- <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+ <tr className="text-left text-xs text-[#466353] border-b border-[#1F5F43]/20">
  <th className="py-2 px-3 font-medium">排名</th>
  <th className="py-2 px-3 font-medium">球队</th>
  <th className="py-2 px-3 font-medium text-center">赛</th>
@@ -283,12 +283,12 @@ function KnockoutMatchRow({ match }: { match: CupFixture }) {
  const winner = getWinnerSide(match)
 
  return (
- <div className="bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:border-[#0D7377]/50 transition-colors">
+ <div className="bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 shadow-pixel-sm hover:border-[#1F5F43] transition-colors">
  <div className="grid grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] items-center gap-3 px-4 py-3">
- <div className={`min-w-0 ${winner === 'home' ? 'text-[#C6F135]' : 'text-white'}`}>
+ <div className={`min-w-0 ${winner === 'home' ? 'text-[#1F5F43]' : 'text-[#173126]'}`}>
  <Link
  to={`/teams/${match.home_team.id}`}
- className="block truncate font-bold hover:text-[#C6F135] transition-colors"
+ className="block truncate font-bold hover:text-[#1F5F43] transition-colors"
  onClick={(e) => e.stopPropagation()}
  >
  {match.home_team.name}
@@ -297,17 +297,17 @@ function KnockoutMatchRow({ match }: { match: CupFixture }) {
 
  <div className="text-center">
  {isFinished || isLive ? (
- <MatchScore match={match} className={`text-lg font-black stat-number ${isLive ? 'text-red-400' : 'text-white'}`} />
+ <MatchScore match={match} className={`text-lg font-black stat-number ${isLive ? 'text-[#FF6F59]' : 'text-[#173126]'}`} />
  ) : (
- <div className="text-xs font-black pixel-number text-[#4B4B6A]">VS</div>
+ <div className="text-xs font-black pixel-number text-[#8B5A2B]/40">VS</div>
  )}
- <div className="mt-1 text-[10px] font-bold text-[#4B4B6A]">第{match.season_day}天</div>
+ <div className="mt-1 text-[10px] font-bold text-[#8B5A2B]/40">第{match.season_day}天</div>
  </div>
 
- <div className={`min-w-0 text-right ${winner === 'away' ? 'text-[#C6F135]' : 'text-white'}`}>
+ <div className={`min-w-0 text-right ${winner === 'away' ? 'text-[#1F5F43]' : 'text-[#173126]'}`}>
  <Link
  to={`/teams/${match.away_team.id}`}
- className="block truncate font-bold hover:text-[#C6F135] transition-colors"
+ className="block truncate font-bold hover:text-[#1F5F43] transition-colors"
  onClick={(e) => e.stopPropagation()}
  >
  {match.away_team.name}
@@ -315,7 +315,7 @@ function KnockoutMatchRow({ match }: { match: CupFixture }) {
  </div>
  </div>
  {isLive && (
- <div className="border-t border-[#2D2D44] px-4 py-1 text-xs font-bold text-red-400">进行中</div>
+ <div className="border-t border-[#1F5F43]/20 px-4 py-1 text-xs font-bold text-[#FF6F59]">进行中</div>
  )}
  </div>
  )
@@ -346,7 +346,7 @@ function CupScheduleList({ fixtures }: { fixtures: CupFixture[] }) {
  return (
  <div className="text-center py-12">
 
- <p className="text-[#8B8BA7]">暂无赛程数据</p>
+ <p className="text-[#466353]">暂无赛程数据</p>
  </div>
  )
  }
@@ -358,21 +358,21 @@ function CupScheduleList({ fixtures }: { fixtures: CupFixture[] }) {
  const matches = fixturesByStage[stage]
 
  return (
- <section key={stage} className="border-2 border-[#2D2D44] bg-[#0B0D14] shadow-pixel-sm overflow-hidden">
- <div className="flex items-center justify-between border-b-2 border-[#2D2D44] bg-[#12121A] px-4 py-3">
+ <section key={stage} className="border-2 border-[#1F5F43]/20 bg-white/70 shadow-pixel-sm overflow-hidden">
+ <div className="flex items-center justify-between border-b-2 border-[#1F5F43]/20 bg-[#FFF8DC]/80 px-4 py-3">
  <div className="flex items-center gap-3">
  <div className={`h-6 w-2 ${config.color}`} />
- <h4 className="text-lg font-black text-white">{config.name}</h4>
+ <h4 className="text-lg font-black text-[#173126]">{config.name}</h4>
  </div>
- <span className="text-xs font-bold text-[#8B8BA7]">{matches.length} 场</span>
+ <span className="text-xs font-bold text-[#466353]">{matches.length} 场</span>
  </div>
- <div className="divide-y divide-[#2D2D44]">
+ <div className="divide-y divide-[#1F5F43]/20">
  {matches.map(match => (
  <KnockoutMatchRow key={match.id} match={match} />
  ))}
  </div>
  {stageIndex < visibleStages.length - 1 && (
- <div className="border-t border-[#2D2D44] px-4 py-2 text-xs text-[#4B4B6A]">
+ <div className="border-t border-[#1F5F43]/20 px-4 py-2 text-xs text-[#8B5A2B]/40">
  下一阶段：{CUP_STAGE_CONFIG[visibleStages[stageIndex + 1]].name}
  </div>
  )}
@@ -392,8 +392,8 @@ function TeamMark({ name, muted = false }: { name: string; muted?: boolean }) {
  return (
  <div className={`w-9 h-9 shrink-0 rounded-full border-2 flex items-center justify-center text-[11px] font-black ${
  muted
- ? 'bg-[#10131C] border-[#30334D] text-[#596070]'
- : 'bg-[#07191B] border-[#0D7377] text-[#7DE6DF]'
+ ? 'bg-[#FFFFFF] border-[#1F5F43] text-[#466353]'
+ : 'bg-[#1F5F43] border-[#1F5F43] text-[#F8FFD2]'
  }`}>
  {letters}
  </div>
@@ -425,17 +425,17 @@ function BracketMatchPill({ match, final = false }: { match: BracketSlot; final?
  final ? 'w-full max-w-[420px] px-3 py-2' : 'w-full max-w-[320px] px-2 py-1.5'
  }`}>
  <div className={`grid items-center gap-3 border-y-2 border-dashed ${
- final ? 'grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] border-[#D6A619]/60 py-2' : 'grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] border-[#30334D] py-1.5'
+ final ? 'grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] border-[#C77A00]/60 py-2' : 'grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] border-[#1F5F43] py-1.5'
  }`}>
- <div className="flex min-w-0 items-center gap-2 text-[#596070]">
+ <div className="flex min-w-0 items-center gap-2 text-[#466353]">
  <TeamMark name="待定" muted />
  <span className={`truncate font-black ${final ? 'text-base' : 'text-sm'}`}>待定</span>
  </div>
  <div className="text-center">
- <div className={`${final ? 'text-sm' : 'text-xs'} font-black pixel-number text-[#4B4B6A]`}>VS</div>
- <div className="mt-1 text-[10px] font-bold text-[#4B4B6A]">未定</div>
+ <div className={`${final ? 'text-sm' : 'text-xs'} font-black pixel-number text-[#8B5A2B]/40`}>VS</div>
+ <div className="mt-1 text-[10px] font-bold text-[#8B5A2B]/40">未定</div>
  </div>
- <div className="flex min-w-0 items-center justify-end gap-2 text-right text-[#596070]">
+ <div className="flex min-w-0 items-center justify-end gap-2 text-right text-[#466353]">
  <span className={`truncate font-black ${final ? 'text-base' : 'text-sm'}`}>待定</span>
  <TeamMark name="待定" muted />
  </div>
@@ -449,12 +449,12 @@ function BracketMatchPill({ match, final = false }: { match: BracketSlot; final?
  final ? 'w-full max-w-[420px] px-3 py-2' : 'w-full max-w-[320px] px-2 py-1.5'
  }`}>
  <div className={`grid items-center gap-3 border-y-2 ${
- final ? 'grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] border-[#D6A619] py-2' : 'grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] border-[#30334D] py-1.5'
+ final ? 'grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] border-[#C77A00] py-2' : 'grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)] border-[#1F5F43] py-1.5'
  }`}>
  <Link
  to={`/teams/${match.home_team.id}`}
- className={`flex min-w-0 items-center gap-2 hover:text-[#C6F135] transition-colors ${
- winner === 'home' ? 'text-white' : winner === 'away' ? 'text-[#69708A]' : 'text-[#E8EAD8]'
+ className={`flex min-w-0 items-center gap-2 hover:text-[#1F5F43] transition-colors ${
+ winner === 'home' ? 'text-[#173126]' : winner === 'away' ? 'text-[#466353]' : 'text-[#173126]'
  }`}
  >
  <TeamMark name={match.home_team.name} muted={winner === 'away'} />
@@ -463,17 +463,17 @@ function BracketMatchPill({ match, final = false }: { match: BracketSlot; final?
 
  <div className="text-center">
  {isFinished || match.status === 'ongoing' ? (
- <MatchScore match={match} className={`${final ? 'text-xl' : 'text-base'} font-black stat-number text-white`} />
+ <MatchScore match={match} className={`${final ? 'text-xl' : 'text-base'} font-black stat-number text-[#173126]`} />
  ) : (
- <div className={`${final ? 'text-sm' : 'text-xs'} font-black pixel-number text-[#4B4B6A]`}>VS</div>
+ <div className={`${final ? 'text-sm' : 'text-xs'} font-black pixel-number text-[#8B5A2B]/40`}>VS</div>
  )}
- <div className="mt-1 text-[10px] font-bold text-[#4B4B6A]">第{match.season_day}天</div>
+ <div className="mt-1 text-[10px] font-bold text-[#8B5A2B]/40">第{match.season_day}天</div>
  </div>
 
  <Link
  to={`/teams/${match.away_team.id}`}
- className={`flex min-w-0 items-center justify-end gap-2 text-right hover:text-[#C6F135] transition-colors ${
- winner === 'away' ? 'text-white' : winner === 'home' ? 'text-[#69708A]' : 'text-[#E8EAD8]'
+ className={`flex min-w-0 items-center justify-end gap-2 text-right hover:text-[#1F5F43] transition-colors ${
+ winner === 'away' ? 'text-[#173126]' : winner === 'home' ? 'text-[#466353]' : 'text-[#173126]'
  }`}
  >
  <span className={`truncate font-black ${final ? 'text-base' : 'text-sm'}`}>{match.away_team.name}</span>
@@ -636,7 +636,7 @@ function BracketHalf({
  key={path.key}
  d={path.d}
  fill="none"
- stroke="#0D7377"
+ stroke="#1F5F43"
  strokeWidth="3"
  opacity="0.72"
  />
@@ -646,7 +646,7 @@ function BracketHalf({
  key={`${path.key}-glow`}
  d={path.d}
  fill="none"
- stroke="#C6F135"
+ stroke="#B9EF3F"
  strokeWidth="1"
  opacity="0.42"
  />
@@ -703,9 +703,9 @@ function KnockoutBracketTree({ fixtures }: { fixtures: CupFixture[] }) {
  const { upperRows, lowerRows } = buildBracketRows(fixturesByStage, bracketStages)
 
  return (
- <div className="relative overflow-hidden border-2 border-[#2D2D44] bg-[#080B11] px-4 py-6 shadow-pixel-sm">
+ <div className="relative overflow-hidden border-2 border-[#1F5F43]/20 bg-[#ECFFD8] px-4 py-6 shadow-pixel-sm">
  <div className="absolute inset-0 opacity-25 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:16px_16px]" />
- <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[120px] font-black text-white/[0.025] md:text-[180px]">
+ <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-[120px] font-black text-[#173126]/[0.025] md:text-[180px]">
  CUP
  </div>
  <div className="relative space-y-4">
@@ -713,24 +713,24 @@ function KnockoutBracketTree({ fixtures }: { fixtures: CupFixture[] }) {
 
  <div className="flex justify-center">
  <svg width="120" height="42" viewBox="0 0 120 42" shapeRendering="crispEdges" className="pointer-events-none">
- <path d="M60 0 V42" fill="none" stroke="#0D7377" strokeWidth="3" opacity="0.75" />
- <path d="M60 0 V42" fill="none" stroke="#C6F135" strokeWidth="1" opacity="0.45" />
+ <path d="M60 0 V42" fill="none" stroke="#1F5F43" strokeWidth="3" opacity="0.75" />
+ <path d="M60 0 V42" fill="none" stroke="#B9EF3F" strokeWidth="1" opacity="0.45" />
  </svg>
  </div>
 
- <div className="mx-auto max-w-[520px] border-2 border-[#D6A619] bg-[#0E111A]/95 px-4 py-3 shadow-pixel-sm">
- <div className="mb-2 flex items-center justify-center gap-3 text-sm font-black text-[#D6A619]">
- <span className="h-1 w-12 bg-[#D6A619]" />
+ <div className="mx-auto max-w-[520px] border-2 border-[#C77A00] bg-[#FFF8DC]/95 px-4 py-3 shadow-pixel-sm">
+ <div className="mb-2 flex items-center justify-center gap-3 text-sm font-black text-[#C77A00]">
+ <span className="h-1 w-12 bg-[#C77A00]" />
  决赛
- <span className="h-1 w-12 bg-[#D6A619]" />
+ <span className="h-1 w-12 bg-[#C77A00]" />
  </div>
  <BracketMatchPill match={fixturesByStage.FINAL[0] || null} final />
  </div>
 
  <div className="flex justify-center">
  <svg width="120" height="42" viewBox="0 0 120 42" shapeRendering="crispEdges" className="pointer-events-none">
- <path d="M60 0 V42" fill="none" stroke="#0D7377" strokeWidth="3" opacity="0.75" />
- <path d="M60 0 V42" fill="none" stroke="#C6F135" strokeWidth="1" opacity="0.45" />
+ <path d="M60 0 V42" fill="none" stroke="#1F5F43" strokeWidth="3" opacity="0.75" />
+ <path d="M60 0 V42" fill="none" stroke="#B9EF3F" strokeWidth="1" opacity="0.45" />
  </svg>
  </div>
 
@@ -815,8 +815,8 @@ function CupDetail() {
  if (cupLoading) {
  return (
  <div className="max-w-[1200px]">
- <div className="h-8 w-32 bg-[#1E1E2D] animate-pulse mb-4" />
- <div className="h-48 bg-[#1E1E2D] animate-pulse" />
+ <div className="h-8 w-32 bg-[#FFF8DC]/80 animate-pulse mb-4" />
+ <div className="h-48 bg-[#FFF8DC]/80 animate-pulse" />
  </div>
  )
  }
@@ -824,10 +824,10 @@ function CupDetail() {
  if (!cup) {
  return (
  <div className="max-w-[1200px] text-center py-20">
- <h2 className="text-xl font-bold text-white mb-2">杯赛未找到</h2>
- <p className="text-[#8B8BA7] mb-2">该杯赛不存在或已被删除</p>
+ <h2 className="text-xl font-bold text-[#173126] mb-2">杯赛未找到</h2>
+ <p className="text-[#466353] mb-2">该杯赛不存在或已被删除</p>
  {cupError && (
- <p className="text-red-400 text-sm mb-6">错误: {cupError}</p>
+ <p className="text-[#FF6F59] text-sm mb-6">错误: {cupError}</p>
  )}
  <Link to="/cups" className="btn-primary inline-flex items-center gap-2">
  返回杯赛列表
@@ -852,13 +852,13 @@ function CupDetail() {
  <div className="flex items-center justify-between mb-4">
  <button 
  onClick={() => navigate(-1)}
- className="text-sm text-[#8B8BA7] hover:text-white transition-colors"
+ className="text-sm text-[#466353] hover:text-[#173126] transition-colors"
  >
  返回上一页
  </button>
  <Link 
  to="/cups/all"
- className="text-sm text-[#0D7377] hover:text-white transition-colors"
+ className="text-sm text-[#1F5F43] hover:text-[#173126] transition-colors"
  >
  所有杯赛
  </Link>
@@ -902,8 +902,8 @@ function CupDetail() {
  <div className="flex justify-end mb-4">
  <div className="flex items-center gap-4 text-xs">
  <div className="flex items-center gap-1.5">
- <div className="w-3 h-3 bg-emerald-500" />
- <span className="text-[#8B8BA7]">晋级区（前2名）</span>
+ <div className="w-3 h-3 bg-[#1F5F43]" />
+ <span className="text-[#466353]">晋级区（前2名）</span>
  </div>
  </div>
  </div>
@@ -911,13 +911,13 @@ function CupDetail() {
  {groupsLoading ? (
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {[1, 2, 3, 4].map(i => (
- <div key={i} className="h-48 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-48 bg-[#FFF8DC]/80 animate-pulse" />
  ))}
  </div>
  ) : groups.length === 0 ? (
  <div className="text-center py-12">
 
- <p className="text-[#8B8BA7]">暂无小组赛分组数据</p>
+ <p className="text-[#466353]">暂无小组赛分组数据</p>
  </div>
  ) : (
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -938,7 +938,7 @@ function CupDetail() {
  {fixturesLoading ? (
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {[1, 2].map(i => (
- <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-32 bg-[#FFF8DC]/80 animate-pulse" />
  ))}
  </div>
  ) : (
@@ -954,7 +954,7 @@ function CupDetail() {
  {/* 淘汰赛正赛 */}
  <div >
  {fixturesLoading ? (
- <div className="h-64 bg-[#1E1E2D] animate-pulse" />
+ <div className="h-64 bg-[#FFF8DC]/80 animate-pulse" />
  ) : (
  <KnockoutBracketTree fixtures={knockoutFixtures} />
  )}
@@ -968,13 +968,13 @@ function CupDetail() {
  {fixturesLoading ? (
  <div className="space-y-4">
  {[1, 2, 3, 4].map(i => (
- <div key={i} className="h-28 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-28 bg-[#FFF8DC]/80 animate-pulse" />
  ))}
  </div>
  ) : fixtures.length === 0 ? (
  <div className="text-center py-12">
 
- <p className="text-[#8B8BA7]">暂无赛程数据</p>
+ <p className="text-[#466353]">暂无赛程数据</p>
  </div>
  ) : (
  <CupScheduleList fixtures={fixtures} />
@@ -1015,7 +1015,7 @@ function CupDetail() {
  <div className="space-y-6">
    {awardsLoading ? (
      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-       {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />)}
+       {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#FFF8DC]/80 animate-pulse" />)}
      </div>
    ) : (
      <>

@@ -7,203 +7,167 @@ import api from '../../api/client'
 import type { CupCompetition } from '../../types/cup'
 import { CUP_CONFIG, getCupBaseCode } from '../../types/cup'
 import { PageHeader } from '../../components/ui/PageHeader'
+import Button from '../../components/ui/Button'
 
-// 杯赛卡片组件
-function CupCard({ cup }: { cup: CupCompetition }) {
- const config = CUP_CONFIG[getCupBaseCode(cup.code)] || CUP_CONFIG.LIGHTNING_CUP
- const isFinished = cup.status === 'finished'
- const isOngoing = cup.status === 'ongoing'
- 
- return (
- <Link
- to={`/cups/${cup.id}`}
- className="group block"
- >
- <div className="relative p-5 bg-[#12121A] border-2 border-white/10 shadow-pixel-sm hover:border-[#0D7377]/50 hover:-translate-y-1 transition-all duration-200 overflow-hidden">
- {/* 背景装饰 */}
- <div className="absolute top-0 right-0 w-32 h-32" />
- 
- {/* 状态标签 */}
- {isOngoing && (
- <div className="absolute top-3 right-3 px-2 py-0.5 rounded-none bg-[#0D7377] text-white text-xs font-medium animate-pulse">
- 进行中
- </div>
- )}
- {isFinished && cup.winner_team_name && (
- <div className="absolute top-3 right-3 px-2 py-0.5 rounded-none bg-amber-500/20 text-amber-400 text-xs font-medium border-2 border-amber-500/30">
- 冠军 {cup.winner_team_name}
- </div>
- )}
- 
- <div className="relative">
- <div className="flex items-start justify-between">
- <div className="flex items-center gap-3">
- <div className="w-12 h-12 bg-[#050609] border-2 border-white/10 flex items-center justify-center shadow-pixel">
- <CupBadge code={cup.code} title={`${cup.name} 徽章`} />
- </div>
- <div>
- <h3 className="text-lg font-bold text-white group-hover:text-[#0D7377] transition-colors">
- {cup.name}
- </h3>
- <div className="flex items-center gap-2 mt-1">
- <CupBadge code={cup.code} size="sm" title={`${cup.name} 徽章`} />
- <span className="text-sm text-[#8B8BA7]">第{cup.season_number}赛季</span>
- </div>
- </div>
- </div>
- <ChevronRight className="w-5 h-5 text-[#4B4B6A] group-hover:text-white transition-colors" />
- </div>
- 
- <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
- <div className="flex items-center gap-4">
- <div className="text-sm text-[#8B8BA7]">{cup.total_teams} 支球队</div>
- <div className="text-sm text-[#8B8BA7]">
- {cup.has_group_stage ? '小组赛+淘汰赛' : '淘汰赛'}
- </div>
- </div>
- <span className={`text-xs px-2 py-1 rounded-none bg-[#2D2D44] border-2 border-white/10`}>
- {cup.has_group_stage ? `${cup.group_count}个小组` : '单场淘汰'}
- </span>
- </div>
- 
- <p className="mt-3 text-xs text-[#8B8BA7]">{config.description}</p>
- </div>
- </div>
- </Link>
- )
+function StatusTag({ cup }: { cup: CupCompetition }) {
+  if (cup.status === 'ongoing') {
+    return (
+      <span className="px-2 py-0.5 text-[10px] font-black bg-[#59C7EE] text-[#173126] border border-[#1F5F43] animate-pulse">
+        进行中
+      </span>
+    )
+  }
+  if (cup.status === 'finished' && cup.winner_team_name) {
+    return (
+      <span className="px-2 py-0.5 text-[10px] font-black bg-[#FFC247] text-[#8B5A2B] border border-[#1F5F43]">
+        冠军 {cup.winner_team_name}
+      </span>
+    )
+  }
+  return null
 }
 
-// 杯赛骨架屏组件
+function CupCard({ cup }: { cup: CupCompetition }) {
+  const config = CUP_CONFIG[getCupBaseCode(cup.code)] || CUP_CONFIG.LIGHTNING_CUP
+
+  return (
+    <Link to={`/cups/${cup.id}`} className="group block">
+      <div className="fresh-ticket flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:border-solid hover:border-[#1F5F43]">
+        <div className="flex-shrink-0">
+          <CupBadge code={cup.code} size="md" title={`${cup.name} 徽章`} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h3 className="text-base font-black text-[#173126] group-hover:text-[#1F5F43] transition-colors truncate">
+              {cup.name}
+            </h3>
+            <StatusTag cup={cup} />
+          </div>
+          <div className="flex items-center gap-3 text-xs font-bold text-[#466353]">
+            <span>第{cup.season_number}赛季</span>
+            <span>·</span>
+            <span>{cup.total_teams} 支球队</span>
+            <span>·</span>
+            <span>{cup.has_group_stage ? '小组赛+淘汰赛' : '淘汰赛'}</span>
+          </div>
+          <p className="mt-2 text-xs font-bold text-[#7b927f] line-clamp-2">{config.description}</p>
+        </div>
+        <ChevronRight className="w-5 h-5 text-[#1F5F43]/40 group-hover:text-[#1F5F43] transition-colors flex-shrink-0" />
+      </div>
+    </Link>
+  )
+}
+
 function CupCardSkeleton() {
- return (
- <div className="h-40 bg-[#1E1E2D] animate-pulse" />
- )
+  return <div className="h-28 bg-[#FFF8DC]/80 animate-pulse border-2 border-dashed border-[#8B5A2B]/30" />
 }
 
 function CupList() {
- const navigate = useNavigate()
- const { cups, loading: cupsLoading } = useCups()
- const [myCup, setMyCup] = useState<CupCompetition | null>(null)
- const [myCupId, setMyCupId] = useState<string | null>(null)
- const location = useLocation()
- 
- // 判断是否是"所有杯赛"页面
- const isAllCupsPage = location.pathname === '/cups/all'
- 
- // 获取用户球队参加的杯赛（和联赛页面保持一致的方式）
- useEffect(() => {
-   api.get<CupCompetition>('/cups/my-team').then(response => {
-     if (response.success && response.data) {
-       setMyCup(response.data)
-       setMyCupId(response.data.id)
-     }
-   }).catch(() => {
-     // 用户可能没有参加杯赛，静默处理
-   })
- }, [])
- 
- // 如果不是"所有杯赛"页面，且已获取到杯赛ID，直接导航到该杯赛
- if (!isAllCupsPage && myCupId) {
-   return <Navigate to={`/cups/${myCupId}`} replace />
- }
+  const navigate = useNavigate()
+  const { cups, loading: cupsLoading } = useCups()
+  const [myCup, setMyCup] = useState<CupCompetition | null>(null)
+  const [myCupId, setMyCupId] = useState<string | null>(null)
+  const location = useLocation()
 
- return (
- <div className="max-w-[1200px]">
+  const isAllCupsPage = location.pathname === '/cups/all'
+
+  useEffect(() => {
+    api.get<CupCompetition>('/cups/my-team').then(response => {
+      if (response.success && response.data) {
+        setMyCup(response.data)
+        setMyCupId(response.data.id)
+      }
+    }).catch(() => {})
+  }, [])
+
+  if (!isAllCupsPage && myCupId) {
+    return <Navigate to={`/cups/${myCupId}`} replace />
+  }
+
+  return (
+    <div className="fresh-page-shell space-y-6">
       <button
         onClick={() => navigate(-1)}
-        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="inline-flex items-center gap-1 text-sm font-bold text-[#466353] hover:text-[#173126] transition-colors"
       >
+        <ChevronRight className="w-4 h-4 rotate-180" />
         返回上一页
       </button>
- <PageHeader
- title="杯赛一览"
- subtitle="闪电超级联赛杯赛系统，包含闪电杯和杰尼杯两项赛事"
- />
 
- {/* 我的杯赛快速入口 */}
- {myCup && !isAllCupsPage && (
- <div className="mb-8 p-4 bg-[#0D7377]/20 border-2 border-[#0D7377]/30 shadow-pixel-sm">
- <div className="flex items-center justify-between">
- <span className="text-white font-medium">您正在参加 {myCup.name}</span>
- <Link 
- to={`/cups/${myCup.id}`}
- className="px-4 py-2 bg-[#0D7377] text-white text-sm font-bold border-2 hover:bg-[#0A5A5D] transition-colors hover:-translate-x-0.5 hover:-translate-y-0.5"
- >
- 查看详情
- </Link>
- </div>
- </div>
- )}
+      <PageHeader
+        title="杯赛一览"
+        subtitle="闪电超级联赛杯赛系统，包含闪电杯和杰尼杯两项赛事"
+      />
 
- {/* 杯赛列表 */}
- <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
- {cupsLoading ? (
- <>
- <CupCardSkeleton />
- <CupCardSkeleton />
- </>
- ) : cups.length === 0 ? (
- <div className="col-span-2 text-center py-12">
- <h3 className="text-xl font-bold text-white mb-2">暂无杯赛</h3>
- <p className="text-[#8B8BA7]">当前赛季尚未创建杯赛</p>
- </div>
- ) : (
- cups.map(cup => (
- <CupCard key={cup.id} cup={cup} />
- ))
- )}
- </div>
+      {myCup && !isAllCupsPage && (
+        <div className="fresh-filter-strip items-center justify-between">
+          <span className="text-sm font-black text-[#173126]">您正在参加 {myCup.name}</span>
+          <Link to={`/cups/${myCup.id}`}>
+            <Button size="sm">查看详情</Button>
+          </Link>
+        </div>
+      )}
 
- {/* 杯赛说明 */}
- <div className="mt-12 pt-8 border-t border-[#2D2D44]">
- <h3 className="text-lg font-semibold text-white mb-4">杯赛赛制说明</h3>
- <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
- <div className="p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm hover:-translate-y-1 transition-all">
- <div className="flex items-center gap-2 mb-2">
- <CupBadge code="LIGHTNING_CUP" size="sm" title="闪电杯徽章" />
- <h4 className="font-medium text-white">闪电杯</h4>
- </div>
- <p className="text-sm text-[#8B8BA7]">
- 超级联赛专属杯赛，64支顶级球队参赛。先进行16个小组的单循环小组赛，
- 每组前2名晋级32强，随后进行5轮单场淘汰赛决出冠军。
- </p>
- </div>
- <div className="p-4 bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-sm">
- <div className="flex items-center gap-2 mb-2">
- <CupBadge code="JENNY_CUP" size="sm" title="杰尼杯徽章" />
- <h4 className="font-medium text-white">杰尼杯</h4>
- </div>
- <p className="text-sm text-[#8B8BA7]">
- 次级联赛杯赛，192支球队参赛。先进行预选赛决出24支球队，
- 与8支次级联赛种子队组成32强，随后进行5轮单场淘汰赛决出冠军。
- </p>
- </div>
- </div>
- </div>
+      <section className="fresh-notice-board">
+        <div className="flex items-center gap-3 mb-5 pl-5 pr-5">
+          <CupBadge code="LIGHTNING_CUP" size="sm" title="杯赛徽章" />
+          <h2 className="text-xl font-black text-[#173126]">本赛季杯赛</h2>
+        </div>
 
- {/* 底部统计 */}
- <div className="mt-12 pt-8 border-t border-[#2D2D44]">
- <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
- <div className="text-center">
- <div className="text-3xl font-bold pixel-number text-[#0D7377]">2</div>
- <div className="text-sm text-[#8B8BA7] mt-1">杯赛项目</div>
- </div>
- <div className="text-center">
- <div className="text-3xl font-bold pixel-number text-[#0D7377]">256</div>
- <div className="text-sm text-[#8B8BA7] mt-1">参赛球队</div>
- </div>
- <div className="text-center">
- <div className="text-3xl font-bold pixel-number text-[#0D7377]">316</div>
- <div className="text-sm text-[#8B8BA7] mt-1">总场次</div>
- </div>
- <div className="text-center">
- <div className="text-3xl font-bold pixel-number text-[#0D7377]">2</div>
- <div className="text-sm text-[#8B8BA7] mt-1">冠军奖杯</div>
- </div>
- </div>
- </div>
- </div>
- )
+        {cupsLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <CupCardSkeleton />
+            <CupCardSkeleton />
+          </div>
+        ) : cups.length === 0 ? (
+          <div className="text-center py-10">
+            <h3 className="text-lg font-black text-[#173126] mb-1">暂无杯赛</h3>
+            <p className="text-sm font-bold text-[#466353]">当前赛季尚未创建杯赛</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {cups.map(cup => (
+              <CupCard key={cup.id} cup={cup} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="fresh-ticket">
+        <h3 className="text-lg font-black text-[#173126] mb-4">杯赛赛制说明</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            { code: 'LIGHTNING_CUP' as const, title: '闪电杯', desc: '超级联赛专属杯赛，64支顶级球队参赛。先进行16个小组的单循环小组赛，每组前2名晋级32强，随后进行5轮单场淘汰赛决出冠军。' },
+            { code: 'JENNY_CUP' as const, title: '杰尼杯', desc: '次级联赛杯赛，192支球队参赛。先进行预选赛决出24支球队，与8支次级联赛种子队组成32强，随后进行5轮单场淘汰赛决出冠军。' },
+          ].map(item => (
+            <div key={item.code} className="p-4 bg-white/60 border-2 border-[#1F5F43]/20 hover:border-[#1F5F43] transition-colors">
+              <div className="flex items-center gap-2 mb-2">
+                <CupBadge code={item.code} size="sm" title={`${item.title} 徽章`} />
+                <h4 className="font-black text-[#173126]">{item.title}</h4>
+              </div>
+              <p className="text-sm font-bold text-[#466353]">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10 pt-8 border-t-2 border-[#1F5F43]/20">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: '杯赛项目', value: 2 },
+            { label: '参赛球队', value: 256 },
+            { label: '总场次', value: 316 },
+            { label: '冠军奖杯', value: 2 },
+          ].map(stat => (
+            <div key={stat.label} className="fresh-stat-tile text-center">
+              <span>{stat.label}</span>
+              <strong className="font-pixel text-2xl">{stat.value}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
 }
 
 export default CupList

@@ -97,16 +97,16 @@ const POSITION_FILTERS: { value: PlayerPosition; label: string }[] = [
 ]
 
 const RANK_COLORS = [
-  'bg-amber-500 text-black',
-  'bg-slate-300 text-black',
-  'bg-orange-400 text-black',
+  'bg-[#FFC247] text-[#173126]',
+  'bg-[#B9D3A8] text-[#173126]',
+  'bg-[#FF6F59] text-[#173126]',
 ]
 
 function RankingRow({ ranking }: { ranking: { rank: number; team_name: string; total_score: number; league_score: number; cup_score: number; cup_titles: number; team_id: string } }) {
-  const rankColor = ranking.rank <= 3 ? RANK_COLORS[ranking.rank - 1] : 'bg-[#1E1E2D] text-[#8B8BA7]'
+  const rankColor = ranking.rank <= 3 ? RANK_COLORS[ranking.rank - 1] : 'bg-[#FFF8DC]/80 text-[#466353]'
 
   return (
-    <tr className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+    <tr className="border-b border-[#1F5F43]/20 hover:bg-[#FFF8DC]/80 transition-colors">
       <td className="py-3 px-4">
         <div className={`w-8 h-8 flex items-center justify-center text-sm font-bold pixel-number ${rankColor}`}>
           {ranking.rank}
@@ -115,19 +115,19 @@ function RankingRow({ ranking }: { ranking: { rank: number; team_name: string; t
       <td className="py-3 px-4">
         <Link
           to={`/teams/${ranking.team_id}`}
-          className="font-medium text-white hover:text-[#C6F135] transition-colors"
+          className="font-medium text-[#173126] hover:text-[#1F5F43] transition-colors"
         >
           {ranking.team_name}
         </Link>
       </td>
-      <td className="py-3 px-4 text-center stat-number text-[#8B8BA7]">
+      <td className="py-3 px-4 text-center stat-number text-[#466353]">
         {ranking.league_score.toFixed(0)}
       </td>
-      <td className="py-3 px-4 text-center stat-number text-amber-400">
+      <td className="py-3 px-4 text-center stat-number text-[#C77A00]">
         {ranking.cup_titles}
       </td>
       <td className="py-3 px-4 text-center">
-        <span className="font-bold pixel-number text-lg text-[#C6F135]">
+        <span className="font-bold pixel-number text-lg text-[#1F5F43]">
           {ranking.total_score.toFixed(0)}
         </span>
       </td>
@@ -136,10 +136,10 @@ function RankingRow({ ranking }: { ranking: { rank: number; team_name: string; t
 }
 
 function TeamLeaderboardRow({ item, format }: { item: TeamLeaderboardItem; format: 'int' | 'float1' | 'percent' }) {
-  const rankColor = item.rank <= 3 ? RANK_COLORS[item.rank - 1] : 'bg-[#1E1E2D] text-[#8B8BA7]'
+  const rankColor = item.rank <= 3 ? RANK_COLORS[item.rank - 1] : 'bg-[#FFF8DC]/80 text-[#466353]'
 
   return (
-    <tr className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+    <tr className="border-b border-[#1F5F43]/20 hover:bg-[#FFF8DC]/80 transition-colors">
       <td className="py-3 px-4">
         <div className={`w-8 h-8 flex items-center justify-center text-sm font-bold pixel-number ${rankColor}`}>
           {item.rank}
@@ -148,14 +148,14 @@ function TeamLeaderboardRow({ item, format }: { item: TeamLeaderboardItem; forma
       <td className="py-3 px-4">
         <Link
           to={`/teams/${item.team_id}`}
-          className="font-medium text-white hover:text-[#C6F135] transition-colors"
+          className="font-medium text-[#173126] hover:text-[#1F5F43] transition-colors"
         >
           {item.team_name}
         </Link>
       </td>
-      <td className="py-3 px-4 text-center text-[#8B8BA7]">{item.matches > 0 ? `${item.matches}场` : '-'}</td>
+      <td className="py-3 px-4 text-center text-[#466353]">{item.matches > 0 ? `${item.matches}场` : '-'}</td>
       <td className="py-3 px-4 text-center">
-        <span className="font-bold pixel-number text-lg text-[#C6F135]">
+        <span className="font-bold pixel-number text-lg text-[#1F5F43]">
           <LeaderboardValue value={item.value} format={format} />
         </span>
       </td>
@@ -164,10 +164,10 @@ function TeamLeaderboardRow({ item, format }: { item: TeamLeaderboardItem; forma
 }
 
 function PlayerRow({ player }: { player: { rank: number; player_name: string; avatar_url?: string; position: string; age: number; ovr: number; team_name: string; team_id: string; player_id: string } }) {
-  const rankColor = player.rank <= 3 ? RANK_COLORS[player.rank - 1] : 'bg-[#1E1E2D] text-[#8B8BA7]'
+  const rankColor = player.rank <= 3 ? RANK_COLORS[player.rank - 1] : 'bg-[#FFF8DC]/80 text-[#466353]'
 
   return (
-    <tr className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+    <tr className="border-b border-[#1F5F43]/20 hover:bg-[#FFF8DC]/80 transition-colors">
       <td className="py-3 px-4">
         <div className={`w-8 h-8 flex items-center justify-center text-sm font-bold pixel-number ${rankColor}`}>
           {player.rank}
@@ -176,35 +176,35 @@ function PlayerRow({ player }: { player: { rank: number; player_name: string; av
       <td className="py-3 px-4">
         <div className="flex items-center gap-3">
           {player.avatar_url ? (
-            <div className="w-10 h-10 bg-[#1E1E2D] border-2 border-[#2D2D44] overflow-hidden">
+            <div className="w-10 h-10 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 overflow-hidden">
               <img src={`/${player.avatar_url}`} alt={player.player_name} className="w-full h-full object-cover" />
             </div>
           ) : (
-            <div className="w-10 h-10 bg-[#0D4A4D]/30 border-2 border-[#0D7377]/30 flex items-center justify-center">
-              <Users className="w-5 h-5 text-[#0D7377]" />
+            <div className="w-10 h-10 bg-[#B9EF3F]/20 border-2 border-[#1F5F43]/25 flex items-center justify-center">
+              <Users className="w-5 h-5 text-[#1F5F43]" />
             </div>
           )}
           <Link
             to={`/players/${player.player_id}`}
-            className="font-medium text-white hover:text-[#C6F135] transition-colors"
+            className="font-medium text-[#173126] hover:text-[#1F5F43] transition-colors"
           >
             {player.player_name}
           </Link>
         </div>
       </td>
       <td className="py-3 px-4">
-        <span className="px-2 py-0.5 text-xs bg-[#1E1E2D] border border-[#2D2D44] text-[#8B8BA7]">
+        <span className="px-2 py-0.5 text-xs bg-[#FFF8DC]/80 border border-[#1F5F43]/20 text-[#466353]">
           {player.position}
         </span>
       </td>
-      <td className="py-3 px-4 text-center text-[#8B8BA7]">{player.age}</td>
+      <td className="py-3 px-4 text-center text-[#466353]">{player.age}</td>
       <td className="py-3 px-4 text-center">
-        <span className="font-bold pixel-number text-lg text-[#C6F135]">{player.ovr}</span>
+        <span className="font-bold pixel-number text-lg text-[#1F5F43]">{player.ovr}</span>
       </td>
       <td className="py-3 px-4">
         <Link
           to={`/teams/${player.team_id}`}
-          className="text-sm text-[#8B8BA7] hover:text-white transition-colors"
+          className="text-sm text-[#466353] hover:text-[#173126] transition-colors"
         >
           {player.team_name}
         </Link>
@@ -214,10 +214,10 @@ function PlayerRow({ player }: { player: { rank: number; player_name: string; av
 }
 
 function LeaderboardPlayerRow({ item, format }: { item: { rank: number; player_name: string; avatar_url?: string; position: string; team_name: string; team_id: string; player_id: string; value: number; matches: number }; format: 'int' | 'float1' | 'percent' }) {
-  const rankColor = item.rank <= 3 ? RANK_COLORS[item.rank - 1] : 'bg-[#1E1E2D] text-[#8B8BA7]'
+  const rankColor = item.rank <= 3 ? RANK_COLORS[item.rank - 1] : 'bg-[#FFF8DC]/80 text-[#466353]'
 
   return (
-    <tr className="border-b border-[#2D2D44] hover:bg-[#1E1E2D]/50 transition-colors">
+    <tr className="border-b border-[#1F5F43]/20 hover:bg-[#FFF8DC]/80 transition-colors">
       <td className="py-3 px-4">
         <div className={`w-8 h-8 flex items-center justify-center text-sm font-bold pixel-number ${rankColor}`}>
           {item.rank}
@@ -226,37 +226,37 @@ function LeaderboardPlayerRow({ item, format }: { item: { rank: number; player_n
       <td className="py-3 px-4">
         <div className="flex items-center gap-3">
           {item.avatar_url ? (
-            <div className="w-10 h-10 bg-[#1E1E2D] border-2 border-[#2D2D44] overflow-hidden">
+            <div className="w-10 h-10 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 overflow-hidden">
               <img src={`/${item.avatar_url}`} alt={item.player_name} className="w-full h-full object-cover" />
             </div>
           ) : (
-            <div className="w-10 h-10 bg-[#0D4A4D]/30 border-2 border-[#0D7377]/30 flex items-center justify-center">
-              <Users className="w-5 h-5 text-[#0D7377]" />
+            <div className="w-10 h-10 bg-[#B9EF3F]/20 border-2 border-[#1F5F43]/25 flex items-center justify-center">
+              <Users className="w-5 h-5 text-[#1F5F43]" />
             </div>
           )}
           <Link
             to={`/players/${item.player_id}`}
-            className="font-medium text-white hover:text-[#C6F135] transition-colors"
+            className="font-medium text-[#173126] hover:text-[#1F5F43] transition-colors"
           >
             {item.player_name}
           </Link>
         </div>
       </td>
       <td className="py-3 px-4">
-        <span className="px-2 py-0.5 text-xs bg-[#1E1E2D] border border-[#2D2D44] text-[#8B8BA7]">
+        <span className="px-2 py-0.5 text-xs bg-[#FFF8DC]/80 border border-[#1F5F43]/20 text-[#466353]">
           {item.position}
         </span>
       </td>
-      <td className="py-3 px-4 text-center text-[#8B8BA7]">{item.matches > 0 ? `${item.matches}场` : '-'}</td>
+      <td className="py-3 px-4 text-center text-[#466353]">{item.matches > 0 ? `${item.matches}场` : '-'}</td>
       <td className="py-3 px-4 text-center">
-        <span className="font-bold pixel-number text-lg text-[#C6F135]">
+        <span className="font-bold pixel-number text-lg text-[#1F5F43]">
           <LeaderboardValue value={item.value} format={format} />
         </span>
       </td>
       <td className="py-3 px-4">
         <Link
           to={`/teams/${item.team_id}`}
-          className="text-sm text-[#8B8BA7] hover:text-white transition-colors"
+          className="text-sm text-[#466353] hover:text-[#173126] transition-colors"
         >
           {item.team_name}
         </Link>
@@ -292,10 +292,10 @@ function WorldAwardsTab() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-10 bg-[#1E1E2D] animate-pulse max-w-[200px]" />
-        <div className="h-48 bg-[#1E1E2D] animate-pulse" />
+        <div className="h-10 bg-[#FFF8DC]/80 animate-pulse max-w-[200px]" />
+        <div className="h-48 bg-[#FFF8DC]/80 animate-pulse" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#1E1E2D] animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-[#FFF8DC]/80 animate-pulse" />)}
         </div>
       </div>
     )
@@ -308,12 +308,12 @@ function WorldAwardsTab() {
     <div className="space-y-8">
       {/* 赛季选择器 */}
       <div className="flex items-center gap-3">
-        <span className="text-sm text-[#8B8BA7]">赛季</span>
+        <span className="text-sm text-[#466353]">赛季</span>
         <div className="relative">
           <select
             value={selectedSeasonId || ''}
             onChange={(e) => setSelectedSeasonId(e.target.value)}
-            className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#C6F135] cursor-pointer"
+            className="appearance-none bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-sm px-4 py-2 pr-8 focus:outline-none focus:border-[#1F5F43] cursor-pointer"
           >
             {seasons.map((season) => (
               <option key={season.id} value={season.id}>
@@ -321,10 +321,10 @@ function WorldAwardsTab() {
               </option>
             ))}
           </select>
-          <ChevronRight className="w-4 h-4 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+          <ChevronRight className="w-4 h-4 text-[#466353] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
         </div>
         {selectedSeason && (
-          <span className="text-xs text-[#4B4B6A]">
+          <span className="text-xs text-[#8B5A2B]/40">
             {selectedSeason.status === 'finished' ? '已结束' : '进行中'}
           </span>
         )}
@@ -333,39 +333,39 @@ function WorldAwardsTab() {
       {/* 闪电足球先生 */}
       <section >
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-5 bg-[#C6F135]" />
-          <h3 className="text-lg font-bold text-white">闪电足球先生</h3>
+          <div className="w-1 h-5 bg-[#B9EF3F]" />
+          <h3 className="text-lg font-bold text-[#173126]">闪电足球先生</h3>
         </div>
         {awards?.best_player ? (
           <div className="max-w-sm mx-auto">
-            <div className="relative bg-[#0B0D14] border-2 border-[#C6F135]/30 p-6 overflow-hidden">
-              <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_50%_0%,_#C6F135,_transparent_70%)]" />
-              <div className="absolute top-0 left-0 right-0 h-px bg-[linear-gradient(90deg,transparent,#C6F135,transparent)]" />
+            <div className="relative bg-[#1F5F43] border-2 border-[#B9EF3F]/30 p-6 overflow-hidden">
+              <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_50%_0%,_#B9EF3F,_transparent_70%)]" />
+              <div className="absolute top-0 left-0 right-0 h-px bg-[linear-gradient(90deg,transparent,#B9EF3F,transparent)]" />
               <div className="relative flex flex-col items-center text-center">
                 <span className="text-6xl mb-4 drop-shadow-lg">👑</span>
-                <h4 className="text-xl font-bold text-white mb-2">
+                <h4 className="text-xl font-bold text-[#173126] mb-2">
                   {awards.best_player.player_name}
                 </h4>
                 <Link
                   to={`/players/${awards.best_player.player_id}`}
-                  className="text-sm text-[#C6F135] hover:underline mb-3"
+                  className="text-sm text-[#1F5F43] hover:underline mb-3"
                 >
                   查看球员详情
                 </Link>
                 {awards.best_player.metadata && (
-                  <div className="flex flex-wrap justify-center gap-3 text-xs text-[#8B8BA7]">
+                  <div className="flex flex-wrap justify-center gap-3 text-xs text-[#466353]">
                     {awards.best_player.metadata.rating !== undefined && (
-                      <span className="px-2 py-1 bg-[#1E1E2D] border border-[#2D2D44]">
+                      <span className="px-2 py-1 bg-[#FFF8DC]/80 border border-[#1F5F43]/20">
                         评分 {awards.best_player.metadata.rating.toFixed(1)}
                       </span>
                     )}
                     {awards.best_player.metadata.championships !== undefined && (
-                      <span className="px-2 py-1 bg-[#1E1E2D] border border-[#2D2D44]">
+                      <span className="px-2 py-1 bg-[#FFF8DC]/80 border border-[#1F5F43]/20">
                         {awards.best_player.metadata.championships} 座冠军
                       </span>
                     )}
                     {awards.best_player.metadata.mvp_count !== undefined && (
-                      <span className="px-2 py-1 bg-[#1E1E2D] border border-[#2D2D44]">
+                      <span className="px-2 py-1 bg-[#FFF8DC]/80 border border-[#1F5F43]/20">
                         {awards.best_player.metadata.mvp_count} 次 MVP
                       </span>
                     )}
@@ -375,9 +375,9 @@ function WorldAwardsTab() {
             </div>
           </div>
         ) : (
-          <div className="text-center py-12 border border-[#2D2D44]/40 bg-[#0B0D14]">
+          <div className="text-center py-12 border border-[#1F5F43]/20 bg-white/70">
             <span className="text-3xl opacity-30 grayscale">👑</span>
-            <p className="text-sm text-[#4B4B6A] mt-2">该赛季尚未评选</p>
+            <p className="text-sm text-[#8B5A2B]/40 mt-2">该赛季尚未评选</p>
           </div>
         )}
       </section>
@@ -385,8 +385,8 @@ function WorldAwardsTab() {
       {/* 赛季数据之王 */}
       <section >
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-5 bg-[#0D7377]" />
-          <h3 className="text-lg font-bold text-white">赛季数据之王</h3>
+          <div className="w-1 h-5 bg-[#1F5F43]" />
+          <h3 className="text-lg font-bold text-[#173126]">赛季数据之王</h3>
         </div>
         <DataKingsRow
           goldenBoot={awards?.golden_boot}
@@ -400,8 +400,8 @@ function WorldAwardsTab() {
       {/* 全服年度最佳位置 */}
       <section >
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-5 bg-[#C6F135]" />
-          <h3 className="text-lg font-bold text-white">全服年度最佳位置</h3>
+          <div className="w-1 h-5 bg-[#B9EF3F]" />
+          <h3 className="text-lg font-bold text-[#173126]">全服年度最佳位置</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <AwardCard award={awards?.best_fw} size="lg" />
@@ -415,22 +415,22 @@ function WorldAwardsTab() {
       {activeLeagueAwards.length > 0 && (
         <section >
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-5 bg-amber-500" />
-            <h3 className="text-lg font-bold text-white">各联赛最佳阵容</h3>
-            <span className="text-xs text-[#4B4B6A]">({activeLeagueAwards.length} 个联赛)</span>
+            <div className="w-1 h-5 bg-[#FFC247]" />
+            <h3 className="text-lg font-bold text-[#173126]">各联赛最佳阵容</h3>
+            <span className="text-xs text-[#8B5A2B]/40">({activeLeagueAwards.length} 个联赛)</span>
           </div>
           <div className="space-y-6">
             {activeLeagueAwards.map((la) => (
-              <div key={la.league_id} className="border border-[#2D2D44] bg-[#080B11] overflow-hidden">
-                <div className="px-4 py-2.5 bg-[#12121A] border-b border-[#2D2D44] flex items-center justify-between">
-                  <span className="text-sm font-bold text-white">联赛最佳阵容</span>
-                  <span className="text-xs text-[#4B4B6A]">第 {la.season_number} 赛季</span>
+              <div key={la.league_id} className="border border-[#1F5F43]/20 bg-[#ECFFD8] overflow-hidden">
+                <div className="px-4 py-2.5 bg-[#FFF8DC]/80 border-b border-[#1F5F43]/20 flex items-center justify-between">
+                  <span className="text-sm font-bold text-[#173126]">联赛最佳阵容</span>
+                  <span className="text-xs text-[#8B5A2B]/40">第 {la.season_number} 赛季</span>
                 </div>
                 <div className="p-4">
                   <TeamOfSeasonGrid team={la.team_of_season} />
                   {la.golden_boot && (
-                    <div className="mt-4 pt-4 border-t border-[#2D2D44]">
-                      <div className="text-xs text-[#8B8BA7] mb-2">联赛数据之王</div>
+                    <div className="mt-4 pt-4 border-t border-[#1F5F43]/20">
+                      <div className="text-xs text-[#466353] mb-2">联赛数据之王</div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                         <AwardCard award={la.golden_boot} size="sm" showMetadata={false} />
                         <AwardCard award={la.playmaker} size="sm" showMetadata={false} />
@@ -483,7 +483,7 @@ function WorldPage() {
     <div className="max-w-[1200px]">
       <button
         onClick={() => navigate(-1)}
-        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#466353] hover:text-[#173126] transition-colors mb-4"
       >
         返回上一页
       </button>
@@ -507,39 +507,39 @@ function WorldPage() {
                 <select
                   value={teamSortType}
                   onChange={(e) => setTeamSortType(e.target.value as WorldTeamSortType)}
-                  className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-xs px-3 py-1 pr-7 focus:outline-none focus:border-[#C6F135] cursor-pointer"
+                  className="appearance-none bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-xs px-3 py-1 pr-7 focus:outline-none focus:border-[#1F5F43] cursor-pointer"
                 >
                   {TEAM_SORT_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
-                <ChevronRight className="w-3 h-3 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+                <ChevronRight className="w-3 h-3 text-[#466353] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
               </div>
             </div>
             {isTeamRanking ? (
               rankingsLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="h-12 bg-[#1E1E2D] animate-pulse" />
+                    <div key={i} className="h-12 bg-[#FFF8DC]/80 animate-pulse" />
                   ))}
                 </div>
               ) : rankings.length === 0 ? (
                 <div className="text-center py-12">
 
-                  <p className="text-[#8B8BA7]">暂无排名数据</p>
+                  <p className="text-[#466353]">暂无排名数据</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+                      <tr className="text-left text-xs text-[#466353] border-b border-[#1F5F43]/20">
                         <th className="py-2 px-4 font-medium">排名</th>
                         <th className="py-2 px-4 font-medium">球队</th>
                         <th className="py-2 px-4 font-medium text-center">
                           <span className="inline-flex items-center gap-1">
                             联赛积分
                             <span title="联赛积分 = 近3赛季联赛积分 × 联赛权重（超级×10 / 甲级×5 / 乙级×2.5 / 丙级×1）">
-                              <InfoBox className="w-3.5 h-3.5 text-[#4B4B6A] hover:text-[#0D7377] cursor-help" />
+                              <InfoBox className="w-3.5 h-3.5 text-[#8B5A2B]/40 hover:text-[#1F5F43] cursor-help" />
                             </span>
                           </span>
                         </th>
@@ -559,19 +559,19 @@ function WorldPage() {
               teamLbLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="h-12 bg-[#1E1E2D] animate-pulse" />
+                    <div key={i} className="h-12 bg-[#FFF8DC]/80 animate-pulse" />
                   ))}
                 </div>
               ) : teamLbItems.length === 0 ? (
                 <div className="text-center py-12">
 
-                  <p className="text-[#8B8BA7]">暂无排名数据</p>
+                  <p className="text-[#466353]">暂无排名数据</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+                      <tr className="text-left text-xs text-[#466353] border-b border-[#1F5F43]/20">
                         <th className="py-2 px-4 font-medium">排名</th>
                         <th className="py-2 px-4 font-medium">球队</th>
                         <th className="py-2 px-4 font-medium text-center">场次</th>
@@ -609,8 +609,8 @@ function WorldPage() {
                       className={clsx(
                         'px-3 py-1 text-xs font-medium border-2 transition-all',
                         playerPosition === filter.value
-                          ? 'bg-[#C6F135] text-[#0A0A0F] border-[#C6F135]'
-                          : 'bg-[#12121A] text-[#8B8BA7] border-[#2D2D44] hover:border-[#0D7377]'
+                          ? 'bg-[#B9EF3F] text-[#173126] border-[#1F5F43]'
+                          : 'bg-[#FFF8DC]/80 text-[#466353] border-[#1F5F43]/20 hover:border-[#1F5F43]'
                       )}
                     >
                       {filter.label}
@@ -621,32 +621,32 @@ function WorldPage() {
                   <select
                     value={sortType}
                     onChange={(e) => setSortType(e.target.value as WorldSortType)}
-                    className="appearance-none bg-[#1E1E2D] border-2 border-[#2D2D44] text-white text-xs px-3 py-1 pr-7 focus:outline-none focus:border-[#C6F135] cursor-pointer"
+                    className="appearance-none bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-xs px-3 py-1 pr-7 focus:outline-none focus:border-[#1F5F43] cursor-pointer"
                   >
                     {WORLD_SORT_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
-                  <ChevronRight className="w-3 h-3 text-[#8B8BA7] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+                  <ChevronRight className="w-3 h-3 text-[#466353] absolute right-2 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
                 </div>
               </div>
             </div>
             {playersLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="h-14 bg-[#1E1E2D] animate-pulse" />
+                  <div key={i} className="h-14 bg-[#FFF8DC]/80 animate-pulse" />
                 ))}
               </div>
             ) : players.length === 0 ? (
               <div className="text-center py-12">
 
-                <p className="text-[#8B8BA7]">暂无球员数据</p>
+                <p className="text-[#466353]">暂无球员数据</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-xs text-[#8B8BA7] border-b border-[#2D2D44]">
+                    <tr className="text-left text-xs text-[#466353] border-b border-[#1F5F43]/20">
                       <th className="py-2 px-4 font-medium">排名</th>
                       <th className="py-2 px-4 font-medium">球员</th>
                       <th className="py-2 px-4 font-medium">位置</th>

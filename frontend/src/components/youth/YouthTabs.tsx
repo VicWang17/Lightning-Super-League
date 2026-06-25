@@ -2,7 +2,7 @@ import { SegmentedTabs } from '../ui/SegmentedTabs'
 
 const TABS = [
   { path: '/youth/academy', label: '青训营' },
-  { path: '/youth/young-players', label: '年轻球员' },
+  { path: '/youth/growth', label: '成长曲线' },
   { path: '/youth/rookie-market', label: '新人市场' },
 ]
 

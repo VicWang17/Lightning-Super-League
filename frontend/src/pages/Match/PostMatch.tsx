@@ -86,14 +86,14 @@ export default function PostMatch() {
   }, [])
 
   if (loading) {
-    return <div className="max-w-[1200px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return <div className="max-w-[1200px] p-8 text-center text-[#466353]">加载中...</div>
   }
 
   if (error || !match) {
     return (
       <div className="max-w-[1200px] p-8 text-center">
-        <p className="text-[#8B8BA7]">{error || '暂无已完成比赛'}</p>
-        <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white mt-4 inline-block">
+        <p className="text-[#466353]">{error || '暂无已完成比赛'}</p>
+        <Link to="/match/schedule" className="text-sm text-[#1F5F43] hover:text-[#173126] mt-4 inline-block">
           查看赛程 →
         </Link>
       </div>
@@ -120,42 +120,42 @@ export default function PostMatch() {
         title="赛后统计"
         subtitle="全场结束"
         action={
-          <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
+          <Link to="/match/schedule" className="text-sm text-[#1F5F43] hover:text-[#173126] transition-colors">
             返回赛程 →
           </Link>
         }
       />
 
       {/* 比分结果 */}
-      <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
+      <Card className="bg-[#B9EF3F]/15 border-[#1F5F43]/25">
         <div className="flex items-center justify-center gap-8 py-8">
           <div className="text-center">
-            <div className="w-20 h-20 bg-[#0D7377] border-2 border-[#0D7377]/50 flex items-center justify-center mx-auto mb-3 shadow-pixel-green">
+            <div className="w-20 h-20 bg-[#1F5F43] border-2 border-[#1F5F43]/50 flex items-center justify-center mx-auto mb-3 shadow-pixel">
               <span className="text-3xl">🏠</span>
             </div>
             <h2 className="text-xl font-bold">{homeName}</h2>
           </div>
 
           <div className="text-center">
-            <div className="text-5xl font-bold pixel-number text-white">
+            <div className="text-5xl font-bold pixel-number text-[#173126]">
               {homeScore} : {awayScore}
             </div>
             <span className={`inline-block mt-3 px-3 py-1 text-xs border ${
-              isWin ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-              isDraw ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
-              'bg-red-500/20 text-red-400 border-red-500/30'
+              isWin ? 'bg-[#B9EF3F]/25 text-[#1F5F43] border-[#1F5F43]/30' :
+              isDraw ? 'bg-[#FFC247]/20 text-[#C77A00] border-[#FFC247]/40' :
+              'bg-[#FF6F59]/15 text-[#FF6F59] border-[#FF6F59]/30'
             }`}>
               {isWin ? '胜利' : isDraw ? '平局' : '失利'}
             </span>
             {stats?.penalty_score && (
-              <p className="text-xs text-[#8B8BA7] mt-2">
+              <p className="text-xs text-[#466353] mt-2">
                 点球 {stats.penalty_score.home}:{stats.penalty_score.away}
               </p>
             )}
           </div>
 
           <div className="text-center">
-            <div className="w-20 h-20 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center mx-auto mb-3">
+            <div className="w-20 h-20 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 flex items-center justify-center mx-auto mb-3">
               <span className="text-3xl">✈</span>
             </div>
             <h2 className="text-xl font-bold">{awayName}</h2>
@@ -165,12 +165,12 @@ export default function PostMatch() {
 
       {/* MVP */}
       {mvp && (
-        <Card className="border-yellow-500/30">
+        <Card className="border-[#FFC247]/40">
           <div className="flex items-center gap-4">
             <div>
-              <p className="text-xs text-yellow-400 font-bold uppercase tracking-wider">本场最佳</p>
-              <h3 className="text-2xl font-bold text-white">{mvp.name}</h3>
-              <p className="text-sm text-[#8B8BA7]">{mvp.position} · 评分 {mvp.rating.toFixed(1)} · {mvp.goals}进球 {mvp.assists}助攻</p>
+              <p className="text-xs text-[#C77A00] font-bold uppercase tracking-wider">本场最佳</p>
+              <h3 className="text-2xl font-bold text-[#173126]">{mvp.name}</h3>
+              <p className="text-sm text-[#466353]">{mvp.position} · 评分 {mvp.rating.toFixed(1)} · {mvp.goals}进球 {mvp.assists}助攻</p>
             </div>
           </div>
         </Card>
@@ -183,26 +183,26 @@ export default function PostMatch() {
             球员评分
           </h3>
           {playerStats.length === 0 ? (
-            <p className="text-[#8B8BA7] text-center py-8">暂无球员数据</p>
+            <p className="text-[#466353] text-center py-8">暂无球员数据</p>
           ) : (
             <div className="space-y-2">
               {playerStats.sort((a, b) => b.rating - a.rating).map(p => (
-                <div key={p.player_id} className="flex items-center gap-3 p-2 bg-[#0A0A0F] border-2 border-[#2D2D44]">
-                  <div className="w-8 h-8 bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center">
-                    <span className="text-[10px] font-bold text-[#8B8BA7]">{p.position}</span>
+                <div key={p.player_id} className="flex items-center gap-3 p-2 bg-white/70 border-2 border-[#1F5F43]/20">
+                  <div className="w-8 h-8 bg-[#FFF8DC]/80 border border-[#1F5F43]/20 flex items-center justify-center">
+                    <span className="text-[10px] font-bold text-[#466353]">{p.position}</span>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-white">{p.name}</p>
-                    <div className="flex items-center gap-2 text-[10px] text-[#4B4B6A]">
-                      {p.goals > 0 && <span className="text-yellow-400">⚽{p.goals}</span>}
-                      {p.assists > 0 && <span className="text-[#0D7377]">🅰️{p.assists}</span>}
+                    <p className="text-sm font-medium text-[#173126]">{p.name}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-[#8B5A2B]/40">
+                      {p.goals > 0 && <span className="text-[#C77A00]">⚽{p.goals}</span>}
+                      {p.assists > 0 && <span className="text-[#1F5F43]">🅰️{p.assists}</span>}
                     </div>
                   </div>
                   <div className={`w-10 h-8 flex items-center justify-center text-sm font-bold pixel-number ${
-                    p.rating >= 8 ? 'bg-yellow-500/20 text-yellow-400' :
-                    p.rating >= 7 ? 'bg-emerald-500/20 text-emerald-400' :
-                    p.rating >= 6 ? 'bg-[#2D2D44] text-[#8B8BA7]' :
-                    'bg-red-500/20 text-red-400'
+                    p.rating >= 8 ? 'bg-[#FFC247]/20 text-[#C77A00]' :
+                    p.rating >= 7 ? 'bg-[#B9EF3F]/25 text-[#1F5F43]' :
+                    p.rating >= 6 ? 'bg-[#F8FFD2] text-[#466353]' :
+                    'bg-[#FF6F59]/15 text-[#FF6F59]'
                   }`}>
                     {p.rating.toFixed(1)}
                   </div>
@@ -239,13 +239,13 @@ function StatRow({ label, home, away, unit = '' }: { label: string; home: number
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-bold text-white">{home}{unit}</span>
-        <span className="text-xs text-[#8B8BA7]">{label}</span>
-        <span className="text-sm font-bold text-white">{away}{unit}</span>
+        <span className="text-sm font-bold text-[#173126]">{home}{unit}</span>
+        <span className="text-xs text-[#466353]">{label}</span>
+        <span className="text-sm font-bold text-[#173126]">{away}{unit}</span>
       </div>
       <div className="flex h-2">
-        <div className="bg-[#0D7377]" style={{ width: `${homePct}%` }} />
-        <div className="bg-[#4B4B6A]" style={{ width: `${100 - homePct}%` }} />
+        <div className="bg-[#1F5F43]" style={{ width: `${homePct}%` }} />
+        <div className="bg-[#8B5A2B]/40" style={{ width: `${100 - homePct}%` }} />
       </div>
     </div>
   )

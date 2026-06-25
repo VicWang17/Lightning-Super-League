@@ -47,8 +47,8 @@ const features = [
   },
 ]
 
-const heroBg = '/home/hero-stadium-night-v2.png'
-const ctaBg = '/home/cta-manager-bench-v2.png'
+const heroBg = '/home/fresh-hero-stadium-bg-v1.png'
+const ctaBg = '/page-bg/fresh-market-finance-bg-v1.png'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -78,15 +78,15 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] text-[#E2E2F0] overflow-x-hidden font-sans">
+    <div className="fresh-public-shell min-h-screen overflow-x-hidden font-sans">
       {/* 导航栏 */}
       <motion.header
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-[#0A0A0F]/95 border-b-2 border-[#14532D]' 
+          isScrolled
+            ? 'bg-white/80 backdrop-blur-md border-b-4 border-[#1F5F43]'
             : 'bg-transparent'
         }`}
       >
@@ -104,7 +104,7 @@ export default function Home() {
             {/* 右侧 */}
             <button
               onClick={handleStartGame}
-              className="hidden sm:inline-flex px-4 py-2 bg-[#0A0A0F]/45 hover:bg-[#C6F135] text-[#E2E2F0] hover:text-[#0A0A0F] text-sm font-bold border-2 border-[#C6F135]/50 hover:border-[#14532D] transition-all duration-150 shadow-[3px_3px_0_rgba(0,0,0,0.55)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+              className="fresh-public-button hidden sm:inline-flex"
             >
               进入游戏
             </button>
@@ -123,17 +123,13 @@ export default function Home() {
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage: `url('${heroBg}')`,
-              filter: 'brightness(0.92) saturate(0.98)',
+              filter: 'brightness(1.08) saturate(1.08)',
             }}
           />
-          {/* 深色遮罩 */}
-          <div className="absolute inset-0 bg-[#05060A]/25" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(198,241,53,0.10),transparent_34%),radial-gradient(circle_at_bottom,rgba(7,46,48,0.24),transparent_42%)]" />
-          <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(rgba(255,255,255,0.35)_1px,transparent_1px)] bg-[length:100%_4px]" />
-          {/* 底部渐变 — 让下方衔接更自然 */}
-          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/50 to-transparent" />
-          {/* 顶部微渐变 — 避免和 header 冲突 */}
-          <div className="absolute top-0 left-0 right-0 h-36 bg-gradient-to-b from-[#05060A]/78 to-transparent" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,249,201,0.88),rgba(255,249,201,0.48),rgba(255,249,201,0.10))]" />
+          <div className="absolute inset-0 opacity-[0.10] bg-[linear-gradient(rgba(31,95,67,0.55)_1px,transparent_1px)] bg-[length:100%_4px]" />
+          <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#ECFFD8] via-[#ECFFD8]/52 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-36 bg-gradient-to-b from-[#FFF8DC]/80 to-transparent" />
         </motion.div>
 
         {/* Hero 内容 */}
@@ -152,14 +148,14 @@ export default function Home() {
               <img
                 src="/title.png"
                 alt="闪电超级联赛"
-                className="h-40 sm:h-60 lg:h-80 xl:h-[21rem] w-auto object-contain mx-auto drop-shadow-[0_16px_0_rgba(0,0,0,0.34)]"
+                className="h-40 sm:h-60 lg:h-80 xl:h-[21rem] w-auto object-contain mx-auto drop-shadow-[0_16px_0_rgba(31,95,67,0.25)]"
               />
             </motion.div>
 
             <motion.p
               variants={fadeInUp}
               transition={fadeInUpTransition}
-              className="mx-auto max-w-[32rem] text-sm sm:text-base text-[#C8CAD8] tracking-[0.18em] font-semibold"
+              className="fresh-hero-tagline mx-auto max-w-[32rem] text-sm sm:text-base font-black"
             >
               像素足球经理 · 实时联赛模拟
             </motion.p>
@@ -185,7 +181,7 @@ export default function Home() {
               transition={fadeInTransition}
               className="pt-16"
             >
-              <div className="animate-bounce text-[#7E83A1]">
+              <div className="animate-bounce text-[#1F5F43]">
                 <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                 </svg>
@@ -208,10 +204,10 @@ export default function Home() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <h2 className="text-2xl sm:text-3xl font-bold font-pixel text-white mb-3">
+            <h2 className="text-2xl sm:text-3xl font-black font-pixel text-[#173126] mb-3">
               核心玩法
             </h2>
-            <p className="text-[#8B8BA7]">体验最真实的足球经理人生涯</p>
+            <p className="font-bold text-[#466353]">体验最真实的足球经理人生涯</p>
           </motion.div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -224,11 +220,11 @@ export default function Home() {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="group"
               >
-                <div className="h-full p-6 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#C6F135]/50 transition-all duration-250 hover:-translate-y-1 hover:shadow-pixel">
-                  <h3 className="text-base font-semibold text-white mb-2">
+                <div className="fresh-public-card h-full p-6 transition-all duration-250 hover:-translate-y-1">
+                  <h3 className="text-base font-black text-[#173126] mb-2">
                     {feature.title}
                   </h3>
-                  <p className="text-sm text-[#8B8BA7] leading-relaxed">
+                  <p className="text-sm font-semibold text-[#466353] leading-relaxed">
                     {feature.desc}
                   </p>
                 </div>
@@ -244,10 +240,10 @@ export default function Home() {
           className="absolute inset-0 bg-cover bg-center opacity-70"
           style={{ backgroundImage: `url('${ctaBg}')` }}
         />
-        <div className="absolute inset-0 bg-[#05060A]/62" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0F] via-[#0A0A0F]/76 to-[#0A0A0F]/24" />
-        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#0A0A0F] to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0A0A0F] to-transparent" />
+        <div className="absolute inset-0 bg-[#FFF8DC]/58" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#ECFFD8] via-[#ECFFD8]/70 to-[#ECFFD8]/10" />
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#ECFFD8] to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#ECFFD8] to-transparent" />
 
         <div className="relative max-w-[1440px] mx-auto px-6 lg:px-8">
           <motion.div
@@ -260,10 +256,10 @@ export default function Home() {
             {/* 内容 */}
             <div className="relative py-16">
               <div className="max-w-xl">
-                <h2 className="text-3xl sm:text-4xl font-bold font-pixel text-white mb-5 leading-tight">
+                <h2 className="text-3xl sm:text-4xl font-black font-pixel text-[#173126] mb-5 leading-tight">
                   准备好开始了吗？
                 </h2>
-                <p className="text-[#B9BBCD] mb-8 leading-relaxed">
+                <p className="font-bold text-[#466353] mb-8 leading-relaxed">
                   进入教练席，接管阵容、训练、转会与比赛日决策。无需下载，即开即玩。
                 </p>
                 <button
@@ -280,7 +276,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t-2 border-[#14532D] py-8">
+      <footer className="border-t-4 border-[#1F5F43] bg-white/45 py-8">
         <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Logo */}
@@ -293,7 +289,7 @@ export default function Home() {
             </div>
             
             {/* Copyright */}
-            <p className="text-sm text-[#4B4B6A]">
+            <p className="text-sm font-bold text-[#466353]">
               © 2024 Lightning Super League
             </p>
           </div>

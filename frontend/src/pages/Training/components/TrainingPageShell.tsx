@@ -23,7 +23,7 @@ export function TrainingPageShell({
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1 text-sm text-[#8B8BA7] hover:text-white transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-[#466353] hover:text-[#173126] transition-colors"
           >
             返回上一页
           </button>

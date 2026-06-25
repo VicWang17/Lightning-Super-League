@@ -66,7 +66,7 @@ export default function IncomeDetails() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader className="w-8 h-8 text-[#0D7377] animate-spin" />
+        <Loader className="w-8 h-8 text-[#1F5F43] animate-spin" />
       </div>
     )
   }
@@ -74,7 +74,7 @@ export default function IncomeDetails() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-red-400">{error}</p>
+        <p className="text-[#FF6F59]">{error}</p>
       </div>
     )
   }
@@ -88,22 +88,22 @@ export default function IncomeDetails() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">收入记录</h3>
-          <span className="text-sm font-bold text-emerald-400">合计: {formatWan(total)}万</span>
+          <span className="text-sm font-bold text-[#1F5F43]">合计: {formatWan(total)}万</span>
         </div>
         
         <div className="space-y-2">
           {items.length === 0 && (
-            <p className="text-sm text-[#4B4B6A]">暂无收入记录</p>
+            <p className="text-sm text-[#8B5A2B]/40">暂无收入记录</p>
           )}
           {items.map((item) => {
             const config = sourceConfig[item.source_type] || { label: item.source_type }
             return (
-              <div key={item.id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
+              <div key={item.id} className="flex items-center gap-4 p-3 bg-white/70 border-2 border-[#1F5F43]/20">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white">{item.description || config.label}</p>
-                  <p className="text-xs text-[#4B4B6A]">{formatDate(item.created_at)}</p>
+                  <p className="text-sm font-medium text-[#173126]">{item.description || config.label}</p>
+                  <p className="text-xs text-[#8B5A2B]/40">{formatDate(item.created_at)}</p>
                 </div>
-                <span className="text-sm font-bold text-emerald-400">+{formatWan(item.amount)}万</span>
+                <span className="text-sm font-bold text-[#1F5F43]">+{formatWan(item.amount)}万</span>
               </div>
             )
           })}

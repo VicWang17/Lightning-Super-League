@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  Calendar,
+  Chart,
   ChevronRight,
-  Mailbox,
+  Clipboard,
+  Flag,
+  Shield,
+  Target,
+  Trophy,
+  Users,
+  Wallet,
   Zap,
 } from '../../components/ui/pixel-icons'
 import api from '../../api/client'
@@ -59,10 +67,10 @@ interface PlayerActivity {
 }
 
 const activityByPosition: Record<string, { role: string; detail: string }> = {
-  FW: { role: '前场组', detail: '等待训练状态接入' },
-  MF: { role: '中场组', detail: '等待训练状态接入' },
-  DF: { role: '防线组', detail: '等待训练状态接入' },
-  GK: { role: '门将组', detail: '等待训练状态接入' },
+  FW: { role: '前场组', detail: '冲刺、射门、禁区跑位' },
+  MF: { role: '中场组', detail: '传控节奏、二点球保护' },
+  DF: { role: '防线组', detail: '压迫距离、回追站位' },
+  GK: { role: '门将组', detail: '出击判断、反应训练' },
 }
 
 function positionText(position?: string) {
@@ -87,50 +95,65 @@ function fixtureTypeText(type?: string) {
 }
 
 function FormIndicator({ form }: { form: string }) {
-  if (!form) return <span className="text-[#6E7258]">暂无</span>
+  if (!form) return <span className="fresh-muted">暂无走势</span>
 
   const resultConfig = {
-    W: 'bg-[#9ECF45] text-[#10220D]',
-    D: 'bg-[#5E6472] text-white',
-    L: 'bg-[#D75A4A] text-white',
+    W: 'is-win',
+    D: 'is-draw',
+    L: 'is-loss',
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="fresh-form-strip" aria-label="近期战绩">
       {form.split('').slice(0, 5).map((result, index) => (
         <span
           key={`${result}-${index}`}
-          className={`flex h-5 w-5 items-center justify-center border-2 border-[#171B14] text-[10px] font-bold ${
-            resultConfig[result as keyof typeof resultConfig] || resultConfig.D
-          }`}
+          className={resultConfig[result as keyof typeof resultConfig] || resultConfig.D}
         >
-          {result}
+          {result === 'W' ? '胜' : result === 'D' ? '平' : '负'}
         </span>
       ))}
     </div>
   )
 }
 
-function StatusTile({
+function MiniMetric({
   label,
   value,
-  tone = 'default',
+  icon: Icon,
 }: {
   label: string
   value: string
-  tone?: 'default' | 'green' | 'amber'
+  icon: typeof Chart
 }) {
-  const toneClass = {
-    default: 'border-[#56613D] bg-[#151A10] text-[#E8EAD8]',
-    green: 'border-[#9ECF45] bg-[#0C1A0D] text-[#F1FFC5]',
-    amber: 'border-[#D7A94A] bg-[#3B270D] text-[#FFE2A1]',
-  }[tone]
+  return (
+    <div className="fresh-mini-metric">
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function AbilityMeter({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value?: number
+  tone: 'lime' | 'coral' | 'amber' | 'sky'
+}) {
+  const safeValue = typeof value === 'number' ? Math.min(100, Math.max(0, value)) : 0
 
   return (
-    <div className={`pixel-panel p-3 ${toneClass}`}>
-      <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-wider text-white/45">{label}</p>
-        <p className="truncate text-sm font-bold">{value}</p>
+    <div className="fresh-meter">
+      <div>
+        <span>{label}</span>
+        <strong>{typeof value === 'number' ? value : '-'}</strong>
+      </div>
+      <div className="fresh-meter-track">
+        <div className={`fresh-meter-fill tone-${tone}`} style={{ width: `${safeValue}%` }} />
       </div>
     </div>
   )
@@ -138,29 +161,22 @@ function StatusTile({
 
 function PlayerActivityRow({ activity }: { activity: PlayerActivity }) {
   return (
-    <div className="training-slip">
+    <Link to={`/team/players/${activity.id}`} className="fresh-player-row">
       {activity.avatar ? (
-        <img
-          src={activity.avatar}
-          alt={activity.name}
-          className="h-14 w-14 border-2 border-[#1C2417] bg-[#1D2418] object-cover"
-        />
+        <img src={activity.avatar} alt={activity.name} />
       ) : (
-        <div className="flex h-14 w-14 items-center justify-center border-2 border-[#1C2417] bg-[#1D2418] text-lg font-black text-[#CDEB7B]">
-          {activity.name.charAt(0)}
-        </div>
+        <div className="fresh-player-initial">{activity.name.charAt(0)}</div>
       )}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-black text-[#E8EAD8]">{activity.name}</p>
-          <span className="border-2 border-[#5E6B3B] bg-[#11141A] px-1.5 py-0.5 text-[10px] font-bold text-[#CDEB7B]">
-            {activity.value}
-          </span>
+        <div className="fresh-row-title">
+          <strong>{activity.name}</strong>
+          <span>{activity.value}</span>
         </div>
-        <p className="mt-1 text-xs font-bold text-[#9CA77A]">{activity.role}</p>
-        <p className="truncate text-xs text-[#737B5B]">{activity.detail}</p>
+        <p>{activity.role}</p>
+        <small>{activity.detail}</small>
       </div>
-    </div>
+      <ChevronRight className="h-4 w-4" />
+    </Link>
   )
 }
 
@@ -176,38 +192,32 @@ function ManagerTask({
   urgent?: boolean
 }) {
   return (
-    <Link
-      to={to}
-      className={`task-note group ${urgent ? 'task-note-urgent' : ''}`}
-    >
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-[#E8EAD8]">{title}</p>
-        <p className="truncate text-xs font-medium text-[#9CA77A]">{detail}</p>
+    <Link to={to} className={`fresh-task ${urgent ? 'is-urgent' : ''}`}>
+      <span className="fresh-task-pin" />
+      <div>
+        <strong>{title}</strong>
+        <p>{detail}</p>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[#6F7656] group-hover:text-[#CDEB7B]" />
+      <ChevronRight className="h-4 w-4" />
     </Link>
   )
 }
 
 function RecentMatchRow({ match }: { match: RecentMatch }) {
-  const config = {
-    W: 'bg-[#9ECF45] text-[#10220D]',
-    D: 'bg-[#5E6472] text-white',
-    L: 'bg-[#D75A4A] text-white',
+  const resultClass = {
+    W: 'is-win',
+    D: 'is-draw',
+    L: 'is-loss',
   }[match.result]
 
   return (
-    <div className="match-stub">
-      <span className={`flex h-8 w-8 items-center justify-center border-2 border-black/40 text-xs font-bold ${config}`}>
-        {match.result === 'W' ? '胜' : match.result === 'D' ? '平' : '负'}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-[#E8EAD8]">
-          {match.is_home ? '主场' : '客场'} {match.opponent}
-        </p>
-        <p className="text-xs text-[#737B5B]">{match.date}</p>
+    <div className="fresh-result-row">
+      <span className={resultClass}>{match.result === 'W' ? '胜' : match.result === 'D' ? '平' : '负'}</span>
+      <div>
+        <strong>{match.is_home ? '主场' : '客场'} {match.opponent}</strong>
+        <p>{match.date}</p>
       </div>
-      <p className="font-mono text-sm font-black text-[#E8EAD8]">{match.score}</p>
+      <b>{match.score}</b>
     </div>
   )
 }
@@ -218,6 +228,7 @@ function Dashboard() {
   const [players, setPlayers] = useState<PlayerListItem[]>([])
   const [recentMatches, setRecentMatches] = useState<RecentMatch[]>([])
   const [loading, setLoading] = useState(true)
+
   useEffect(() => {
     let cancelled = false
 
@@ -302,6 +313,7 @@ function Dashboard() {
   const leaguePosition = stats?.league_position ? `第 ${stats.league_position} 名` : '未定级'
   const winRate = typeof played === 'number' && played > 0 && typeof won === 'number' ? Math.round((won / played) * 100) : null
   const form = stats?.recent_form ?? ''
+  const goalDifference = typeof stats?.goal_difference === 'number' ? `${stats.goal_difference >= 0 ? '+' : ''}${stats.goal_difference}` : '-'
 
   const nextMatch = stats?.next_match
     ? {
@@ -314,33 +326,32 @@ function Dashboard() {
 
   const currentActivity = nextMatch
     ? {
-        eyebrow: '赛程已更新',
-        title: '赛前准备窗口',
-        detail: `${nextMatch.date} ${nextMatch.isHome ? '主场' : '客场'}对阵 ${nextMatch.opponent}。当前后端未提供实时训练状态，请先确认首发、战术和定位球。`,
+        eyebrow: 'MATCHDAY QUEUE',
+        title: '比赛日前台已亮灯',
+        detail: `${nextMatch.date} ${nextMatch.isHome ? '主场' : '客场'}对阵 ${nextMatch.opponent}。先看状态，再定战术，最后确认名单。`,
         action: '进入赛前准备',
         to: '/match/pre',
         status: '待准备',
       }
     : {
-        eyebrow: '暂无实时活动',
-        title: '等待训练或比赛状态',
-        detail: '当前后端没有返回正在进行的训练或比赛。你可以查看赛程、训练计划和球员名单。',
-        action: '查看训练计划',
+        eyebrow: 'TRAINING DAY',
+        title: '今天从训练场开始',
+        detail: '当前没有临近比赛。适合安排训练负荷、查看球员成长，并提前整理下一轮轮换。',
+        action: '安排本周训练',
         to: '/training/weekly',
-        status: '无活动',
+        status: '训练日',
       }
 
   const playerActivities = useMemo<PlayerActivity[]>(() => {
-    const source = players.slice(0, 4)
+    const source = players.slice(0, 5)
 
     return source.map((player) => {
-      const position = player.position
-      const activity = activityByPosition[position] || activityByPosition.MF
+      const activity = activityByPosition[player.position] || activityByPosition.MF
 
       return {
         id: player.id,
         name: player.name,
-        role: `${positionText(position)} · ${activity.role}`,
+        role: `${positionText(player.position)} · ${activity.role}`,
         detail: activity.detail,
         value: `OVR ${player.ovr || '-'}`,
         avatar: player.avatar_url ? `/${player.avatar_url}` : '',
@@ -350,14 +361,14 @@ function Dashboard() {
 
   const taskItems = [
     {
-      title: nextMatch ? '确认比赛计划' : '制定本周训练',
-      detail: nextMatch ? `${nextMatch.date} 对阵 ${nextMatch.opponent}` : '根据体能和阵容短板安排课程',
+      title: nextMatch ? '锁定首发名单' : '铺开训练课表',
+      detail: nextMatch ? `${nextMatch.date} 对阵 ${nextMatch.opponent}` : '按体能与短板拆分训练组',
       to: nextMatch ? '/match/pre' : '/training/weekly',
       urgent: !!nextMatch,
     },
     {
-      title: '检查战术板',
-      detail: team ? `进攻 ${team.attack || '-'} / 中场 ${team.midfield || '-'} / 防守 ${team.defense || '-'}` : '暂无球队能力数据',
+      title: '微调战术站位',
+      detail: team ? `进攻 ${team.attack || '-'} / 中场 ${team.midfield || '-'} / 防守 ${team.defense || '-'}` : '等待球队能力数据',
       to: '/team/tactics',
     },
     {
@@ -367,198 +378,190 @@ function Dashboard() {
     },
     {
       title: '查看董事会预算',
-      detail: '工资帽、青训投入与赛季盈亏',
+      detail: '工资、青训投入与赛季盈亏',
       to: '/finance',
     },
   ]
 
+  const quickLinks = [
+    { label: '战术板', to: '/team/tactics', icon: Target, tone: 'lime' },
+    { label: '更衣室', to: '/team/players', icon: Users, tone: 'sky' },
+    { label: '赛程', to: '/match/schedule', icon: Calendar, tone: 'coral' },
+    { label: '联赛', to: leagueId ? `/leagues/${leagueId}` : '/leagues', icon: Trophy, tone: 'amber' },
+    { label: '转会', to: '/transfer', icon: Wallet, tone: 'mint' },
+  ]
+
   return (
-    <div className="dashboard-home mx-auto max-w-[1500px] space-y-5">
-      <section
-        className="manager-hero pixel-panel relative min-h-[440px] overflow-hidden border-[#242832] bg-[#07080A]"
-        style={{ backgroundImage: "url('/dashboard/manager-office-training-v1.png')" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#050609] via-[#050609]/88 to-[#050609]/46" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050609] via-[#050609]/30 to-[#050609]/62" />
-        <div className="relative z-10 grid min-h-[440px] gap-5 p-5 lg:grid-cols-[1.15fr_0.85fr] lg:p-7">
-          <div className="flex max-w-3xl flex-col justify-between">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 border-2 border-[#9ECF45] bg-[#0B1409] px-3 py-1.5 text-xs font-bold text-[#DFFFB4]">
-                <span className="h-2 w-2 bg-[#9ECF45]" />
-                {currentActivity.eyebrow}
-              </div>
-              <h1 className="max-w-2xl text-3xl font-black leading-tight text-[#F4F7DF] sm:text-4xl lg:text-5xl">
-                {currentActivity.title}
-              </h1>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-[#C7CBB8] sm:text-base">
-                {currentActivity.detail}
-              </p>
-            </div>
+    <div className="fresh-dashboard">
+      <section className="fresh-hero" style={{ backgroundImage: "url('/dashboard/fresh-dashboard-bg-v1.png')" }}>
+        <div className="fresh-hero-copy">
+          <span className="fresh-eyebrow">{currentActivity.eyebrow}</span>
+          <h1>{currentActivity.title}</h1>
+          <p>{currentActivity.detail}</p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link to={currentActivity.to} className="btn-primary inline-flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                {currentActivity.action}
-              </Link>
-              <Link to="/team/players" className="btn-secondary inline-flex items-center gap-2">
-                查看球员状态
-              </Link>
-            </div>
+          <div className="fresh-hero-actions">
+            <Link to={currentActivity.to} className="fresh-primary-action">
+              <Zap className="h-4 w-4" />
+              {currentActivity.action}
+            </Link>
+            <Link to="/team/players" className="fresh-secondary-action">
+              查看球员状态
+            </Link>
           </div>
+        </div>
 
-          <div className="grid content-end gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <StatusTile label="当前状态" value={currentActivity.status} tone={nextMatch ? 'green' : 'amber'} />
-            <StatusTile label="联赛排名" value={`${leaguePosition}${typeof points === 'number' ? ` · ${points} 分` : ''}`} />
-            <StatusTile
-              label="赛季战绩"
-              value={
-                typeof won === 'number' && typeof drawn === 'number' && typeof lost === 'number'
-                  ? `${won}-${drawn}-${lost}${winRate !== null ? ` · 胜率 ${winRate}%` : ''}`
-                  : '暂无战绩'
-              }
-            />
+        <div className="fresh-scoreboard">
+          <div className="fresh-scoreboard-head">
+            <span>{currentActivity.status}</span>
+            <FormIndicator form={form} />
+          </div>
+          <div className="fresh-club-name">
+            <small>{team?.league_name || 'Lightning Super League'}</small>
+            <strong>{team?.short_name || team?.name || '我的球队'}</strong>
+          </div>
+          <div className="fresh-score-grid">
+            <MiniMetric icon={Flag} label="排名" value={leaguePosition} />
+            <MiniMetric icon={Trophy} label="积分" value={typeof points === 'number' ? `${points}` : '-'} />
+            <MiniMetric icon={Chart} label="胜率" value={winRate !== null ? `${winRate}%` : '-'} />
+            <MiniMetric icon={Shield} label="净胜" value={goalDifference} />
           </div>
         </div>
       </section>
 
-      <section className="office-console">
-        <div className="console-left">
-          <section className="roster-ledger">
-            <div className="console-heading">
-              <div>
-                <h2 className="text-xl font-black text-[#E8EAD8]">球员状态</h2>
-              </div>
-              <Link to="/training/weekly" className="console-link">训练计划</Link>
-            </div>
-            {playerActivities.length > 0 ? (
-              <div className="compact-roster">
-                {playerActivities.map((activity) => (
-                  <PlayerActivityRow key={activity.id} activity={activity} />
-                ))}
-              </div>
-            ) : (
-              <div className="empty-line">后端暂未返回球员列表。</div>
-            )}
-          </section>
+      <nav className="fresh-quick-pitch" aria-label="快速入口">
+        {quickLinks.map((item) => (
+          <Link key={item.label} to={item.to} className={`fresh-pitch-link tone-${item.tone}`}>
+            <item.icon className="h-5 w-5" />
+            <span>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
 
-          <section className="agenda-strip">
-            <div className="console-heading">
-              <h2 className="text-lg font-black text-[#E8EAD8]">经理待办</h2>
-              <Mailbox className="h-5 w-5 text-[#CDEB7B]" />
+      <section className="fresh-console-grid">
+        <div className="fresh-match-card">
+          <div className="fresh-section-title">
+            <div>
+              <span>Next Fixture</span>
+              <h2>下一场比赛</h2>
             </div>
-            <div className="agenda-grid">
-              {taskItems.slice(0, 3).map((task) => (
-                <ManagerTask key={task.title} {...task} />
-              ))}
-            </div>
-          </section>
+            <Calendar className="h-5 w-5" />
+          </div>
 
-          <section className="status-strip">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-lg font-black text-[#E8EAD8]">俱乐部状态</h2>
-              <FormIndicator form={form} />
+          {nextMatch ? (
+            <div className="fresh-fixture">
+              <div className="fresh-fixture-meta">
+                <span>{nextMatch.type}</span>
+                <strong>{nextMatch.date}</strong>
+              </div>
+              <div className="fresh-versus">
+                <div>
+                  <small>{nextMatch.isHome ? '主场' : '客场'}</small>
+                  <strong>{team?.short_name || team?.name || '我的球队'}</strong>
+                </div>
+                <b>VS</b>
+                <div>
+                  <small>{nextMatch.isHome ? '客场' : '主场'}</small>
+                  <strong>{nextMatch.opponent}</strong>
+                </div>
+              </div>
+              <Link to="/match/pre" className="fresh-ticket-action">
+                <Clipboard className="h-4 w-4" />
+                打开比赛清单
+              </Link>
             </div>
-            <div className="status-grid">
-              {[
-                { label: '综合', value: team?.overall_rating, color: 'bg-[#CDEB7B]' },
-                { label: '进攻', value: team?.attack, color: 'bg-[#D75A4A]' },
-                { label: '中场', value: team?.midfield, color: 'bg-[#D7A94A]' },
-                { label: '防守', value: team?.defense, color: 'bg-[#6EA8E5]' },
-              ].map((item) => {
-                const value = typeof item.value === 'number' ? item.value : 0
-                return (
-                  <div key={item.label} className="status-meter compact">
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="font-black text-[#C7CBB8]">{item.label}</span>
-                      <span className="font-mono font-bold text-[#E8EAD8]">{typeof item.value === 'number' ? item.value : '-'}</span>
-                    </div>
-                    <div className="pixel-progress-track h-3 border-[#242832] bg-[#070907]">
-                      <div className={`pixel-progress-fill ${item.color}`} style={{ width: `${value}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
+          ) : (
+            <div className="fresh-empty">暂无比赛安排，先把训练节奏跑顺。</div>
+          )}
         </div>
 
-        <aside className="console-right">
-          <section className="fixture-brief">
-            <div className="console-heading amber">
-              <h2 className="text-lg font-black text-[#F7E9C6]">下一场比赛</h2>
-              <span className="ticket-serial">LSL-{stats?.next_match?.day || '---'}</span>
+        <div className="fresh-team-card">
+          <div className="fresh-section-title">
+            <div>
+              <span>Club Shape</span>
+              <h2>球队状态</h2>
             </div>
-            {nextMatch ? (
-              <>
-                <div className="match-ticket compact-ticket p-4">
-                  <div className="mb-3 flex items-center justify-between border-b-2 border-[#6B4C25] pb-2">
-                    <p className="text-xs font-black text-[#BFA56B]">{nextMatch.type}</p>
-                    <p className="text-xs font-black text-[#BFA56B]">{nextMatch.date}</p>
-                  </div>
-                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                    <div className="min-w-0 text-center">
-                      <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]" />
-                      <p className="truncate text-sm font-bold text-[#F7E9C6]">{team?.short_name || team?.name || '我的球队'}</p>
-                      <p className="text-xs text-[#BFA56B]">{nextMatch.isHome ? '主场' : '客场'}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-pixel text-lg text-[#FFE2A1]">VS</p>
-                      <p className="mt-1 text-[10px] font-black text-[#8A6B34]">赛程</p>
-                    </div>
-                    <div className="min-w-0 text-center">
-                      <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center border-2 border-[#6B4C25] bg-[#07080A]" />
-                      <p className="truncate text-sm font-bold text-[#F7E9C6]">{nextMatch.opponent}</p>
-                      <p className="text-xs text-[#BFA56B]">{nextMatch.isHome ? '客场' : '主场'}</p>
-                    </div>
-                  </div>
-                </div>
-                <Link to="/match/pre" className="btn-primary mt-3 flex w-full items-center justify-center gap-2 py-2.5">
-                  赛前准备
-                </Link>
-              </>
-            ) : (
-              <div className="empty-line amber">暂无比赛安排。</div>
-            )}
-          </section>
+            <strong>{typeof team?.overall_rating === 'number' ? team.overall_rating : '-'}</strong>
+          </div>
+          <div className="fresh-meter-stack">
+            <AbilityMeter label="综合" value={team?.overall_rating} tone="lime" />
+            <AbilityMeter label="进攻" value={team?.attack} tone="coral" />
+            <AbilityMeter label="中场" value={team?.midfield} tone="amber" />
+            <AbilityMeter label="防守" value={team?.defense} tone="sky" />
+          </div>
+        </div>
 
-          <section className="result-ledger">
-            <div className="console-heading">
-              <h2 className="text-lg font-black text-[#E8EAD8]">最近比赛</h2>
-              <Link to="/match/schedule" className="console-link">赛程表</Link>
+        <div className="fresh-roster-card">
+          <div className="fresh-section-title">
+            <div>
+              <span>Dressing Room</span>
+              <h2>球员状态</h2>
             </div>
-            {loading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((item) => (
-                  <div key={item} className="h-10 animate-pulse border-2 border-[#242832] bg-[#11141A]" />
-                ))}
-              </div>
-            ) : recentMatches.length > 0 ? (
-              <div>
-                {recentMatches.slice(0, 4).map((match, index) => (
-                  <RecentMatchRow key={`${match.opponent}-${index}`} match={match} />
-                ))}
-              </div>
-            ) : (
-              <div className="empty-line">还没有可展示的比赛记录。</div>
-            )}
-          </section>
-        </aside>
+            <Link to="/team/players">全队</Link>
+          </div>
+          {playerActivities.length > 0 ? (
+            <div className="fresh-player-list">
+              {playerActivities.map((activity) => (
+                <PlayerActivityRow key={activity.id} activity={activity} />
+              ))}
+            </div>
+          ) : (
+            <div className="fresh-empty">后端暂未返回球员列表。</div>
+          )}
+        </div>
 
-        <nav className="quick-rail">
-          <h2 className="text-base font-black text-[#E8EAD8]">快速前往</h2>
-          <div className="quick-rail-links">
-            {[
-              { label: '战术板', to: '/team/tactics' },
-              { label: '更衣室', to: '/team/players' },
-              { label: '联赛', to: leagueId ? `/leagues/${leagueId}` : '/leagues' },
-              { label: '转会市场', to: '/transfer' },
-            ].map((item) => (
-              <Link key={item.label} to={item.to} className="quick-dock-key">
-                {item.label}
-              </Link>
+        <div className="fresh-tasks-card">
+          <div className="fresh-section-title">
+            <div>
+              <span>Touchline Notes</span>
+              <h2>经理待办</h2>
+            </div>
+            <Clipboard className="h-5 w-5" />
+          </div>
+          <div className="fresh-task-list">
+            {taskItems.map((task) => (
+              <ManagerTask key={task.title} {...task} />
             ))}
           </div>
-        </nav>
+        </div>
+
+        <div className="fresh-results-card">
+          <div className="fresh-section-title">
+            <div>
+              <span>Recent Results</span>
+              <h2>最近比赛</h2>
+            </div>
+            <Link to="/match/schedule">赛程表</Link>
+          </div>
+          {loading ? (
+            <div className="fresh-loading-lines">
+              <span />
+              <span />
+              <span />
+            </div>
+          ) : recentMatches.length > 0 ? (
+            <div className="fresh-result-list">
+              {recentMatches.slice(0, 4).map((match, index) => (
+                <RecentMatchRow key={`${match.opponent}-${index}`} match={match} />
+              ))}
+            </div>
+          ) : (
+            <div className="fresh-empty">还没有可展示的比赛记录。</div>
+          )}
+        </div>
+
+        <div className="fresh-season-card">
+          <span>Season Line</span>
+          <strong>
+            {typeof won === 'number' && typeof drawn === 'number' && typeof lost === 'number'
+              ? `${won}-${drawn}-${lost}`
+              : '暂无战绩'}
+          </strong>
+          <p>
+            {typeof stats?.goals_for === 'number' && typeof stats?.goals_against === 'number'
+              ? `进 ${stats.goals_for} / 失 ${stats.goals_against}`
+              : '等待赛季数据'}
+          </p>
+        </div>
       </section>
     </div>
   )

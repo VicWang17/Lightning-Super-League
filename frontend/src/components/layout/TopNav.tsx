@@ -16,16 +16,16 @@ import {
 } from '../ui/pixel-icons'
 
 const navItems = [
-  { path: '/dashboard', label: '办公室', icon: LayoutDashboard },
+  { path: '/dashboard', label: '主看台', icon: LayoutDashboard },
   { path: '/team', label: '更衣室', icon: Users },
-  { path: '/team/tactics', label: '战术', icon: Target },
-  { path: '/match/schedule', label: '赛程', icon: CalendarDays },
-  { path: '/training', label: '训练', icon: Zap },
-  { path: '/leagues', label: '联赛', icon: Trophy },
+  { path: '/team/tactics', label: '战术板', icon: Target },
+  { path: '/match/schedule', label: '比赛日', icon: CalendarDays },
+  { path: '/training', label: '训练场', icon: Zap },
+  { path: '/leagues', label: '积分榜', icon: Trophy },
   { path: '/cups', label: '杯赛', icon: Swords },
-  { path: '/transfer', label: '转会', icon: ArrowLeftRight },
+  { path: '/transfer', label: '市场', icon: ArrowLeftRight },
   { path: '/youth', label: '青训', icon: Sprout },
-  { path: '/finance', label: '董事会', icon: Wallet },
+  { path: '/finance', label: '预算', icon: Wallet },
   { path: '/world', label: '世界', icon: Globe },
 ]
 
@@ -43,8 +43,8 @@ function TopNav() {
   }
 
   return (
-    <div className="top-nav-bar">
-      <nav className="top-nav-main">
+    <div className="top-nav-bar fresh-top-nav-bar">
+      <nav className="top-nav-main fresh-top-nav-main">
         {navItems.map((item) => {
           const active = isActive(item.path)
           return (
@@ -52,7 +52,7 @@ function TopNav() {
               key={item.path}
               to={item.path}
               className={clsx(
-                'top-nav-link',
+                'top-nav-link fresh-top-nav-link',
                 active && 'is-active'
               )}
             >
@@ -62,7 +62,7 @@ function TopNav() {
           )
         })}
       </nav>
-      <nav className="top-nav-secondary">
+      <nav className="top-nav-secondary fresh-top-nav-secondary">
         {secondaryItems.map((item) => {
           const active = isActive(item.path)
           return (
@@ -70,7 +70,7 @@ function TopNav() {
               key={item.path}
               to={item.path}
               className={clsx(
-                'top-nav-link',
+                'top-nav-link fresh-top-nav-link',
                 active && 'is-active'
               )}
               title={item.label}

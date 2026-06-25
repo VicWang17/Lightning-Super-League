@@ -30,6 +30,7 @@ def repair_image(path: Path) -> int:
     pix = image.load()
     width, height = image.size
     to_clear: list[tuple[int, int]] = []
+    to_despill: list[tuple[int, int]] = []
 
     for y in range(height):
         for x in range(width):
@@ -48,9 +49,40 @@ def repair_image(path: Path) -> int:
 
     for x, y in to_clear:
         pix[x, y] = (0, 0, 0, 0)
-    if to_clear:
+
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = pix[x, y]
+            if a == 0 or y > height * 0.82:
+                continue
+            magenta_bleed = (
+                r > 60
+                and b > 60
+                and g < 65
+                and r > g + 32
+                and b > g + 32
+                and abs(r - b) < 95
+            )
+            if not magenta_bleed:
+                continue
+            near_cutout = False
+            for nx in range(max(0, x - 2), min(width, x + 3)):
+                for ny in range(max(0, y - 2), min(height, y + 3)):
+                    if pix[nx, ny][3] == 0:
+                        near_cutout = True
+                        break
+                if near_cutout:
+                    break
+            if near_cutout:
+                to_despill.append((x, y))
+
+    for x, y in to_despill:
+        pix[x, y] = (18, 16, 20, 255)
+
+    changed = len(to_clear) + len(to_despill)
+    if changed:
         image.save(path)
-    return len(to_clear)
+    return changed
 
 
 def main() -> None:

@@ -7,9 +7,9 @@ interface FatigueStatusProps {
 }
 
 const STATUS = [
-  { max: 35, Icon: BatteryFull, color: '#9ECF45', label: '精神' },
-  { max: 70, Icon: BatteryMedium, color: '#D7A94A', label: '正常' },
-  { max: 100, Icon: BatteryLow, color: '#D75A4A', label: '疲劳' },
+  { max: 35, Icon: BatteryFull, color: '#B9EF3F', label: '精神' },
+  { max: 70, Icon: BatteryMedium, color: '#FFC247', label: '正常' },
+  { max: 100, Icon: BatteryLow, color: '#FF6F59', label: '疲劳' },
 ]
 
 export function FatigueStatus({ fatigue, className, size = 16 }: FatigueStatusProps) {

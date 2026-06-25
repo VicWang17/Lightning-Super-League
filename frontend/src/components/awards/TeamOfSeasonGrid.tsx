@@ -10,9 +10,9 @@ interface TeamOfSeasonGridProps {
 export function TeamOfSeasonGrid({ team, title, emptyText = '暂无最佳阵容数据' }: TeamOfSeasonGridProps) {
   if (team.length === 0) {
     return (
-      <div className="text-center py-8 border border-[#2D2D44]/40 bg-[#0B0D14]">
+      <div className="text-center py-8 border border-[#1F5F43]/20 bg-white/70">
         <span className="text-2xl opacity-30 grayscale">⭐</span>
-        <p className="text-sm text-[#4B4B6A] mt-2">{emptyText}</p>
+        <p className="text-sm text-[#8B5A2B]/40 mt-2">{emptyText}</p>
       </div>
     )
   }
@@ -41,8 +41,8 @@ export function TeamOfSeasonGrid({ team, title, emptyText = '暂无最佳阵容�
     <div className="space-y-3">
       {title && (
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-white">{title}</span>
-          <span className="text-xs text-[#4B4B6A]">({team.length}人)</span>
+          <span className="text-sm font-bold text-[#173126]">{title}</span>
+          <span className="text-xs text-[#8B5A2B]/40">({team.length}人)</span>
         </div>
       )}
 
@@ -51,9 +51,9 @@ export function TeamOfSeasonGrid({ team, title, emptyText = '暂无最佳阵容�
           const players = byPosition[pos] || []
           if (players.length === 0) return null
           return (
-            <div key={pos} className={`bg-[#0B0D14] border border-[#2D2D44] overflow-hidden`}>
-              <div className={`px-3 py-2 bg-[linear-gradient(to_right,${posGradients[pos].replace('from-', '').replace(' to-transparent', '')},transparent)] border-b border-[#2D2D44]`}>
-                <span className="text-xs font-bold text-[#8B8BA7]">
+            <div key={pos} className={`bg-white/70 border border-[#1F5F43]/20 overflow-hidden`}>
+              <div className={`px-3 py-2 bg-[linear-gradient(to_right,${posGradients[pos].replace('from-', '').replace(' to-transparent', '')},transparent)] border-b border-[#1F5F43]/20`}>
+                <span className="text-xs font-bold text-[#466353]">
                   {posLabels[pos]} × {players.length}
                 </span>
               </div>

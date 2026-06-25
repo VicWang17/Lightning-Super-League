@@ -34,18 +34,18 @@ function PlayerGrowth() {
   }, [data])
 
   if (loading) {
-    return <div className="max-w-[1200px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return <div className="max-w-[1200px] p-8 text-center text-[#466353]">加载中...</div>
   }
 
   if (!data) {
-    return <div className="max-w-[1200px] p-8 text-center text-red-400">数据加载失败</div>
+    return <div className="max-w-[1200px] p-8 text-center text-[#FF6F59]">数据加载失败</div>
   }
 
   return (
     <div className="max-w-[1200px]">
       <Link
         to={`/players/${id}`}
-        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#466353] hover:text-[#173126] transition-colors mb-4"
       >
         返回球员档案
       </Link>
@@ -56,33 +56,33 @@ function PlayerGrowth() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <div className="mb-2">
-            <span className="text-xs text-[#8B8BA7]">当前年龄 / OVR</span>
+            <span className="text-xs text-[#466353]">当前年龄 / OVR</span>
           </div>
-          <div className="text-2xl font-bold stat-number pixel-number text-white">
+          <div className="text-2xl font-bold stat-number pixel-number text-[#173126]">
             {data.current_age} 岁 / {data.current_ovr}
           </div>
         </Card>
         <Card>
           <div className="mb-2">
-            <span className="text-xs text-[#8B8BA7]">巅峰年龄</span>
+            <span className="text-xs text-[#466353]">巅峰年龄</span>
           </div>
-          <div className="text-2xl font-bold stat-number pixel-number text-white">
+          <div className="text-2xl font-bold stat-number pixel-number text-[#173126]">
             {data.peak_age} 岁
           </div>
         </Card>
         <Card>
           <div className="mb-2">
-            <span className="text-xs text-[#8B8BA7]">成长类型</span>
+            <span className="text-xs text-[#466353]">成长类型</span>
           </div>
-          <div className="text-2xl font-bold stat-number pixel-number text-[#C6F135]">
+          <div className="text-2xl font-bold stat-number pixel-number text-[#1F5F43]">
             {data.curve_type_label}
           </div>
         </Card>
         <Card>
           <div className="mb-2">
-            <span className="text-xs text-[#8B8BA7]">成长速度</span>
+            <span className="text-xs text-[#466353]">成长速度</span>
           </div>
-          <div className="text-2xl font-bold stat-number pixel-number text-white">
+          <div className="text-2xl font-bold stat-number pixel-number text-[#173126]">
             {data.growth_speed.toFixed(2)}x
           </div>
         </Card>
@@ -104,20 +104,20 @@ function PlayerGrowth() {
                   <div
                     className={`w-full max-w-[20px] transition-all ${
                       isCurrent
-                        ? 'bg-[#C6F135]'
+                        ? 'bg-[#B9EF3F]'
                         : isPast
-                        ? 'bg-[#0D7377]/50'
-                        : 'bg-[#0D7377]'
+                        ? 'bg-[#1F5F43]/50'
+                        : 'bg-[#1F5F43]'
                     }`}
                     style={{ height: `${bar.heightPct * 2.5}px` }}
                   />
                   {isCurrent && (
-                    <div className="absolute -top-5 text-xs font-bold text-[#C6F135]">
+                    <div className="absolute -top-5 text-xs font-bold text-[#1F5F43]">
                       {bar.ovr}
                     </div>
                   )}
                 </div>
-                <span className={`text-[10px] ${isCurrent ? 'text-[#C6F135] font-bold' : 'text-[#8B8BA7]'}`}>
+                <span className={`text-[10px] ${isCurrent ? 'text-[#1F5F43] font-bold' : 'text-[#466353]'}`}>
                   {bar.age}
                 </span>
               </div>
@@ -125,17 +125,17 @@ function PlayerGrowth() {
           })}
         </div>
 
-        <div className="flex items-center gap-4 mt-4 text-xs text-[#8B8BA7]">
+        <div className="flex items-center gap-4 mt-4 text-xs text-[#466353]">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 bg-[#0D7377]/50" />
+            <div className="w-3 h-3 bg-[#1F5F43]/50" />
             <span>过往（推算）</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 bg-[#C6F135]" />
+            <div className="w-3 h-3 bg-[#B9EF3F]" />
             <span>当前</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 bg-[#0D7377]" />
+            <div className="w-3 h-3 bg-[#1F5F43]" />
             <span>未来（预测）</span>
           </div>
         </div>
@@ -148,34 +148,34 @@ function PlayerGrowth() {
         </h3>
 
         {data.attribute_progress.length === 0 ? (
-          <p className="text-[#8B8BA7] text-center py-8">暂无属性成长数据</p>
+          <p className="text-[#466353] text-center py-8">暂无属性成长数据</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {data.attribute_progress.map((attr) => (
-              <div key={attr.attribute} className="p-3 bg-[#1E1E2D]">
+              <div key={attr.attribute} className="p-3 bg-[#FFF8DC]/80">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm">{attr.label}</span>
                   <span className="text-sm font-bold stat-number pixel-number">
-                    <span className="text-white">{attr.current}</span>
-                    <span className="text-[#8B8BA7]"> / </span>
-                    <span className="text-[#0D7377]">{attr.cap.toFixed(1)}</span>
+                    <span className="text-[#173126]">{attr.current}</span>
+                    <span className="text-[#466353]"> / </span>
+                    <span className="text-[#1F5F43]">{attr.cap.toFixed(1)}</span>
                   </span>
                 </div>
                 <div className="pixel-progress-track">
                   <div
                     className={`pixel-progress-fill ${
                       attr.progress_pct >= 90
-                        ? 'bg-red-500'
+                        ? 'bg-[#FF6F59]'
                         : attr.progress_pct >= 70
-                        ? 'bg-amber-500'
-                        : 'bg-emerald-500'
+                        ? 'bg-[#FFC247]'
+                        : 'bg-[#1F5F43]'
                     }`}
                     style={{ width: `${Math.min(100, attr.progress_pct)}%` }}
                   />
                 </div>
                 <div className="text-right mt-1">
                   <span className={`text-xs ${
-                    attr.progress_pct >= 90 ? 'text-red-400' : 'text-[#8B8BA7]'
+                    attr.progress_pct >= 90 ? 'text-[#FF6F59]' : 'text-[#466353]'
                   }`}>
                     {attr.progress_pct.toFixed(0)}%
                   </span>

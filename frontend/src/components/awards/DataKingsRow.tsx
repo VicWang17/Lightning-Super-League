@@ -22,9 +22,9 @@ export function DataKingsRow({
 
   if (!hasAny) {
     return (
-      <div className="text-center py-8 border border-[#2D2D44]/40 bg-[#0B0D14]">
+      <div className="text-center py-8 border border-[#1F5F43]/20 bg-white/70">
         <span className="text-2xl opacity-30 grayscale">📊</span>
-        <p className="text-sm text-[#4B4B6A] mt-2">{emptyText}</p>
+        <p className="text-sm text-[#8B5A2B]/40 mt-2">{emptyText}</p>
       </div>
     )
   }

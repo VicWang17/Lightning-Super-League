@@ -471,10 +471,10 @@ export const POSITION_NAMES: Record<PlayerPosition, string> = {
 
 // Position colors
 export const POSITION_COLORS: Record<PlayerPosition, string> = {
-  FW: 'bg-red-500 text-white',
-  MF: 'bg-emerald-500 text-white',
-  DF: 'bg-blue-500 text-white',
-  GK: 'bg-amber-500 text-black',
+  FW: 'bg-[#FF6F59] text-[#F8FFD2]',
+  MF: 'bg-[#1F5F43] text-[#F8FFD2]',
+  DF: 'bg-[#59C7EE] text-[#173126]',
+  GK: 'bg-[#FFC247] text-[#8B5A2B]',
 }
 
 export function getPositionColor(position: PlayerPosition): string {

@@ -1,28 +1,28 @@
 /* === 训练场设计令牌（Training System Tokens）=== */
 
 :root {
-  /* 基础色彩 */
-  --tr-bg-deep: #050609;
-  --tr-panel: #0D0B07;
-  --tr-border: #14532D;
-  --tr-border-strong: #14532D;
-  --tr-accent: #B8E532;
-  --tr-accent-soft: rgba(184, 229, 50, 0.35);
-  --tr-accent-dark: rgba(184, 229, 50, 0.15);
-  --tr-blue: #63B3FF;
-  --tr-red: #D75A4A;
-  --tr-gold: #D7A94A;
-  --tr-cyan: #50D1C8;
-  --tr-text: #F4F7DF;
-  --tr-muted: #8B9A7E;
+  /* 基础色彩（明亮训练场） */
+  --tr-bg-deep: #ECFFD8;
+  --tr-panel: rgba(255, 255, 255, 0.82);
+  --tr-border: #1f5f43;
+  --tr-border-strong: #1f5f43;
+  --tr-accent: #b9ef3f;
+  --tr-accent-soft: rgba(185, 239, 63, 0.45);
+  --tr-accent-dark: rgba(185, 239, 63, 0.18);
+  --tr-blue: #59c7ee;
+  --tr-red: #ff6f59;
+  --tr-gold: #ffc247;
+  --tr-cyan: #48d6a3;
+  --tr-text: #173126;
+  --tr-muted: #466353;
 
   /* 像素风几何 */
   --tr-clip-small: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   --tr-clip-medium: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
-  --tr-shadow: 4px 4px 0 rgba(0,0,0,0.42);
+  --tr-shadow: 4px 4px 0 rgba(31, 95, 67, 0.18);
   --tr-grid:
-    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
-    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+    linear-gradient(90deg, rgba(31, 95, 67, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(31, 95, 67, 0.05) 1px, transparent 1px);
 }
 
 /* === 统一页面外壳 === */
@@ -45,16 +45,16 @@
 .training-console-page::before {
   z-index: -3;
   background:
-    url('/training/training-ground-command-v1.png') center / cover no-repeat,
-    #050609;
+    url('/training/fresh-training-ground-bg-v1.png') center / cover no-repeat,
+    #ECFFD8;
 }
 
 .training-console-page::after {
   z-index: -2;
   background:
-    radial-gradient(circle at 72% 28%, rgba(184, 229, 50, 0.08), transparent 32%),
-    linear-gradient(90deg, rgba(5, 6, 9, 0.88), rgba(5, 6, 9, 0.70) 46%, rgba(5, 6, 9, 0.44)),
-    linear-gradient(0deg, rgba(5, 6, 9, 0.84), rgba(5, 6, 9, 0.20));
+    radial-gradient(circle at 72% 28%, rgba(185, 239, 63, 0.18), transparent 32%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.48) 46%, rgba(255, 248, 220, 0.72) 100%),
+    linear-gradient(0deg, rgba(236, 255, 216, 0.90), rgba(255, 255, 255, 0.72));
 }
 
 .training-hero {
@@ -64,11 +64,11 @@
   align-items: end;
   min-height: 116px;
   margin-bottom: 10px;
-  border: 2px solid var(--tr-border-strong);
+  border: 3px solid var(--tr-border-strong);
   background:
-    linear-gradient(90deg, rgba(5, 6, 9, 0.78), rgba(5, 6, 9, 0.52) 46%, rgba(5, 6, 9, 0.18));
+    linear-gradient(90deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.58) 46%, rgba(255, 255, 255, 0.22) 100%);
   padding: 16px 18px;
-  box-shadow: 6px 6px 0 rgba(0,0,0,0.52);
+  box-shadow: 6px 6px 0 rgba(31, 95, 67, 0.18);
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
 }
 
@@ -80,7 +80,7 @@
 
 .training-hero-copy h1 {
   margin-top: 8px;
-  color: #F4F7DF;
+  color: var(--tr-text);
   font-size: 30px;
   line-height: 1;
   font-weight: 1000;
@@ -100,9 +100,9 @@
   align-items: center;
   gap: 8px;
   border: 2px solid var(--tr-accent-soft);
-  background: color-mix(in srgb, var(--tr-accent-dark) 74%, #050609);
+  background: rgba(255, 255, 255, 0.78);
   padding: 5px 8px;
-  color: var(--tr-accent);
+  color: #1F5F43;
   font-size: 11px;
   font-weight: 1000;
 }
@@ -130,8 +130,8 @@
 }
 
 .training-hud-note span {
-  border: 2px solid rgba(99, 179, 255, 0.22);
-  background: rgba(5, 9, 14, 0.78);
+  border: 2px solid rgba(89, 199, 238, 0.35);
+  background: rgba(255, 255, 255, 0.78);
   padding: 5px 7px;
   color: var(--tr-muted);
   font-family: Roboto Mono, monospace;
@@ -154,7 +154,7 @@
 }
 
 .training-ghost-btn {
-  background: rgba(5, 6, 9, 0.88);
+  background: rgba(255, 255, 255, 0.88);
   color: var(--tr-text);
 }
 
@@ -164,10 +164,10 @@
 }
 
 .training-save-btn {
-  border-color: var(--tr-accent-soft);
+  border-color: var(--tr-border-strong);
   background: var(--tr-accent);
-  color: #071006;
-  box-shadow: 4px 4px 0 rgba(0,0,0,0.44);
+  color: #173126;
+  box-shadow: 4px 4px 0 rgba(31, 95, 67, 0.20);
 }
 
 .training-ghost-btn:hover:not(:disabled),
@@ -185,7 +185,7 @@
 }
 
 .training-save-msg.is-ok { color: #9ECF45; }
-.training-save-msg.is-bad { color: #D75A4A; }
+.training-save-msg.is-bad { color: #FF6F59; }
 
 /* === 统一面板 === */
 .training-panel {
@@ -216,9 +216,8 @@
 }
 
 .training-stat-tile {
-  border: none;
-  background: rgba(7, 8, 10, 0.50);
-  background-size: 8px 8px, auto;
+  border: 2px solid var(--tr-border);
+  background: rgba(255, 255, 255, 0.78);
   padding: 12px;
 }
 
@@ -260,8 +259,8 @@
   pointer-events: none;
 }
 
-.slot-warning.warn { background: var(--tr-gold); color: #050609; }
-.slot-warning.error { background: var(--tr-red); color: #050609; }
+.slot-warning.warn { background: var(--tr-gold); color: #8B5A2B; }
+.slot-warning.error { background: var(--tr-red); color: #ffffff; }
 
 .day-overload-badge {
   display: inline-flex;
@@ -284,18 +283,18 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 2px dashed var(--tr-accent);
-  background: color-mix(in srgb, var(--tr-accent-dark) 60%, #050609);
+  border: 2px dashed var(--tr-border);
+  background: rgba(255, 255, 255, 0.78);
   padding: 6px 10px;
-  color: var(--tr-accent);
+  color: #1F5F43;
   font-size: 12px;
   font-weight: 1000;
 }
 
 .training-slot-block.is-brush-preview {
   border-style: dashed;
-  border-color: var(--tr-accent-soft);
-  background: color-mix(in srgb, var(--tr-accent-dark) 25%, rgba(7,8,10,0.94));
+  border-color: var(--tr-accent);
+  background: rgba(185, 239, 63, 0.18);
 }
 
 /* === 未保存悬浮条 === */
@@ -310,13 +309,13 @@
   justify-content: center;
   gap: 16px;
   border-top: 2px solid var(--tr-gold);
-  background: rgba(10, 8, 5, 0.96);
+  background: rgba(255, 255, 255, 0.96);
   padding: 12px 18px;
   backdrop-filter: blur(6px);
 }
 
 .training-unsaved-bar span {
-  color: var(--tr-gold);
+  color: #8B5A2B;
   font-size: 13px;
   font-weight: 1000;
 }
@@ -333,13 +332,13 @@
 }
 
 .training-unsaved-bar .btn-primary {
-  border-color: var(--tr-accent-soft);
+  border-color: var(--tr-border-strong);
   background: var(--tr-accent);
-  color: #071006;
+  color: #173126;
 }
 
 .training-unsaved-bar .btn-secondary {
-  background: rgba(5, 6, 9, 0.88);
+  background: rgba(255, 255, 255, 0.88);
   color: var(--tr-text);
 }
 
@@ -355,7 +354,7 @@
 .training-category-tabs button {
   flex: 0 0 auto;
   border: 2px solid var(--tr-border);
-  background: rgba(5, 6, 9, 0.86);
+  background: rgba(255, 255, 255, 0.86);
   padding: 7px 9px;
   color: var(--tr-muted);
   font-size: 12px;
@@ -364,16 +363,16 @@
 }
 
 .training-category-tabs button.is-active {
-  border-color: var(--tr-accent);
-  color: var(--tr-accent);
-  background: color-mix(in srgb, var(--tr-accent-dark) 60%, #050609);
+  border-color: var(--tr-border);
+  color: var(--tr-text);
+  background: var(--tr-accent);
 }
 
 .training-item-card {
   position: relative;
   border: 2px solid var(--tr-border);
   border-left-width: 5px;
-  background: rgba(5, 6, 9, 0.86);
+  background: rgba(255, 255, 255, 0.86);
   padding: 10px;
   color: var(--tr-text);
   text-align: left;
@@ -382,8 +381,8 @@
 
 .training-item-card:hover,
 .training-item-card.is-selected {
-  border-color: var(--tr-accent);
-  background: color-mix(in srgb, var(--tr-accent-dark) 34%, #050609);
+  border-color: var(--tr-border);
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .training-item-card:disabled {
@@ -403,9 +402,9 @@
   gap: 5px;
   margin-bottom: 6px;
   padding: 4px 6px;
-  background: rgba(215, 90, 74, 0.15);
-  border: 1px solid rgba(215, 90, 74, 0.4);
-  color: var(--tr-red);
+  background: rgba(255, 111, 89, 0.14);
+  border: 1px solid rgba(255, 111, 89, 0.40);
+  color: #FF6F59;
   font-size: 11px;
   font-weight: 1000;
 }
@@ -428,7 +427,7 @@ body .training-day-header {
   min-height: 44px;
   padding: 6px;
   border-bottom: 2px solid var(--tr-border);
-  background: rgba(255,255,255,0.015);
+  background: rgba(255, 255, 255, 0.55);
 }
 
 body .training-day-header strong {
@@ -445,7 +444,7 @@ body .training-day-header span {
 }
 
 body .training-day-header.is-today strong {
-  color: var(--tr-accent);
+  color: #1F5F43;
 }
 
 body .training-period-label {
@@ -465,7 +464,7 @@ body .training-slot-block {
   position: relative;
   min-height: 56px;
   border: 1px solid var(--tr-border);
-  background: rgba(7, 8, 10, 0.88);
+  background: rgba(255, 255, 255, 0.88);
   padding: 6px 8px;
   color: var(--tr-text);
   text-align: left;
@@ -474,18 +473,19 @@ body .training-slot-block {
 
 body .training-slot-block:hover:not(:disabled),
 body .training-slot-block.is-selected {
-  border-color: var(--tr-accent);
+  border-color: var(--tr-border-strong);
+  background: #ffffff;
   transform: translate(-1px, -1px);
 }
 
 body .training-slot-block.is-selected {
-  box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  box-shadow: 2px 2px 0 rgba(31, 95, 67, 0.16);
 }
 
 body .training-slot-block.is-match {
   cursor: not-allowed;
-  border-color: rgba(99, 179, 255, 0.35);
-  background: rgba(8, 16, 26, 0.8);
+  border-color: rgba(89, 199, 238, 0.55);
+  background: rgba(89, 199, 238, 0.14);
 }
 
 body .training-slot-block.is-locked {
@@ -524,7 +524,7 @@ body .training-block-content {
 body .training-match-block {
   display: grid;
   gap: 2px;
-  color: var(--tr-blue);
+  color: #1F5F43;
 }
 
 body .training-match-block span {
@@ -598,21 +598,22 @@ body .training-console-page::before {
   z-index: -3;
   inset: 80px 0 0 240px;
   background:
-    url('/training/training-ground-command-v1.png') center / cover no-repeat,
-    #050609;
+    url('/training/fresh-training-ground-bg-v1.png') center / cover no-repeat,
+    #ECFFD8;
 }
 
 body .training-console-page::after {
   z-index: -2;
   inset: 80px 0 0 240px;
   background:
-    radial-gradient(circle at 74% 26%, rgba(184, 229, 50, 0.08), transparent 34%),
-    linear-gradient(90deg, rgba(5, 6, 9, 0.88), rgba(5, 6, 9, 0.70) 46%, rgba(5, 6, 9, 0.44)),
-    linear-gradient(0deg, rgba(5, 6, 9, 0.84), rgba(5, 6, 9, 0.20));
+    radial-gradient(circle at 74% 26%, rgba(185, 239, 63, 0.18), transparent 34%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0.48) 46%, rgba(255, 248, 220, 0.72) 100%),
+    linear-gradient(0deg, rgba(236, 255, 216, 0.90), rgba(255, 255, 255, 0.72));
 }
 
 body .training-hero {
-  background: linear-gradient(90deg, rgba(5, 6, 9, 0.78), rgba(5, 6, 9, 0.50) 48%, rgba(5, 6, 9, 0.16));
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.58) 48%, rgba(255, 255, 255, 0.22) 100%);
 }
 
 body .training-board {
@@ -620,9 +621,9 @@ body .training-board {
   overflow: visible;
   border: 0 !important;
   background:
-    linear-gradient(90deg, rgba(215, 169, 74, 0.055) 0 3px, transparent 3px),
+    linear-gradient(90deg, rgba(31, 95, 67, 0.06) 0 3px, transparent 3px),
     var(--tr-grid),
-    rgba(8, 10, 7, 0.88) !important;
+    rgba(255, 255, 255, 0.88) !important;
   background-size: auto, 8px 8px, auto !important;
   padding: 56px 44px 48px !important;
   box-shadow: none !important;
@@ -635,8 +636,13 @@ body .training-board::before {
   inset: -10px;
   z-index: 0;
   pointer-events: none;
-  background: url('/training/training-schedule-board-wood-v1.png') center / 100% 100% no-repeat;
-  filter: drop-shadow(8px 8px 0 rgba(0,0,0,0.52));
+  background:
+    linear-gradient(rgba(31, 95, 67, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 95, 67, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 255, 210, 0.92));
+  background-size: 8px 8px, 8px 8px, auto;
+  border: 3px solid #1f5f43;
+  filter: drop-shadow(8px 8px 0 rgba(31, 95, 67, 0.18));
 }
 
 body .training-board::after {

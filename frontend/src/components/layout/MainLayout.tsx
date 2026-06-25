@@ -5,6 +5,7 @@ import TopNav from './TopNav'
 function getPageBackground(pathname: string) {
   if (pathname === '/dashboard') return 'dashboard'
   if (pathname.startsWith('/mail')) return 'inbox'
+  if (/^\/team\/players\/[^/]+/.test(pathname) || /^\/players\/[^/]+/.test(pathname)) return 'player-detail'
   if (pathname.startsWith('/team/tactics')) return 'tactics'
   if (pathname.startsWith('/team') || pathname.startsWith('/players')) return 'locker'
   if (pathname.startsWith('/match')) return 'match'

@@ -157,21 +157,21 @@ export interface AutoGroupResponse {
 
 // Category display helpers
 export const TRAINING_CATEGORY_COLORS: Record<string, string> = {
-  '战术': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  '技术': 'bg-red-500/20 text-red-400 border-red-500/30',
-  '恢复': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  'tactic': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  'technical': 'bg-red-500/20 text-red-400 border-red-500/30',
-  'recovery': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  '战术': 'bg-[#59C7EE]/15 text-[#1F5F43] border-[#59C7EE]/40',
+  '技术': 'bg-[#FF6F59]/12 text-[#173126] border-[#FF6F59]/40',
+  '恢复': 'bg-[#B9EF3F]/20 text-[#173126] border-[#B9EF3F]/60',
+  'tactic': 'bg-[#59C7EE]/15 text-[#1F5F43] border-[#59C7EE]/40',
+  'technical': 'bg-[#FF6F59]/12 text-[#173126] border-[#FF6F59]/40',
+  'recovery': 'bg-[#B9EF3F]/20 text-[#173126] border-[#B9EF3F]/60',
 }
 
 export const TRAINING_CATEGORY_BG: Record<string, { bg: string; border: string; text: string }> = {
-  '战术': { bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', text: 'text-blue-400' },
-  '技术': { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', text: 'text-red-400' },
-  '恢复': { bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', text: 'text-emerald-400' },
-  'tactic': { bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', text: 'text-blue-400' },
-  'technical': { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', text: 'text-red-400' },
-  'recovery': { bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', text: 'text-emerald-400' },
+  '战术': { bg: 'rgba(89,199,238,0.12)', border: 'rgba(89,199,238,0.35)', text: 'text-[#1F5F43]' },
+  '技术': { bg: 'rgba(255,111,89,0.10)', border: 'rgba(255,111,89,0.30)', text: 'text-[#173126]' },
+  '恢复': { bg: 'rgba(185,239,63,0.15)', border: 'rgba(185,239,63,0.40)', text: 'text-[#173126]' },
+  'tactic': { bg: 'rgba(89,199,238,0.12)', border: 'rgba(89,199,238,0.35)', text: 'text-[#1F5F43]' },
+  'technical': { bg: 'rgba(255,111,89,0.10)', border: 'rgba(255,111,89,0.30)', text: 'text-[#173126]' },
+  'recovery': { bg: 'rgba(185,239,63,0.15)', border: 'rgba(185,239,63,0.40)', text: 'text-[#173126]' },
 }
 
 // ==================== 训练套餐模板（与后端 training_config.py 保持一致）====================

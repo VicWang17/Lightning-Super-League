@@ -34,7 +34,7 @@ export function PlayerTabs({ playerId }: PlayerTabsProps) {
             className={clsx(
               'px-4 py-2 font-medium text-sm transition-all duration-200 flex items-center gap-2',
               isActive
-                ? 'bg-[#C6F135] text-[#0A0A0F] border-2 border-transparent font-bold shadow-pixel-green'
+                ? 'bg-[#B9EF3F] text-[#173126] border-2 border-transparent font-bold shadow-pixel'
                 : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover border-2 border-transparent'
             )}
           >

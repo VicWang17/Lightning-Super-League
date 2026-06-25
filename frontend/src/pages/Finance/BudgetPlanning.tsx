@@ -135,7 +135,7 @@ export default function BudgetPlanning() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader className="w-8 h-8 text-[#0D7377] animate-spin" />
+        <Loader className="w-8 h-8 text-[#1F5F43] animate-spin" />
       </div>
     )
   }
@@ -143,7 +143,7 @@ export default function BudgetPlanning() {
   if (error && !teamId) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-red-400">{error}</p>
+        <p className="text-[#FF6F59]">{error}</p>
       </div>
     )
   }
@@ -155,7 +155,7 @@ export default function BudgetPlanning() {
       <FinanceTabs />
 
       {successMsg && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm">
+        <div className="p-3 bg-[#B9EF3F]/20 border border-[#1F5F43]/30 text-[#1F5F43] text-sm">
           {successMsg}
         </div>
       )}
@@ -164,13 +164,13 @@ export default function BudgetPlanning() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">预算分配</h3>
-          <span className="text-sm text-[#8B8BA7]">
+          <span className="text-sm text-[#466353]">
             预计总额: {formatWan(expectedIncome)}万
           </span>
         </div>
 
         {locked && (
-          <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
+          <div className="mb-4 p-3 bg-[#FFC247]/15 border border-[#FFC247]/40 text-[#C77A00] text-sm">
             预算计划已锁定，无法修改
           </div>
         )}
@@ -185,8 +185,8 @@ export default function BudgetPlanning() {
               className={clsx(
                 'px-3 py-2 text-xs font-medium border-2 transition-colors',
                 policy === p
-                  ? 'border-[#0D7377] bg-[#0D4A4D]/30 text-[#0D7377]'
-                  : 'border-[#2D2D44] text-[#8B8BA7] hover:border-[#4B4B6A]'
+                  ? 'border-[#1F5F43] bg-[#B9EF3F]/20 text-[#173126]'
+                  : 'border-[#1F5F43]/20 text-[#466353] hover:border-[#1F5F43]'
               )}
             >
               {POLICY_PRESETS[p].label}
@@ -198,8 +198,8 @@ export default function BudgetPlanning() {
           {/* 转会预算 */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-[#E2E2F0]">转会预算</label>
-              <span className="text-sm font-bold text-[#0D7377]">{budget.transfer}% ({transferAmount}万)</span>
+              <label className="text-sm text-[#173126]">转会预算</label>
+              <span className="text-sm font-bold text-[#1F5F43]">{budget.transfer}% ({transferAmount}万)</span>
             </div>
             <input
               type="range"
@@ -208,16 +208,16 @@ export default function BudgetPlanning() {
               value={budget.transfer}
               disabled={locked}
               onChange={(e) => { setPolicy('custom'); setBudget(prev => ({ ...prev, transfer: parseInt(e.target.value) })) }}
-              className="w-full h-2 bg-[#0A0A0F] border-2 border-[#2D2D44] appearance-none cursor-pointer disabled:opacity-50"
-              style={{ accentColor: '#0D7377' }}
+              className="w-full h-2 bg-white/70 border-2 border-[#1F5F43]/20 appearance-none cursor-pointer disabled:opacity-50"
+              style={{ accentColor: '#1F5F43' }}
             />
           </div>
 
           {/* 青训投入 */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-[#E2E2F0]">青训投入</label>
-              <span className="text-sm font-bold text-[#0D7377]">{budget.youth}% ({youthAmount}万)</span>
+              <label className="text-sm text-[#173126]">青训投入</label>
+              <span className="text-sm font-bold text-[#1F5F43]">{budget.youth}% ({youthAmount}万)</span>
             </div>
             <input
               type="range"
@@ -226,15 +226,15 @@ export default function BudgetPlanning() {
               value={budget.youth}
               disabled={locked}
               onChange={(e) => { setPolicy('custom'); setBudget(prev => ({ ...prev, youth: parseInt(e.target.value) })) }}
-              className="w-full h-2 bg-[#0A0A0F] border-2 border-[#2D2D44] appearance-none cursor-pointer disabled:opacity-50"
+              className="w-full h-2 bg-white/70 border-2 border-[#1F5F43]/20 appearance-none cursor-pointer disabled:opacity-50"
             />
           </div>
 
           {/* 工资预留 */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-[#E2E2F0]">工资预留</label>
-              <span className="text-sm font-bold text-[#0D7377]">{budget.salary}% ({salaryAmount}万)</span>
+              <label className="text-sm text-[#173126]">工资预留</label>
+              <span className="text-sm font-bold text-[#1F5F43]">{budget.salary}% ({salaryAmount}万)</span>
             </div>
             <input
               type="range"
@@ -243,15 +243,15 @@ export default function BudgetPlanning() {
               value={budget.salary}
               disabled={locked}
               onChange={(e) => { setPolicy('custom'); setBudget(prev => ({ ...prev, salary: parseInt(e.target.value) })) }}
-              className="w-full h-2 bg-[#0A0A0F] border-2 border-[#2D2D44] appearance-none cursor-pointer disabled:opacity-50"
+              className="w-full h-2 bg-white/70 border-2 border-[#1F5F43]/20 appearance-none cursor-pointer disabled:opacity-50"
             />
           </div>
 
           {/* 应急储备 */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-[#E2E2F0]">应急储备</label>
-              <span className="text-sm font-bold text-[#0D7377]">{budget.reserve}% ({reserveAmount}万)</span>
+              <label className="text-sm text-[#173126]">应急储备</label>
+              <span className="text-sm font-bold text-[#1F5F43]">{budget.reserve}% ({reserveAmount}万)</span>
             </div>
             <input
               type="range"
@@ -260,27 +260,27 @@ export default function BudgetPlanning() {
               value={budget.reserve}
               disabled={locked}
               onChange={(e) => { setPolicy('custom'); setBudget(prev => ({ ...prev, reserve: parseInt(e.target.value) })) }}
-              className="w-full h-2 bg-[#0A0A0F] border-2 border-[#2D2D44] appearance-none cursor-pointer disabled:opacity-50"
+              className="w-full h-2 bg-white/70 border-2 border-[#1F5F43]/20 appearance-none cursor-pointer disabled:opacity-50"
             />
           </div>
         </div>
 
         {/* 总计 */}
-        <div className="mt-6 pt-4 border-t-2 border-[#2D2D44]">
+        <div className="mt-6 pt-4 border-t-2 border-[#1F5F43]/20">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-[#E2E2F0]">总计</span>
-            <span className={clsx('text-xl font-bold stat-number', isValid ? 'text-emerald-400' : 'text-red-400')}>
+            <span className="text-sm text-[#173126]">总计</span>
+            <span className={clsx('text-xl font-bold stat-number', isValid ? 'text-[#1F5F43]' : 'text-[#FF6F59]')}>
               {total}%
             </span>
           </div>
           <div className="pixel-progress-track h-3">
-            <div 
-              className={clsx('pixel-progress-fill h-full', isValid ? 'bg-emerald-500' : 'bg-red-500')}
+            <div
+              className={clsx('pixel-progress-fill h-full', isValid ? 'bg-[#1F5F43]' : 'bg-[#FF6F59]')}
               style={{ width: `${Math.min(total, 100)}%` }}
             />
           </div>
           {!isValid && (
-            <p className="text-xs text-red-400 mt-2">分配总和必须等于100%</p>
+            <p className="text-xs text-[#FF6F59] mt-2">分配总和必须等于100%</p>
           )}
         </div>
 
@@ -303,8 +303,8 @@ export default function BudgetPlanning() {
             <span className={clsx(
               'text-xs px-2 py-0.5 border',
               currentSponsor.policy === 'stable'
-                ? 'text-blue-400 border-blue-400/30 bg-blue-500/10'
-                : 'text-purple-400 border-purple-400/30 bg-purple-500/10'
+                ? 'text-[#1F5F43] border-[#1F5F43]/30 bg-[#B9EF3F]/20'
+                : 'text-[#C77A00] border-[#FFC247]/40 bg-[#FFC247]/15'
             )}>
               {currentSponsor.policy === 'stable' ? '稳定型' : '绩效型'} · 已签署
             </span>
@@ -314,34 +314,34 @@ export default function BudgetPlanning() {
         {currentSponsor ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[#8B8BA7]">基础收入</span>
-              <span className="text-sm text-white">{formatWan(currentSponsor.base_amount)}万/赛季</span>
+              <span className="text-sm text-[#466353]">基础收入</span>
+              <span className="text-sm text-[#173126]">{formatWan(currentSponsor.base_amount)}万/赛季</span>
             </div>
             {currentSponsor.win_bonus > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[#8B8BA7]">胜场奖金</span>
-                <span className="text-sm text-emerald-400">+{formatWan(currentSponsor.win_bonus)}万</span>
+                <span className="text-sm text-[#466353]">胜场奖金</span>
+                <span className="text-sm text-[#1F5F43]">+{formatWan(currentSponsor.win_bonus)}万</span>
               </div>
             )}
             {currentSponsor.max_bonus > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[#8B8BA7]">奖金上限</span>
-                <span className="text-sm text-yellow-400">{formatWan(currentSponsor.max_bonus)}万</span>
+                <span className="text-sm text-[#466353]">奖金上限</span>
+                <span className="text-sm text-[#C77A00]">{formatWan(currentSponsor.max_bonus)}万</span>
               </div>
             )}
           </div>
         ) : (
           <div className="space-y-3">
             {sponsorOptions.length === 0 && (
-              <p className="text-sm text-[#4B4B6A]">加载赞助商选项中...</p>
+              <p className="text-sm text-[#8B5A2B]/40">加载赞助商选项中...</p>
             )}
             {sponsorOptions.map((opt) => (
-              <div key={opt.policy} className="p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
+              <div key={opt.policy} className="p-3 bg-white/70 border-2 border-[#1F5F43]/20">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-white">{opt.label}</span>
-                  <span className="text-sm font-bold text-[#0D7377]">{formatWan(opt.base_amount)}万</span>
+                  <span className="text-sm font-medium text-[#173126]">{opt.label}</span>
+                  <span className="text-sm font-bold text-[#1F5F43]">{formatWan(opt.base_amount)}万</span>
                 </div>
-                <p className="text-xs text-[#4B4B6A] mb-3">{opt.description}</p>
+                <p className="text-xs text-[#8B5A2B]/40 mb-3">{opt.description}</p>
                 <button
                   onClick={() => handleSignSponsor(opt.policy)}
                   disabled={signingSponsor}

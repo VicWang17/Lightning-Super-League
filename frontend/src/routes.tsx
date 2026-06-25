@@ -46,7 +46,8 @@ import TransferHistory from './pages/Transfer/History'
 
 // Youth Pages
 import YouthAcademy from './pages/Youth/Academy'
-import YoungPlayers from './pages/Youth/YoungPlayers'
+import AcademyPlayerDetail from './pages/Youth/AcademyPlayerDetail'
+import YouthGrowth from './pages/Youth/Growth'
 import RookieMarket from './pages/Youth/RookieMarket'
 
 // Finance Pages
@@ -62,9 +63,9 @@ import MailPage from './pages/Mail/Index'
 // 404 Page
 const NotFound = () => (
   <div className="flex flex-col items-center justify-center min-h-[60vh]">
-    <h1 className="text-6xl font-bold text-[#0D7377] mb-4 pixel-title">404</h1>
-    <p className="text-[#8B8BA7] mb-6">页面未找到</p>
-    <a href="/dashboard" className="text-[#0D7377] hover:underline">
+    <h1 className="text-6xl font-bold text-[#1F5F43] mb-4 pixel-title">404</h1>
+    <p className="text-[#466353] mb-6">页面未找到</p>
+    <a href="/dashboard" className="text-[#1F5F43] hover:underline">
       返回主页
     </a>
   </div>
@@ -322,8 +323,12 @@ export const router = createBrowserRouter([
                 element: <YouthAcademy />,
               },
               {
-                path: 'young-players',
-                element: <YoungPlayers />,
+                path: 'academy/:academyPlayerId',
+                element: <AcademyPlayerDetail />,
+              },
+              {
+                path: 'growth',
+                element: <YouthGrowth />,
               },
               {
                 path: 'rookie-market',

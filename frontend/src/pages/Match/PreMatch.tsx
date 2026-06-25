@@ -86,14 +86,14 @@ export default function PreMatch() {
   }, [])
 
   if (loading) {
-    return <div className="max-w-[1200px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return <div className="max-w-[1200px] p-8 text-center text-[#466353]">加载中...</div>
   }
 
   if (error || !match) {
     return (
       <div className="max-w-[1200px] p-8 text-center">
-        <p className="text-[#8B8BA7]">{error || '暂无 upcoming 比赛'}</p>
-        <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white mt-4 inline-block">
+        <p className="text-[#466353]">{error || '暂无 upcoming 比赛'}</p>
+        <Link to="/match/schedule" className="text-sm text-[#1F5F43] hover:text-[#173126] mt-4 inline-block">
           查看赛程 →
         </Link>
       </div>
@@ -109,38 +109,38 @@ export default function PreMatch() {
         title="赛前准备"
         subtitle="下一场比赛情报"
         action={
-          <Link to="/match/schedule" className="text-sm text-[#0D7377] hover:text-white transition-colors">
+          <Link to="/match/schedule" className="text-sm text-[#1F5F43] hover:text-[#173126] transition-colors">
             返回赛程 →
           </Link>
         }
       />
 
-      <Card className="bg-[#0D4A4D]/20 border-[#0D7377]/30">
+      <Card className="bg-[#B9EF3F]/15 border-[#1F5F43]/25">
         <div className="flex items-center justify-center gap-8 py-6">
           <div className="text-center">
-            <div className="w-20 h-20 bg-[#0D7377] border-2 border-[#0D7377]/50 flex items-center justify-center mx-auto mb-3 shadow-pixel-green">
+            <div className="w-20 h-20 bg-[#1F5F43] border-2 border-[#1F5F43]/50 flex items-center justify-center mx-auto mb-3 shadow-pixel">
               <span className="text-3xl">🏠</span>
             </div>
             <h2 className="text-xl font-bold">{homeName}</h2>
-            <p className="text-sm text-[#8B8BA7]">{lineups?.home_formation || '-'} · 主队</p>
+            <p className="text-sm text-[#466353]">{lineups?.home_formation || '-'} · 主队</p>
           </div>
 
           <div className="text-center px-6">
-            <p className="text-4xl font-bold pixel-number text-[#0D7377]">VS</p>
-            <div className="mt-2 text-xs text-[#8B8BA7]">
+            <p className="text-4xl font-bold pixel-number text-[#1F5F43]">VS</p>
+            <div className="mt-2 text-xs text-[#466353]">
               第 {match.season_day} 天
             </div>
-            <span className="inline-block mt-2 px-3 py-1 bg-[#0D7377]/20 text-[#0D7377] text-xs border border-[#0D7377]/30">
+            <span className="inline-block mt-2 px-3 py-1 bg-[#B9EF3F]/20 text-[#1F5F43] text-xs border border-[#1F5F43]/25">
               {match.fixture_type === 'league' ? `联赛第${match.round_number}轮` : match.fixture_type}
             </span>
           </div>
 
           <div className="text-center">
-            <div className="w-20 h-20 bg-[#1E1E2D] border-2 border-[#2D2D44] flex items-center justify-center mx-auto mb-3">
+            <div className="w-20 h-20 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 flex items-center justify-center mx-auto mb-3">
               <span className="text-3xl">✈</span>
             </div>
             <h2 className="text-xl font-bold">{awayName}</h2>
-            <p className="text-sm text-[#8B8BA7]">{lineups?.away_formation || '-'} · 客队</p>
+            <p className="text-sm text-[#466353]">{lineups?.away_formation || '-'} · 客队</p>
           </div>
         </div>
       </Card>
@@ -153,9 +153,9 @@ export default function PreMatch() {
             </h3>
             <div className="space-y-2">
               {lineups.home_lineup.map(p => (
-                <div key={p.player_id} className="flex items-center justify-between text-sm border-b border-[#2D2D44]/50 pb-2">
-                  <span className="text-white">{p.name}</span>
-                  <span className="text-[#8B8BA7]">{p.position}</span>
+                <div key={p.player_id} className="flex items-center justify-between text-sm border-b border-[#1F5F43]/20 pb-2">
+                  <span className="text-[#173126]">{p.name}</span>
+                  <span className="text-[#466353]">{p.position}</span>
                 </div>
               ))}
             </div>
@@ -166,9 +166,9 @@ export default function PreMatch() {
             </h3>
             <div className="space-y-2">
               {lineups.away_lineup.map(p => (
-                <div key={p.player_id} className="flex items-center justify-between text-sm border-b border-[#2D2D44]/50 pb-2">
-                  <span className="text-white">{p.name}</span>
-                  <span className="text-[#8B8BA7]">{p.position}</span>
+                <div key={p.player_id} className="flex items-center justify-between text-sm border-b border-[#1F5F43]/20 pb-2">
+                  <span className="text-[#173126]">{p.name}</span>
+                  <span className="text-[#466353]">{p.position}</span>
                 </div>
               ))}
             </div>
@@ -177,26 +177,26 @@ export default function PreMatch() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link to="/team/tactics" className="flex items-center gap-3 p-4 bg-[#0A0A0F] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
+        <Link to="/team/tactics" className="flex items-center gap-3 p-4 bg-white/70 border-2 border-[#1F5F43]/20 hover:border-[#1F5F43] transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
           <div>
             <p className="text-sm font-medium">调整阵型</p>
-            <p className="text-xs text-[#4B4B6A]">当前: {lineups?.home_formation || '-'}</p>
+            <p className="text-xs text-[#8B5A2B]/40">当前: {lineups?.home_formation || '-'}</p>
           </div>
-          <ChevronRight className="w-4 h-4 text-[#4B4B6A] ml-auto" />
+          <ChevronRight className="w-4 h-4 text-[#8B5A2B]/40 ml-auto" />
         </Link>
-        <Link to="/team/players" className="flex items-center gap-3 p-4 bg-[#0A0A0F] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
+        <Link to="/team/players" className="flex items-center gap-3 p-4 bg-white/70 border-2 border-[#1F5F43]/20 hover:border-[#1F5F43] transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
           <div>
             <p className="text-sm font-medium">更换首发</p>
-            <p className="text-xs text-[#4B4B6A]">调整出场球员</p>
+            <p className="text-xs text-[#8B5A2B]/40">调整出场球员</p>
           </div>
-          <ChevronRight className="w-4 h-4 text-[#4B4B6A] ml-auto" />
+          <ChevronRight className="w-4 h-4 text-[#8B5A2B]/40 ml-auto" />
         </Link>
-        <Link to="/training/weekly" className="flex items-center gap-3 p-4 bg-[#0A0A0F] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
+        <Link to="/training/weekly" className="flex items-center gap-3 p-4 bg-white/70 border-2 border-[#1F5F43]/20 hover:border-[#1F5F43] transition-all hover:-translate-x-0.5 hover:-translate-y-0.5">
           <div>
             <p className="text-sm font-medium">赛前训练</p>
-            <p className="text-xs text-[#4B4B6A]">针对性备战</p>
+            <p className="text-xs text-[#8B5A2B]/40">针对性备战</p>
           </div>
-          <ChevronRight className="w-4 h-4 text-[#4B4B6A] ml-auto" />
+          <ChevronRight className="w-4 h-4 text-[#8B5A2B]/40 ml-auto" />
         </Link>
       </div>
     </div>

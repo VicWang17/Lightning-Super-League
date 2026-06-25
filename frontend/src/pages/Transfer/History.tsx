@@ -67,33 +67,33 @@ export default function TransferHistory() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
           <div className="mb-2">
-            <span className="text-sm text-[#8B8BA7]">总支出</span>
+            <span className="text-sm text-[#466353]">总支出</span>
           </div>
-          <p className="text-2xl font-bold text-red-400 stat-number">{(totalIn / 10000).toFixed(1)}万</p>
+          <p className="text-2xl font-bold text-[#FF6F59] stat-number">{(totalIn / 10000).toFixed(1)}万</p>
         </div>
         <div className="card">
           <div className="mb-2">
-            <span className="text-sm text-[#8B8BA7]">总收入</span>
+            <span className="text-sm text-[#466353]">总收入</span>
           </div>
-          <p className="text-2xl font-bold text-emerald-400 stat-number">{(totalOut / 10000).toFixed(1)}万</p>
+          <p className="text-2xl font-bold text-[#1F5F43] stat-number">{(totalOut / 10000).toFixed(1)}万</p>
         </div>
         <div className="card">
           <div className="mb-2">
-            <span className="text-sm text-[#8B8BA7]">净投入</span>
+            <span className="text-sm text-[#466353]">净投入</span>
           </div>
-          <p className={clsx('text-2xl font-bold stat-number', totalIn - totalOut > 0 ? 'text-red-400' : 'text-emerald-400')}>
+          <p className={clsx('text-2xl font-bold stat-number', totalIn - totalOut > 0 ? 'text-[#FF6F59]' : 'text-[#1F5F43]')}>
             {totalIn - totalOut > 0 ? '+' : ''}{((totalIn - totalOut) / 10000).toFixed(1)}万
           </p>
         </div>
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
+        <div className="flex items-center justify-center py-12 text-sm text-[#466353]">
           加载中...
         </div>
       )}
       {error && (
-        <div className="p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
+        <div className="p-4 bg-[#FF6F59]/10 border-2 border-[#FF6F59]/30 text-[#FF6F59] text-sm">
           {error}
         </div>
       )}
@@ -107,31 +107,31 @@ export default function TransferHistory() {
                 const isIn = r.to_team_id === teamId
                 const isOut = r.from_team_id === teamId
                 return (
-                  <div key={r.record_id} className="flex items-center gap-4 p-3 bg-[#0A0A0F] border-2 border-[#2D2D44]">
+                  <div key={r.record_id} className="flex items-center gap-4 p-3 bg-white/70 border-2 border-[#1F5F43]/20">
                     <div className={clsx(
                       'w-8 h-8 flex items-center justify-center border-2 text-xs font-bold',
-                      isIn ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' :
-                      isOut ? 'bg-red-500/20 border-red-500/30 text-red-400' :
-                      'bg-[#2D2D44] text-[#8B8BA7]'
+                      isIn ? 'bg-[#B9EF3F]/25 border-[#1F5F43]/30 text-[#1F5F43]' :
+                      isOut ? 'bg-[#FF6F59]/15 border-[#FF6F59]/35 text-[#FF6F59]' :
+                      'bg-[#F8FFD2] text-[#466353]'
                     )}>
                       {isIn ? '入' : isOut ? '出' : '—'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">
-                        <Link to={`/players/${r.player_id}`} className="hover:text-[#0D7377] transition-colors">
+                      <p className="text-sm font-medium text-[#173126]">
+                        <Link to={`/players/${r.player_id}`} className="hover:text-[#1F5F43] transition-colors">
                           {r.player_name}
                         </Link>
                       </p>
-                      <p className="text-xs text-[#4B4B6A]">
+                      <p className="text-xs text-[#8B5A2B]/40">
                         {TRANSFER_TYPE_NAMES[r.transfer_type]}
                         {r.from_team_id && r.to_team_id && ` · ${r.from_team_id.slice(0, 6)} → ${r.to_team_id.slice(0, 6)}`}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className={clsx('text-sm font-bold', isIn ? 'text-red-400' : isOut ? 'text-emerald-400' : 'text-[#8B8BA7]')}>
+                      <p className={clsx('text-sm font-bold', isIn ? 'text-[#FF6F59]' : isOut ? 'text-[#1F5F43]' : 'text-[#466353]')}>
                         {isIn ? '-' : isOut ? '+' : ''}{(r.amount / 10000).toFixed(1)}万
                       </p>
-                      <p className="text-xs text-[#4B4B6A]">
+                      <p className="text-xs text-[#8B5A2B]/40">
                         {new Date(r.completed_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -139,7 +139,7 @@ export default function TransferHistory() {
                 )
               })}
               {records.length === 0 && (
-                <div className="text-center py-12 text-[#8B8BA7]">
+                <div className="text-center py-12 text-[#466353]">
                   <p className="text-sm">暂无转会记录</p>
                 </div>
               )}
@@ -151,15 +151,15 @@ export default function TransferHistory() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 bg-[#12121A] border-2 border-[#2D2D44] text-[#8B8BA7] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-2 bg-[#FFF8DC] border-2 border-[#1F5F43]/20 text-[#466353] hover:border-[#1F5F43] hover:text-[#173126] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm text-[#8B8BA7]">第 {page} / {totalPages} 页</span>
+              <span className="text-sm text-[#466353]">第 {page} / {totalPages} 页</span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-2 bg-[#12121A] border-2 border-[#2D2D44] text-[#8B8BA7] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-2 bg-[#FFF8DC] border-2 border-[#1F5F43]/20 text-[#466353] hover:border-[#1F5F43] hover:text-[#173126] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

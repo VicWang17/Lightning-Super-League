@@ -88,13 +88,13 @@ export interface KnockoutMatchNode {
 
 // 杯赛阶段配置
 export const CUP_STAGE_CONFIG: Record<string, { name: string; color: string }> = {
-  GROUP: { name: '小组赛', color: 'bg-blue-500' },
-  ROUND_48: { name: '预选赛', color: 'bg-slate-500' },
-  ROUND_32: { name: '32强', color: 'bg-emerald-500' },
-  ROUND_16: { name: '16强', color: 'bg-violet-500' },
-  QUARTER: { name: '1/4决赛', color: 'bg-amber-500' },
-  SEMI: { name: '半决赛', color: 'bg-rose-500' },
-  FINAL: { name: '决赛', color: 'bg-yellow-400' },
+  GROUP: { name: '小组赛', color: 'bg-[#59C7EE]' },
+  ROUND_48: { name: '预选赛', color: 'bg-[#8B5A2B]/40' },
+  ROUND_32: { name: '32强', color: 'bg-[#1F5F43]' },
+  ROUND_16: { name: '16强', color: 'bg-[#FF6F59]' },
+  QUARTER: { name: '1/4决赛', color: 'bg-[#FFC247]' },
+  SEMI: { name: '半决赛', color: 'bg-[#FF6F59]' },
+  FINAL: { name: '决赛', color: 'bg-[#B9EF3F]' },
 }
 
 // 杯赛配置

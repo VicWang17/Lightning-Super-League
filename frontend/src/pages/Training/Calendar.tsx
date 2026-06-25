@@ -166,7 +166,7 @@ export default function TrainingCalendar() {
                       第 {dayNum} 天
                       <span style={{ color: 'var(--tr-muted)', marginLeft: 6 }}>({DAYS[i]})</span>
                       {dayResults.length > 0 && (
-                        <span style={{ marginLeft: 8, color: '#9ECF45', fontSize: 11, fontWeight: 1000 }}>✓ 已执行</span>
+                        <span style={{ marginLeft: 8, color: '#B9EF3F', fontSize: 11, fontWeight: 1000 }}>✓ 已执行</span>
                       )}
                     </td>
                     <td style={{ padding: '10px 12px' }}><SlotCell slot={dayData.am} /></td>
@@ -194,7 +194,7 @@ export default function TrainingCalendar() {
                   alignItems: 'center',
                   gap: 12,
                   padding: 10,
-                  background: 'rgba(5,6,9,0.86)',
+                  background: 'rgba(255,255,255,0.86)',
                   border: '2px solid var(--tr-border)',
                   fontSize: 13,
                 }}
@@ -208,9 +208,9 @@ export default function TrainingCalendar() {
                 <span style={{ color: 'var(--tr-muted)', fontSize: 12 }}>
                   第{r.season_day}天 · {SLOT_LABELS[r.slot] || r.slot}
                 </span>
-                <span style={{ color: '#D7A94A', marginLeft: 'auto', fontWeight: 1000 }}>效率 {r.efficiency}%</span>
+                <span style={{ color: '#FFC247', marginLeft: 'auto', fontWeight: 1000 }}>效率 {r.efficiency}%</span>
                 {r.breakthroughs && r.breakthroughs.length > 0 && (
-                  <span style={{ color: '#9ECF45', fontSize: 11, fontWeight: 1000 }}>突破 {r.breakthroughs.length} 项</span>
+                  <span style={{ color: '#B9EF3F', fontSize: 11, fontWeight: 1000 }}>突破 {r.breakthroughs.length} 项</span>
                 )}
               </div>
             ))}
@@ -231,7 +231,7 @@ function SlotCell({ slot }: { slot?: TrainingPlanSlot }) {
         fontSize: 12,
         padding: '4px 8px',
         border: `2px solid ${style?.border || 'var(--tr-border)'}`,
-        background: style?.bg || 'rgba(5,6,9,0.86)',
+        background: style?.bg || 'rgba(255,255,255,0.86)',
         color: style?.text ? undefined : 'var(--tr-text)',
         fontWeight: 900,
       }}

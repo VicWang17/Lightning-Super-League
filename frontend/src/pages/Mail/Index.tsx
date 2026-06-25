@@ -191,7 +191,7 @@ export default function MailPage() {
         <div className="flex items-center gap-3 px-1">
           <h1 className="text-xl font-bold pixel-title">邮件中心</h1>
           {mails && mails.unread_count > 0 && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-[#C6F135] text-[#0A0A0F] border-2 border-[#14532D]">
+            <span className="px-2 py-0.5 text-xs font-bold bg-[#B9EF3F] text-[#173126] border-2 border-[#1F5F43]">
               {mails.unread_count}
             </span>
           )}
@@ -200,7 +200,7 @@ export default function MailPage() {
         {/* 写邮件按钮占位 - 游戏风格 */}
         <button
           onClick={handleMarkAllRead}
-          className="w-full px-4 py-2.5 bg-[#C6F135] text-[#0A0A0F] font-bold text-sm border-2 border-[#14532D] shadow-pixel-green hover:brightness-110 transition-all flex items-center justify-center gap-2"
+          className="w-full px-4 py-2.5 bg-[#B9EF3F] text-[#173126] font-bold text-sm border-2 border-[#1F5F43] shadow-pixel hover:brightness-110 transition-all flex items-center justify-center gap-2"
         >
           全部已读
         </button>
@@ -212,8 +212,8 @@ export default function MailPage() {
             className={clsx(
               'flex-1 py-1.5 text-xs font-medium border-2 transition-all',
               activeFilter === 'all'
-                ? 'bg-[#0D7377] text-white border-[#0D7377]'
-                : 'bg-[#12121A] text-[#8B8BA7] border-[#2D2D44] hover:text-white'
+                ? 'bg-[#1F5F43] text-[#F8FFD2] border-[#1F5F43]'
+                : 'bg-[#FFF8DC]/80 text-[#466353] border-[#1F5F43]/20 hover:text-[#173126]'
             )}
           >
             全部
@@ -223,8 +223,8 @@ export default function MailPage() {
             className={clsx(
               'flex-1 py-1.5 text-xs font-medium border-2 transition-all',
               activeFilter === 'unread'
-                ? 'bg-[#0D7377] text-white border-[#0D7377]'
-                : 'bg-[#12121A] text-[#8B8BA7] border-[#2D2D44] hover:text-white'
+                ? 'bg-[#1F5F43] text-[#F8FFD2] border-[#1F5F43]'
+                : 'bg-[#FFF8DC]/80 text-[#466353] border-[#1F5F43]/20 hover:text-[#173126]'
             )}
           >
             未读
@@ -244,18 +244,18 @@ export default function MailPage() {
                 className={clsx(
                   'w-full flex items-center gap-3 px-3 py-2 text-sm transition-all border-2',
                   isActive
-                    ? 'bg-[#1E1E2D] text-[#C6F135] border-[#C6F135]/30'
-                    : 'text-[#8B8BA7] border-transparent hover:bg-[#1E1E2D] hover:text-white'
+                    ? 'bg-[#FFF8DC]/80 text-[#1F5F43] border-[#1F5F43]/20'
+                    : 'text-[#466353] border-transparent hover:bg-[#FFF8DC]/80 hover:text-[#173126]'
                 )}
               >
                 <span className="flex-1 text-left font-medium">{cat.label}</span>
                 {unread > 0 && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[#C6F135] text-[#0A0A0F] min-w-[1.25rem] text-center">
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[#B9EF3F] text-[#173126] min-w-[1.25rem] text-center">
                     {unread}
                   </span>
                 )}
                 {unread === 0 && count > 0 && (
-                  <span className="text-xs text-[#4B4B6A]">{count}</span>
+                  <span className="text-xs text-[#8B5A2B]/40">{count}</span>
                 )}
               </button>
             )
@@ -264,15 +264,15 @@ export default function MailPage() {
       </aside>
 
       {/* 中间邮件列表 */}
-      <div className="flex-1 min-w-0 flex flex-col bg-[#12121A] border-2 border-[#2D2D44]">
+      <div className="flex-1 min-w-0 flex flex-col bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20">
         {/* 列表头部 */}
-        <div className="h-12 px-4 flex items-center justify-between border-b-2 border-[#2D2D44] shrink-0">
+        <div className="h-12 px-4 flex items-center justify-between border-b-2 border-[#1F5F43]/20 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white">
+            <span className="text-sm font-bold text-[#173126]">
               {CATEGORY_CONFIG.find((c) => c.key === activeCategory)?.label}
             </span>
             {mails && (
-              <span className="text-xs text-[#4B4B6A]">
+              <span className="text-xs text-[#8B5A2B]/40">
                 共 {mails.total} 封
               </span>
             )}
@@ -280,7 +280,7 @@ export default function MailPage() {
           {mails && mails.unread_count > 0 && (
             <button
               onClick={handleMarkAllRead}
-              className="text-xs text-[#0D7377] hover:text-[#C6F135] transition-colors flex items-center gap-1"
+              className="text-xs text-[#1F5F43] hover:text-[#1F5F43] transition-colors flex items-center gap-1"
             >
               标记全部已读
             </button>
@@ -290,29 +290,29 @@ export default function MailPage() {
         {/* 邮件列表 */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center h-40 text-[#8B8BA7]">
+            <div className="flex items-center justify-center h-40 text-[#466353]">
               <span className="animate-pulse">加载邮件中...</span>
             </div>
           ) : !mails || mails.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-[#8B8BA7]">
+            <div className="flex flex-col items-center justify-center h-64 text-[#466353]">
               <p className="text-sm">暂无邮件</p>
-              <p className="text-xs text-[#4B4B6A] mt-1">比赛、转会、财务等通知将在这里显示</p>
+              <p className="text-xs text-[#8B5A2B]/40 mt-1">比赛、转会、财务等通知将在这里显示</p>
             </div>
           ) : (
-            <div className="divide-y divide-[#2D2D44]">
+            <div className="divide-y divide-[#1F5F43]/20">
               {mails.items.map((mail) => (
                 <div
                   key={mail.id}
                   onClick={() => handleOpenMail(mail)}
                   className={clsx(
-                    'group flex items-start gap-3 px-4 py-3 cursor-pointer transition-all hover:bg-[#1E1E2D]',
-                    mail.is_read ? 'bg-transparent' : 'bg-[#0D7377]/5'
+                    'group flex items-start gap-3 px-4 py-3 cursor-pointer transition-all hover:bg-[#FFF8DC]/80',
+                    mail.is_read ? 'bg-transparent' : 'bg-[#B9EF3F]/10'
                   )}
                 >
                   {/* 发件人头像/图标 */}
                   <div className="shrink-0 mt-0.5">
                     {mail.sender_avatar_url ? (
-                      <div className="w-9 h-9 bg-[#1E1E2D] border-2 border-[#2D2D44] overflow-hidden">
+                      <div className="w-9 h-9 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 overflow-hidden">
                         <img
                           src={`/${mail.sender_avatar_url}`}
                           alt={mail.sender_name}
@@ -341,31 +341,31 @@ export default function MailPage() {
                       <span
                         className={clsx(
                           'text-sm truncate',
-                          mail.is_read ? 'text-[#8B8BA7] font-medium' : 'text-white font-bold'
+                          mail.is_read ? 'text-[#466353] font-medium' : 'text-[#173126] font-bold'
                         )}
                       >
                         {mail.sender_name}
                       </span>
                       <CategoryBadge category={mail.category} />
                       {mail.priority === 'urgent' && (
-                        <SquareAlert className="w-3 h-3 text-[#EF4444] shrink-0" />
+                        <SquareAlert className="w-3 h-3 text-[#FF6F59] shrink-0" />
                       )}
                       {mail.priority === 'high' && (
-                        <ArrowBigUp className="w-3 h-3 text-[#F59E0B] shrink-0" />
+                        <ArrowBigUp className="w-3 h-3 text-[#FFC247] shrink-0" />
                       )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span
                         className={clsx(
                           'text-sm truncate flex-1',
-                          mail.is_read ? 'text-[#8B8BA7]' : 'text-white font-bold'
+                          mail.is_read ? 'text-[#466353]' : 'text-[#173126] font-bold'
                         )}
                       >
                         {mail.subject}
                       </span>
                     </div>
                     {mail.summary && (
-                      <p className="text-xs text-[#4B4B6A] truncate mt-0.5">
+                      <p className="text-xs text-[#8B5A2B]/40 truncate mt-0.5">
                         {mail.summary}
                       </p>
                     )}
@@ -373,11 +373,11 @@ export default function MailPage() {
 
                   {/* 右侧时间和操作 */}
                   <div className="shrink-0 flex flex-col items-end gap-1.5">
-                    <span className="text-xs text-[#4B4B6A] whitespace-nowrap">
+                    <span className="text-xs text-[#8B5A2B]/40 whitespace-nowrap">
                       {formatTime(mail.created_at)}
                     </span>
                     {!mail.is_read && (
-                      <span className="w-2 h-2 bg-[#C6F135]" />
+                      <span className="w-2 h-2 bg-[#B9EF3F]" />
                     )}
                     {mail.is_read && (
                       <button
@@ -385,7 +385,7 @@ export default function MailPage() {
                           e.stopPropagation()
                           handleMarkRead(mail.id)
                         }}
-                        className="opacity-0 group-hover:opacity-100 text-[#4B4B6A] hover:text-[#0D7377] transition-all"
+                        className="opacity-0 group-hover:opacity-100 text-[#8B5A2B]/40 hover:text-[#1F5F43] transition-all"
                         title="标记为已读"
                       >
                         <Check className="w-3.5 h-3.5" />
@@ -407,21 +407,21 @@ export default function MailPage() {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 60, opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="w-[420px] shrink-0 bg-[#12121A] border-2 border-[#2D2D44] flex flex-col"
+          className="w-[420px] shrink-0 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 flex flex-col"
         >
           {/* 详情头部 */}
-          <div className="h-12 px-4 flex items-center justify-between border-b-2 border-[#2D2D44] shrink-0">
+          <div className="h-12 px-4 flex items-center justify-between border-b-2 border-[#1F5F43]/20 shrink-0">
             <div className="flex items-center gap-2">
               <CategoryBadge category={selectedMail.category} />
               {selectedMail.priority === 'urgent' && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-[#EF4444]/20 text-[#EF4444] border border-[#EF4444]/40">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-[#FF6F59]/20 text-[#FF6F59] border border-[#FF6F59]/40">
                   紧急
                 </span>
               )}
             </div>
             <button
               onClick={() => setSelectedMail(null)}
-              className="p-1 text-[#4B4B6A] hover:text-white transition-colors"
+              className="p-1 text-[#8B5A2B]/40 hover:text-[#173126] transition-colors"
             >
               <Cancel className="w-4 h-4" />
             </button>
@@ -430,7 +430,7 @@ export default function MailPage() {
           {/* 详情内容 */}
           <div className="flex-1 overflow-y-auto p-5">
             {detailLoading ? (
-              <div className="flex items-center justify-center h-40 text-[#8B8BA7]">
+              <div className="flex items-center justify-center h-40 text-[#466353]">
                 加载中...
               </div>
             ) : (
@@ -438,7 +438,7 @@ export default function MailPage() {
                 {/* 发件人信息 */}
                 <div className="flex items-start gap-3 mb-5">
                   {selectedMail.sender_avatar_url ? (
-                    <div className="w-11 h-11 bg-[#1E1E2D] border-2 border-[#2D2D44] overflow-hidden shrink-0">
+                    <div className="w-11 h-11 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 overflow-hidden shrink-0">
                       <img
                         src={`/${selectedMail.sender_avatar_url}`}
                         alt={selectedMail.sender_name}
@@ -460,33 +460,33 @@ export default function MailPage() {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-white">{selectedMail.sender_name}</p>
-                    <p className="text-xs text-[#4B4B6A] mt-0.5">
+                    <p className="text-sm font-bold text-[#173126]">{selectedMail.sender_name}</p>
+                    <p className="text-xs text-[#8B5A2B]/40 mt-0.5">
                       {new Date(selectedMail.created_at).toLocaleString('zh-CN')}
                     </p>
                   </div>
                 </div>
 
                 {/* 主题 */}
-                <h2 className="text-lg font-bold text-white mb-4 leading-snug">
+                <h2 className="text-lg font-bold text-[#173126] mb-4 leading-snug">
                   {selectedMail.subject}
                 </h2>
 
                 {/* 正文 */}
-                <div className="text-sm text-[#8B8BA7] leading-relaxed whitespace-pre-wrap">
+                <div className="text-sm text-[#466353] leading-relaxed whitespace-pre-wrap">
                   {selectedMail.body}
                 </div>
 
                 {/* 关联操作 */}
                 {selectedMail.related_url && (
-                  <div className="mt-6 pt-4 border-t-2 border-[#2D2D44]">
+                  <div className="mt-6 pt-4 border-t-2 border-[#1F5F43]/20">
                     <button
                       onClick={() => {
                         if (selectedMail.related_url) {
                           navigate(selectedMail.related_url)
                         }
                       }}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#0D7377] text-white text-sm font-bold border-2 border-[#0D7377] hover:bg-[#0D7377]/80 transition-all"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#1F5F43] text-[#F8FFD2] text-sm font-bold border-2 border-[#1F5F43] hover:bg-[#173126] transition-all"
                     >
                       {selectedMail.action_label || '查看详情'}
                       <ChevronRight className="w-4 h-4" />
@@ -495,7 +495,7 @@ export default function MailPage() {
                 )}
 
                 {/* 底部元信息 */}
-                <div className="mt-6 pt-4 border-t-2 border-[#2D2D44] text-xs text-[#4B4B6A] space-y-1">
+                <div className="mt-6 pt-4 border-t-2 border-[#1F5F43]/20 text-xs text-[#8B5A2B]/40 space-y-1">
                   {selectedMail.is_read && selectedMail.read_at && (
                     <p>已读于 {new Date(selectedMail.read_at).toLocaleString('zh-CN')}</p>
                   )}

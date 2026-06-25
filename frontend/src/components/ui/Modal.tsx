@@ -52,7 +52,7 @@ const Modal = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/60" />
+          <div className="fixed inset-0 bg-[#173126]/38 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -68,24 +68,24 @@ const Modal = ({
             >
               <Dialog.Panel
                 className={clsx(
-                  'w-full transform overflow-hidden bg-[#12121A] border-2 border-[#2D2D44] text-left align-middle shadow-pixel-lg transition-all',
+                  'fresh-auth-card w-full transform overflow-hidden text-left align-middle transition-all',
                   sizes[size]
                 )}
               >
                 {/* Header */}
                 {(title || showCloseButton) && (
-                  <div className="flex items-start justify-between px-6 py-4 border-b-2 border-[#2D2D44]">
+                  <div className="flex items-start justify-between px-6 py-4 border-b-2 border-[#1F5F43]/25">
                     <div>
                       {title && (
                         <Dialog.Title
                           as="h3"
-                          className="text-lg font-semibold text-[#E2E2F0]"
+                          className="text-lg font-black text-[#173126]"
                         >
                           {title}
                         </Dialog.Title>
                       )}
                       {description && (
-                        <Dialog.Description className="mt-1 text-sm text-[#8B8BA7]">
+                        <Dialog.Description className="mt-1 text-sm font-semibold text-[#466353]">
                           {description}
                         </Dialog.Description>
                       )}
@@ -93,7 +93,7 @@ const Modal = ({
                     {showCloseButton && (
                       <button
                         onClick={onClose}
-                        className="ml-4 text-[#8B8BA7] hover:text-[#E2E2F0] transition-colors"
+                        className="ml-4 text-[#466353] hover:text-[#173126] transition-colors"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -106,7 +106,7 @@ const Modal = ({
 
                 {/* Footer */}
                 {footer && (
-                  <div className="flex items-center justify-end gap-3 px-6 py-4 border-t-2 border-[#2D2D44] bg-[#0A0A0F]/50">
+                  <div className="flex items-center justify-end gap-3 px-6 py-4 border-t-2 border-[#1F5F43]/25 bg-[#F8FFD2]/70">
                     {footer}
                   </div>
                 )}

@@ -87,38 +87,38 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
 
   return (
     <Dialog as="div" className="relative z-50" open={isOpen} onClose={onClose}>
-      <div className="fixed inset-0 bg-black/70" style={{ zIndex: 50 }} />
+      <div className="fixed inset-0 bg-[#1F5F43]/35" style={{ zIndex: 50 }} />
       <div className="fixed inset-0 overflow-y-auto" style={{ zIndex: 50 }}>
         <div className="flex min-h-full items-center justify-center p-4">
           <Dialog.Panel
             style={{
               width: '100%',
               maxWidth: 720,
-              background: '#12121A',
-              border: '2px solid #2D2D44',
+              background: '#FFFFFF',
+              border: '2px solid #1F5F43',
               padding: 24,
               textAlign: 'left',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
-                <Dialog.Title style={{ color: '#E2E2F0', fontSize: 18, fontWeight: 700, margin: 0 }}>
+                <Dialog.Title style={{ color: '#173126', fontSize: 18, fontWeight: 700, margin: 0 }}>
                   调整分组 · {modeLabel}
                 </Dialog.Title>
-                <Dialog.Description style={{ color: '#8B8BA7', fontSize: 13, marginTop: 4 }}>
+                <Dialog.Description style={{ color: '#466353', fontSize: 13, marginTop: 4 }}>
                   将球员分配到不同训练组，保存后立即生效
                 </Dialog.Description>
               </div>
               <button
                 onClick={onClose}
-                style={{ background: 'none', border: 'none', color: '#8B8BA7', cursor: 'pointer', padding: 4 }}
+                style={{ background: 'none', border: 'none', color: '#466353', cursor: 'pointer', padding: 4 }}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {localGroups.length === 0 ? (
-              <div style={{ color: '#8B8BA7', textAlign: 'center', padding: 40, fontSize: 14 }}>
+              <div style={{ color: '#466353', textAlign: 'center', padding: 40, fontSize: 14 }}>
                 暂无分组数据，请先切换分组模式
               </div>
             ) : (
@@ -130,8 +130,8 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                       <div
                         key={group.group_id}
                         style={{
-                          border: '2px solid rgba(79,91,104,0.4)',
-                          background: 'rgba(5,6,9,0.88)',
+                          border: '2px solid rgba(31,95,67,0.25)',
+                          background: 'var(--tr-panel)',
                           padding: 12,
                           display: 'flex',
                           flexDirection: 'column',
@@ -140,10 +140,10 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <strong style={{ color: '#E2E2F0', fontSize: 15, fontWeight: 1000 }}>
+                          <strong style={{ color: '#173126', fontSize: 15, fontWeight: 1000 }}>
                             {group.name}
                           </strong>
-                          <span style={{ color: '#8B8BA7', fontSize: 11, fontWeight: 900 }}>
+                          <span style={{ color: '#466353', fontSize: 11, fontWeight: 900 }}>
                             {group.player_ids.length} 人
                           </span>
                         </div>
@@ -160,19 +160,19 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                                   justifyContent: 'space-between',
                                   gap: 8,
                                   padding: '6px 8px',
-                                  background: 'rgba(255,255,255,0.03)',
-                                  border: '1px solid rgba(79,91,104,0.3)',
+                                  background: 'rgba(255,255,255,0.6)',
+                                  border: '1px solid rgba(31,95,67,0.15)',
                                 }}
                               >
                                 <div style={{ minWidth: 0, flex: 1 }}>
-                                  <div style={{ color: '#E2E2F0', fontSize: 13, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <div style={{ color: '#173126', fontSize: 13, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {p?.player_name || pid.slice(0, 6)}
                                   </div>
                                   {p && (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
                                       <FatigueStatus fatigue={p.fatigue} size={14} />
                                       {!p.can_high_intensity && (
-                                        <span style={{ color: '#D75A4A', fontSize: 10, fontWeight: 900 }}>
+                                        <span style={{ color: '#FF6F59', fontSize: 10, fontWeight: 900 }}>
                                           不宜高强度
                                         </span>
                                       )}
@@ -181,7 +181,7 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                                 </div>
                                 <button
                                   onClick={() => removePlayer(pid, group.group_id)}
-                                  style={{ background: 'none', border: 'none', color: '#8B8BA7', cursor: 'pointer', padding: 2, flexShrink: 0 }}
+                                  style={{ background: 'none', border: 'none', color: '#466353', cursor: 'pointer', padding: 2, flexShrink: 0 }}
                                   title="移出该组"
                                 >
                                   <X className="h-3 w-3" />
@@ -191,7 +191,7 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                           })}
 
                           {group.player_ids.length === 0 && (
-                            <div style={{ color: '#8B8BA7', fontSize: 12, fontWeight: 800, textAlign: 'center', padding: 16 }}>
+                            <div style={{ color: '#466353', fontSize: 12, fontWeight: 800, textAlign: 'center', padding: 16 }}>
                               暂无球员
                             </div>
                           )}
@@ -208,10 +208,10 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                             }}
                             style={{
                               width: '100%',
-                              border: '2px solid rgba(79,91,104,0.4)',
-                              background: 'rgba(5,6,9,0.86)',
+                              border: '2px solid rgba(31,95,67,0.25)',
+                              background: 'var(--tr-panel)',
                               padding: '8px 10px',
-                              color: '#8B8BA7',
+                              color: '#173126',
                               fontSize: 12,
                               fontWeight: 1000,
                               cursor: 'pointer',
@@ -232,8 +232,8 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                 </div>
 
                 {allPlayerIds.length > 0 && (
-                  <div style={{ marginTop: 12, padding: 10, background: 'rgba(99,179,255,0.06)', border: '1px solid rgba(99,179,255,0.2)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#63B3FF', fontSize: 12, fontWeight: 1000 }}>
+                  <div style={{ marginTop: 12, padding: 10, background: 'rgba(89,199,238,0.08)', border: '1px solid rgba(89,199,238,0.3)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#1F5F43', fontSize: 12, fontWeight: 1000 }}>
                       全队共 {allPlayerIds.length} 名球员已分配
                     </div>
                   </div>
@@ -241,17 +241,17 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
               </>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, borderTop: '2px solid #2D2D44', paddingTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, borderTop: '2px solid #1F5F43', paddingTop: 16 }}>
               <button
                 onClick={onClose}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  border: '2px solid rgba(79,91,104,0.6)',
-                  background: 'rgba(5,6,9,0.88)',
+                  border: '2px solid rgba(31,95,67,0.25)',
+                  background: '#FFF8DC',
                   padding: '9px 14px',
-                  color: '#E2E2F0',
+                  color: '#173126',
                   fontSize: 13,
                   fontWeight: 1000,
                   cursor: 'pointer',
@@ -268,10 +268,10 @@ export default function GroupEditorModal({ isOpen, onClose, groups, fatigue, mod
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  border: '2px solid rgba(184,229,50,0.35)',
-                  background: '#B8E532',
+                  border: '2px solid rgba(185,239,63,0.45)',
+                  background: '#B9EF3F',
                   padding: '9px 14px',
-                  color: '#071006',
+                  color: '#173126',
                   fontSize: 13,
                   fontWeight: 1000,
                   cursor: 'pointer',

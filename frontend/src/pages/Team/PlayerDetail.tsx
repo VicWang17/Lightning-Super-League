@@ -50,7 +50,7 @@ const STATUS_NAMES: Record<string, string> = {
 function StatusBadge({ status, current_suspension }: { status: string; current_suspension?: Player['current_suspension'] }) {
   if (status === 'INJURED') {
     return (
-      <span className="text-red-400" title="伤病中，无法出场">
+      <span className="text-[#FF6F59]" title="伤病中，无法出场">
         {STATUS_NAMES[status] || status}
       </span>
     )
@@ -60,14 +60,14 @@ function StatusBadge({ status, current_suspension }: { status: string; current_s
       ? `停赛中，剩余 ${current_suspension.matches_remaining} 场`
       : '停赛中，无法出场'
     return (
-      <span className="text-amber-400" title={detail}>
+      <span className="text-[#C77A00]" title={detail}>
         {STATUS_NAMES[status] || status}
       </span>
     )
   }
   if (status === 'RETIRED') {
     return (
-      <span className="text-gray-500" title="已退役">
+      <span className="text-[#466353]" title="已退役">
         {STATUS_NAMES[status] || status}
       </span>
     )
@@ -561,16 +561,16 @@ function PlayerDetail() {
                         const oppName = isHome ? m.away_team_name : m.home_team_name
                         const resultClass =
                           m.result === 'win'
-                            ? 'text-emerald-400'
+                            ? 'text-[#1F5F43]'
                             : m.result === 'loss'
-                            ? 'text-red-400'
-                            : 'text-amber-400'
+                            ? 'text-[#FF6F59]'
+                            : 'text-[#C77A00]'
                         const resultLabel = m.result === 'win' ? '胜' : m.result === 'loss' ? '负' : '平'
                         return (
                           <tr key={m.fixture_id}>
                             <td>{formatMatchDate(m.match_date)}</td>
                             <td>
-                              <span className="text-xs text-[#707A8A]">{m.competition}</span>
+                              <span className="text-xs text-[#7b927f]">{m.competition}</span>
                             </td>
                             <td>
                               <Link
@@ -604,8 +604,8 @@ function PlayerDetail() {
                             </td>
                             <td>{m.saves > 0 ? m.saves : '-'}</td>
                             <td>
-                              {m.yellow_cards > 0 && <span className="text-amber-400">黄{m.yellow_cards}</span>}
-                              {m.red_cards > 0 && <span className="text-red-400">红{m.red_cards}</span>}
+                              {m.yellow_cards > 0 && <span className="text-[#C77A00]">黄{m.yellow_cards}</span>}
+                              {m.red_cards > 0 && <span className="text-[#FF6F59]">红{m.red_cards}</span>}
                               {m.yellow_cards === 0 && m.red_cards === 0 && '-'}
                             </td>
                           </tr>
@@ -691,7 +691,7 @@ function PlayerDetail() {
 
               {awardsLoading ? (
                 <div className="space-y-2">
-                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-[#1E1E2D] animate-pulse" />)}
+                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-[#FFF8DC]/80 animate-pulse" />)}
                 </div>
               ) : playerAwards.length === 0 ? (
                 <div className="career-empty-note">暂无荣誉</div>
@@ -786,23 +786,23 @@ function PlayerHonorCard({ award }: { award: PlayerAward }) {
 
   return (
     <div className={`flex items-center gap-4 p-3 border transition-all ${
-      isSeasonBest ? 'border-[#C6F135]/30 bg-[#C6F135]/5' : 'border-[#2D2D44] bg-[#0B0D14] hover:border-[#0D7377]/30'
+      isSeasonBest ? 'border-[#B9EF3F]/30 bg-[#B9EF3F]/10' : 'border-[#1F5F43]/20 bg-white/70 hover:border-[#1F5F43]'
     }`}>
       <span className="text-2xl shrink-0">{icon}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={`text-sm font-bold ${isSeasonBest ? 'text-[#C6F135]' : 'text-white'}`}>
+          <span className={`text-sm font-bold ${isSeasonBest ? 'text-[#1F5F43]' : 'text-[#173126]'}`}>
             {label}
           </span>
-          <span className="text-xs text-[#4B4B6A]">
+          <span className="text-xs text-[#8B5A2B]/40">
             第 {award.season_number} 赛季
           </span>
         </div>
         {award.description && (
-          <p className="text-xs text-[#8B8BA7] mt-0.5 truncate">{award.description}</p>
+          <p className="text-xs text-[#466353] mt-0.5 truncate">{award.description}</p>
         )}
         {award.metadata && (
-          <div className="flex flex-wrap gap-2 mt-1 text-xs text-[#8B8BA7]">
+          <div className="flex flex-wrap gap-2 mt-1 text-xs text-[#466353]">
             {award.metadata.rating !== undefined && (
               <span>评分 {award.metadata.rating.toFixed(1)}</span>
             )}

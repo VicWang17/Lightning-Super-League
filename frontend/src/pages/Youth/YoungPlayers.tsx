@@ -35,7 +35,7 @@ export default function YoungPlayers() {
   }, [])
 
   if (loading) {
-    return <div className="max-w-[1400px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return <div className="max-w-[1400px] p-8 text-center text-[#466353]">加载中...</div>
   }
 
   return (
@@ -50,55 +50,55 @@ export default function YoungPlayers() {
       <Card >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">年轻球员列表</h3>
-          <span className="text-xs text-[#4B4B6A]">共 {players.length} 人</span>
+          <span className="text-xs text-[#8B5A2B]/40">共 {players.length} 人</span>
         </div>
 
         {players.length === 0 ? (
-          <p className="text-[#8B8BA7] text-center py-8">暂无年轻球员</p>
+          <p className="text-[#466353] text-center py-8">暂无年轻球员</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b-2 border-[#2D2D44]">
-                  <th className="text-left text-xs text-[#4B4B6A] pb-2 font-medium">球员</th>
-                  <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">位置</th>
-                  <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">年龄</th>
-                  <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">OVR</th>
-                  <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">潜力</th>
-                  <th className="text-right text-xs text-[#4B4B6A] pb-2 font-medium">操作</th>
+                <tr className="border-b-2 border-[#1F5F43]/20">
+                  <th className="text-left text-xs text-[#8B5A2B]/40 pb-2 font-medium">球员</th>
+                  <th className="text-center text-xs text-[#8B5A2B]/40 pb-2 font-medium">位置</th>
+                  <th className="text-center text-xs text-[#8B5A2B]/40 pb-2 font-medium">年龄</th>
+                  <th className="text-center text-xs text-[#8B5A2B]/40 pb-2 font-medium">OVR</th>
+                  <th className="text-center text-xs text-[#8B5A2B]/40 pb-2 font-medium">潜力</th>
+                  <th className="text-right text-xs text-[#8B5A2B]/40 pb-2 font-medium">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {players.map(p => (
-                  <tr key={p.id} className="border-b border-[#2D2D44]/50 hover:bg-[#1E1E2D]/50 transition-colors">
+                  <tr key={p.id} className="border-b border-[#1F5F43]/20 hover:bg-[#FFF8DC]/80 transition-colors">
                     <td className="py-3">
                       <div className="flex items-center gap-2">
                         {p.avatar_url ? (
-                          <img src={`/${p.avatar_url}`} alt={p.name} className="w-8 h-8 object-cover bg-[#1E1E2D]" />
+                          <img src={`/${p.avatar_url}`} alt={p.name} className="w-8 h-8 object-cover bg-[#FFF8DC]/80" />
                         ) : (
-                          <div className="w-8 h-8 bg-[#1E1E2D] border border-[#2D2D44] flex items-center justify-center">
-                            <span className="text-xs font-bold text-[#8B8BA7]">{p.name.charAt(0)}</span>
+                          <div className="w-8 h-8 bg-[#FFF8DC]/80 border border-[#1F5F43]/20 flex items-center justify-center">
+                            <span className="text-xs font-bold text-[#466353]">{p.name.charAt(0)}</span>
                           </div>
                         )}
-                        <p className="text-sm font-medium text-white">{p.name}</p>
+                        <p className="text-sm font-medium text-[#173126]">{p.name}</p>
                       </div>
                     </td>
                     <td className="text-center">
-                      <span className="text-xs px-2 py-0.5 bg-[#2D2D44] text-white">{p.position}</span>
+                      <span className="text-xs px-2 py-0.5 bg-[#F8FFD2] text-[#173126]">{p.position}</span>
                     </td>
-                    <td className="text-center text-sm text-[#E2E2F0]">{p.age}</td>
+                    <td className="text-center text-sm text-[#173126]">{p.age}</td>
                     <td className="text-center text-sm font-bold stat-number">{p.ovr}</td>
                     <td className="text-center">
                       <span className={`text-xs font-bold ${
-                        p.potential_letter === 'S' ? 'text-yellow-400' :
-                        p.potential_letter === 'A' ? 'text-[#0D7377]' :
-                        'text-[#8B8BA7]'
+                        p.potential_letter === 'S' ? 'text-[#C77A00]' :
+                        p.potential_letter === 'A' ? 'text-[#1F5F43]' :
+                        'text-[#466353]'
                       }`}>
                         {p.potential_letter}
                       </span>
                     </td>
                     <td className="text-right">
-                      <Link to={`/players/${p.id}`} className="text-xs text-[#0D7377] hover:text-white transition-colors">
+                      <Link to={`/players/${p.id}`} className="text-xs text-[#1F5F43] hover:text-[#173126] transition-colors">
                         详情 →
                       </Link>
                     </td>

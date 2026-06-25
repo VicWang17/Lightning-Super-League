@@ -41,10 +41,10 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
     }
 
     const statusColors = {
-      online: 'bg-[#4ADE80]',
-      offline: 'bg-[#4B4B6A]',
-      away: 'bg-[#FCD34D]',
-      busy: 'bg-[#EF4444]',
+      online: 'bg-[#B9EF3F]',
+      offline: 'bg-[#8B5A2B]/40',
+      away: 'bg-[#FFC247]',
+      busy: 'bg-[#FF6F59]',
     }
 
     // 生成默认头像（基于名字的首字母）
@@ -60,12 +60,12 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
     // 根据名字生成颜色
     const getColorFromName = (name: string) => {
       const colors = [
-        'bg-[#0D7377]',
-        'bg-[#3B82F6]',
-        'bg-[#8B5CF6]',
-        'bg-[#EC4899]',
-        'bg-[#F97316]',
-        'bg-[#10B981]',
+        'bg-[#1F5F43]',
+        'bg-[#59C7EE]',
+        'bg-[#C77A00]',
+        'bg-[#FF6F59]',
+        'bg-[#FFC247]',
+        'bg-[#1F5F43]',
       ]
       let hash = 0
       for (let i = 0; i < name.length; i++) {
@@ -78,10 +78,10 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
       <div ref={ref} className="relative inline-block" {...props}>
         <div
           className={clsx(
-            'rounded-none overflow-hidden flex items-center justify-center border-2 border-[#2D2D44]',
+            'rounded-none overflow-hidden flex items-center justify-center border-2 border-[#1F5F43]/20',
             sizes[size],
             !src && name && getColorFromName(name),
-            !src && !name && 'bg-[#2D2D44]',
+            !src && !name && 'bg-[#F8FFD2]',
             className
           )}
         >
@@ -98,10 +98,10 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
           ) : fallback ? (
             fallback
           ) : name ? (
-            <span className="font-medium text-white">{getInitials(name)}</span>
+            <span className="font-medium text-[#173126]">{getInitials(name)}</span>
           ) : (
             <svg
-              className="w-1/2 h-1/2 text-[#8B8BA7]"
+              className="w-1/2 h-1/2 text-[#466353]"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -116,7 +116,7 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
         {status && (
           <span
             className={clsx(
-              'absolute bottom-0 right-0 rounded-none border-2 border-[#0A0A0F]',
+              'absolute bottom-0 right-0 rounded-none border-2 border-[#FFF8DC]',
               statusSizes[size],
               statusColors[status]
             )}

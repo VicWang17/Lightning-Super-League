@@ -32,9 +32,9 @@ const NAME_SIZES = {
 export function AwardCard({ award, size = 'md', showMetadata = true }: AwardCardProps) {
   if (!award) {
     return (
-      <div className={`bg-[#0B0D14] border-2 border-[#2D2D44]/40 flex flex-col items-center justify-center ${SIZE_CLASSES[size]}`}>
+      <div className={`bg-white/70 border-2 border-[#1F5F43]/20 flex flex-col items-center justify-center ${SIZE_CLASSES[size]}`}>
         <span className={`${ICON_SIZES[size]} opacity-30 grayscale`}>🏆</span>
-        <span className="text-xs text-[#4B4B6A]">待定</span>
+        <span className="text-xs text-[#8B5A2B]/40">待定</span>
       </div>
     )
   }
@@ -45,14 +45,14 @@ export function AwardCard({ award, size = 'md', showMetadata = true }: AwardCard
 
   return (
     <div
-      className={`relative bg-[#0B0D14] border-2 ${
-        isMVP ? 'border-[#C6F135]/40' : 'border-[#2D2D44]'
-      } hover:border-[#0D7377]/60 transition-all overflow-hidden group ${SIZE_CLASSES[size]}`}
+      className={`relative bg-white/70 border-2 ${
+        isMVP ? 'border-[#B9EF3F]/40' : 'border-[#1F5F43]/20'
+      } hover:border-[#1F5F43] transition-all overflow-hidden group ${SIZE_CLASSES[size]}`}
     >
       {/* 背景装饰 */}
-      <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_50%_0%,_#C6F135,_transparent_70%)]" />
+      <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_50%_0%,_#B9EF3F,_transparent_70%)]" />
       {isMVP && (
-        <div className="absolute top-0 left-0 right-0 h-px bg-[linear-gradient(90deg,transparent,#C6F135,transparent)]" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-[linear-gradient(90deg,transparent,#B9EF3F,transparent)]" />
       )}
 
       <div className="relative flex flex-col items-center text-center h-full">
@@ -60,23 +60,23 @@ export function AwardCard({ award, size = 'md', showMetadata = true }: AwardCard
           {icon}
         </span>
 
-        <h4 className={`font-bold text-white mb-1 ${size === 'xl' ? 'text-lg' : size === 'lg' ? 'text-base' : 'text-sm'}`}>
+        <h4 className={`font-bold text-[#173126] mb-1 ${size === 'xl' ? 'text-lg' : size === 'lg' ? 'text-base' : 'text-sm'}`}>
           {label}
         </h4>
 
         {award.player_name ? (
           <Link
             to={`/players/${award.player_id}`}
-            className={`${NAME_SIZES[size]} text-[#C6F135] hover:underline font-medium`}
+            className={`${NAME_SIZES[size]} text-[#1F5F43] hover:underline font-medium`}
           >
             {award.player_name}
           </Link>
         ) : (
-          <span className="text-sm text-[#8B8BA7]">—</span>
+          <span className="text-sm text-[#466353]">—</span>
         )}
 
         {showMetadata && award.metadata && (
-          <div className="mt-2 text-xs text-[#8B8BA7] space-y-0.5">
+          <div className="mt-2 text-xs text-[#466353] space-y-0.5">
             {award.metadata.rating !== undefined && (
               <span>评分 {award.metadata.rating.toFixed(1)}</span>
             )}

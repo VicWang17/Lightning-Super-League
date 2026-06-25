@@ -130,7 +130,7 @@ export default function TrainingPickerModal({
               style={{
                 width: '100%',
                 border: '2px solid var(--tr-border)',
-                background: 'rgba(5,6,9,0.86)',
+                background: 'rgba(255,255,255,0.86)',
                 padding: '9px 10px',
                 color: 'var(--tr-text)',
                 fontSize: 13,
@@ -189,7 +189,7 @@ export default function TrainingPickerModal({
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <strong style={{ fontSize: 14, color: 'var(--tr-text)', fontWeight: 1000 }}>{item.name}</strong>
                       {hasConflict && (
-                        <span style={{ color: '#D75A4A', fontSize: 11, fontWeight: 1000 }}>⚠ 高疲劳冲突</span>
+                        <span style={{ color: '#FF6F59', fontSize: 11, fontWeight: 1000 }}>⚠ 高疲劳冲突</span>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
@@ -201,7 +201,7 @@ export default function TrainingPickerModal({
                       </span>
                     </div>
                   </div>
-                  <span style={{ fontSize: 11, color: item.fatigue_delta > 0 ? '#D75A4A' : '#9ECF45', fontWeight: 900, whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 11, color: item.fatigue_delta > 0 ? '#FF6F59' : '#B9EF3F', fontWeight: 900, whiteSpace: 'nowrap' }}>
                     疲劳 {item.fatigue_delta > 0 ? '+' : ''}{item.fatigue_delta}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--tr-muted)', fontWeight: 900, whiteSpace: 'nowrap', fontFamily: 'Roboto Mono, monospace' }}>
@@ -214,7 +214,7 @@ export default function TrainingPickerModal({
         </div>
 
         {/* 右侧：悬浮预览 */}
-        <div style={{ border: '2px solid var(--tr-border)', background: 'rgba(5,6,9,0.9)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ border: '2px solid var(--tr-border)', background: 'rgba(255,255,255,0.92)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {previewItem ? (
             <>
               <div className={`training-focus-card tone-${getCategoryTone(previewItem.category)}`} style={{ marginBottom: 0 }}>
@@ -242,13 +242,13 @@ export default function TrainingPickerModal({
                 </div>
                 <div>
                   <span>疲劳变化</span>
-                  <strong style={{ color: previewItem.fatigue_delta > 0 ? '#D75A4A' : '#9ECF45' }}>
+                  <strong style={{ color: previewItem.fatigue_delta > 0 ? '#FF6F59' : '#B9EF3F' }}>
                     {previewItem.fatigue_delta > 0 ? '+' : ''}{previewItem.fatigue_delta}
                   </strong>
                 </div>
                 <div>
                   <span>体能变化</span>
-                  <strong style={{ color: previewItem.fitness_delta < 0 ? '#D75A4A' : '#9ECF45' }}>
+                  <strong style={{ color: previewItem.fitness_delta < 0 ? '#FF6F59' : '#B9EF3F' }}>
                     {previewItem.fitness_delta > 0 ? '+' : ''}{previewItem.fitness_delta}
                   </strong>
                 </div>

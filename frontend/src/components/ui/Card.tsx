@@ -19,15 +19,15 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     },
     ref
   ) => {
-    const baseStyles = 'transition-all duration-200'
+    const baseStyles = 'fresh-card transition-all duration-200'
 
     const variants = {
       glass:
-        'bg-surface-glass backdrop-blur-sm border-2 border-glass-border shadow-pixel',
+        'bg-white/75 backdrop-blur-sm border-2 border-[#1F5F43]/25 shadow-pixel',
       solid:
-        'pixel-card-frame border-2 border-[#14532D]',
+        'pixel-card-frame border-2 border-[#1F5F43] bg-white/85',
       outlined:
-        'bg-transparent border-2 border-border',
+        'bg-white/45 border-2 border-[#1F5F43]/35',
     }
 
     const paddings = {
@@ -38,7 +38,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     }
 
     const hoverStyles = hover
-      ? 'pixel-card-interactive hover:border-accent-secondary/60'
+      ? 'pixel-card-interactive hover:border-[#1F5F43]'
       : ''
 
     return (
@@ -81,12 +81,12 @@ const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
       >
         <div className="flex-1">
           {title && (
-            <h3 className="text-lg font-semibold text-text-primary">
+            <h3 className="text-lg font-black text-[#173126]">
               {title}
             </h3>
           )}
           {subtitle && (
-            <p className="text-sm text-text-secondary mt-1">{subtitle}</p>
+            <p className="text-sm font-semibold text-[#466353] mt-1">{subtitle}</p>
           )}
           {children}
         </div>
@@ -131,7 +131,7 @@ const CardFooter = forwardRef<HTMLDivElement, CardFooterProps>(
       <div
         ref={ref}
         className={clsx(
-          'flex items-center mt-4 pt-4 border-t-2 border-border',
+          'flex items-center mt-4 pt-4 border-t-2 border-[#1F5F43]/20',
           alignStyles[align],
           className
         )}

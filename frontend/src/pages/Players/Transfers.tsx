@@ -17,14 +17,14 @@ const TRANSFER_TYPE_NAMES: Record<string, string> = {
 }
 
 const TRANSFER_TYPE_COLORS: Record<string, string> = {
-  CLUB_TRANSFER: 'text-[#0D7377]',
-  TRANSFER: 'text-[#0D7377]',
-  club_transfer: 'text-[#0D7377]',
-  RELEASE: 'text-red-400',
-  release: 'text-red-400',
-  FREE_MARKET_SIGNING: 'text-emerald-400',
-  FREE_AGENT: 'text-emerald-400',
-  free_market_signing: 'text-emerald-400',
+  CLUB_TRANSFER: 'text-[#1F5F43]',
+  TRANSFER: 'text-[#1F5F43]',
+  club_transfer: 'text-[#1F5F43]',
+  RELEASE: 'text-[#FF6F59]',
+  release: 'text-[#FF6F59]',
+  FREE_MARKET_SIGNING: 'text-[#1F5F43]',
+  FREE_AGENT: 'text-[#1F5F43]',
+  free_market_signing: 'text-[#1F5F43]',
 }
 
 function PlayerTransfers() {
@@ -45,14 +45,14 @@ function PlayerTransfers() {
   }, [id])
 
   if (loading) {
-    return <div className="max-w-[1200px] p-8 text-center text-[#8B8BA7]">加载中...</div>
+    return <div className="max-w-[1200px] p-8 text-center text-[#466353]">加载中...</div>
   }
 
   return (
     <div className="max-w-[1200px]">
       <Link
         to={`/players/${id}`}
-        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="text-sm text-[#466353] hover:text-[#173126] transition-colors mb-4"
       >
         返回球员档案
       </Link>
@@ -65,38 +65,38 @@ function PlayerTransfers() {
         </h3>
 
         {records.length === 0 ? (
-          <p className="text-[#8B8BA7] text-center py-8">暂无转会记录</p>
+          <p className="text-[#466353] text-center py-8">暂无转会记录</p>
         ) : (
           <div className="space-y-3">
             {records.map((record) => (
               <div
                 key={record.record_id}
-                className="flex flex-col md:flex-row md:items-center gap-4 p-4 bg-[#1E1E2D] border border-[#2D2D44]"
+                className="flex flex-col md:flex-row md:items-center gap-4 p-4 bg-[#FFF8DC]/80 border border-[#1F5F43]/20"
               >
                 <div className="flex items-center gap-3 md:w-48">
-                  <span className={`text-sm font-medium ${TRANSFER_TYPE_COLORS[record.transfer_type] || 'text-white'}`}>
+                  <span className={`text-sm font-medium ${TRANSFER_TYPE_COLORS[record.transfer_type] || 'text-[#173126]'}`}>
                     {TRANSFER_TYPE_NAMES[record.transfer_type] || record.transfer_type}
                   </span>
                 </div>
 
                 <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[#8B8BA7]">来自</span>
+                    <span className="text-[#466353]">来自</span>
                     <Link
                       to={record.from_team_id ? `/teams/${record.from_team_id}` : '#'}
-                      className={record.from_team_id ? 'text-[#0D7377] hover:text-[#C6F135] transition-colors' : 'text-[#8B8BA7]'}
+                      className={record.from_team_id ? 'text-[#1F5F43] hover:text-[#1F5F43] transition-colors' : 'text-[#466353]'}
                     >
                       {record.from_team_id ? '球队' : '无'}
                     </Link>
                   </div>
 
-                  <div className="text-sm text-[#8B8BA7]">→</div>
+                  <div className="text-sm text-[#466353]">→</div>
 
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[#8B8BA7]">前往</span>
+                    <span className="text-[#466353]">前往</span>
                     <Link
                       to={record.to_team_id ? `/teams/${record.to_team_id}` : '#'}
-                      className={record.to_team_id ? 'text-[#0D7377] hover:text-[#C6F135] transition-colors' : 'text-[#8B8BA7]'}
+                      className={record.to_team_id ? 'text-[#1F5F43] hover:text-[#1F5F43] transition-colors' : 'text-[#466353]'}
                     >
                       {record.to_team_id ? '球队' : '无'}
                     </Link>
@@ -105,11 +105,11 @@ function PlayerTransfers() {
 
                 <div className="flex items-center gap-4 md:justify-end">
                   <div className="text-sm">
-                    <span className="font-bold stat-number pixel-number text-white">
+                    <span className="font-bold stat-number pixel-number text-[#173126]">
                       €{(record.amount / 1000000).toFixed(1)}M
                     </span>
                   </div>
-                  <div className="text-xs text-[#8B8BA7]">
+                  <div className="text-xs text-[#466353]">
                     {new Date(record.completed_at).toLocaleDateString('zh-CN')}
                   </div>
                 </div>

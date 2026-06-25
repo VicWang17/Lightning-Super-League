@@ -63,19 +63,19 @@ function FixtureRow({
 
  return (
  <div
-   className="grid grid-cols-[48px_1fr_48px_1fr] items-center gap-1 px-2 py-1 hover:bg-[#1E1E2D]/50 transition-colors cursor-pointer"
+   className="grid grid-cols-[48px_1fr_48px_1fr] items-center gap-1 px-2 py-1 hover:bg-[#FFF8DC]/80 transition-colors cursor-pointer"
    onClick={() => navigate(`/match/${fixture.id}`)}
  >
-   <div className="text-[10px] text-[#8B8BA7] leading-tight text-center">
+   <div className="text-[10px] text-[#466353] leading-tight text-center">
      <div>{formatCompactDate(date)}</div>
      <div>{fixture.type === 'league' ? `${fixture.round}轮` : '杯'}</div>
    </div>
 
-   <div className={`text-right truncate text-xs font-bold ${winner === 'home' ? 'text-[#C6F135]' : 'text-white'}`}>
+   <div className={`text-right truncate text-xs font-bold ${winner === 'home' ? 'text-[#1F5F43]' : 'text-[#173126]'}`}>
      <Link
        to={`/teams/${homeTeamId}`}
        onClick={(e) => e.stopPropagation()}
-       className="hover:text-[#C6F135] transition-colors"
+       className="hover:text-[#1F5F43] transition-colors"
      >
        {homeTeamName || '未知'}
      </Link>
@@ -83,19 +83,19 @@ function FixtureRow({
 
    <div className="text-center">
      {fixture.status === 'scheduled' ? (
-       <span className="text-[10px] font-black pixel-number text-[#4B4B6A]">VS</span>
+       <span className="text-[10px] font-black pixel-number text-[#8B5A2B]/40">VS</span>
      ) : (
-       <span className={`text-xs font-black stat-number ${isLive ? 'text-red-400' : 'text-white'}`}>
+       <span className={`text-xs font-black stat-number ${isLive ? 'text-[#FF6F59]' : 'text-[#173126]'}`}>
          {fixture.home_score ?? '-'}:{fixture.away_score ?? '-'}
        </span>
      )}
    </div>
 
-   <div className={`text-left truncate text-xs font-bold ${winner === 'away' ? 'text-[#C6F135]' : 'text-white'}`}>
+   <div className={`text-left truncate text-xs font-bold ${winner === 'away' ? 'text-[#1F5F43]' : 'text-[#173126]'}`}>
      <Link
        to={`/teams/${awayTeamId}`}
        onClick={(e) => e.stopPropagation()}
-       className="hover:text-[#C6F135] transition-colors"
+       className="hover:text-[#1F5F43] transition-colors"
      >
        {awayTeamName || '未知'}
      </Link>
@@ -220,13 +220,13 @@ function Schedule() {
  if (loading) {
  return (
  <div className="max-w-[1200px]">
- <div className="h-8 w-48 bg-[#1E1E2D] animate-pulse mb-4" />
+ <div className="h-8 w-48 bg-[#FFF8DC]/80 animate-pulse mb-4" />
  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
  {[1, 2, 3, 4].map(i => (
- <div key={i} className="h-24 bg-[#1E1E2D] animate-pulse" />
+ <div key={i} className="h-24 bg-[#FFF8DC]/80 animate-pulse" />
  ))}
  </div>
- <div className="h-96 bg-[#1E1E2D] animate-pulse" />
+ <div className="h-96 bg-[#FFF8DC]/80 animate-pulse" />
  </div>
  )
  }
@@ -234,8 +234,8 @@ function Schedule() {
  if (error) {
  return (
  <div className="max-w-[1200px] text-center py-20">
- <h2 className="text-xl font-bold text-white mb-2">加载失败</h2>
- <p className="text-[#8B8BA7] mb-6">{error}</p>
+ <h2 className="text-xl font-bold text-[#173126] mb-2">加载失败</h2>
+ <p className="text-[#466353] mb-6">{error}</p>
  <button onClick={() => navigate(-1)} className="btn-primary inline-flex items-center gap-2">
  返回上一页
  </button>
@@ -246,8 +246,8 @@ function Schedule() {
  if (!team) {
  return (
  <div className="max-w-[1200px] text-center py-20">
- <h2 className="text-xl font-bold text-white mb-2">暂无球队</h2>
- <p className="text-[#8B8BA7] mb-6">您还没有创建或加入球队</p>
+ <h2 className="text-xl font-bold text-[#173126] mb-2">暂无球队</h2>
+ <p className="text-[#466353] mb-6">您还没有创建或加入球队</p>
  <button onClick={() => navigate(-1)} className="btn-primary inline-flex items-center gap-2">
  返回上一页
  </button>
@@ -260,7 +260,7 @@ function Schedule() {
  {/* 返回按钮 */}
  <button 
  onClick={() => navigate(-1)}
- className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+ className="text-sm text-[#466353] hover:text-[#173126] transition-colors mb-4"
  >
  返回上一页
  </button>
@@ -271,7 +271,7 @@ function Schedule() {
  action={
  displayStatus ? (
  <div className="text-right hidden md:block">
- <p className="text-sm text-[#0D7377]">{displayStatus.display_text}</p>
+ <p className="text-sm text-[#1F5F43]">{displayStatus.display_text}</p>
  </div>
  ) : undefined
  }
@@ -279,37 +279,37 @@ function Schedule() {
  
  {/* 统计卡片 */}
  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
- <div className="card p-4 border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
+ <div className="card p-4 border-2 border-[#1F5F43]/20 hover:-translate-y-1 transition-all">
  <div className="mb-2">
- <span className="text-xs text-[#8B8BA7]">已赛场次</span>
+ <span className="text-xs text-[#466353]">已赛场次</span>
  </div>
- <p className="text-2xl font-bold pixel-number text-white">{stats.played}</p>
+ <p className="text-2xl font-bold pixel-number text-[#173126]">{stats.played}</p>
  </div>
  
- <div className="card p-4 border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
+ <div className="card p-4 border-2 border-[#1F5F43]/20 hover:-translate-y-1 transition-all">
  <div className="mb-2">
- <span className="text-xs text-[#8B8BA7]">战绩</span>
+ <span className="text-xs text-[#466353]">战绩</span>
  </div>
- <p className="text-2xl font-bold pixel-number text-white">
+ <p className="text-2xl font-bold pixel-number text-[#173126]">
  {stats.wins}-{stats.draws}-{stats.losses}
  </p>
  </div>
  
- <div className="card p-4 border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
+ <div className="card p-4 border-2 border-[#1F5F43]/20 hover:-translate-y-1 transition-all">
  <div className="mb-2">
- <span className="text-xs text-[#8B8BA7]">胜率</span>
+ <span className="text-xs text-[#466353]">胜率</span>
  </div>
- <p className="text-2xl font-bold pixel-number text-white">
+ <p className="text-2xl font-bold pixel-number text-[#173126]">
  {stats.played > 0 ? Math.round((stats.wins / stats.played) * 100) : 0}%
  </p>
  </div>
  
- <div className="card p-4 border-2 border-[#2D2D44] hover:-translate-y-1 transition-all">
+ <div className="card p-4 border-2 border-[#1F5F43]/20 hover:-translate-y-1 transition-all">
  <div className="mb-2">
- <span className="text-xs text-[#8B8BA7]">净胜球</span>
+ <span className="text-xs text-[#466353]">净胜球</span>
  </div>
  <p className={`text-2xl font-bold pixel-number ${
- stats.goalsFor - stats.goalsAgainst >= 0 ? 'text-emerald-400' : 'text-red-400'
+ stats.goalsFor - stats.goalsAgainst >= 0 ? 'text-[#1F5F43]' : 'text-[#FF6F59]'
  }`}>
  {stats.goalsFor - stats.goalsAgainst >= 0 ? '+' : ''}
  {stats.goalsFor - stats.goalsAgainst}
@@ -320,23 +320,23 @@ function Schedule() {
  {/* 赛程列表 - 紧凑平铺 */}
  <div>
  <div className="flex items-center justify-between mb-3">
- <h3 className="text-lg font-semibold text-white">全部赛程</h3>
- <span className="text-xs text-[#8B8BA7]">{schedule.reduce((sum, d) => sum + d.teamFixtures.length, 0)} 场</span>
+ <h3 className="text-lg font-semibold text-[#173126]">全部赛程</h3>
+ <span className="text-xs text-[#466353]">{schedule.reduce((sum, d) => sum + d.teamFixtures.length, 0)} 场</span>
  </div>
  
  {schedule.length === 0 ? (
  <div className="text-center py-12">
- <p className="text-[#8B8BA7]">暂无赛程数据</p>
+ <p className="text-[#466353]">暂无赛程数据</p>
  </div>
  ) : (
- <section className="border-2 border-[#2D2D44] bg-[#0B0D14] shadow-pixel-sm overflow-hidden">
- <div className="grid grid-cols-[48px_1fr_48px_1fr] gap-1 px-2 py-1.5 text-[10px] text-[#8B8BA7] border-b border-[#2D2D44] bg-[#12121A]">
+ <section className="border-2 border-[#1F5F43]/20 bg-white/70 shadow-pixel-sm overflow-hidden">
+ <div className="grid grid-cols-[48px_1fr_48px_1fr] gap-1 px-2 py-1.5 text-[10px] text-[#466353] border-b border-[#1F5F43]/20 bg-[#FFF8DC]/80">
  <span className="text-center">日期</span>
  <span className="text-right">主队</span>
  <span></span>
  <span className="text-left">客队</span>
  </div>
- <div className="divide-y divide-[#2D2D44]">
+ <div className="divide-y divide-[#1F5F43]/20">
  {schedule.flatMap(day =>
  day.teamFixtures.map(fixture => (
  <FixtureRow

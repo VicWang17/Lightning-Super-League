@@ -29,11 +29,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`
 
     const baseStyles =
-      'block w-full border-2 bg-[#0A0A0F] text-[#E2E2F0] placeholder-[#4B4B6A] transition-all duration-200 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed'
+      'fresh-input block w-full border-2 bg-white/85 text-[#173126] placeholder-[#7B927F] transition-all duration-200 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed'
 
     const stateStyles = error
-      ? 'border-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]/20'
-      : 'border-[#2D2D44] focus:border-[#0D7377] focus:ring-[#0D7377]/20'
+      ? 'border-[#FF6F59] focus:border-[#FF6F59] focus:ring-[#FF6F59]/20'
+      : 'border-[#1F5F43]/45 focus:border-[#1F5F43] focus:ring-[#59C7EE]/25'
 
     const sizeStyles = leftIcon || rightIcon ? 'py-2.5' : 'py-2.5'
     const iconPadding = {
@@ -46,14 +46,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-[#E2E2F0] mb-2"
+            className="block text-sm font-black text-[#173126] mb-2"
           >
             {label}
           </label>
         )}
         <div className="relative">
           {leftIcon && (
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#8B8BA7]">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#466353]">
               {leftIcon}
             </div>
           )}
@@ -72,16 +72,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {rightIcon && (
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#8B8BA7]">
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#466353]">
               {rightIcon}
             </div>
           )}
         </div>
         {error && (
-          <p className="mt-1.5 text-sm text-[#EF4444]">{error}</p>
+          <p className="mt-1.5 text-sm font-semibold text-[#FF6F59]">{error}</p>
         )}
         {!error && helperText && (
-          <p className="mt-1.5 text-sm text-[#8B8BA7]">{helperText}</p>
+          <p className="mt-1.5 text-sm font-semibold text-[#466353]">{helperText}</p>
         )}
       </div>
     )

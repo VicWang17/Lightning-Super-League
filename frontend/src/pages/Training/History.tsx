@@ -5,12 +5,12 @@ import { Card } from '../../components/ui/Card'
 import { TrainingPageShell } from './components/TrainingPageShell'
 
 const categoryColors: Record<string, string> = {
-  '战术': 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-  '技术': 'text-red-400 bg-red-500/10 border-red-500/30',
-  '恢复': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-  'tactic': 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-  'technical': 'text-red-400 bg-red-500/10 border-red-500/30',
-  'recovery': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+  '战术': 'text-[#1F5F43] bg-[#59C7EE]/15 border-[#59C7EE]/40',
+  '技术': 'text-[#173126] bg-[#FF6F59]/12 border-[#FF6F59]/40',
+  '恢复': 'text-[#173126] bg-[#B9EF3F]/20 border-[#B9EF3F]/60',
+  'tactic': 'text-[#1F5F43] bg-[#59C7EE]/15 border-[#59C7EE]/40',
+  'technical': 'text-[#173126] bg-[#FF6F59]/12 border-[#FF6F59]/40',
+  'recovery': 'text-[#173126] bg-[#B9EF3F]/20 border-[#B9EF3F]/60',
 }
 
 interface AggregatedResult {
@@ -98,7 +98,7 @@ export default function TrainingHistory() {
   if (loading) {
     return (
       <TrainingPageShell title="训练执行统计" subtitle="训练执行统计与效果分析">
-        <div className="p-8 text-center text-[#8B8BA7]">加载中...</div>
+        <div className="p-8 text-center text-[#466353]">加载中...</div>
       </TrainingPageShell>
     )
   }
@@ -109,27 +109,27 @@ export default function TrainingHistory() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm text-[#8B8BA7]">总训练人次</span>
+            <span className="text-sm text-[#466353]">总训练人次</span>
           </div>
-          <p className="text-2xl font-bold text-white">{totalSessions} 次</p>
+          <p className="text-2xl font-bold text-[#173126]">{totalSessions} 次</p>
         </Card>
         <Card>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm text-[#8B8BA7]">技术训练</span>
+            <span className="text-sm text-[#466353]">技术训练</span>
           </div>
-          <p className="text-2xl font-bold text-white">{techCount} 次</p>
+          <p className="text-2xl font-bold text-[#173126]">{techCount} 次</p>
         </Card>
         <Card>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm text-[#8B8BA7]">战术训练</span>
+            <span className="text-sm text-[#466353]">战术训练</span>
           </div>
-          <p className="text-2xl font-bold text-white">{tacticCount} 次</p>
+          <p className="text-2xl font-bold text-[#173126]">{tacticCount} 次</p>
         </Card>
         <Card>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm text-[#8B8BA7]">属性突破</span>
+            <span className="text-sm text-[#466353]">属性突破</span>
           </div>
-          <p className="text-2xl font-bold text-white">{totalBreakthroughs} 次</p>
+          <p className="text-2xl font-bold text-[#173126]">{totalBreakthroughs} 次</p>
         </Card>
       </div>
 
@@ -140,8 +140,8 @@ export default function TrainingHistory() {
             onClick={() => setFilter(c)}
             className={`px-4 py-2 border-2 text-sm font-medium transition-all duration-200 ${
               filter === c
-                ? 'bg-[#0D7377] border-[#0A5A5D] text-white shadow-pixel-green'
-                : 'bg-[#0A0A0F] border-[#2D2D44] text-[#8B8BA7] hover:border-[#0D7377]/50 hover:text-white'
+                ? 'bg-[#1F5F43] border-[#173126] text-[#F8FFD2] shadow-pixel'
+                : 'bg-[#FFF8DC] border-[#1F5F43]/20 text-[#466353] hover:border-[#1F5F43] hover:text-[#173126]'
             }`}
           >
             {c}
@@ -152,27 +152,27 @@ export default function TrainingHistory() {
       <Card >
         <h3 className="text-lg font-semibold mb-4">训练执行统计</h3>
         {filtered.length === 0 ? (
-          <p className="text-[#8B8BA7] text-center py-8">暂无训练记录</p>
+          <p className="text-[#466353] text-center py-8">暂无训练记录</p>
         ) : (
           <div className="space-y-3">
             {filtered.map(r => {
               return (
-                <div key={r.training_item_id} className="flex items-center gap-4 bg-[#0A0A0F] border border-[#2D2D44] p-4">
+                <div key={r.training_item_id} className="flex items-center gap-4 bg-white/70 border border-[#1F5F43]/20 p-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-white font-medium">{r.training_item_name}</p>
+                      <p className="text-sm text-[#173126] font-medium">{r.training_item_name}</p>
                       <span className={`text-[10px] px-1.5 py-0.5 border ${categoryColors[r.category]}`}>
                         {r.category}
                       </span>
                     </div>
-                    <p className="text-xs text-[#6B6B8A] mt-1">
+                    <p className="text-xs text-[#7b927f] mt-1">
                       体能{r.totalFitnessDelta > 0 ? '+' : ''}{r.totalFitnessDelta} ·
                       疲劳{r.totalFatigueDelta > 0 ? '+' : ''}{r.totalFatigueDelta} ·
                       突破 {r.totalBreakthroughs} 次
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-lg font-bold text-white">{r.count} 次</p>
+                    <p className="text-lg font-bold text-[#173126]">{r.count} 次</p>
                   </div>
                 </div>
               )
@@ -185,12 +185,12 @@ export default function TrainingHistory() {
       <Card >
         <h3 className="text-lg font-semibold mb-4">最近训练明细</h3>
         {results.length === 0 ? (
-          <p className="text-[#8B8BA7] text-center py-8">暂无训练明细</p>
+          <p className="text-[#466353] text-center py-8">暂无训练明细</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b-2 border-[#2D2D44] text-[#8B8BA7]">
+                <tr className="border-b-2 border-[#1F5F43]/20 text-[#466353]">
                   <th className="text-left py-3 px-2">球员</th>
                   <th className="text-left py-3 px-2">训练项目</th>
                   <th className="text-center py-3 px-2">第几天</th>
@@ -202,22 +202,22 @@ export default function TrainingHistory() {
               </thead>
               <tbody>
                 {results.slice(0, 50).map(r => (
-                  <tr key={r.id} className="border-b border-[#2D2D44]/50 hover:bg-[#1E1E2D]/50 transition-colors">
-                    <td className="py-3 px-2 text-white">{r.player_name || r.player_id}</td>
-                    <td className="py-3 px-2 text-[#8B8BA7]">{r.training_item_name || r.training_item_id}</td>
+                  <tr key={r.id} className="border-b border-[#1F5F43]/10 hover:bg-[#FFF8DC]/60 transition-colors">
+                    <td className="py-3 px-2 text-[#173126]">{r.player_name || r.player_id}</td>
+                    <td className="py-3 px-2 text-[#466353]">{r.training_item_name || r.training_item_id}</td>
                     <td className="py-3 px-2 text-center">{r.season_day}</td>
-                    <td className="py-3 px-2 text-center text-[#8B8BA7]">{r.slot}</td>
+                    <td className="py-3 px-2 text-center text-[#466353]">{r.slot}</td>
                     <td className="py-3 px-2 text-center">
-                      <span className={r.fitness_after > r.fitness_before ? 'text-emerald-400' : 'text-red-400'}>
+                      <span className={r.fitness_after > r.fitness_before ? 'text-[#1F5F43]' : 'text-[#FF6F59]'}>
                         {r.fitness_after > r.fitness_before ? '+' : ''}{r.fitness_after - r.fitness_before}
                       </span>
                     </td>
                     <td className="py-3 px-2 text-center">
-                      <span className={r.fatigue_after > r.fatigue_before ? 'text-red-400' : 'text-emerald-400'}>
+                      <span className={r.fatigue_after > r.fatigue_before ? 'text-[#FF6F59]' : 'text-[#1F5F43]'}>
                         {r.fatigue_after > r.fatigue_before ? '+' : ''}{r.fatigue_after - r.fatigue_before}
                       </span>
                     </td>
-                    <td className="py-3 px-2 text-center text-amber-400">{r.efficiency}%</td>
+                    <td className="py-3 px-2 text-center text-[#C77A00]">{r.efficiency}%</td>
                   </tr>
                 ))}
               </tbody>

@@ -54,7 +54,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4 sm:px-6 lg:px-8">
+    <div className="fresh-auth-shell min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         {/* Logo */}
         <motion.div
@@ -70,7 +70,7 @@ export default function Login() {
               className="h-14 w-auto object-contain"
             />
           </Link>
-          <p className="mt-4 text-[#8B8BA7]">登录你的足球经理账号</p>
+          <p className="mt-4 font-bold text-[#466353]">登录你的足球经理账号</p>
         </motion.div>
 
         {/* Login Form */}
@@ -78,15 +78,15 @@ export default function Login() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-[#12121A] border-2 border-[#2D2D44] p-8 shadow-pixel-lg hover:-translate-x-0.5 hover:-translate-y-0.5 transition-transform"
+          className="fresh-auth-card p-8 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-transform"
         >
           {error && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mb-6 p-4 bg-[#EF4444]/10 border-2 border-[#EF4444]/30"
+              className="mb-6 p-4 bg-[#FF6F59]/15 border-2 border-[#FF6F59]/45"
             >
-              <p className="text-sm text-[#EF4444]">{error}</p>
+              <p className="text-sm font-bold text-[#FF6F59]">{error}</p>
             </motion.div>
           )}
 
@@ -116,7 +116,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-[#8B8BA7] hover:text-[#E2E2F0] transition-colors"
+                  className="text-[#466353] hover:text-[#173126] transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -130,15 +130,15 @@ export default function Login() {
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 border-2 border-[#2D2D44] bg-[#0A0A0F] text-[#0D7377] focus:ring-[#0D7377]/20"
+                  className="w-4 h-4 border-2 border-[#1F5F43] bg-white text-[#59C7EE] focus:ring-[#59C7EE]/20"
                 />
-                <span className="text-[#8B8BA7] group-hover:text-[#E2E2F0] transition-colors">
+                <span className="font-semibold text-[#466353] group-hover:text-[#173126] transition-colors">
                   记住我
                 </span>
               </label>
               <Link
                 to="#"
-                className="text-[#0D7377] hover:text-[#0D7377] transition-colors"
+                className="font-bold text-[#1F5F43] hover:text-[#1F5F43] transition-colors"
               >
                 忘记密码？
               </Link>
@@ -156,11 +156,11 @@ export default function Login() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-[#8B8BA7]">
+            <p className="font-semibold text-[#466353]">
               还没有账号？{' '}
               <Link
                 to="/register"
-                className="text-[#0D7377] hover:text-[#0D7377] font-medium transition-colors"
+                className="text-[#1F5F43] hover:text-[#1F5F43] font-black transition-colors"
               >
                 立即注册
               </Link>
@@ -177,7 +177,7 @@ export default function Login() {
         >
           <button
             onClick={() => navigate(-1)}
-            className="text-sm text-[#4B4B6A] hover:text-[#8B8BA7] transition-colors"
+            className="text-sm font-bold text-[#466353] hover:text-[#173126] transition-colors"
           >
             ← 返回上一页
           </button>
@@ -188,10 +188,10 @@ export default function Login() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="mt-6 p-4 bg-[#0D7377]/10 border-2 border-[#0D7377]/30"
+          className="mt-6 p-4 bg-white/70 border-2 border-[#1F5F43]/30 shadow-[4px_4px_0_rgba(31,95,67,0.12)]"
         >
-          <p className="text-xs text-[#8B8BA7] text-center">
-            <span className="text-[#0D7377] font-medium">测试账号：</span>
+          <p className="text-xs font-semibold text-[#466353] text-center">
+            <span className="text-[#1F5F43] font-black">测试账号：</span>
             <br />
             邮箱: ai_east_l1_1_001@lightning.dev
             <br />

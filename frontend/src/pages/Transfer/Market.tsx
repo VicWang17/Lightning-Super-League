@@ -1,13 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { X } from 'lucide-react'
-import {
-  Eye,
-  ChevronLeft,
-  ChevronRight,
-} from '../../components/ui/pixel-icons'
+import { clsx } from 'clsx'
+import { Eye, ChevronLeft, ChevronRight, Search } from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { Modal } from '../../components/ui/Modal'
+import Button from '../../components/ui/Button'
 import api from '../../api/client'
 import type { MarketPlayer } from '../../types/transfer'
 import { POSITION_COLORS } from '../../types/player'
@@ -38,6 +36,18 @@ interface Filters {
   search: string
 }
 
+const potentialTone: Record<string, string> = {
+  S: 'tone-lime',
+  A: 'tone-sky',
+  B: 'tone-amber',
+  C: 'tone-coral',
+  D: 'tone-coral',
+}
+
+function formatMoney(n: number) {
+  return `${(n / 10000).toFixed(1)}万`
+}
+
 export default function TransferMarket() {
   const navigate = useNavigate()
   const [players, setPlayers] = useState<MarketPlayer[]>([])
@@ -55,7 +65,6 @@ export default function TransferMarket() {
     search: '',
   })
 
-  // Offer modal
   const [offerPlayer, setOfferPlayer] = useState<MarketPlayer | null>(null)
   const [offerAmount, setOfferAmount] = useState('')
   const [offerLoading, setOfferLoading] = useState(false)
@@ -148,40 +157,44 @@ export default function TransferMarket() {
     }
   }
 
+  const list = useMemo(() => players, [players])
+
   return (
-    <div className="space-y-6 max-w-[1400px]">
+    <div className="fresh-page-shell space-y-6">
       <button
         onClick={() => navigate(-1)}
-        className="text-sm text-[#8B8BA7] hover:text-white transition-colors mb-4"
+        className="inline-flex items-center gap-1 text-sm font-bold text-[#466353] hover:text-[#173126] transition-colors"
       >
+        <ChevronLeft className="w-4 h-4" />
         返回上一页
       </button>
+
       <PageHeader title="球员拍卖市场" subtitle="浏览球员并发送转会报价" />
 
       <TransferTabs />
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <section className="fresh-filter-strip">
         <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7b927f]" />
           <input
             type="text"
             placeholder="搜索球员或球队..."
             value={filters.search}
             onChange={e => handleFilterChange('search', e.target.value)}
-            className="w-full bg-[#12121A] border-2 border-[#2D2D44] px-4 py-2 text-sm text-[#E2E2F0] placeholder:text-[#4B4B6A] focus:outline-none focus:border-[#0D7377]/50"
+            className="w-full pl-9 pr-4 py-2 text-sm outline-none focus:border-[#59C7EE] transition-colors"
           />
         </div>
         <select
           value={filters.position}
           onChange={e => handleFilterChange('position', e.target.value)}
-          className="bg-[#12121A] border-2 border-[#2D2D44] px-3 py-2 text-sm text-[#E2E2F0] focus:outline-none focus:border-[#0D7377]/50"
+          className="px-3 py-2 text-sm outline-none focus:border-[#59C7EE]"
         >
           {positionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select
           value={filters.min_ovr}
           onChange={e => handleFilterChange('min_ovr', e.target.value)}
-          className="bg-[#12121A] border-2 border-[#2D2D44] px-3 py-2 text-sm text-[#E2E2F0] focus:outline-none focus:border-[#0D7377]/50"
+          className="px-3 py-2 text-sm outline-none focus:border-[#59C7EE]"
         >
           {ovrOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -190,142 +203,120 @@ export default function TransferMarket() {
           placeholder="最低年龄"
           value={filters.min_age}
           onChange={e => handleFilterChange('min_age', e.target.value)}
-          className="w-24 bg-[#12121A] border-2 border-[#2D2D44] px-3 py-2 text-sm text-[#E2E2F0] placeholder:text-[#4B4B6A] focus:outline-none focus:border-[#0D7377]/50"
+          className="w-24 px-3 py-2 text-sm outline-none focus:border-[#59C7EE]"
         />
         <input
           type="number"
           placeholder="最高年龄"
           value={filters.max_age}
           onChange={e => handleFilterChange('max_age', e.target.value)}
-          className="w-24 bg-[#12121A] border-2 border-[#2D2D44] px-3 py-2 text-sm text-[#E2E2F0] placeholder:text-[#4B4B6A] focus:outline-none focus:border-[#0D7377]/50"
+          className="w-24 px-3 py-2 text-sm outline-none focus:border-[#59C7EE]"
         />
         <select
           value={filters.is_listed}
           onChange={e => handleFilterChange('is_listed', e.target.value)}
-          className="bg-[#12121A] border-2 border-[#2D2D44] px-3 py-2 text-sm text-[#E2E2F0] focus:outline-none focus:border-[#0D7377]/50"
+          className="px-3 py-2 text-sm outline-none focus:border-[#59C7EE]"
         >
           <option value="">全部状态</option>
           <option value="listed">仅挂牌</option>
           <option value="unlisted">未挂牌</option>
         </select>
-      </div>
+      </section>
 
-      {/* Loading & Error */}
       {loading && (
-        <div className="flex items-center justify-center py-12 text-sm text-[#8B8BA7]">
-          加载中...
+        <div className="fresh-loading-lines">
+          {Array.from({ length: 6 }).map((_, i) => <span key={`load-${i}`} />)}
         </div>
       )}
+
       {error && (
-        <div className="p-4 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
+        <div className="p-4 bg-[#FF6F59]/12 border-2 border-[#FF6F59]/40 text-[#FF6F59] text-sm font-bold">
           {error}
         </div>
       )}
 
-      {/* Table */}
       {!loading && !error && (
         <>
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">球员列表</h3>
-              <span className="text-xs text-[#4B4B6A]">共 {players.length} 名球员</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-[#2D2D44]">
-                    <th className="text-left text-xs text-[#4B4B6A] pb-2 font-medium">球员</th>
-                    <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">位置</th>
-                    <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">年龄</th>
-                    <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">OVR</th>
-                    <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">潜力</th>
-                    <th className="text-left text-xs text-[#4B4B6A] pb-2 font-medium">所属球队</th>
-                    <th className="text-right text-xs text-[#4B4B6A] pb-2 font-medium">系统估值</th>
-                    <th className="text-right text-xs text-[#4B4B6A] pb-2 font-medium">挂牌价</th>
-                    <th className="text-center text-xs text-[#4B4B6A] pb-2 font-medium">状态</th>
-                    <th className="text-right text-xs text-[#4B4B6A] pb-2 font-medium">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {players.map((p) => (
-                    <tr key={p.player_id} className="border-b border-[#2D2D44]/50 hover:bg-[#1E1E2D]/50 transition-colors">
-                      <td className="py-3">
-                        <Link to={`/players/${p.player_id}`} className="text-sm font-medium text-white hover:text-[#0D7377] transition-colors">
-                          {p.name}
-                        </Link>
-                      </td>
-                      <td className="text-center">
-                        <span className={clsx('text-xs px-2 py-0.5 font-bold', POSITION_COLORS[p.position as keyof typeof POSITION_COLORS] || 'bg-[#2D2D44] text-white')}>
-                          {p.position}
-                        </span>
-                      </td>
-                      <td className="text-center text-sm text-[#E2E2F0]">{p.age}</td>
-                      <td className="text-center text-sm font-bold stat-number">{p.ovr}</td>
-                      <td className="text-center">
-                        <span className={clsx(
-                          'text-xs font-bold',
-                          p.potential_letter === 'S' ? 'text-yellow-400' :
-                          p.potential_letter === 'A' ? 'text-[#0D7377]' :
-                          'text-[#8B8BA7]'
-                        )}>
-                          {p.potential_letter}
-                        </span>
-                      </td>
-                      <td className="text-sm text-[#8B8BA7]">{p.team_name}</td>
-                      <td className="text-right text-sm text-[#8B8BA7]">{(p.market_value / 10000).toFixed(1)}万</td>
-                      <td className="text-right text-sm font-bold text-[#0D7377]">
-                        {p.list_price ? `${(p.list_price / 10000).toFixed(1)}万` : '-'}
-                      </td>
-                      <td className="text-center">
-                        {p.is_listed ? (
-                          <span className="text-xs px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">挂牌中</span>
-                        ) : (
-                          <span className="text-xs px-2 py-0.5 bg-[#2D2D44] text-[#4B4B6A]">-</span>
-                        )}
-                      </td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            to={`/players/${p.player_id}`}
-                            className="p-1.5 bg-[#12121A] border-2 border-[#2D2D44] hover:border-[#0D7377]/50 text-[#8B8BA7] hover:text-white transition-colors"
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Link>
-                          <button
-                            onClick={() => openOfferModal(p)}
-                            className="px-3 py-1.5 bg-[#0D7377] hover:bg-[#0A5A5D] text-white text-xs font-bold border-2 border-[#0A5A5D] transition-colors"
-                          >
-                            报价
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {players.length === 0 && (
-              <div className="text-center py-12 text-[#8B8BA7]">
-                <p className="text-sm">暂无符合条件的球员</p>
+          <section className="fresh-section-title">
+            <h2>球员清单</h2>
+            <span>共 {players.length} 名</span>
+          </section>
+
+          <div className="space-y-2">
+            {list.map((p) => (
+              <div key={p.player_id} className="fresh-roster-row group" style={{ gridTemplateColumns: '48px minmax(0, 1fr) repeat(5, auto)' }}>
+                <div className="fresh-player-initial w-12 h-12">{p.name.charAt(0)}</div>
+
+                <div className="min-w-0 px-2">
+                  <div className="fresh-row-title">
+                    <strong>{p.name}</strong>
+                    <span className={clsx('px-1.5 py-0.5 text-[10px]', POSITION_COLORS[p.position as keyof typeof POSITION_COLORS] || 'bg-[#F8FFD2] text-[#173126] border border-[#1F5F43]/20')}>
+                      {p.position}
+                    </span>
+                  </div>
+                  <p>{p.team_name}</p>
+                </div>
+
+                <div className="text-center min-w-[56px]">
+                  <span className="block text-[10px] font-black text-[#466353]">年龄</span>
+                  <strong className="text-sm font-black text-[#173126]">{p.age}</strong>
+                </div>
+                <div className="text-center min-w-[56px]">
+                  <span className="block text-[10px] font-black text-[#466353]">OVR</span>
+                  <strong className="text-sm font-black text-[#173126]">{p.ovr}</strong>
+                </div>
+                <div className="text-center min-w-[48px]">
+                  <span className="block text-[10px] font-black text-[#466353]">潜力</span>
+                  <span className={clsx('inline-block min-w-[24px] px-1 py-0.5 text-xs font-black border border-[#1F5F43]', potentialTone[p.potential_letter] || 'bg-white text-[#173126]')}>
+                    {p.potential_letter}
+                  </span>
+                </div>
+                <div className="text-right min-w-[90px]">
+                  <span className="block text-[10px] font-black text-[#466353]">估值</span>
+                  <strong className="text-sm font-black text-[#173126]">{formatMoney(p.market_value)}</strong>
+                </div>
+                <div className="flex items-center justify-end gap-2 min-w-[140px]">
+                  {p.is_listed && p.list_price && (
+                    <span className="text-xs font-black text-[#C77A00]">{formatMoney(p.list_price)}</span>
+                  )}
+                  {p.is_listed && (
+                    <span className="px-2 py-0.5 text-[10px] font-black bg-[#B9EF3F]/35 text-[#1F5F43] border border-[#1F5F43]/30">
+                      挂牌
+                    </span>
+                  )}
+                  <Link
+                    to={`/players/${p.player_id}`}
+                    className="p-1.5 bg-white border-2 border-[#1F5F43]/30 text-[#466353] hover:text-[#173126] hover:border-[#1F5F43] transition-colors"
+                    title="查看球员"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </Link>
+                  <Button size="sm" onClick={() => openOfferModal(p)}>
+                    报价
+                  </Button>
+                </div>
               </div>
+            ))}
+
+            {players.length === 0 && (
+              <div className="fresh-empty">暂无符合条件的球员</div>
             )}
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 pt-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 bg-[#12121A] border-2 border-[#2D2D44] text-[#8B8BA7] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-2 bg-white border-2 border-[#1F5F43]/30 text-[#466353] hover:text-[#173126] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm text-[#8B8BA7]">第 {page} / {totalPages} 页</span>
+              <span className="text-sm font-black text-[#466353]">第 {page} / {totalPages} 页</span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-2 bg-[#12121A] border-2 border-[#2D2D44] text-[#8B8BA7] hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-2 bg-white border-2 border-[#1F5F43]/30 text-[#466353] hover:text-[#173126] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -334,100 +325,71 @@ export default function TransferMarket() {
         </>
       )}
 
-      {/* Offer Modal */}
-      {offerPlayer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md bg-[#12121A] border-2 border-[#2D2D44] shadow-pixel-lg">
-            <div className="flex items-center justify-between p-4 border-b-2 border-[#2D2D44]">
-              <h3 className="text-lg font-bold text-white">
-                {offerSuccess ? '报价已发送' : `报价: ${offerPlayer.name}`}
-              </h3>
-              <button onClick={closeOfferModal} className="text-[#8B8BA7] hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-4 space-y-4">
-              {offerSuccess ? (
-                <div className="space-y-4">
-                  <div className="text-emerald-400">
-                    <span className="font-bold">报价发送成功！</span>
-                  </div>
-                  <p className="text-sm text-[#8B8BA7]">
-                    报价金额: <span className="text-white font-bold">{offerAmount}万</span>
-                  </p>
-                  <button
-                    onClick={closeOfferModal}
-                    className="w-full py-2 bg-[#0D7377] hover:bg-[#0A5A5D] text-white text-sm font-bold border-2 border-[#0A5A5D] transition-colors"
-                  >
-                    确定
-                  </button>
+      <Modal
+        isOpen={!!offerPlayer}
+        onClose={closeOfferModal}
+        title={offerSuccess ? '报价已发送' : `报价: ${offerPlayer?.name}`}
+        size="md"
+        footer={
+          offerSuccess ? (
+            <Button onClick={closeOfferModal}>确定</Button>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={closeOfferModal}>取消</Button>
+              <Button onClick={submitOffer} isLoading={offerLoading} disabled={!offerAmount || Number(offerAmount) <= 0}>
+                确认报价
+              </Button>
+            </>
+          )
+        }
+      >
+        {offerSuccess ? (
+          <div className="space-y-3">
+            <p className="text-[#1F5F43] font-black">报价发送成功！</p>
+            <p className="text-sm font-bold text-[#466353]">报价金额：<span className="text-[#173126] font-black">{offerAmount}万</span></p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="fresh-stat-tile">
+                <span>球员</span>
+                <strong>{offerPlayer?.name}</strong>
+              </div>
+              <div className="fresh-stat-tile">
+                <span>所属球队</span>
+                <strong>{offerPlayer?.team_name}</strong>
+              </div>
+              <div className="fresh-stat-tile">
+                <span>系统估值</span>
+                <strong>{offerPlayer && formatMoney(offerPlayer.market_value)}</strong>
+              </div>
+              {offerPlayer?.list_price && (
+                <div className="fresh-stat-tile">
+                  <span>挂牌价</span>
+                  <strong className="text-[#C77A00]">{formatMoney(offerPlayer.list_price)}</strong>
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-[#8B8BA7]">球员</span>
-                      <span className="text-white font-medium">{offerPlayer.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8B8BA7]">所属球队</span>
-                      <span className="text-white">{offerPlayer.team_name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8B8BA7]">系统估值</span>
-                      <span className="text-[#0D7377] font-bold">{(offerPlayer.market_value / 10000).toFixed(1)}万</span>
-                    </div>
-                    {offerPlayer.list_price && (
-                      <div className="flex justify-between">
-                        <span className="text-[#8B8BA7]">挂牌价</span>
-                        <span className="text-emerald-400 font-bold">{(offerPlayer.list_price / 10000).toFixed(1)}万</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-2">
-                    <label className="text-xs text-[#8B8BA7] mb-1 block">报价金额（万）</label>
-                    <input
-                      type="number"
-                      value={offerAmount}
-                      onChange={e => setOfferAmount(e.target.value)}
-                      className="w-full bg-[#1A1A2E] border-2 border-[#2D2D44] px-3 py-2 text-sm text-white focus:border-[#0D7377] outline-none"
-                      placeholder="输入报价金额"
-                    />
-                  </div>
-
-                  {offerError && (
-                    <div className="p-3 bg-red-500/10 border-2 border-red-500/30 text-red-400 text-sm">
-                      {offerError}
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      onClick={closeOfferModal}
-                      className="flex-1 py-2 bg-[#2D2D44] hover:bg-[#3D3D5C] text-white text-sm font-bold border-2 border-[#2D2D44] transition-colors"
-                    >
-                      取消
-                    </button>
-                    <button
-                      onClick={submitOffer}
-                      disabled={offerLoading || !offerAmount || Number(offerAmount) <= 0}
-                      className="flex-1 py-2 bg-[#0D7377] hover:bg-[#0A5A5D] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold border-2 border-[#0A5A5D] transition-colors"
-                    >
-                      {offerLoading ? '发送中...' : '确认报价'}
-                    </button>
-                  </div>
-                </>
               )}
             </div>
+
+            <div>
+              <label className="block text-xs font-black text-[#466353] mb-1">报价金额（万）</label>
+              <input
+                type="number"
+                value={offerAmount}
+                onChange={e => setOfferAmount(e.target.value)}
+                className="w-full px-3 py-2 bg-white/90 border-2 border-[#1F5F43]/30 text-sm text-[#173126] outline-none focus:border-[#59C7EE]"
+                placeholder="输入报价金额"
+              />
+            </div>
+
+            {offerError && (
+              <div className="p-3 bg-[#FF6F59]/12 border-2 border-[#FF6F59]/40 text-[#FF6F59] text-sm font-bold">
+                {offerError}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
-}
-
-function clsx(...args: (string | false | undefined)[]) {
-  return args.filter(Boolean).join(' ')
 }

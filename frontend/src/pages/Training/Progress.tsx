@@ -72,24 +72,24 @@ const METRIC_GROUPS: { label: string; options: { key: string; label: string }[] 
 ]
 
 const PALETTE = [
-  '#C6F135',
-  '#0D7377',
-  '#D6A619',
-  '#3B82F6',
-  '#EC4899',
+  '#B9EF3F',
+  '#1F5F43',
+  '#FFC247',
+  '#59C7EE',
+  '#FF6F59',
 ]
 
 function MetricSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm text-[#8B8BA7] whitespace-nowrap">指标</label>
+      <label className="text-sm text-[#466353] whitespace-nowrap">指标</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="bg-[#12121A] border-2 border-[#2D2D44] text-white text-sm px-3 py-2 focus:outline-none focus:border-[#0D7377]"
+        className="bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-sm px-3 py-2 focus:outline-none focus:border-[#1F5F43]"
       >
         {METRIC_GROUPS.map((group) => (
-          <optgroup key={group.label} label={group.label} className="text-[#8B8BA7]">
+          <optgroup key={group.label} label={group.label} className="text-[#466353]">
             {group.options.map((opt) => (
               <option key={opt.key} value={opt.key}>
                 {opt.label}
@@ -122,12 +122,12 @@ function PlayerSelect({
   return (
     <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-[#8B8BA7]">球员</span>
-        <span className={clsx('text-xs', selected.length >= 5 ? 'text-red-400' : 'text-[#4B4B6A]')}>
+        <span className="text-sm text-[#466353]">球员</span>
+        <span className={clsx('text-xs', selected.length >= 5 ? 'text-[#FF6F59]' : 'text-[#8B5A2B]/40')}>
           {selected.length}/5
         </span>
       </div>
-      <div className="max-h-60 overflow-y-auto border-2 border-[#2D2D44] bg-[#12121A] p-2 space-y-1">
+      <div className="max-h-60 overflow-y-auto border-2 border-[#1F5F43]/20 bg-[#FFF8DC]/80 p-2 space-y-1">
         {players.map((p) => {
           const isSelected = selected.includes(p.id)
           return (
@@ -138,8 +138,8 @@ function PlayerSelect({
               className={clsx(
                 'w-full flex items-center gap-3 px-2 py-1.5 text-left transition-colors',
                 isSelected
-                  ? 'bg-[#0D4A4D]/40 border border-[#0D7377]/50'
-                  : 'hover:bg-[#1E1E2D] border border-transparent',
+                  ? 'bg-[#B9EF3F]/30 border border-[#1F5F43]/50'
+                  : 'hover:bg-[#FFF8DC]/60 border border-transparent',
                 !isSelected && selected.length >= 5 && 'opacity-40 cursor-not-allowed'
               )}
             >
@@ -148,17 +148,17 @@ function PlayerSelect({
                   src={p.avatar_url ? `/${p.avatar_url}` : undefined}
                   name={p.name}
                   size="xs"
-                  fallback={<User className="w-3 h-3 text-[#8B8BA7]" />}
+                  fallback={<User className="w-3 h-3 text-[#466353]" />}
                 />
                 {isSelected && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#C6F135] text-[#0A0A0F] text-[8px] flex items-center justify-center font-bold">
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#B9EF3F] text-[#173126] text-[8px] flex items-center justify-center font-bold">
                     ✓
                   </span>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-white truncate">{p.name}</div>
-                <div className="text-xs text-[#8B8BA7]">
+                <div className="text-sm font-medium text-[#173126] truncate">{p.name}</div>
+                <div className="text-xs text-[#466353]">
                   {p.position} · OVR {p.ovr}
                 </div>
               </div>
@@ -185,7 +185,7 @@ function RangeInput({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm text-[#8B8BA7] whitespace-nowrap">{label}</label>
+      <label className="text-sm text-[#466353] whitespace-nowrap">{label}</label>
       <input
         type="number"
         min={min}
@@ -195,7 +195,7 @@ function RangeInput({
           const v = parseInt(e.target.value, 10)
           if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)))
         }}
-        className="w-20 bg-[#12121A] border-2 border-[#2D2D44] text-white text-sm px-2 py-2 focus:outline-none focus:border-[#0D7377]"
+        className="w-20 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-sm px-2 py-2 focus:outline-none focus:border-[#1F5F43]"
       />
     </div>
   )
@@ -227,35 +227,35 @@ function ProgressChart({ data }: { data: TrainingProgressResponse }) {
   }, [data])
 
   return (
-    <div className="h-80 sm:h-96 border-2 border-[#2D2D44] bg-[#12121A] p-4">
+    <div className="h-80 sm:h-96 border-2 border-[#1F5F43]/20 bg-[#FFF8DC]/80 p-4">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-          <CartesianGrid stroke="#2D2D44" strokeDasharray="4 4" />
+          <CartesianGrid stroke="#B9D3A8" strokeDasharray="4 4" />
           <XAxis
             dataKey="season_day"
             type="number"
             domain={[data.start_day, data.end_day]}
-            tick={{ fill: '#8B8BA7', fontSize: 12 }}
-            stroke="#4B4B6A"
-            label={{ value: '赛季天数', position: 'insideBottom', offset: -2, fill: '#8B8BA7', fontSize: 12 }}
+            tick={{ fill: '#466353', fontSize: 12 }}
+            stroke="#B9D3A8"
+            label={{ value: '赛季天数', position: 'insideBottom', offset: -2, fill: '#466353', fontSize: 12 }}
           />
           <YAxis
             domain={[Math.max(0, Math.floor(minValue - padding)), Math.ceil(maxValue + padding)]}
-            tick={{ fill: '#8B8BA7', fontSize: 12 }}
-            stroke="#4B4B6A"
+            tick={{ fill: '#466353', fontSize: 12 }}
+            stroke="#B9D3A8"
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#0A0A0F',
-              border: '2px solid #2D2D44',
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #1F5F43',
               borderRadius: 0,
             }}
-            labelStyle={{ color: '#8B8BA7' }}
-            itemStyle={{ color: '#fff' }}
+            labelStyle={{ color: '#466353' }}
+            itemStyle={{ color: '#173126' }}
             formatter={(value: number) => [value.toFixed(2), data.metric_label]}
             labelFormatter={(day: number) => `第 ${day} 天`}
           />
-          <Legend wrapperStyle={{ color: '#8B8BA7' }} />
+          <Legend wrapperStyle={{ color: '#466353' }} />
           {data.series.map((s, idx) => (
             <Line
               key={s.player_id}
@@ -387,18 +387,18 @@ export default function TrainingProgress() {
     <TrainingPageShell title="球员成长曲线对比" subtitle="对比球员能力或 OVR 的训练变化趋势">
       <div className="space-y-4">
         {/* 控制栏 */}
-        <div className="flex flex-col xl:flex-row gap-4 p-4 border-2 border-[#2D2D44] bg-[#12121A]">
+        <div className="flex flex-col xl:flex-row gap-4 p-4 border-2 border-[#1F5F43]/20 bg-[#FFF8DC]/80">
           <PlayerSelect players={players} selected={selectedIds} onChange={setSelectedIds} />
 
           <div className="flex flex-col sm:flex-row gap-4 shrink-0">
             <div className="flex flex-col gap-3">
               <MetricSelect value={metric} onChange={setMetric} />
               <div className="flex items-center gap-2">
-                <label className="text-sm text-[#8B8BA7] whitespace-nowrap">赛季</label>
+                <label className="text-sm text-[#466353] whitespace-nowrap">赛季</label>
                 <select
                   value={seasonId || ''}
                   onChange={(e) => setSeasonId(e.target.value)}
-                  className="bg-[#12121A] border-2 border-[#2D2D44] text-white text-sm px-3 py-2 focus:outline-none focus:border-[#0D7377]"
+                  className="bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-[#173126] text-sm px-3 py-2 focus:outline-none focus:border-[#1F5F43]"
                 >
                   {seasons.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -418,7 +418,7 @@ export default function TrainingProgress() {
 
         {/* 提示 */}
         {selectedIds.length === 0 && !playersLoading && (
-          <div className="flex items-center gap-2 text-sm text-[#8B8BA7]">
+          <div className="flex items-center gap-2 text-sm text-[#466353]">
             请至少选择一名球员
           </div>
         )}
@@ -426,12 +426,12 @@ export default function TrainingProgress() {
         {/* 加载与错误 */}
         {loading && (
           <div className="space-y-2 animate-pulse">
-            <div className="h-8 bg-[#1E1E2D] w-1/3" />
-            <div className="h-80 bg-[#1E1E2D]" />
+            <div className="h-8 bg-[#FFF8DC]/80 w-1/3" />
+            <div className="h-80 bg-[#FFF8DC]/80" />
           </div>
         )}
         {error && (
-          <div className="p-4 border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
+          <div className="p-4 border border-[#FF6F59]/40 bg-[#FF6F59]/10 text-[#FF6F59] text-sm">
             {error}
           </div>
         )}
@@ -442,8 +442,8 @@ export default function TrainingProgress() {
         )}
 
         {!loading && data && data.series.length === 0 && (
-          <div className="text-center py-16 border-2 border-dashed border-[#2D2D44] bg-[#12121A]/50">
-            <p className="text-[#8B8BA7]">所选球员在该时间段内暂无训练数据</p>
+          <div className="text-center py-16 border-2 border-dashed border-[#1F5F43]/20 bg-[#FFF8DC]/50">
+            <p className="text-[#466353]">所选球员在该时间段内暂无训练数据</p>
           </div>
         )}
       </div>

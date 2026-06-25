@@ -9,9 +9,9 @@ import { TrainingPageShell } from './components/TrainingPageShell'
 
 function getRiskColor(risk: string) {
   switch (risk) {
-    case 'high': return { border: 'rgba(215,90,74,0.4)', bg: 'rgba(215,90,74,0.12)', text: '#D75A4A' }
-    case 'medium': return { border: 'rgba(215,169,74,0.4)', bg: 'rgba(215,169,74,0.12)', text: '#D7A94A' }
-    default: return { border: 'rgba(16,185,129,0.4)', bg: 'rgba(16,185,129,0.12)', text: '#9ECF45' }
+    case 'high': return { border: 'rgba(255,111,89,0.4)', bg: 'rgba(255,111,89,0.12)', text: '#FF6F59' }
+    case 'medium': return { border: 'rgba(255,194,71,0.4)', bg: 'rgba(255,194,71,0.12)', text: '#C77A00' }
+    default: return { border: 'rgba(31,95,67,0.4)', bg: 'rgba(185,239,63,0.18)', text: '#1F5F43' }
   }
 }
 
@@ -87,13 +87,13 @@ export default function PlayerFatigue() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 16 }}>
         <div className="training-stat-tile is-amber">
           <span>平均疲劳</span>
-          <strong style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: avgFatigue > 60 ? '#D7A94A' : undefined }}>
+          <strong style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: avgFatigue > 60 ? '#FFC247' : undefined }}>
             <FatigueStatus fatigue={avgFatigue} size={20} />
           </strong>
         </div>
         <div className="training-stat-tile is-red">
           <span>高风险球员</span>
-          <strong style={{ color: highRiskCount > 0 ? '#D75A4A' : undefined }}>{highRiskCount} 人</strong>
+          <strong style={{ color: highRiskCount > 0 ? '#FF6F59' : undefined }}>{highRiskCount} 人</strong>
         </div>
         <div className="training-stat-tile is-blue">
           <span>总球员数</span>
@@ -123,7 +123,7 @@ export default function PlayerFatigue() {
                   gap: 12,
                   alignItems: 'center',
                   padding: 12,
-                  background: 'rgba(5,6,9,0.86)',
+                  background: 'var(--tr-panel)',
                   border: '2px solid var(--tr-border)',
                 }}
               >
@@ -131,7 +131,7 @@ export default function PlayerFatigue() {
                   src={p.avatar_url ? `/${p.avatar_url}` : undefined}
                   name={p.player_name}
                   size="md"
-                  fallback={<User className="w-5 h-5 text-[#8B8BA7]" />}
+                  fallback={<User className="w-5 h-5 text-[#466353]" />}
                 />
                 <div style={{ minWidth: 0 }}>
                   <p style={{ color: 'var(--tr-text)', fontSize: 13, fontWeight: 800, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

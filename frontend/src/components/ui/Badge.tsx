@@ -18,15 +18,15 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center font-medium rounded-none'
+      'inline-flex items-center font-black rounded-none'
 
     const variants = {
-      default: 'bg-[#2D2D44] text-[#8B8BA7] border-2 border-[#2D2D44]',
-      primary: 'bg-[#0D7377]/20 text-[#0D7377] border-2 border-[#0A5A5D]/30',
-      success: 'bg-[#166534]/20 text-[#4ADE80] border-2 border-[#166534]/30',
-      warning: 'bg-[#FCD34D]/10 text-[#FCD34D] border-2 border-[#FCD34D]/30',
-      danger: 'bg-[#EF4444]/10 text-[#EF4444] border-2 border-[#EF4444]/30',
-      info: 'bg-[#3B82F6]/10 text-[#3B82F6] border-2 border-[#3B82F6]/30',
+      default: 'bg-white/80 text-[#466353] border-2 border-[#1F5F43]/30',
+      primary: 'bg-[#59C7EE]/22 text-[#173126] border-2 border-[#1F5F43]/30',
+      success: 'bg-[#B9EF3F]/35 text-[#1F5F43] border-2 border-[#1F5F43]/30',
+      warning: 'bg-[#FFC247]/30 text-[#8B5A2B] border-2 border-[#1F5F43]/30',
+      danger: 'bg-[#FF6F59]/18 text-[#FF6F59] border-2 border-[#FF6F59]/45',
+      info: 'bg-[#59C7EE]/18 text-[#173126] border-2 border-[#59C7EE]/50',
     }
 
     const sizes = {
