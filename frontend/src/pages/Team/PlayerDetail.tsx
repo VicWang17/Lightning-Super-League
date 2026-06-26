@@ -212,24 +212,18 @@ function PlayerDetail() {
   const { awards: playerAwards, loading: awardsLoading } = usePlayerAwards(id)
   const { summary: awardSummary } = usePlayerAwardSummary(id)
 
-  const fetchData = async () => {
+  const fetchCore = async () => {
     if (!id) return
     setLoading(true)
     try {
-      const [playerRes, contractRes, stateRes, historyRes, feedbackRes, recentRes] = await Promise.all([
+      const [playerRes, contractRes, stateRes] = await Promise.all([
         api.get<Player>(`/players/${id}`),
         api.get<PlayerContract>(`/players/${id}/contract`).catch(() => null),
         api.get<PlayerState>(`/players/${id}/state`).catch(() => null),
-        api.get<PlayerHistoryResponse>(`/players/${id}/history`).catch(() => null),
-        api.get<PlayerFeedback[]>(`/players/${id}/feedback`).catch(() => null),
-        api.getPlayerRecentMatches(id, 20).catch(() => null),
       ])
       if (playerRes.success) setPlayer(playerRes.data)
       if (contractRes?.success) setContract(contractRes.data)
       if (stateRes?.success) setPlayerState(stateRes.data)
-      if (historyRes?.success) setHistory(historyRes.data)
-      if (feedbackRes?.success) setFeedbacks(feedbackRes.data)
-      if (recentRes?.success) setRecentMatches(recentRes.data)
     } catch {
       setPlayer(null)
     } finally {
@@ -237,9 +231,31 @@ function PlayerDetail() {
     }
   }
 
+  const fetchTabData = async () => {
+    if (!id) return
+    try {
+      const [historyRes, feedbackRes, recentRes] = await Promise.all([
+        api.get<PlayerHistoryResponse>(`/players/${id}/history`).catch(() => null),
+        api.get<PlayerFeedback[]>(`/players/${id}/feedback`).catch(() => null),
+        api.getPlayerRecentMatches(id, 10).catch(() => null),
+      ])
+      if (historyRes?.success) setHistory(historyRes.data)
+      if (feedbackRes?.success) setFeedbacks(feedbackRes.data)
+      if (recentRes?.success) setRecentMatches(recentRes.data)
+    } catch {
+      // tab 数据失败不影响主页面展示
+    }
+  }
+
   useEffect(() => {
-    fetchData()
+    fetchCore()
   }, [id])
+
+  useEffect(() => {
+    if (!loading && id) {
+      fetchTabData()
+    }
+  }, [id, loading])
 
   useEffect(() => {
     setActiveTab('abilities')
@@ -772,7 +788,7 @@ function PlayerDetail() {
           teamId={player.team_id}
           existingContract={contract}
           onClose={() => setShowContractModal(false)}
-          onSuccess={fetchData}
+          onSuccess={fetchCore}
         />
       )}
     </div>

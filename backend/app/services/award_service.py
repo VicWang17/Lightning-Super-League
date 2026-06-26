@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.player_award import PlayerAward, AwardType, AwardLevel
 from app.models.player_season_stats import PlayerSeasonStats
@@ -187,6 +188,11 @@ class AwardService:
         """获取某球员的全部荣誉"""
         result = await db.execute(
             select(PlayerAward)
+            .options(
+                selectinload(PlayerAward.player),
+                selectinload(PlayerAward.league),
+                selectinload(PlayerAward.cup),
+            )
             .where(PlayerAward.player_id == player_id)
             .order_by(PlayerAward.season_number.desc(), PlayerAward.created_at.desc())
         )
@@ -194,40 +200,56 @@ class AwardService:
 
     @staticmethod
     async def get_player_award_summary(player_id: str, db: AsyncSession) -> Dict[str, int]:
-        """获取球员荣誉统计摘要"""
-        awards = await AwardService.get_player_awards(player_id, db)
+        """获取球员荣誉统计摘要（使用 SQL 聚合）"""
+        rows = await db.execute(
+            select(PlayerAward.award_type, func.count(PlayerAward.id))
+            .where(PlayerAward.player_id == player_id)
+            .group_by(PlayerAward.award_type)
+        )
+        counts = {award_type: count for award_type, count in rows.all()}
         summary = {
-            "total_awards": len(awards),
-            "mvp_count": 0,
-            "team_of_season_count": 0,
-            "best_position_count": 0,
-            "golden_boot_count": 0,
-            "playmaker_count": 0,
-            "golden_glove_count": 0,
-            "golden_wall_count": 0,
-            "season_best_player_count": 0,
+            "total_awards": sum(counts.values()),
+            "mvp_count": counts.get(AwardType.MATCH_MVP, 0),
+            "team_of_season_count": counts.get(AwardType.LEAGUE_TEAM_OF_SEASON, 0),
+            "best_position_count": sum(
+                counts.get(t, 0)
+                for t in (
+                    AwardType.LEAGUE_BEST_FW, AwardType.LEAGUE_BEST_MF,
+                    AwardType.LEAGUE_BEST_DF, AwardType.LEAGUE_BEST_GK,
+                    AwardType.SEASON_BEST_FW, AwardType.SEASON_BEST_MF,
+                    AwardType.SEASON_BEST_DF, AwardType.SEASON_BEST_GK,
+                )
+            ),
+            "golden_boot_count": sum(
+                counts.get(t, 0)
+                for t in (
+                    AwardType.LEAGUE_GOLDEN_BOOT, AwardType.CUP_GOLDEN_BOOT,
+                    AwardType.SEASON_GOLDEN_BOOT,
+                )
+            ),
+            "playmaker_count": sum(
+                counts.get(t, 0)
+                for t in (
+                    AwardType.LEAGUE_PLAYMAKER, AwardType.CUP_PLAYMAKER,
+                    AwardType.SEASON_PLAYMAKER,
+                )
+            ),
+            "golden_glove_count": sum(
+                counts.get(t, 0)
+                for t in (
+                    AwardType.LEAGUE_GOLDEN_GLOVE, AwardType.CUP_GOLDEN_GLOVE,
+                    AwardType.SEASON_GOLDEN_GLOVE,
+                )
+            ),
+            "golden_wall_count": sum(
+                counts.get(t, 0)
+                for t in (
+                    AwardType.LEAGUE_GOLDEN_WALL, AwardType.CUP_GOLDEN_WALL,
+                    AwardType.SEASON_GOLDEN_WALL,
+                )
+            ),
+            "season_best_player_count": counts.get(AwardType.SEASON_BEST_PLAYER, 0),
         }
-        for a in awards:
-            t = a.award_type
-            if t == AwardType.MATCH_MVP:
-                summary["mvp_count"] += 1
-            elif t == AwardType.LEAGUE_TEAM_OF_SEASON:
-                summary["team_of_season_count"] += 1
-            elif t in (AwardType.LEAGUE_BEST_FW, AwardType.LEAGUE_BEST_MF,
-                       AwardType.LEAGUE_BEST_DF, AwardType.LEAGUE_BEST_GK,
-                       AwardType.SEASON_BEST_FW, AwardType.SEASON_BEST_MF,
-                       AwardType.SEASON_BEST_DF, AwardType.SEASON_BEST_GK):
-                summary["best_position_count"] += 1
-            elif t in (AwardType.LEAGUE_GOLDEN_BOOT, AwardType.CUP_GOLDEN_BOOT, AwardType.SEASON_GOLDEN_BOOT):
-                summary["golden_boot_count"] += 1
-            elif t in (AwardType.LEAGUE_PLAYMAKER, AwardType.CUP_PLAYMAKER, AwardType.SEASON_PLAYMAKER):
-                summary["playmaker_count"] += 1
-            elif t in (AwardType.LEAGUE_GOLDEN_GLOVE, AwardType.CUP_GOLDEN_GLOVE, AwardType.SEASON_GOLDEN_GLOVE):
-                summary["golden_glove_count"] += 1
-            elif t in (AwardType.LEAGUE_GOLDEN_WALL, AwardType.CUP_GOLDEN_WALL, AwardType.SEASON_GOLDEN_WALL):
-                summary["golden_wall_count"] += 1
-            elif t == AwardType.SEASON_BEST_PLAYER:
-                summary["season_best_player_count"] += 1
         return summary
 
     @staticmethod

@@ -2297,16 +2297,19 @@
   .ability-row i {
     display: block;
     height: 100%;
-    background: linear-gradient(90deg, rgba(185, 239, 63, 0.55), var(--fresh-lime));
+    background: linear-gradient(90deg, rgba(89, 199, 238, 0.55), #2563EB);
   }
 
   .ability-row strong {
     color: var(--fresh-ink);
     font-family: 'Press Start 2P', monospace;
     font-size: 13px;
-    font-weight: 1000;
+    font-weight: 400;
     text-align: right;
     letter-spacing: -0.04em;
+    text-shadow: none;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   .signature-skills {
@@ -2709,8 +2712,10 @@
     font-weight: 400;
     line-height: 1;
     color: var(--skin-accent);
-    text-shadow: 0 0 24px rgba(13, 115, 119, 0.35);
+    text-shadow: none;
     letter-spacing: 0;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   .dossier-status {
@@ -2912,17 +2917,17 @@
 
   .radar-value-list strong.is-basic,
   .ability-row strong.is-basic {
-    color: #466353;
+    color: #374151;
   }
 
   .radar-value-list strong.is-good,
   .ability-row strong.is-good {
-    color: #1F5F43;
+    color: #2563EB;
   }
 
   .radar-value-list strong.is-elite,
   .ability-row strong.is-elite {
-    color: #C77A00;
+    color: #DC2626;
   }
 
   .ability-radar-notes {
@@ -2962,15 +2967,15 @@
   }
 
   .ability-radar-legend .legend-item i.is-basic {
-    background: #466353;
+    background: #374151;
   }
 
   .ability-radar-legend .legend-item i.is-good {
-    background: #1F5F43;
+    background: #2563EB;
   }
 
   .ability-radar-legend .legend-item i.is-elite {
-    background: #C77A00;
+    background: #DC2626;
   }
 
   .desk-performance-strip {
@@ -3466,13 +3471,13 @@
 }
 
 /* 球员情报栏文字颜色 - 放在 @layer 外部确保不被移除 */
-.fm-text--hot { color: #FF6F59 !important; }
-.fm-text--good { color: #8ED957 !important; }
-.fm-text--neutral { color: #B8C0A8 !important; }
-.fm-text--low { color: #466353 !important; }
-.fm-text--fitness-good { color: #8ED957 !important; }
-.fm-text--fitness-mid { color: #E5B75E !important; }
-.fm-text--fitness-bad { color: #FF6F59 !important; }
+.fm-text--hot { color: #DC2626 !important; }
+.fm-text--good { color: #2563EB !important; }
+.fm-text--neutral { color: #374151 !important; }
+.fm-text--low { color: #B45309 !important; }
+.fm-text--fitness-good { color: #2563EB !important; }
+.fm-text--fitness-mid { color: #B45309 !important; }
+.fm-text--fitness-bad { color: #DC2626 !important; }
 
 /* 训练场指挥台 */
 .training-console-page {

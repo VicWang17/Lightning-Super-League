@@ -116,8 +116,6 @@ async def trigger_season_awards(season_id: str, db: AsyncSession = Depends(get_d
 async def get_player_awards(player_id: str, db: AsyncSession = Depends(get_db)):
     """获取球员荣誉列表"""
     awards = await AwardService.get_player_awards(player_id, db)
-    for a in awards:
-        await db.refresh(a, ["player", "league", "cup"])
     return ResponseSchema(
         success=True,
         data=[_award_to_response(a) for a in awards],

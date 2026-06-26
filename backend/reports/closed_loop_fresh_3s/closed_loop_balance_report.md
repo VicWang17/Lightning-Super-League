@@ -1,52 +1,52 @@
 # Closed Loop Balance Test Report
 
-Generated at: `2026-06-23T04:14:49.173284Z`
+Generated at: `2026-06-26T11:39:09.273512Z`
 
 ## Run Summary
 
 - Seasons captured: 3
 - Invariant errors: 0
 - Invariant warnings: 0
-- Contracts created: 4925
-- Renewals/recontracts: 1551
-- Retired players: 122
-- Youth generated: 6223
-- Youth signed: 251
-- Rookie-market listings: 5972
-- Rookie-market signed: 884
-- Free-agent listings created: 6107
+- Contracts created: 4813
+- Renewals/recontracts: 1909
+- Retired players: 136
+- Youth generated: 6175
+- Youth signed: 117
+- Rookie-market listings: 6058
+- Rookie-market signed: 759
+- Free-agent listings created: 6109
 - Auto-fill players joined: 0
-- Training sessions: 810792
-- Training breakthroughs: 179573
-- Transfer listings: 1781
-- Transfer offers/counters/finals: 420 / 47 / 32
-- Club transfers completed: 21
+- Training sessions: 809376
+- Training breakthroughs: 169420
+- Transfer listings: 1745
+- Transfer offers/counters/finals: 450 / 21 / 3
+- Club transfers completed: 13
 - Player releases to free market: 0
 
 ## Player State Signals
 
-- Latest avg state score: 0.23
-- Latest state score range: -7 / 5
-- Latest forms HOT/GOOD/NEUTRAL/LOW: 0 / 1325 / 1988 / 886
-- Latest component avg contract/recent/fitness/load/rust: -0.37 / 0.7 / 0.35 / -0.68 / -0.77
+- Latest avg state score: 0.07
+- Latest state score range: -6 / 5
+- Latest forms HOT/GOOD/NEUTRAL/LOW: 0 / 1312 / 1650 / 1180
+- Latest component avg contract/recent/fitness/load/rust: -0.51 / 0.67 / 0.44 / -0.74 / -0.79
 
 ## Training & Fatigue Signals
 
-- Latest avg fatigue / fitness: 0.0 / 100.0
+- Latest avg fatigue / fitness: 6.02 / 93.53
 - Latest players fatigue>75 / fitness<50: 0 / 0
-- Latest avg attr progress total: 2.91
-- Latest OVR100 / OVR95+ / potential S players: 0 / 0 / 44
-- Latest total attrs at 20 / players with any 20 / avg 20 attrs per player: 12 / 12 / 0.003
-- Training sessions S1..Sn: 261428 / 274682 / 274682
-- Breakthroughs S1..Sn: 45895 / 66839 / 66839
+- Latest avg attr progress total: 4.43
+- Latest OVR100 / OVR95+ / potential S players: 0 / 0 / 56
+- Latest total attrs at 20 / players with any 20 / avg 20 attrs per player: 9 / 9 / 0.002
+- Training sessions S1..Sn: 260598 / 271977 / 276801
+- Breakthroughs S1..Sn: 45782 / 63870 / 59768
 
 ## Injury Signals
 
-- Injuries minor/medium/major: 2344 / 286 / 63
-- Latest active injuries / medium+ active: 18 / 0
-- Latest avg team major injuries / max team major injuries: 0.09 / 2
-- Latest avg max body wear / players wear>70 / wear>90: 1.5 / 0 / 0
-- Latest avg team max-wear signal: 1.50
+- Injuries minor/medium/major: 2240 / 250 / 59
+- Latest active injuries / medium+ active: 14 / 1
+- Latest avg team major injuries / max team major injuries: 0.07 / 2
+- Latest avg max body wear / players wear>70 / wear>90: 1.54 / 0 / 0
+- Latest avg team max-wear signal: 1.53
 
 ## Reserve & Medical Signals
 
@@ -69,7 +69,7 @@ Generated at: `2026-06-23T04:14:49.173284Z`
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 ### AI vs Human Comparison (All Seasons)
 
@@ -80,40 +80,45 @@ Generated at: `2026-06-23T04:14:49.173284Z`
 
 ### Sampled Team Tracking (Cross-Season)
 
-#### 星月传奇 (AI)
+#### 青龙偃月 (AI)
 
 | Season | Reserve% | Reserve Usage% | Medical | Cost | Enhanced | Specialist | Aggressive | Financial Health |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 1 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
-| 2 | 1.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 2 | 5.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 3 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
 
-#### 波斯地毯 (AI)
-
-| Season | Reserve% | Reserve Usage% | Medical | Cost | Enhanced | Specialist | Aggressive | Financial Health |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 1 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
-| 2 | 15.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
-
-#### 赤龙焚天 (AI)
+#### 清真寺塔 (AI)
 
 | Season | Reserve% | Reserve Usage% | Medical | Cost | Enhanced | Specialist | Aggressive | Financial Health |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 1 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
-| 2 | 15.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
-
-#### 红军利物浦 (AI)
-
-| Season | Reserve% | Reserve Usage% | Medical | Cost | Enhanced | Specialist | Aggressive | Financial Health |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 1 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 1 | 17.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
 | 2 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 3 | 18.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
 
-#### 阿拉维斯 (AI)
+#### 流水无痕 (AI)
 
 | Season | Reserve% | Reserve Usage% | Medical | Cost | Enhanced | Specialist | Aggressive | Financial Health |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 1 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
-| 2 | 16.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 1 | 15.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 2 | 15.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 3 | 18.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+
+#### 北方苍狼 (AI)
+
+| Season | Reserve% | Reserve Usage% | Medical | Cost | Enhanced | Specialist | Aggressive | Financial Health |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | 14.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 2 | 12.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 3 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+
+#### 金毛狮王 (AI)
+
+| Season | Reserve% | Reserve Usage% | Medical | Cost | Enhanced | Specialist | Aggressive | Financial Health |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | 15.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 2 | 15.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 3 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
 
 #### 闪电杰尼 (Human)
 
@@ -121,6 +126,7 @@ Generated at: `2026-06-23T04:14:49.173284Z`
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 1 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
 | 2 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
+| 3 | 10.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | A |
 
 ### Balance Checks
 
@@ -132,62 +138,62 @@ Generated at: `2026-06-23T04:14:49.173284Z`
 
 ## Match Tactics Signals
 
-- Tactical setups captured: 8396
-- F01 share: 35.1%
-- Formation usage: F01=2949, F02=3, F03=1400, F04=1331, F05=124, F07=1475, F08=1114
-- Avg starter-bench lineup/state/fitness gap: 3.83 / 1.23 / -26.21
+- Tactical setups captured: 12594
+- F01 share: 35.2%
+- Formation usage: F01=4430, F02=3, F03=1911, F04=1936, F05=382, F06=47, F07=2208, F08=1677
+- Avg starter-bench lineup/state/fitness gap: 5.05 / 1.44 / -25.48
 
 ## Match Balance Signals
 
-- Assist leaders with assists > key passes: 4
+- Assist leaders with assists > key passes: 2
 - Low OVR (<65) high output players: 90
-- Latest DF/MF tackle ratio: 2.453
-- Latest DF/MF interception ratio: 2.158
-- Latest DF defensive-action share: 67.17%
+- Latest DF/MF tackle ratio: 2.488
+- Latest DF/MF interception ratio: 2.201
+- Latest DF defensive-action share: 67.48%
 
 ## Transfer Market Signals
 
-- Listings S1..Sn: 585 / 598 / 598
-- Offers S1..Sn: 192 / 114 / 114
-- Counter offers S1..Sn: 47 / 0 / 0
-- Final offers S1..Sn: 32 / 0 / 0
-- Completed club transfers S1..Sn: 21 / 0 / 0
+- Listings S1..Sn: 562 / 598 / 585
+- Offers S1..Sn: 161 / 158 / 131
+- Counter offers S1..Sn: 20 / 1 / 0
+- Final offers S1..Sn: 3 / 0 / 0
+- Completed club transfers S1..Sn: 12 / 1 / 0
 - Releases to free market S1..Sn: 0 / 0 / 0
-- AI listings / initial offers / counters / finals: 1781 / 341 / 47 / 32
-- AI bought / sold / released: 21 / 21 / 0
+- AI listings / initial offers / counters / finals: 1745 / 426 / 21 / 3
+- AI bought / sold / released: 13 / 13 / 0
 
 ## Correlations
 
-- Team top8 OVR vs points: 0.273
-- Team wage bill vs points: 0.202
-- Team max OVR vs points: 0.174
-- Player OVR vs average rating: 0.372
-- Youth budget pct vs best prospect score: 0.578
-- Youth budget pct vs useful prospect rate: 0.530
-- Youth budget pct vs avg potential max: 0.652
+- Team top8 OVR vs points: 0.282
+- Team wage bill vs points: 0.210
+- Team max OVR vs points: 0.220
+- Player OVR vs average rating: 0.424
+- Youth budget pct vs best prospect score: 0.519
+- Youth budget pct vs useful prospect rate: 0.495
+- Youth budget pct vs avg potential max: 0.696
 
 ## Youth Budget Signals
 
 | Budget Tier | Teams | Avg Budget % | Avg Youth OVR | Avg Potential | Best Prospect | Useful Rate | Fast Growth/Team | A+S/Team |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| low | 441 | 9.5% | 39.8 | 68.9 | 63.4 | 60.7% | 1.59 | 0.37 |
-| medium | 32 | 10.0% | 40.3 | 72.6 | 66.6 | 70.8% | 2.38 | 0.94 |
-| high | 295 | 22.0% | 40.8 | 76.1 | 68.9 | 86.6% | 3.09 | 1.44 |
+| low | 443 | 9.5% | 39.8 | 68.6 | 61.8 | 58.1% | 0.73 | 0.38 |
+| medium | 49 | 10.0% | 40.8 | 72.6 | 64.6 | 69.4% | 0.84 | 0.71 |
+| high | 276 | 22.0% | 42.1 | 76.3 | 66.8 | 83.3% | 0.91 | 1.47 |
 
 ## Long-Term Balance Signals
 
-- Latest balance Gini: 0.181
-- Latest top8 OVR Gini: 0.051
+- Latest balance Gini: 0.173
+- Latest top8 OVR Gini: 0.040
 - Champion relegations next season: 0
-- Repeat champions in same league: 1
+- Repeat champions in same league: 4
 
 ## Season Table
 
 | Season | Contracts | Renew/Recontract | Retired | Youth Signed | Rookie Signed | FA Listings | Training | Breakthroughs | OVR100/95+ | S Pot | Attr20 | Injuries/Major | Transfer Offers | Transfers | Releases | Roster Min/Max | Wage Avg/Max | Fatigue | Fitness | Errors |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: |
-| 1 | 1373 | 41 | 26 | 39 | 230 | 2079 | 261428 | 45895 | 0/0 | 30 | 18/17 | 941/15 | 192 | 21 | 0 | 14/17 | 23.3%/34.6% | 5.8 | 93.6 | 0 |
-| 2 | 1776 | 755 | 48 | 106 | 327 | 2014 | 274682 | 66839 | 0/0 | 44 | 12/12 | 876/24 | 114 | 0 | 0 | 14/17 | 24.3%/45.7% | 5.6 | 93.7 | 0 |
-| 2 | 1776 | 755 | 48 | 106 | 327 | 2014 | 274682 | 66839 | 0/0 | 44 | 12/12 | 876/24 | 114 | 0 | 0 | 14/17 | 24.3%/45.7% | 0.0 | 100.0 | 0 |
+| 1 | 1297 | 44 | 31 | 26 | 220 | 2068 | 260598 | 45782 | 0/0 | 32 | 12/12 | 840/22 | 161 | 12 | 0 | 13/17 | 23.0%/30.9% | 6.3 | 93.4 | 0 |
+| 2 | 1547 | 728 | 39 | 39 | 249 | 2028 | 271977 | 63870 | 0/0 | 48 | 9/9 | 898/19 | 158 | 1 | 0 | 14/17 | 24.7%/45.0% | 6.1 | 93.3 | 0 |
+| 3 | 1969 | 1137 | 66 | 52 | 290 | 2013 | 276801 | 59768 | 0/0 | 56 | 9/9 | 811/18 | 131 | 0 | 0 | 15/17 | 28.3%/49.9% | 6.0 | 93.5 | 0 |
 
 ## Suggested Interpretation
 

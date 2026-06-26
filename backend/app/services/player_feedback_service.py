@@ -415,12 +415,17 @@ class PlayerFeedbackService:
             return summary
         
         try:
+            json_match = func.json_contains(
+                MatchResultModel.player_stats,
+                func.json_object("player_id", player.id),
+            )
             query = (
                 select(MatchResultModel.player_stats)
                 .join(Fixture, MatchResultModel.fixture_id == Fixture.id)
                 .where(Fixture.status == FixtureStatus.FINISHED)
+                .where(json_match)
                 .order_by(desc(Fixture.season_day))
-                .limit(limit * 2)
+                .limit(limit)
             )
             if player.team_id:
                 query = query.where(
@@ -431,7 +436,7 @@ class PlayerFeedbackService:
                 )
             result = await self.db.execute(query)
             match_stats_list = result.scalars().all()
-            
+
             for player_stats in match_stats_list:
                 if not player_stats:
                     continue
