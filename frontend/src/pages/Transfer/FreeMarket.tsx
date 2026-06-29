@@ -43,7 +43,11 @@ interface Filters {
   origin: string
 }
 
-export default function FreeMarket() {
+interface FreeMarketProps {
+  embedded?: boolean
+}
+
+export default function FreeMarket({ embedded }: FreeMarketProps = {}) {
   const [players, setPlayers] = useState<FreeMarketPlayer[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -183,21 +187,37 @@ export default function FreeMarket() {
   }
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      <PageHeader
-        title="自由市场"
-        subtitle="签约自由球员"
-        action={
+    <div className={embedded ? 'space-y-4' : 'space-y-6 max-w-[1400px]'}>
+      {!embedded && (
+        <>
+          <PageHeader
+            title="自由市场"
+            subtitle="签约自由球员"
+            action={
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="px-3 py-2 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-sm text-[#466353] hover:text-[#173126] hover:border-[#1F5F43] transition-colors"
+              >
+                筛选
+              </button>
+            }
+          />
+
+          <TransferTabs />
+        </>
+      )}
+
+      {embedded && (
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-[#173126]">自由球员</h3>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="px-3 py-2 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 text-sm text-[#466353] hover:text-[#173126] hover:border-[#1F5F43] transition-colors"
           >
             筛选
           </button>
-        }
-      />
-
-      <TransferTabs />
+        </div>
+      )}
 
       {/* 提示 */}
       <div className="p-3 bg-[#FFC247]/15 border-2 border-[#FFC247]/40">

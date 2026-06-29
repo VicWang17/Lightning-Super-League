@@ -55,6 +55,7 @@ class TransferType(str, PyEnum):
     CLUB_TRANSFER = "club_transfer"
     RELEASE = "release"
     FREE_MARKET_SIGNING = "free_market_signing"
+    RENEWAL = "renewal"
 
 
 class TransferListing(Base):

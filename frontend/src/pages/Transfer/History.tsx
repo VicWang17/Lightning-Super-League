@@ -10,7 +10,11 @@ import { TRANSFER_TYPE_NAMES } from '../../types/transfer'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
 
-export default function TransferHistory() {
+interface TransferHistoryProps {
+  embedded?: boolean
+}
+
+export default function TransferHistory({ embedded }: TransferHistoryProps = {}) {
   const [records, setRecords] = useState<TransferRecordItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,17 +23,18 @@ export default function TransferHistory() {
   const [teamId, setTeamId] = useState<string | null>(null)
 
   useEffect(() => {
+    if (embedded) return
     api.get<{ id: string }>('/teams/my-team').then(res => {
       if (res.success && res.data) setTeamId(res.data.id)
     })
-  }, [])
+  }, [embedded])
 
   const fetchHistory = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const params: { team_id?: string; page: number; page_size: number } = { page, page_size: 20 }
-      if (teamId) params.team_id = teamId
+      if (!embedded && teamId) params.team_id = teamId
       const res = await api.getTransferHistory(params)
       if (res.success && res.data) {
         setRecords(res.data.items)
@@ -43,7 +48,7 @@ export default function TransferHistory() {
     } finally {
       setLoading(false)
     }
-  }, [teamId, page])
+  }, [teamId, page, embedded])
 
   useEffect(() => {
     fetchHistory()
@@ -58,12 +63,17 @@ export default function TransferHistory() {
   const totalOut = myRecords.filter(r => r.from_team_id === teamId).reduce((s, r) => s + r.amount, 0)
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      <PageHeader title="转会历史" subtitle="转会历史记录" />
+    <div className={embedded ? 'space-y-4' : 'space-y-6 max-w-[1400px]'}>
+      {!embedded && (
+        <>
+          <PageHeader title="转会历史" subtitle="转会历史记录" />
 
-      <TransferTabs />
+          <TransferTabs />
+        </>
+      )}
 
       {/* Stats */}
+      {!embedded && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card">
           <div className="mb-2">
@@ -86,6 +96,7 @@ export default function TransferHistory() {
           </p>
         </div>
       </div>
+      )}
 
       {loading && (
         <div className="flex items-center justify-center py-12 text-sm text-[#466353]">

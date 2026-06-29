@@ -19,6 +19,7 @@ from app.models.player import (
     OriginType,
 )
 from app.models.player_contract import PlayerContract, ContractStatus
+from app.models.transfer import TransferRecord, TransferType
 from app.models.wage_config import WageConfig, WageConfigType
 from app.models.team import Team
 from app.models.season import Season, SeasonStatus
@@ -319,7 +320,7 @@ class ContractService:
         )
 
         # 续约不改变 team_id，直接调用 sign_contract 但 team_id 不变
-        return await self.sign_contract(
+        contract = await self.sign_contract(
             player_id=player_id,
             team_id=team_id,
             contract_type=contract_type,
@@ -329,6 +330,24 @@ class ContractService:
             release_clause=release_clause,
             source="normal",
         )
+
+        # 写入续约记录，用于“近期市场”展示
+        season_id = await self._get_current_season_id(team_id)
+        record = TransferRecord(
+            player_id=player_id,
+            from_team_id=team_id,
+            to_team_id=team_id,
+            season_id=season_id,
+            transfer_type=TransferType.RENEWAL,
+            amount=Decimal("0"),
+            market_value_snapshot=player.market_value or Decimal("0"),
+            completed_at=datetime.utcnow(),
+            is_public=True,
+        )
+        self.db.add(record)
+        await self.db.flush()
+
+        return contract
 
     async def release_player(self, player_id: str, team_id: str) -> None:
         """解约球员"""

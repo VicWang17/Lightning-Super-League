@@ -5,6 +5,7 @@ AI Team Management Service - AI 球队自主运营服务
 目标：保证全 AI 联赛可以持续运转，无需玩家干预。
 """
 import random
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
 
@@ -29,6 +30,7 @@ from app.models import (
     User,
 )
 from app.models.player_contract import PlayerContract, ContractStatus
+from app.models.transfer import TransferRecord, TransferType
 from app.models.league import League, LeagueStanding
 from app.models.wage_config import WageConfig, WageConfigType
 from app.services.contract_service import ContractService
@@ -600,10 +602,27 @@ class AITeamManagementService:
                     years=1,
                     wage=recommended,
                     squad_role=SquadRole.BACKUP,
+                    source="free_market",
                 )
 
                 listing.status = ListingStatus.SIGNED
                 listing.signed_team_id = team.id
+
+                # 写入转会记录
+                record = TransferRecord(
+                    player_id=player.id,
+                    from_team_id=None,
+                    to_team_id=team.id,
+                    season_id=season.id,
+                    transfer_type=TransferType.FREE_MARKET_SIGNING,
+                    amount=listing.signing_fee,
+                    market_value_snapshot=player.market_value or Decimal("0"),
+                    source_listing_id=listing.id,
+                    completed_at=datetime.utcnow(),
+                    is_public=True,
+                )
+                self.db.add(record)
+
                 signed += 1
             except Exception as e:
                 logger.warning(f"AI free market sign failed for player {player.id}: {e}")
@@ -797,6 +816,22 @@ class AITeamManagementService:
 
                     listing.status = ListingStatus.SIGNED
                     listing.signed_team_id = team.id
+
+                    # 写入转会记录（青训签约也视为自由市场签约）
+                    record = TransferRecord(
+                        player_id=player.id,
+                        from_team_id=None,
+                        to_team_id=team.id,
+                        season_id=season.id,
+                        transfer_type=TransferType.FREE_MARKET_SIGNING,
+                        amount=listing.signing_fee,
+                        market_value_snapshot=player.market_value or Decimal("0"),
+                        source_listing_id=listing.id,
+                        completed_at=datetime.utcnow(),
+                        is_public=True,
+                    )
+                    self.db.add(record)
+
                     extra = dict(listing.extra_data or {})
                     extra["protection_processed"] = True
                     extra["rookie_protected"] = False

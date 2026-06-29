@@ -14,6 +14,8 @@ const TRANSFER_TYPE_NAMES: Record<string, string> = {
   FREE_MARKET_SIGNING: '自由签约',
   FREE_AGENT: '自由签约',
   free_market_signing: '自由签约',
+  renewal: '续约',
+  RENEWAL: '续约',
 }
 
 const TRANSFER_TYPE_COLORS: Record<string, string> = {
@@ -25,6 +27,8 @@ const TRANSFER_TYPE_COLORS: Record<string, string> = {
   FREE_MARKET_SIGNING: 'text-[#1F5F43]',
   FREE_AGENT: 'text-[#1F5F43]',
   free_market_signing: 'text-[#1F5F43]',
+  renewal: 'text-[#59C7EE]',
+  RENEWAL: 'text-[#59C7EE]',
 }
 
 function PlayerTransfers() {

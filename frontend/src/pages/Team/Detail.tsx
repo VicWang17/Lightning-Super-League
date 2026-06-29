@@ -15,6 +15,7 @@ import { useTeamHistory, useTeamHonors, useTeamRecords } from '../../hooks/useTe
 import { RecordsBoard } from '../../components/records/RecordsBoard'
 import { Card } from '../../components/ui/Card'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
+import PlayerActionBar from '../../components/transfer/PlayerActionBar'
 
 interface TeamSummary {
   id: string
@@ -175,6 +176,13 @@ function TeamDetail() {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [sort, setSort] = useState<SortConfig>({ field: 'ovr', direction: 'desc' })
+  const [myTeamId, setMyTeamId] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.get<{ id: string }>('/teams/my-team').then(res => {
+      if (res.success && res.data) setMyTeamId(res.data.id)
+    })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -567,6 +575,7 @@ function TeamDetail() {
               <div className="locker-actions">
                 <Link to={`/players/${selectedPlayer.id}`} className="btn-primary py-2 text-sm">球员详情</Link>
                 <Link to={`/players/${selectedPlayer.id}/growth`} className="locker-action-secondary">成长曲线</Link>
+                <PlayerActionBar player={selectedPlayer} myTeamId={myTeamId} />
               </div>
             </>
           ) : (

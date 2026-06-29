@@ -2,6 +2,7 @@
 Free Market API - 自由市场路由
 按设计文档 CONTRACT-YOUTH-CLOSED-LOOP-TECH-DESIGN.md 11.3 节实现。
 """
+from datetime import datetime
 from typing import Optional
 from decimal import Decimal
 
@@ -21,7 +22,9 @@ from app.models import (
     SquadRole,
     ContractType,
 )
+from app.models.transfer import TransferRecord, TransferType
 from app.services.contract_service import ContractService
+from app.services.transfer_service import TransferService
 from app.core.logging import get_logger
 
 router = APIRouter(prefix="/free-market", tags=["自由市场"])
@@ -274,9 +277,26 @@ async def sign_free_market_player(
         # 更新 listing
         listing.status = ListingStatus.SIGNED
         listing.signed_team_id = req.team_id
-        
+
+        # 写入转会记录（近期市场展示用）
+        player = await db.get(Player, listing.player_id)
+        if player:
+            record = TransferRecord(
+                player_id=player.id,
+                from_team_id=None,
+                to_team_id=req.team_id,
+                season_id=contract.season_id,
+                transfer_type=TransferType.FREE_MARKET_SIGNING,
+                amount=listing.signing_fee,
+                market_value_snapshot=player.market_value or Decimal("0"),
+                source_listing_id=listing.id,
+                completed_at=datetime.utcnow(),
+                is_public=True,
+            )
+            db.add(record)
+
         await db.commit()
-        
+
         return ResponseSchema(
             success=True,
             data={

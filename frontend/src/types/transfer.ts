@@ -4,7 +4,7 @@ export type TransferListingStatus = 'ACTIVE' | 'SOLD' | 'EXPIRED' | 'CANCELLED'
 export type NegotiationStatus = 'ACTIVE' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED'
 export type OfferStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED'
 export type OfferKind = 'INITIAL' | 'COUNTER' | 'FINAL'
-export type TransferType = 'TRANSFER' | 'RELEASE' | 'FREE_AGENT'
+export type TransferType = 'club_transfer' | 'release' | 'free_market_signing' | 'renewal'
 
 // =====================================================================
 // Market Browse
@@ -191,9 +191,10 @@ export const OFFER_KIND_NAMES: Record<OfferKind, string> = {
 }
 
 export const TRANSFER_TYPE_NAMES: Record<TransferType, string> = {
-  TRANSFER: '队间转会',
-  RELEASE: '解约',
-  FREE_AGENT: '自由签约',
+  club_transfer: '队间转会',
+  release: '解约',
+  free_market_signing: '自由签约',
+  renewal: '续约',
 }
 
 export const LISTING_STATUS_NAMES: Record<TransferListingStatus, string> = {

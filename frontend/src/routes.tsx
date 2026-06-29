@@ -36,7 +36,7 @@ import PostMatch from './pages/Match/PostMatch'
 import MatchDetail from './pages/Match/Detail'
 
 // Transfer Pages
-import TransferMarket from './pages/Transfer/Market'
+import MarketPage from './pages/Transfer/MarketPage'
 import FreeMarket from './pages/Transfer/FreeMarket'
 import Watchlist from './pages/Transfer/Watchlist'
 import MyListings from './pages/Transfer/MyListings'
@@ -281,7 +281,7 @@ export const router = createBrowserRouter([
             children: [
               {
                 path: 'market',
-                element: <TransferMarket />,
+                element: <MarketPage />,
               },
               {
                 path: 'free-market',

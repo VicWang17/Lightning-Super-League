@@ -48,7 +48,12 @@ function formatMoney(n: number) {
   return `${(n / 10000).toFixed(1)}万`
 }
 
-export default function TransferMarket() {
+interface TransferMarketProps {
+  embedded?: boolean
+  forceListed?: boolean
+}
+
+export default function TransferMarket({ embedded, forceListed }: TransferMarketProps = {}) {
   const navigate = useNavigate()
   const [players, setPlayers] = useState<MarketPlayer[]>([])
   const [loading, setLoading] = useState(false)
@@ -61,7 +66,7 @@ export default function TransferMarket() {
     max_ovr: '',
     min_age: '',
     max_age: '',
-    is_listed: '',
+    is_listed: forceListed ? 'listed' : '',
     search: '',
   })
 
@@ -160,18 +165,22 @@ export default function TransferMarket() {
   const list = useMemo(() => players, [players])
 
   return (
-    <div className="fresh-page-shell space-y-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-1 text-sm font-bold text-[#466353] hover:text-[#173126] transition-colors"
-      >
-        <ChevronLeft className="w-4 h-4" />
-        返回上一页
-      </button>
+    <div className={embedded ? 'space-y-4' : 'fresh-page-shell space-y-6'}>
+      {!embedded && (
+        <>
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1 text-sm font-bold text-[#466353] hover:text-[#173126] transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            返回上一页
+          </button>
 
-      <PageHeader title="球员拍卖市场" subtitle="浏览球员并发送转会报价" />
+          <PageHeader title="球员拍卖市场" subtitle="浏览球员并发送转会报价" />
 
-      <TransferTabs />
+          <TransferTabs />
+        </>
+      )}
 
       <section className="fresh-filter-strip">
         <div className="relative flex-1 min-w-[200px]">
@@ -212,15 +221,17 @@ export default function TransferMarket() {
           onChange={e => handleFilterChange('max_age', e.target.value)}
           className="w-24 px-3 py-2 text-sm outline-none focus:border-[#59C7EE]"
         />
-        <select
-          value={filters.is_listed}
-          onChange={e => handleFilterChange('is_listed', e.target.value)}
-          className="px-3 py-2 text-sm outline-none focus:border-[#59C7EE]"
-        >
-          <option value="">全部状态</option>
-          <option value="listed">仅挂牌</option>
-          <option value="unlisted">未挂牌</option>
-        </select>
+        {!forceListed && (
+          <select
+            value={filters.is_listed}
+            onChange={e => handleFilterChange('is_listed', e.target.value)}
+            className="px-3 py-2 text-sm outline-none focus:border-[#59C7EE]"
+          >
+            <option value="">全部状态</option>
+            <option value="listed">仅挂牌</option>
+            <option value="unlisted">未挂牌</option>
+          </select>
+        )}
       </section>
 
       {loading && (

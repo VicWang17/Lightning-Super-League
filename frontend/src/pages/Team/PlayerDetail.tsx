@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 
-import { ContractModal } from '../../components/players/ContractModal'
+import PlayerActionBar from '../../components/transfer/PlayerActionBar'
 import {
   getPositionColor,
   type Player,
@@ -206,8 +206,8 @@ function PlayerDetail() {
   const [feedbacks, setFeedbacks] = useState<PlayerFeedback[]>([])
   const [recentMatches, setRecentMatches] = useState<PlayerRecentMatch[]>([])
   const [activeTab, setActiveTab] = useState<ProfileTab>('abilities')
-  const [showContractModal, setShowContractModal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [myTeamId, setMyTeamId] = useState<string | null>(null)
 
   const { awards: playerAwards, loading: awardsLoading } = usePlayerAwards(id)
   const { summary: awardSummary } = usePlayerAwardSummary(id)
@@ -260,6 +260,12 @@ function PlayerDetail() {
   useEffect(() => {
     setActiveTab('abilities')
   }, [id])
+
+  useEffect(() => {
+    api.get<{ id: string }>('/teams/my-team').then(res => {
+      if (res.success && res.data) setMyTeamId(res.data.id)
+    })
+  }, [])
 
   const attributeGroups = useMemo(
     () => (player?.position === 'GK' ? GK_ATTRIBUTE_GROUPS : FIELD_ATTRIBUTE_GROUPS),
@@ -353,11 +359,7 @@ function PlayerDetail() {
         <button type="button" onClick={() => navigate(-1)} className="profile-back-link">
           返回上一页
         </button>
-        {player.team_id && (
-          <button className="profile-contract-btn" onClick={() => setShowContractModal(true)}>
-            {contract ? '合同处理' : '签约'}
-          </button>
-        )}
+        <PlayerActionBar player={player} myTeamId={myTeamId} onChange={fetchCore} />
       </div>
 
       <div className="dossier-card-shell">
@@ -782,15 +784,6 @@ function PlayerDetail() {
         </div>
       </div>
 
-      {showContractModal && player.team_id && (
-        <ContractModal
-          player={player}
-          teamId={player.team_id}
-          existingContract={contract}
-          onClose={() => setShowContractModal(false)}
-          onSuccess={fetchCore}
-        />
-      )}
     </div>
   )
 }
