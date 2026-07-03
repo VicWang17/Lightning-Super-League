@@ -13,6 +13,7 @@ export type TransferType = 'club_transfer' | 'release' | 'free_market_signing' |
 export interface MarketPlayer {
   player_id: string
   name: string
+  avatar_url?: string
   position: string
   age: number
   ovr: number
@@ -80,8 +81,11 @@ export interface TransferRecordItem {
   record_id: string
   player_id: string
   player_name: string
+  avatar_url?: string
   from_team_id: string
+  from_team_name: string | null
   to_team_id: string
+  to_team_name: string | null
   transfer_type: TransferType
   amount: number
   market_value: number

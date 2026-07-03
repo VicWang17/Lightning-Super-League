@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from '../../components/ui/pixel-icons'
+import Avatar from '../../components/ui/Avatar'
 import api from '../../api/client'
 import type { TransferRecordItem } from '../../types/transfer'
 import { TRANSFER_TYPE_NAMES } from '../../types/transfer'
@@ -113,36 +114,64 @@ export default function TransferHistory({ embedded }: TransferHistoryProps = {})
         <>
           <div className="card">
             <h3 className="text-lg font-semibold mb-4">转会记录</h3>
-            <div className="space-y-3">
+            <div className="space-y-2">
+              <div
+                className="fresh-roster-row text-[10px] font-black text-[#466353] uppercase tracking-wider opacity-80 pointer-events-none"
+                style={{ gridTemplateColumns: '56px minmax(0, 1fr) minmax(0, 1fr) 120px 100px' }}
+              >
+                <span className="text-center">头像</span>
+                <span className="px-2">球员</span>
+                <span className="px-2">转会流向</span>
+                <span className="text-right px-2">金额</span>
+                <span className="text-right px-2">日期</span>
+              </div>
+
               {records.map((r) => {
                 const isIn = r.to_team_id === teamId
                 const isOut = r.from_team_id === teamId
+
+                let flowText = ''
+                if (r.transfer_type === 'renewal') {
+                  flowText = `${r.to_team_name || r.to_team_id.slice(0, 6)} 续约`
+                } else if (r.transfer_type === 'free_market_signing') {
+                  flowText = `自由球员 → ${r.to_team_name || r.to_team_id.slice(0, 6)}`
+                } else if (r.transfer_type === 'release') {
+                  flowText = `${r.from_team_name || r.from_team_id.slice(0, 6)} → 自由市场`
+                } else {
+                  flowText = `${r.from_team_name || r.from_team_id.slice(0, 6)} → ${r.to_team_name || r.to_team_id.slice(0, 6)}`
+                }
+
                 return (
-                  <div key={r.record_id} className="flex items-center gap-4 p-3 bg-white/70 border-2 border-[#1F5F43]/20">
-                    <div className={clsx(
-                      'w-8 h-8 flex items-center justify-center border-2 text-xs font-bold',
-                      isIn ? 'bg-[#B9EF3F]/25 border-[#1F5F43]/30 text-[#1F5F43]' :
-                      isOut ? 'bg-[#FF6F59]/15 border-[#FF6F59]/35 text-[#FF6F59]' :
-                      'bg-[#F8FFD2] text-[#466353]'
-                    )}>
-                      {isIn ? '入' : isOut ? '出' : '—'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#173126]">
+                  <div
+                    key={r.record_id}
+                    className="fresh-roster-row group"
+                    style={{ gridTemplateColumns: '56px minmax(0, 1fr) minmax(0, 1fr) 120px 100px' }}
+                  >
+                    <Avatar src={r.avatar_url} name={r.player_name} size="lg" />
+
+                    <div className="min-w-0 px-2 overflow-hidden">
+                      <p className="text-sm font-medium text-[#173126] truncate">
                         <Link to={`/players/${r.player_id}`} className="hover:text-[#1F5F43] transition-colors">
                           {r.player_name}
                         </Link>
                       </p>
-                      <p className="text-xs text-[#8B5A2B]/40">
+                      <p className="text-xs text-[#466353]">
                         {TRANSFER_TYPE_NAMES[r.transfer_type]}
-                        {r.from_team_id && r.to_team_id && ` · ${r.from_team_id.slice(0, 6)} → ${r.to_team_id.slice(0, 6)}`}
                       </p>
                     </div>
+
+                    <div className="min-w-0 px-2 overflow-hidden flex items-center">
+                      <span className="text-sm text-[#173126] truncate">{flowText}</span>
+                    </div>
+
                     <div className="text-right">
                       <p className={clsx('text-sm font-bold', isIn ? 'text-[#FF6F59]' : isOut ? 'text-[#1F5F43]' : 'text-[#466353]')}>
                         {isIn ? '-' : isOut ? '+' : ''}{(r.amount / 10000).toFixed(1)}万
                       </p>
-                      <p className="text-xs text-[#8B5A2B]/40">
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-xs text-[#466353]">
                         {new Date(r.completed_at).toLocaleDateString()}
                       </p>
                     </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { 
   ChevronLeft,
   ChevronRight,
@@ -7,6 +8,7 @@ import {
 } from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
+import Avatar from '../../components/ui/Avatar'
 import api from '../../api/client'
 import type { FreeMarketPlayer, FreeMarketPreview, FreeMarketSignResult } from '../../types/free_market'
 import { ORIGIN_NAMES, ORIGIN_COLORS } from '../../types/free_market'
@@ -21,10 +23,10 @@ const positionOptions = [
 
 const originOptions = [
   { value: '', label: '全部来源' },
-  { value: 'CONTRACT_EXPIRED', label: '合同到期' },
-  { value: 'RELEASED', label: '解约球员' },
-  { value: 'ACADEMY_RELEASED', label: '青训新人' },
-  { value: 'AUTO_GENERATED', label: '系统兜底' },
+  { value: 'contract_expired', label: '合同到期' },
+  { value: 'released', label: '解约球员' },
+  { value: 'academy_released', label: '青训新人' },
+  { value: 'auto_generated', label: '系统兜底' },
 ]
 
 const positionColors: Record<string, string> = {
@@ -75,7 +77,7 @@ export default function FreeMarket({ embedded }: FreeMarketProps = {}) {
     setLoading(true)
     setError(null)
     try {
-      const params: Record<string, string | number> = { page, page_size: 12 }
+      const params: Record<string, string | number> = { page, page_size: 24 }
       if (filters.position) params.position = filters.position
       if (filters.min_ovr) params.min_ovr = Number(filters.min_ovr)
       if (filters.max_ovr) params.max_ovr = Number(filters.max_ovr)
@@ -219,13 +221,6 @@ export default function FreeMarket({ embedded }: FreeMarketProps = {}) {
         </div>
       )}
 
-      {/* 提示 */}
-      <div className="p-3 bg-[#FFC247]/15 border-2 border-[#FFC247]/40">
-        <p className="text-sm text-[#C77A00]">
-          每48小时内最多从自由市场签约2名球员。价格每24小时自动下调5%。
-        </p>
-      </div>
-
       {/* 筛选面板 */}
       {showFilters && (
         <div className="p-4 bg-[#FFF8DC]/80 border-2 border-[#1F5F43]/20 space-y-3">
@@ -297,45 +292,73 @@ export default function FreeMarket({ embedded }: FreeMarketProps = {}) {
       {/* 球员列表 */}
       {!loading && !error && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <div
+              className="fresh-roster-row text-[10px] font-black text-[#466353] uppercase tracking-wider opacity-80 pointer-events-none"
+              style={{ gridTemplateColumns: '56px minmax(0, 1fr) repeat(3, 72px) 110px 110px 90px 100px' }}
+            >
+              <span className="text-center">头像</span>
+              <span className="px-2">球员 / 来源</span>
+              <span className="text-center">年龄</span>
+              <span className="text-center">OVR</span>
+              <span className="text-center">潜力</span>
+              <span className="text-center">签字费</span>
+              <span className="text-center">建议周薪</span>
+              <span className="text-center">上架</span>
+              <span className="text-right px-2">操作</span>
+            </div>
+
             {players.map((p) => (
-              <div key={p.listing_id} className="card card-hover">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h4 className="font-bold text-[#173126]">{p.name}</h4>
-                    <p className="text-xs text-[#466353]">{p.age}岁 · OVR {p.ovr} · 潜力 {p.potential_letter}</p>
-                  </div>
-                  <span className={clsx('text-xs px-2 py-0.5 font-bold', positionColors[p.position] || 'bg-[#F8FFD2] text-[#173126]')}>
-                    {p.position}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={clsx('text-xs', ORIGIN_COLORS[p.origin as keyof typeof ORIGIN_COLORS] || 'text-[#466353]')}>
-                    {ORIGIN_NAMES[p.origin as keyof typeof ORIGIN_NAMES] || p.origin}
-                  </span>
-                  {p.is_rookie_protected && (
-                    <span className="text-xs px-1.5 py-0.5 bg-[#B9EF3F]/20 text-[#1F5F43] border border-[#1F5F43]/30">
-                      新人保护期
+              <div
+                key={p.listing_id}
+                className="fresh-roster-row group"
+                style={{ gridTemplateColumns: '56px minmax(0, 1fr) repeat(3, 72px) 110px 110px 90px 100px' }}
+              >
+                <Avatar src={p.avatar_url} name={p.name} size="lg" />
+
+                <div className="min-w-0 px-2 overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/players/${p.player_id}`}
+                      className="truncate text-sm font-black text-[#173126] hover:text-[#1F5F43] transition-colors"
+                    >
+                      {p.name}
+                    </Link>
+                    <span className={clsx('px-1.5 py-0.5 text-[10px]', positionColors[p.position] || 'bg-[#F8FFD2] text-[#173126]')}>
+                      {p.position}
                     </span>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={clsx(ORIGIN_COLORS[p.origin as keyof typeof ORIGIN_COLORS] || 'text-[#466353]')}>
+                      {ORIGIN_NAMES[p.origin as keyof typeof ORIGIN_NAMES] || p.origin}
+                    </span>
+                    {p.is_rookie_protected && (
+                      <span className="px-1.5 py-0.5 bg-[#B9EF3F]/20 text-[#1F5F43] border border-[#1F5F43]/30">
+                        新人保护
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#8B5A2B]/40">签字费</span>
-                    <span className="text-lg font-bold text-[#1F5F43] stat-number">{p.signing_fee}万</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-[#8B5A2B]/40">建议周薪</span>
-                    <span className="text-xs text-[#173126]">{p.recommended_wage}万/周</span>
-                  </div>
+                <div className="text-center">
+                  <strong className="text-sm font-black text-[#173126]">{p.age}</strong>
                 </div>
-
-                <div className="flex items-center justify-between pt-3 border-t-2 border-[#1F5F43]/20">
-                  <span className="text-xs text-[#8B5A2B]/40">
-                    第{p.listed_at_day}天上架
-                  </span>
+                <div className="text-center">
+                  <strong className="text-sm font-black text-[#173126]">{p.ovr}</strong>
+                </div>
+                <div className="text-center">
+                  <strong className="text-sm font-black text-[#173126]">{p.potential_letter}</strong>
+                </div>
+                <div className="text-center">
+                  <strong className="text-sm font-black text-[#1F5F43]">{p.signing_fee}万</strong>
+                </div>
+                <div className="text-center">
+                  <strong className="text-sm font-black text-[#173126]">{p.recommended_wage}万</strong>
+                </div>
+                <div className="text-center">
+                  <strong className="text-sm font-black text-[#466353]">第{p.listed_at_day}天</strong>
+                </div>
+                <div className="flex items-center justify-end">
                   <button
                     onClick={() => openSignModal(p)}
                     className="px-4 py-1.5 bg-[#1F5F43] hover:bg-[#173126] text-[#F8FFD2] text-xs font-bold border-2 border-[#173126] transition-colors"

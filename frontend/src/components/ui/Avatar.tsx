@@ -1,4 +1,4 @@
-import { HTMLAttributes, forwardRef } from 'react'
+import { HTMLAttributes, forwardRef, useState } from 'react'
 import { clsx } from 'clsx'
 
 export interface AvatarProps extends HTMLAttributes<HTMLDivElement> {
@@ -74,26 +74,34 @@ const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
       return colors[Math.abs(hash) % colors.length]
     }
 
+    const [imgError, setImgError] = useState(false)
+
+    const isAbsoluteUrl = /^[a-z][a-z0-9+.-]*:/i.test(src || '')
+    const normalizedSrc = src
+      ? isAbsoluteUrl || src.startsWith('/')
+        ? src
+        : `/${src}`
+      : undefined
+
+    const showImage = normalizedSrc && !imgError
+
     return (
       <div ref={ref} className="relative inline-block" {...props}>
         <div
           className={clsx(
             'rounded-none overflow-hidden flex items-center justify-center border-2 border-[#1F5F43]/20',
             sizes[size],
-            !src && name && getColorFromName(name),
-            !src && !name && 'bg-[#F8FFD2]',
+            !showImage && name && getColorFromName(name),
+            !showImage && !name && 'bg-[#F8FFD2]',
             className
           )}
         >
-          {src ? (
+          {showImage ? (
             <img
-              src={src}
+              src={normalizedSrc}
               alt={alt}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                // 图片加载失败时显示 fallback
-                ;(e.target as HTMLImageElement).style.display = 'none'
-              }}
+              onError={() => setImgError(true)}
             />
           ) : fallback ? (
             fallback

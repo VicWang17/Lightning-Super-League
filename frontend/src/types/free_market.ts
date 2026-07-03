@@ -1,6 +1,6 @@
 // Free Market types - CONTRACT-YOUTH-CLOSED-LOOP-TECH-DESIGN.md
 
-export type FreeAgentOrigin = 'CONTRACT_EXPIRED' | 'RELEASED' | 'ACADEMY_RELEASED' | 'AUTO_GENERATED'
+export type FreeAgentOrigin = 'contract_expired' | 'released' | 'academy_released' | 'auto_generated'
 
 export interface FreeMarketPlayer {
   listing_id: string
@@ -72,15 +72,15 @@ export interface FreeMarketSignResult {
 
 // Origin display names
 export const ORIGIN_NAMES: Record<FreeAgentOrigin, string> = {
-  CONTRACT_EXPIRED: '合同到期',
-  RELEASED: '解约球员',
-  ACADEMY_RELEASED: '青训新人',
-  AUTO_GENERATED: '系统兜底',
+  contract_expired: '合同到期',
+  released: '解约球员',
+  academy_released: '青训新人',
+  auto_generated: '系统兜底',
 }
 
 export const ORIGIN_COLORS: Record<FreeAgentOrigin, string> = {
-  CONTRACT_EXPIRED: 'text-[#1F5F43]',
-  RELEASED: 'text-[#FF6F59]',
-  ACADEMY_RELEASED: 'text-[#1F5F43]',
-  AUTO_GENERATED: 'text-[#466353]',
+  contract_expired: 'text-[#1F5F43]',
+  released: 'text-[#FF6F59]',
+  academy_released: 'text-[#1F5F43]',
+  auto_generated: 'text-[#466353]',
 }

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
-import { Eye, ChevronLeft, ChevronRight, Search } from '../../components/ui/pixel-icons'
+import { ChevronLeft, ChevronRight, Search } from '../../components/ui/pixel-icons'
 import { TransferTabs } from '../../components/transfer/TransferTabs'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Modal } from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
+import Avatar from '../../components/ui/Avatar'
 import api from '../../api/client'
 import type { MarketPlayer } from '../../types/transfer'
 import { POSITION_COLORS } from '../../types/player'
@@ -80,7 +81,7 @@ export default function TransferMarket({ embedded, forceListed }: TransferMarket
     setLoading(true)
     setError(null)
     try {
-      const params: Record<string, unknown> = { page, page_size: 20 }
+      const params: Record<string, unknown> = { page, page_size: 30 }
       if (filters.position) params.position = filters.position
       if (filters.min_ovr) params.min_ovr = Number(filters.min_ovr)
       if (filters.max_ovr) params.max_ovr = Number(filters.max_ovr)
@@ -254,56 +255,65 @@ export default function TransferMarket({ embedded, forceListed }: TransferMarket
           </section>
 
           <div className="space-y-2">
-            {list.map((p) => (
-              <div key={p.player_id} className="fresh-roster-row group" style={{ gridTemplateColumns: '48px minmax(0, 1fr) repeat(5, auto)' }}>
-                <div className="fresh-player-initial w-12 h-12">{p.name.charAt(0)}</div>
+            <div
+              className="fresh-roster-row text-[10px] font-black text-[#466353] uppercase tracking-wider opacity-80 pointer-events-none"
+              style={{ gridTemplateColumns: '56px minmax(0, 1fr) repeat(4, 72px) 110px 140px' }}
+            >
+              <span className="text-center">头像</span>
+              <span className="px-2">球员 / 球队</span>
+              <span className="text-center">年龄</span>
+              <span className="text-center">OVR</span>
+              <span className="text-center">潜力</span>
+              <span className="text-center">估值</span>
+              <span className="text-center">挂牌价</span>
+              <span className="text-right px-2">操作</span>
+            </div>
 
-                <div className="min-w-0 px-2">
-                  <div className="fresh-row-title">
-                    <strong>{p.name}</strong>
+            {list.map((p) => (
+              <div
+                key={p.player_id}
+                className="fresh-roster-row group"
+                style={{ gridTemplateColumns: '56px minmax(0, 1fr) repeat(4, 72px) 110px 140px' }}
+              >
+                <Avatar src={p.avatar_url} name={p.name} size="lg" />
+
+                <div className="min-w-0 px-2 overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/players/${p.player_id}`}
+                      className="truncate text-sm font-black text-[#173126] hover:text-[#1F5F43] transition-colors"
+                    >
+                      {p.name}
+                    </Link>
                     <span className={clsx('px-1.5 py-0.5 text-[10px]', POSITION_COLORS[p.position as keyof typeof POSITION_COLORS] || 'bg-[#F8FFD2] text-[#173126] border border-[#1F5F43]/20')}>
                       {p.position}
                     </span>
                   </div>
-                  <p>{p.team_name}</p>
+                  <p className="text-xs text-[#466353] truncate">{p.team_name}</p>
                 </div>
 
-                <div className="text-center min-w-[56px]">
-                  <span className="block text-[10px] font-black text-[#466353]">年龄</span>
+                <div className="text-center">
                   <strong className="text-sm font-black text-[#173126]">{p.age}</strong>
                 </div>
-                <div className="text-center min-w-[56px]">
-                  <span className="block text-[10px] font-black text-[#466353]">OVR</span>
+                <div className="text-center">
                   <strong className="text-sm font-black text-[#173126]">{p.ovr}</strong>
                 </div>
-                <div className="text-center min-w-[48px]">
-                  <span className="block text-[10px] font-black text-[#466353]">潜力</span>
+                <div className="text-center">
                   <span className={clsx('inline-block min-w-[24px] px-1 py-0.5 text-xs font-black border border-[#1F5F43]', potentialTone[p.potential_letter] || 'bg-white text-[#173126]')}>
                     {p.potential_letter}
                   </span>
                 </div>
-                <div className="text-right min-w-[90px]">
-                  <span className="block text-[10px] font-black text-[#466353]">估值</span>
+                <div className="text-center">
                   <strong className="text-sm font-black text-[#173126]">{formatMoney(p.market_value)}</strong>
                 </div>
-                <div className="flex items-center justify-end gap-2 min-w-[140px]">
-                  {p.is_listed && p.list_price && (
-                    <span className="text-xs font-black text-[#C77A00]">{formatMoney(p.list_price)}</span>
-                  )}
-                  {p.is_listed && (
-                    <span className="px-2 py-0.5 text-[10px] font-black bg-[#B9EF3F]/35 text-[#1F5F43] border border-[#1F5F43]/30">
-                      挂牌
-                    </span>
-                  )}
-                  <Link
-                    to={`/players/${p.player_id}`}
-                    className="p-1.5 bg-white border-2 border-[#1F5F43]/30 text-[#466353] hover:text-[#173126] hover:border-[#1F5F43] transition-colors"
-                    title="查看球员"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                  </Link>
+                <div className="text-center">
+                  <strong className={clsx('text-sm font-black', p.is_listed ? 'text-[#C77A00]' : 'text-[#8B5A2B]/40')}>
+                    {p.is_listed && p.list_price ? formatMoney(p.list_price) : '—'}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-end gap-2">
                   <Button size="sm" onClick={() => openOfferModal(p)}>
-                    报价
+                    {p.is_listed ? '出价' : '报价'}
                   </Button>
                 </div>
               </div>

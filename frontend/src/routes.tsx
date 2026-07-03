@@ -280,6 +280,10 @@ export const router = createBrowserRouter([
             path: 'transfer',
             children: [
               {
+                path: '',
+                element: <Navigate to="/transfer/market" replace />,
+              },
+              {
                 path: 'market',
                 element: <MarketPage />,
               },
