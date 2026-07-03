@@ -465,6 +465,15 @@ _register_template(TrainingTemplate(
 ))
 
 
+# ==================== 全局成长速度微调 ====================
+# 在报告中发现 3 赛季后顶尖球员和属性 20 极少，
+# 这里统一把非恢复类训练项的基础成长提高 12%，幅度不大。
+_BASE_GAIN_MULTIPLIER = 1.12
+for _item in TRAINING_ITEMS.values():
+    if not _item.is_recovery and _item.base_gain > 0:
+        _item.base_gain = round(_item.base_gain * _BASE_GAIN_MULTIPLIER, 4)
+
+
 # ==================== 便捷查询函数 ====================
 
 def get_training_item(item_id: str) -> Optional[TrainingItem]:

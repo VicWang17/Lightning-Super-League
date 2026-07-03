@@ -48,8 +48,8 @@ AI_MAX_LISTINGS_PER_SCAN = 1
 AI_TEAMS_PER_DAILY_SCAN = 32
 AI_DAILY_LISTING_LIMIT = 24
 AI_DAILY_OFFER_LIMIT = 8
-AI_LISTING_CHANCE = Decimal("0.35")
-AI_OFFER_CHANCE = Decimal("0.20")
+AI_LISTING_CHANCE = Decimal("0.40")
+AI_OFFER_CHANCE = Decimal("0.30")
 
 
 class AITransferService:
@@ -330,8 +330,8 @@ class AITransferService:
         roster_count = await self.transfer_service._get_team_roster_count(team_id)
         health, _ = await self._get_team_finance_health(team_id)
 
-        # 高保护阈值调整
-        accept_threshold = ai_value * Decimal("0.95") if is_listed else ai_value * Decimal("1.05")
+        # 高保护阈值调整（略微放宽，让 AI 更容易达成交易）
+        accept_threshold = ai_value * Decimal("0.90") if is_listed else ai_value * Decimal("1.00")
         if health in (FinancialHealth.D,):
             accept_threshold = accept_threshold * Decimal("0.85")
         elif health == FinancialHealth.C:
@@ -346,8 +346,8 @@ class AITransferService:
             return
 
         # 如果报价过低且未使用反报价：反报价
-        if not negotiation.counter_used and amount >= ai_value * Decimal("0.60"):
-            counter_amount = max(amount * Decimal("1.10"), ai_value * Decimal("1.05"))
+        if not negotiation.counter_used and amount >= ai_value * Decimal("0.55"):
+            counter_amount = max(amount * Decimal("1.08"), ai_value * Decimal("1.02"))
             counter_amount = min(counter_amount, amount * Decimal("1.50"))
             try:
                 await self.transfer_service.create_counter_offer(
@@ -371,7 +371,7 @@ class AITransferService:
         amount = offer.amount
 
         # 反报价仍在 AI 估值附近：直接接受，减少无意义拉扯。
-        if amount <= ai_value * Decimal("1.03"):
+        if amount <= ai_value * Decimal("1.05"):
             if await self._can_settle_offer(negotiation, offer):
                 await self.transfer_service.accept_offer(offer.id, team_id)
             else:
@@ -380,8 +380,8 @@ class AITransferService:
 
         initial = await self.transfer_service._get_offer(negotiation.initial_offer_id) if negotiation.initial_offer_id else None
         if initial and not negotiation.final_used:
-            final_amount = min(amount, ai_value)
-            floor = initial.amount * Decimal("1.03")
+            final_amount = min(amount, ai_value * Decimal("1.02"))
+            floor = initial.amount * Decimal("1.02")
             if final_amount > floor:
                 try:
                     await self.transfer_service.create_final_offer(
@@ -405,7 +405,7 @@ class AITransferService:
     ) -> None:
         """AI 对最终报价的决策"""
         amount = offer.amount
-        accept_threshold = ai_value * Decimal("0.95") if is_listed else ai_value * Decimal("1.05")
+        accept_threshold = ai_value * Decimal("0.90") if is_listed else ai_value * Decimal("1.00")
         health, _ = await self._get_team_finance_health(team_id)
         if health in (FinancialHealth.D,):
             accept_threshold = accept_threshold * Decimal("0.85")
@@ -512,7 +512,7 @@ class AITransferService:
                 continue
 
             ai_value = await self._evaluate_player_for_ai(team_id, player.id, is_selling=False)
-            if listing.list_price <= ai_value * Decimal("0.92"):
+            if listing.list_price <= ai_value * Decimal("0.98"):
                 score = ai_value - listing.list_price
                 if shortages.get(player.position.value, 0) > 0:
                     score += Decimal("1500000")
@@ -527,7 +527,7 @@ class AITransferService:
         listing, player, _ = best
 
         try:
-            offer_amount = max(listing.list_price, _quantize(best[1].ovr * 10000 + 50000))
+            offer_amount = max(_quantize(listing.list_price * Decimal("1.02")), _quantize(best[1].ovr * 10000 + 50000))
             await self.transfer_service.create_offer(
                 player_id=player.id,
                 buyer_team_id=team_id,

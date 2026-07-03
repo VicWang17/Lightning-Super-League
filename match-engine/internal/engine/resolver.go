@@ -27,11 +27,11 @@ func ResolveDuel(attackValue, defenseValue float64, r *rand.Rand, com ...float64
 		pSuccess = 0.5 + (pSuccess-0.5)*(0.5+0.5*stability)
 	}
 
-	if pSuccess < 0.03 {
-		pSuccess = 0.03
+	if pSuccess < 0.02 {
+		pSuccess = 0.02
 	}
-	if pSuccess > 0.97 {
-		pSuccess = 0.97
+	if pSuccess > 0.98 {
+		pSuccess = 0.98
 	}
 	return r.Float64() < pSuccess
 }

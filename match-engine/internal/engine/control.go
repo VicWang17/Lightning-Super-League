@@ -28,7 +28,7 @@ func ComputeControlMatrix(m *domain.MatchState) [3][3]float64 {
 			momentum := m.GlobalMomentum
 
 			// Natural control raw value
-			raw := 0.28*deltaForm + 0.40*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum + 0.10*deltaTeamAttr + 0.05*deltaInstr
+			raw := 0.28*deltaForm + 0.42*deltaPlayer + 0.18*deltaTactic + 0.03*deltaDynamic + 0.01*momentum + 0.13*deltaTeamAttr + 0.05*deltaInstr
 
 			// Apply skill-based zone control mods
 			zone := [2]int{r, c}
@@ -231,8 +231,8 @@ func teamAttrDelta(atk, def *domain.TeamRuntime) float64 {
 		(defAvg["SPD"] + defAvg["ACC"])
 
 	// Combine and scale down to keep max impact small
-	// Raw range roughly ±15; divide by 200 to keep within ±0.075
-	raw := possDelta*0.005 + defDelta*0.005 + spdDelta*0.003
+	// Raw range roughly ±15; divide by 160 to keep within ±0.094
+	raw := possDelta*0.00625 + defDelta*0.00625 + spdDelta*0.00375
 	return raw
 }
 

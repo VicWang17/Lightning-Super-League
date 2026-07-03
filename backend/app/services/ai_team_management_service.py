@@ -297,6 +297,7 @@ class AITeamManagementService:
                 f = await self._ai_sign_free_market(team, season)
                 free_market_signed_count += f
             except Exception:
+                await self.db.rollback()
                 logger.exception(f"AI post-expiration roster decision failed for team {team.id}")
 
         await self.db.commit()
@@ -617,7 +618,7 @@ class AITeamManagementService:
                     transfer_type=TransferType.FREE_MARKET_SIGNING,
                     amount=listing.signing_fee,
                     market_value_snapshot=player.market_value or Decimal("0"),
-                    source_listing_id=listing.id,
+                    source_listing_id=None,
                     completed_at=datetime.utcnow(),
                     is_public=True,
                 )
@@ -826,7 +827,7 @@ class AITeamManagementService:
                         transfer_type=TransferType.FREE_MARKET_SIGNING,
                         amount=listing.signing_fee,
                         market_value_snapshot=player.market_value or Decimal("0"),
-                        source_listing_id=listing.id,
+                        source_listing_id=None,
                         completed_at=datetime.utcnow(),
                         is_public=True,
                     )

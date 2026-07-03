@@ -40,13 +40,13 @@ _AGE_FACTOR_TABLE = {
 _DEVELOPMENT_STAGE_FACTOR = [
     (16, 18, 1.40),
     (19, 21, 1.45),
-    (22, 24, 1.25),
-    (25, 27, 0.95),
-    (28, 28, 0.55),
-    (29, 29, 0.35),
-    (30, 30, 0.25),
-    (31, 32, 0.12),
-    (33, 99, 0.03),
+    (22, 24, 1.30),
+    (25, 27, 1.00),
+    (28, 28, 0.60),
+    (29, 29, 0.40),
+    (30, 30, 0.30),
+    (31, 32, 0.14),
+    (33, 99, 0.04),
 ]
 
 # 重复训练递减 (设计文档 11.7)
@@ -120,7 +120,7 @@ class TrainingGrowthService:
         remaining = cap - current
         if remaining <= 0:
             return 0.0
-        cap_gap_factor = min(1.05, max(0.015, (remaining / 6.0) ** 2.10))
+        cap_gap_factor = min(1.05, max(0.015, (remaining / 6.0) ** 2.00))
         high_attr_factor = TrainingGrowthService.calculate_high_attribute_factor(current)
         return round(cap_gap_factor * high_attr_factor, 4)
 
@@ -129,7 +129,7 @@ class TrainingGrowthService:
         """当前属性越高，成长越难。"""
         if current < 15:
             return 1.0
-        return max(0.008, 0.62 ** (current - 14.0))
+        return max(0.008, 0.65 ** (current - 14.0))
 
     @staticmethod
     def attribute_breakthrough_cost(current: float, cap: float | None = None) -> float:
@@ -140,9 +140,9 @@ class TrainingGrowthService:
             return 1.0
         base = 1.35 ** (current - 14.0)
         if current >= 18:
-            base *= 1.8
+            base *= 1.6
         if current >= 19:
-            base *= 3.0
+            base *= 2.4
         return round(base, 3)
 
     @staticmethod
