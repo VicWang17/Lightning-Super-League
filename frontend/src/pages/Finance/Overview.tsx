@@ -49,7 +49,7 @@ const toneClasses: Record<string, string> = {
 }
 
 function formatWan(value: number) {
-  return `${(value / 10000).toFixed(1)}万`
+  return (value / 10000).toFixed(1)
 }
 
 function Meter({ label, value, total, tone }: { label: string; value: number; total: number; tone: string }) {
@@ -58,7 +58,7 @@ function Meter({ label, value, total, tone }: { label: string; value: number; to
     <div className="fresh-meter">
       <div>
         <span>{label}</span>
-        <strong>{formatWan(value)}</strong>
+        <strong>{formatWan(value)}万</strong>
       </div>
       <div className="fresh-meter-track">
         <div className={`fresh-meter-fill tone-${tone}`} style={{ width: `${pct}%` }} />
