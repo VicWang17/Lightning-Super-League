@@ -7,7 +7,7 @@ const EVENT_NAMES = {
   "cross": "传中", "header": "头球争顶", "corner": "角球",
   "close_shot": "近距离射门", "long_shot": "远射", "goal": "进球",
   "tackle": "铲球", "intercept": "拦截", "clearance": "解围",
-  "keeper_save": "门将扑救", "keeper_claim": "门将摘球",
+  "keeper_save": "门将扑救", "keeper_claim": "门将摘球", "save_rebound": "扑救脱手",
   "foul": "犯规", "yellow_card": "黄牌", "red_card": "红牌",
   "offside": "越位", "substitution": "换人", "own_goal": "乌龙球"
 };

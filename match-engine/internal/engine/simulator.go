@@ -749,7 +749,30 @@ func (sim *Simulator) processEvent(ms *domain.MatchState) (string, []candidateEv
 		sim.applyTransitionInstructions(ms, possBefore, zone)
 	}
 
+	// === Turnover chain: after any possession change that is not a dead-ball restart,
+	// force at least one non-shooting event so the new ball carrier cannot immediately
+	// shoot without a pass/dribble/counter in between.
+	if ms.Possession != possBefore {
+		if len(ms.Events) > 0 && isPossessionRestartEvent(ms.Events[len(ms.Events)-1].Type) {
+			ms.ChainState = ""
+		} else {
+			ms.ChainState = "turnover_chain"
+		}
+	}
+
 	return selected, candidates
+}
+
+// isPossessionRestartEvent reports event types that restart play with a dead ball.
+// After these events the new holder is allowed to be anyone and no turnover chain applies.
+func isPossessionRestartEvent(eventType string) bool {
+	switch eventType {
+	case config.EventKickoff, config.EventGoalKick, config.EventCorner,
+		config.EventThrowIn, config.EventDropBall, config.EventKeeperShortPass,
+		config.EventKeeperThrow, config.EventPenaltyShootout:
+		return true
+	}
+	return false
 }
 
 // trackEvent updates per-side tactical counters used in the post-match summary.
@@ -991,6 +1014,22 @@ func (sim *Simulator) adjustCandidatesByDEC(candidates []candidateEvent, holder 
 func (sim *Simulator) adjustCandidatesByLastEvent(candidates []candidateEvent, ms *domain.MatchState) []candidateEvent {
 	zone := ms.ActiveZone
 	lastEvent := ms.LastEventType
+
+	// Rule 0 (turnover chain): after possession changes hands, the new holder
+	// must first do a pass, dribble, counter or hold before shooting/crossing.
+	// This prevents tackler/interceptor -> immediate shot by a different player.
+	if ms.ChainState == "turnover_chain" {
+		ms.ChainState = ""
+		for i := range candidates {
+			switch candidates[i].typ {
+			case config.EventCloseShot, config.EventLongShot, config.EventOneOnOne,
+				config.EventHeader, config.EventCross, config.EventWingBreak,
+				config.EventCutInside:
+				candidates[i].weight = 0
+			}
+		}
+		return candidates
+	}
 
 	// Rule 3 (cross chain): after a successful cross (low or high) that did NOT
 	// immediately produce a shot, the next event in the attacking zone must be
@@ -2683,41 +2722,8 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 			OpponentName: shooter.Name,
 		})
 
-		// Keeper spill chance (rebound opportunity)
-		spillChance := 0.12
-		keeperRef := keeper.GetAttrByName("REF")
-		if keeperRef < 10 {
-			spillChance += 0.10
-		} else if keeperRef < 15 {
-			spillChance += 0.05
-		}
-		if sim.r.Float64() < spillChance {
-			// Keeper spills the ball!
-			sim.addEvent(ms, domain.MatchEvent{
-				Type:       config.EventKeeperClaim,
-				Team:       oppTeam.Name,
-				PlayerID:   keeper.PlayerID,
-				PlayerName: keeper.Name,
-				Result:     "spill",
-			})
-			rebounder := SelectReboundAttacker(possTeam, zone, sim.r)
-			setSkillContext(rebounder, config.EventCloseShot, [2]int{0, 1}, ms.Minute, ms.Half)
-			ms.BallHolder = rebounder
-			ms.ActiveZone = [2]int{0, 1}
-			sim.doShotEvent(ms, possTeam, oppTeam, [2]int{0, 1}, "close")
-			return
-		}
-
-		// Keeper claims ball
-		sim.addEvent(ms, domain.MatchEvent{
-			Type:       config.EventKeeperClaim,
-			Team:       oppTeam.Name,
-			PlayerID:   keeper.PlayerID,
-			PlayerName: keeper.Name,
-		})
-		ms.Possession = ms.Possession.Opponent()
-		ms.ActiveZone = [2]int{2, 1}
-		ms.BallHolder = keeper // goalkeeper holds the ball after save
+		// Save aftermath: hold, rebound scramble, or corner
+		sim.handleSaveAftermath(ms, possTeam, oppTeam, zone, keeper, shooter, false)
 	} else {
 		// Missed or blocked — keeper gets ball or goal kick
 		sim.addEvent(ms, domain.MatchEvent{
@@ -2729,6 +2735,130 @@ func (sim *Simulator) doShotEvent(ms *domain.MatchState, possTeam, oppTeam *doma
 		ms.Possession = ms.Possession.Opponent()
 		ms.ActiveZone = [2]int{2, 1}
 		ms.BallHolder = keeper // goalkeeper holds the ball after claim
+	}
+}
+
+// handleSaveAftermath resolves what happens after a shot is saved:
+// 1) keeper cleanly claims the ball; 2) parried out for corner/goal kick;
+// 3) rebound/scramble in the box where either attackers or defenders win the second ball.
+func (sim *Simulator) handleSaveAftermath(
+	ms *domain.MatchState,
+	possTeam, oppTeam *domain.TeamRuntime,
+	zone [2]int,
+	keeper, shooter *domain.PlayerRuntime,
+	isPenalty bool,
+) {
+	reboundZone := [2]int{0, 1}
+
+	// Base probabilities: hold > rebound > set piece
+	holdProb := 0.45
+	reboundProb := 0.35
+	setPieceProb := 0.20
+
+	// Keeper handling/reflexes shift probability toward clean holds
+	keeperHan := keeper.GetAttrByName("SAV")
+	keeperRef := keeper.GetAttrByName("REF")
+	skillBonus := (keeperHan-10.0)*0.012 + (keeperRef-10.0)*0.008
+	holdProb += skillBonus
+	reboundProb -= skillBonus * 0.6
+	setPieceProb -= skillBonus * 0.4
+
+	// Penalties are closer and harder to hold cleanly
+	if isPenalty {
+		holdProb -= 0.10
+		reboundProb += 0.10
+	}
+
+	// Normalize
+	total := holdProb + reboundProb + setPieceProb
+	if total <= 0 {
+		total = 1.0
+	}
+	holdProb /= total
+	setPieceProb /= total
+	// reboundProb is the remainder
+
+	roll := sim.r.Float64()
+	if roll < holdProb {
+		// Clean hold: keeper claims the ball
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:       config.EventKeeperClaim,
+			Team:       oppTeam.Name,
+			PlayerID:   keeper.PlayerID,
+			PlayerName: keeper.Name,
+			Result:     "held",
+		})
+		ms.Possession = ms.Possession.Opponent()
+		ms.ActiveZone = [2]int{2, 1}
+		ms.BallHolder = keeper
+		return
+	}
+
+	if roll < holdProb+setPieceProb {
+		// Ball goes out of play
+		if isPenalty {
+			// Penalty missed/saved and out → goal kick to defending team
+			ms.Possession = ms.Possession.Opponent()
+			ms.ActiveZone = [2]int{2, 1}
+			ms.BallHolder = keeper
+			sim.doGoalKickEvent(ms, oppTeam, possTeam, zone)
+		} else {
+			// Regular shot parried over the line → corner to attacking team
+			ms.ActiveZone = reboundZone
+			ms.BallHolder = SelectPlayerByZone(possTeam, reboundZone, sim.r)
+			sim.doCornerEvent(ms, possTeam, oppTeam)
+		}
+		return
+	}
+
+	// Rebound/scramble in the box
+	attacker := SelectReboundAttacker(possTeam, reboundZone, sim.r)
+	defender := SelectDefender(oppTeam, reboundZone, sim.r)
+	setSkillContext(attacker, config.EventSaveRebound, reboundZone, ms.Minute, ms.Half)
+	setSkillContext(defender, config.EventSaveRebound, reboundZone, ms.Minute, ms.Half)
+
+	atkVal := attacker.GetAttrByName("HEA")*0.25 +
+		attacker.GetAttrByName("REF")*0.20 +
+		attacker.GetAttrByName("POS")*0.30 +
+		attacker.GetAttrByName("SPD")*0.25
+	defVal := defender.GetAttrByName("HEA")*0.30 +
+		defender.GetAttrByName("REF")*0.20 +
+		defender.GetAttrByName("POS")*0.30 +
+		defender.GetAttrByName("STR")*0.20 +
+		0.25 // slight home advantage for defenders in the box
+
+	attackerWins := ResolveDuel(atkVal, defVal, sim.r)
+	if attackerWins {
+		ms.BallHolder = attacker
+		ms.ActiveZone = reboundZone
+		attacker.Stats.RatingBase += 0.08
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:         config.EventSaveRebound,
+			Team:         possTeam.Name,
+			PlayerID:     attacker.PlayerID,
+			PlayerName:   attacker.Name,
+			OpponentID:   defender.PlayerID,
+			OpponentName: defender.Name,
+			Zone:         zoneStr(reboundZone),
+			Result:       "attack",
+		})
+	} else {
+		ms.Possession = ms.Possession.Opponent()
+		ms.BallHolder = defender
+		ms.ActiveZone = reboundZone
+		defender.Stats.Intercepts++
+		defender.Stats.RatingBase += 0.12
+		sim.flipGlobalMomentum(ms)
+		sim.addEvent(ms, domain.MatchEvent{
+			Type:         config.EventSaveRebound,
+			Team:         oppTeam.Name,
+			PlayerID:     defender.PlayerID,
+			PlayerName:   defender.Name,
+			OpponentID:   attacker.PlayerID,
+			OpponentName: attacker.Name,
+			Zone:         zoneStr(reboundZone),
+			Result:       "defense",
+		})
 	}
 }
 
@@ -3606,11 +3736,8 @@ func (sim *Simulator) doPenaltyKick(ms *domain.MatchState, possTeam, oppTeam *do
 			ms.AwayStats.ShotsOnTarget++
 		}
 		taker.Stats.ShotsOnTarget++
-		ms.Possession = ms.Possession.Opponent()
-		ms.ActiveZone = [2]int{2, 1}
-		ms.BallHolder = keeper
-		sim.flipGlobalMomentum(ms)
 	} else {
+		// Missed penalty: shot off target, goal kick to defending team
 		ms.Possession = ms.Possession.Opponent()
 		ms.ActiveZone = [2]int{2, 1}
 		ms.BallHolder = keeper
@@ -3661,6 +3788,12 @@ func (sim *Simulator) doPenaltyKick(ms *domain.MatchState, possTeam, oppTeam *do
 			OpponentName: ms.OppTeam(ms.Possession).Name,
 			PlayerName:   ms.BallHolder.Name,
 		})
+	} else if result == "saved" {
+		// Saved penalty: hold, rebound scramble, or goal kick
+		sim.handleSaveAftermath(ms, possTeam, oppTeam, zone, keeper, taker, true)
+	} else {
+		// Missed penalty already handled above; emit goal kick event now
+		sim.doGoalKickEvent(ms, oppTeam, possTeam, zone)
 	}
 }
 
@@ -3940,6 +4073,12 @@ func (sim *Simulator) doCornerEvent(ms *domain.MatchState, possTeam, oppTeam *do
 		// Chain to header (with possible keeper rush)
 		ms.ActiveZone = [2]int{0, 1}
 		sim.setAssistCandidate(ms, taker, config.EventCorner)
+		taker.Stats.KeyPasses++
+		if possTeam == ms.HomeTeam {
+			ms.HomeStats.KeyPasses++
+		} else {
+			ms.AwayStats.KeyPasses++
+		}
 		crossQuality := taker.GetAttrByName("CRO")*0.5 + taker.GetAttrByName("PAS")*0.3 + taker.GetAttrByName("DRI")*0.2
 		if !sim.maybeKeeperRush(ms, possTeam, oppTeam, taker, crossQuality) {
 			sim.doHeaderDuel(ms, possTeam, oppTeam)

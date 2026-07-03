@@ -864,8 +864,28 @@ func (ng *NarrativeGenerator) generateBase(ev domain.MatchEvent) string {
 		// Keeper save is narrated within the shot event; skip redundant text
 		return ""
 	case config.EventKeeperClaim:
-		// Keeper claim is implied by the shot result; skip redundant text
+		if ev.Result == "held" {
+			return ng.pick([]string{
+				fmt.Sprintf("%s稳稳将球抱在怀里，化解危机。", ev.PlayerName),
+				fmt.Sprintf("%s不敢大意，把球紧紧按在身下。", ev.PlayerName),
+				fmt.Sprintf("门将%s稳稳没收，进攻戛然而止。", ev.PlayerName),
+			})
+		}
 		return ""
+	case config.EventSaveRebound:
+		pName := playerNameWithNumber(ev.PlayerNumber, ev.PlayerName)
+		if ev.Result == "attack" {
+			return ng.pick([]string{
+				fmt.Sprintf("门将扑救脱手！%s抢到第二点，禁区内一片混战！", pName),
+				fmt.Sprintf("球被扑出后落点极佳，%s抢先一步控制住皮球！", pName),
+				fmt.Sprintf("%s在混战中抢到落点，还有机会！", pName),
+			})
+		}
+		return ng.pick([]string{
+			fmt.Sprintf("门将扑救脱手，但%s抢先解围化解危机！", pName),
+			fmt.Sprintf("%s在禁区内稳稳摘下第二点，防守成功！", pName),
+			fmt.Sprintf("混战中%s先出一脚，将危险球解围！", pName),
+		})
 	case config.EventCorner:
 		return ng.pick([]string{
 			fmt.Sprintf("球出了底线，%s获得角球机会。", ev.Team),

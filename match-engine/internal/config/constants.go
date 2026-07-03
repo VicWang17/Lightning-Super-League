@@ -147,6 +147,9 @@ const (
 	// Penalty kick event
 	EventPenalty = "penalty"
 
+	// Save aftermath events
+	EventSaveRebound = "save_rebound"
+
 	// Narrative stage events (no gameplay effect, for commentary flow)
 	EventPenaltySetup    = "penalty_setup"
 	EventPenaltyFocus    = "penalty_focus"
