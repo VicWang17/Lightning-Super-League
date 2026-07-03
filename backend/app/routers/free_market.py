@@ -289,7 +289,7 @@ async def sign_free_market_player(
                 transfer_type=TransferType.FREE_MARKET_SIGNING,
                 amount=listing.signing_fee,
                 market_value_snapshot=player.market_value or Decimal("0"),
-                source_listing_id=listing.id,
+                source_listing_id=None,
                 completed_at=datetime.utcnow(),
                 is_public=True,
             )

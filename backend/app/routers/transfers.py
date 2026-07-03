@@ -8,6 +8,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, desc, asc, func
+from sqlalchemy.orm import aliased
 
 from app.dependencies import get_db, get_current_user
 from app.schemas import BaseSchema, ResponseSchema, PaginatedResponse
@@ -158,6 +159,7 @@ async def get_transfer_market(
         item = {
             "player_id": player.id,
             "name": player.name,
+            "avatar_url": player.avatar_url,
             "position": player.position.value,
             "age": age,
             "ovr": player.ovr,
@@ -588,8 +590,15 @@ async def get_transfer_history(
     db: AsyncSession = Depends(get_db),
 ):
     """获取转会历史记录"""
-    query = select(TransferRecord, Player).join(Player, TransferRecord.player_id == Player.id).where(
-        TransferRecord.is_public == True
+    from_team = aliased(Team)
+    to_team = aliased(Team)
+
+    query = (
+        select(TransferRecord, Player, from_team, to_team)
+        .join(Player, TransferRecord.player_id == Player.id)
+        .outerjoin(from_team, TransferRecord.from_team_id == from_team.id)
+        .outerjoin(to_team, TransferRecord.to_team_id == to_team.id)
+        .where(TransferRecord.is_public == True)
     )
     if team_id:
         query = query.where(
@@ -610,13 +619,16 @@ async def get_transfer_history(
     rows = (await db.execute(query)).all()
 
     items = []
-    for record, player in rows:
+    for record, player, from_t, to_t in rows:
         items.append({
             "record_id": record.id,
             "player_id": player.id,
             "player_name": player.name,
+            "avatar_url": player.avatar_url,
             "from_team_id": record.from_team_id,
+            "from_team_name": from_t.name if from_t else None,
             "to_team_id": record.to_team_id,
+            "to_team_name": to_t.name if to_t else None,
             "transfer_type": record.transfer_type.value,
             "amount": float(record.amount),
             "market_value": float(record.market_value_snapshot),
