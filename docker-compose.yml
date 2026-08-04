@@ -38,6 +38,32 @@ services:
     networks:
       - lightning-network
 
+  # Backend Worker - 常驻事件消费者（console watch 模式，默认不启动）
+  # 生产环境由它驱动 EventQueue 消费（比赛日、邮件通知等事件）；
+  # dev 端点 /dev/simulation/* 保持同步触发不变，仅供手动步进。
+  backend-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+    environment:
+      - DEBUG=false
+      - DATABASE_URL=mysql+asyncmy://lightning:lightning_pass@db:3306/lightning_league
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - MATCH_ENGINE_TRANSPORT=http
+    command: python scripts/console.py watch --mode continuous --speed 20 --interval 1.0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - lightning-network
+    profiles:
+      - worker
+
   # Database - MySQL 8.0
   db:
     image: mysql:8.0

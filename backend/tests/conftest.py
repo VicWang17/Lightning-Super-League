@@ -33,3 +33,18 @@ async def db(db_engine):
         finally:
             await trans.rollback()
             await async_session.close()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_cache_pool():
+    """每个测试后断开缓存 Redis 连接池
+
+    pytest-asyncio 每个测试一个 event loop，模块级 cache_redis 池中的连接
+    绑定创建时的 loop，跨测试复用会报错；断开后下次使用时按当前 loop 重建。
+    """
+    yield
+    try:
+        from app.core.cache import cache_redis
+        await cache_redis.connection_pool.disconnect()
+    except Exception:
+        pass

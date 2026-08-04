@@ -50,6 +50,8 @@ class EventType(str, Enum):
     MATCH_PREVIEW_REMINDER = "match_preview_reminder"
     TACTICS_REMINDER = "tactics_reminder"
     TRAINING_REMINDER = "training_reminder"
+    # 比赛结果邮件异步通知（比赛日事务外发送）
+    MATCH_RESULT_NOTIFICATION = "match_result_notification"
     # Draft events (Phase 4)
     DRAFT_PREFERENCES_OPEN = "draft_preferences_open"
     DRAFT_RUN = "draft_run"

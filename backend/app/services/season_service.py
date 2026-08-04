@@ -15,6 +15,7 @@ from app.models.user import User
 from app.services.scheduler import SeasonScheduler, ScheduleMerger
 from app.core.formats import get_default_format
 from app.core.clock import clock
+from app.core.cache import KEY_PREFIX, acquire_lock, release_lock
 from app.core.events import EventQueue, GameEvent, EventType, EventStatus
 from app.services.match_simulator import MatchSimulator
 from app.services.match_engine_client import (
@@ -214,6 +215,9 @@ class SeasonService:
             return await self._handle_tactics_reminder(event)
         elif event.event_type == EventType.TRAINING_REMINDER:
             return await self._handle_training_reminder(event)
+        # 比赛结果邮件异步通知
+        elif event.event_type == EventType.MATCH_RESULT_NOTIFICATION:
+            return await self._handle_match_result_notification(event)
         else:
             raise ValueError(f"Unknown event type: {event.event_type}")
 
@@ -754,11 +758,59 @@ class SeasonService:
         await self.db.commit()
         return {"event": "season_finance_closed", "season_id": season_id}
 
+    async def _handle_match_result_notification(self, event: GameEvent) -> Dict:
+        """MATCH_RESULT_NOTIFICATION: 异步发送单场比赛的主客队结果邮件
+
+        由 _process_match_day 在结算事务中压入，此处独立成事件处理，
+        复用 EventQueue 的重试/退避/FAILED 语义。
+        """
+        payload = event.payload
+        fixture_id = payload["fixture_id"]
+        common = dict(
+            season_id=payload.get("season_id"),
+            fixture_id=fixture_id,
+            home_score=payload.get("home_score", 0),
+            away_score=payload.get("away_score", 0),
+            fixture_type=payload.get("fixture_type", ""),
+            goals=payload.get("goals") or [],
+            yellow_cards=payload.get("yellow_cards", 0),
+            red_cards=payload.get("red_cards", 0),
+            mvp_name=payload.get("mvp_name"),
+            injuries=payload.get("injuries"),
+        )
+        await self.notify.send_match_result(
+            team_id=payload["home_team_id"],
+            opponent_name=payload.get("away_team_name", "客场球队"),
+            is_home=True,
+            **common,
+        )
+        await self.notify.send_match_result(
+            team_id=payload["away_team_id"],
+            opponent_name=payload.get("home_team_name", "主场球队"),
+            is_home=False,
+            **common,
+        )
+        await self.db.commit()
+        return {"event": "match_result_notification", "fixture_id": fixture_id}
+
     async def _handle_match_day(self, event: GameEvent) -> Dict:
         """MATCH_DAY: 批量并发模拟当天所有比赛"""
         season_id = event.payload.get("season_id")
         day = event.payload.get("day", 0)
 
+        # 比赛日级幂等锁：防 dev 端点与 console 并发触发同一比赛日。
+        # 抢不到直接 raise，走 EventQueue.fail 的现有重试退避语义。
+        lock_key = f"{KEY_PREFIX}lock:matchday:{season_id}:{day}"
+        lock_token = await acquire_lock(lock_key, ttl_sec=300)
+        if lock_token is None:
+            raise RuntimeError(f"比赛日正在处理中: season={season_id} day={day}")
+        try:
+            return await self._process_match_day(event, season_id, day)
+        finally:
+            await release_lock(lock_key, lock_token)
+
+    async def _process_match_day(self, event: GameEvent, season_id, day: int) -> Dict:
+        """比赛日处理主体（由 _handle_match_day 在持锁状态下调用）"""
         result = await self.db.execute(
             select(Season).where(Season.id == season_id)
         )
@@ -775,6 +827,28 @@ class SeasonService:
         )
         fixtures = list(result.scalars().all())
 
+        # 自愈：事务 1 会把 ONGOING 状态持久化，若事务 2 中途崩溃，
+        # 重试时当天查不到 SCHEDULED fixtures 会导致比赛日空跑、
+        # fixtures 永远卡在 ONGOING。发现 ONGOING 残留时重置回 SCHEDULED 重新模拟。
+        if not fixtures:
+            result = await self.db.execute(
+                select(Fixture)
+                .where(Fixture.season_id == season_id)
+                .where(Fixture.season_day == day)
+                .where(Fixture.status == FixtureStatus.ONGOING)
+            )
+            stale_fixtures = list(result.scalars().all())
+            if stale_fixtures:
+                logger.warning(
+                    f"比赛日检测到 ONGOING 残留 fixtures（疑似上次处理中途崩溃），"
+                    f"重置为 SCHEDULED 重新模拟: season={season_id} day={day}, "
+                    f"count={len(stale_fixtures)}"
+                )
+                for fixture in stale_fixtures:
+                    fixture.status = FixtureStatus.SCHEDULED
+                await self.db.commit()
+                fixtures = stale_fixtures
+
         # 预加载球队名称用于赛后结果邮件
         team_names = {}
         team_ids_in_fixtures = set()
@@ -789,27 +863,22 @@ class SeasonService:
             for tid, tname in teams_result.all():
                 team_names[tid] = tname
 
-        # Step 1: 将本日比赛显式分层为 ongoing -> finished。
+        # ============ 事务 1（短）：调引擎 + ONGOING 状态 + commit ============
+        # 查 fixtures、构建 payload 均为只读；调引擎时 session 无未提交写，
+        # 避免长事务持有行锁跨过耗时的引擎调用。
         # TODO(real-time-engine): 这里未来应改为创建 Go engine match sessions，
         # 由引擎按 match_speed tick 推送事件，并接收临场战术/换人命令；
         # Python 后端只负责持久化状态、广播和最终结算回调。
+        # 当前仍是同步最终结果：engine 返回后，比赛立即从 ongoing 落为 finished。
+        sim_results = await self._simulate_fixtures_with_engine(fixtures)
         for fixture in fixtures:
             fixture.status = FixtureStatus.ONGOING
-        await self.db.flush()
+        await self.db.commit()
 
-        # Step 2: 调用 Go 比赛引擎。当前仍是同步最终结果：
-        # engine 返回后，比赛立即从 ongoing 落为 finished。
-        sim_results = []
-        try:
-            sim_results = await self._simulate_fixtures_with_engine(fixtures)
-        except Exception:
-            for fixture in fixtures:
-                if fixture.status == FixtureStatus.ONGOING:
-                    fixture.status = FixtureStatus.SCHEDULED
-            await self.db.flush()
-            raise
-
-        # Step 3: 串行 apply_result（避免 standings 共享状态竞争）
+        # ============ 事务 2：串行 apply_result + 赛季进度 + commit ============
+        # 保留串行 apply_result（避免 standings 共享状态竞争）。
+        # 结果邮件不在本事务内直接发送，改为每场压入 MATCH_RESULT_NOTIFICATION
+        # 事件，由队列消费端异步发送（复用队列的重试/退避语义）。
         match_results = []
         match_injury_counts = {1: 0, 2: 0, 3: 0}
         for fixture, sim_result in zip(fixtures, sim_results):
@@ -852,35 +921,26 @@ class SeasonService:
             home_name = team_names.get(fixture.home_team_id, "主场球队")
             away_name = team_names.get(fixture.away_team_id, "客场球队")
 
-            await self.notify.send_match_result(
-                team_id=fixture.home_team_id,
-                season_id=season_id,
-                fixture_id=fixture.id,
-                opponent_name=away_name,
-                is_home=True,
-                home_score=sim_result.home_score,
-                away_score=sim_result.away_score,
-                fixture_type=fixture.fixture_type.value,
-                goals=goals,
-                yellow_cards=yellow_cards,
-                red_cards=red_cards,
-                mvp_name=mvp_name,
-                injuries=injuries,
-            )
-            await self.notify.send_match_result(
-                team_id=fixture.away_team_id,
-                season_id=season_id,
-                fixture_id=fixture.id,
-                opponent_name=home_name,
-                is_home=False,
-                home_score=sim_result.home_score,
-                away_score=sim_result.away_score,
-                fixture_type=fixture.fixture_type.value,
-                goals=goals,
-                yellow_cards=yellow_cards,
-                red_cards=red_cards,
-                mvp_name=mvp_name,
-                injuries=injuries,
+            # 结果邮件移出比赛日事务：压入事件，由队列消费端异步发送（主客各一封）
+            EventQueue.add_pending(
+                self.db,
+                EventType.MATCH_RESULT_NOTIFICATION,
+                payload={
+                    "season_id": season_id,
+                    "fixture_id": fixture.id,
+                    "home_team_id": fixture.home_team_id,
+                    "away_team_id": fixture.away_team_id,
+                    "home_team_name": home_name,
+                    "away_team_name": away_name,
+                    "home_score": sim_result.home_score,
+                    "away_score": sim_result.away_score,
+                    "fixture_type": fixture.fixture_type.value,
+                    "goals": goals,
+                    "yellow_cards": yellow_cards,
+                    "red_cards": red_cards,
+                    "mvp_name": mvp_name,
+                    "injuries": injuries,
+                },
             )
 
             match_results.append({
@@ -930,6 +990,14 @@ class SeasonService:
         rest_recovery = await self._apply_rest_day_recovery(excluded_team_ids=match_team_ids)
 
         await self.db.commit()
+
+        # 比赛结算后批量失效相关排行榜缓存（比逐场失效少 Redis 往返）
+        from app.services.leaderboard_service import invalidate_match_result_caches
+        await invalidate_match_result_caches(
+            league_ids=sorted({f.league_id for f in fixtures if f.league_id}),
+            season_id=str(season_id),
+            cup_ids=sorted({f.cup_competition_id for f in fixtures if f.cup_competition_id}),
+        )
 
         return {
             "event": "match_day",

@@ -9,6 +9,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
+from app.core.cache import KEY_PREFIX, acquire_lock, release_lock
 from app.models.match_result import MatchResult
 from app.models.season import Fixture, FixtureStatus
 from app.models.team import Team
@@ -133,16 +134,32 @@ async def get_match_lineups(match_id: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/{match_id}/simulate", response_model=ResponseSchema[dict])
 async def simulate_match(match_id: str, db: AsyncSession = Depends(get_db)):
-    fixture = await _get_fixture(db, match_id)
-    if fixture.status == FixtureStatus.FINISHED:
-        result = await _get_engine_result(db, match_id)
-        return ResponseSchema(data={"match_id": match_id, "already_finished": True, "result": _result_payload(result) if result else None})
+    # 幂等锁：保护「检查 FINISHED → 模拟 → 落库」这段跨越耗时引擎调用的竞态窗口
+    lock_key = f"{KEY_PREFIX}lock:fixture:{match_id}"
+    lock_token = await acquire_lock(lock_key, ttl_sec=120)
+    if lock_token is None:
+        raise HTTPException(status_code=409, detail="该比赛正在模拟中")
+    try:
+        fixture = await _get_fixture(db, match_id)
+        if fixture.status == FixtureStatus.FINISHED:
+            result = await _get_engine_result(db, match_id)
+            return ResponseSchema(data={"match_id": match_id, "already_finished": True, "result": _result_payload(result) if result else None})
 
-    engine_result = await get_match_engine_client().simulate_fixture(db, fixture)
-    match_result = MatchSimulator.from_engine_result(fixture, engine_result)
-    await MatchSimulator.apply_result(fixture, match_result, db)
-    await db.commit()
-    return ResponseSchema(message="比赛模拟完成", data={"match_id": match_id, "result": engine_result})
+        engine_result = await get_match_engine_client().simulate_fixture(db, fixture)
+        match_result = MatchSimulator.from_engine_result(fixture, engine_result)
+        await MatchSimulator.apply_result(fixture, match_result, db)
+        await db.commit()
+
+        # 单场结算后失效相关排行榜缓存
+        from app.services.leaderboard_service import invalidate_match_result_caches
+        await invalidate_match_result_caches(
+            league_ids=[fixture.league_id] if fixture.league_id else [],
+            season_id=str(fixture.season_id),
+            cup_ids=[fixture.cup_competition_id] if fixture.cup_competition_id else [],
+        )
+        return ResponseSchema(message="比赛模拟完成", data={"match_id": match_id, "result": engine_result})
+    finally:
+        await release_lock(lock_key, lock_token)
 
 
 async def _get_fixture(db: AsyncSession, match_id: str) -> Fixture:

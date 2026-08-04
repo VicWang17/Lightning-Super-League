@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.dependencies import engine, redis_client
+from app.core.cache import close_cache
 from app.core.logging import setup_logging, get_logger
 from app.core.middleware import LoggingMiddleware, ProcessTimeHeader
 from app.routers.health import router as health_router
@@ -51,6 +52,7 @@ async def lifespan(app: FastAPI):
     logger.info("👋 Shutting down...")
     await engine.dispose()
     await redis_client.close()
+    await close_cache()
 
 
 # Create FastAPI application

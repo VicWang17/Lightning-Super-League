@@ -20,6 +20,12 @@ from app.schemas.mail import (
     MAIL_CATEGORY_LABELS,
 )
 from app.models import Mail
+from app.core.cache import cache_get_json, cache_set_json
+from app.services.notification_service import (
+    MAIL_UNREAD_CACHE_TTL,
+    invalidate_unread_count_cache,
+    mail_unread_cache_key,
+)
 
 router = APIRouter(prefix="/mail", tags=["邮件"])
 
@@ -127,6 +133,12 @@ async def get_unread_count(
     """获取未读邮件数量"""
     user_id = current_user.id
 
+    # 查询结果缓存（TTL + 写路径主动失效，不用 INCR/DECR 计数，避免漂移）
+    cache_key = mail_unread_cache_key(user_id)
+    cached = await cache_get_json(cache_key)
+    if cached is not None:
+        return ResponseSchema(success=True, data=UnreadCountResponse(**cached))
+
     # 总未读
     total_stmt = select(func.count(Mail.id)).where(
         Mail.user_id == user_id,
@@ -151,6 +163,7 @@ async def get_unread_count(
     for cat, cnt in cat_result.all():
         by_category[cat.value] = cnt
 
+    await cache_set_json(cache_key, {"total": total, "by_category": by_category}, MAIL_UNREAD_CACHE_TTL)
     return ResponseSchema(
         success=True,
         data=UnreadCountResponse(total=total, by_category=by_category),
@@ -187,6 +200,7 @@ async def get_mail(
         mail.is_read = True
         mail.read_at = datetime.utcnow()
         await db.commit()
+        await invalidate_unread_count_cache(user_id)
 
     return ResponseSchema(
         success=True,
@@ -236,6 +250,7 @@ async def mark_read(
         .values(is_read=True, read_at=datetime.utcnow())
     )
     await db.commit()
+    await invalidate_unread_count_cache(user_id)
 
     return ResponseSchema(success=True, message="标记成功")
 
@@ -264,5 +279,6 @@ async def mark_all_read(
         .values(is_read=True, read_at=datetime.utcnow())
     )
     await db.commit()
+    await invalidate_unread_count_cache(user_id)
 
     return ResponseSchema(success=True, message="全部标记已读成功")

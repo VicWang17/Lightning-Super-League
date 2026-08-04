@@ -119,7 +119,7 @@ class MatchEngineClient:
     async def simulate_payload(self, fixture_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Call the configured engine with an already built immutable payload."""
         if self.transport == "process":
-            result = self._simulate_with_process(payload)
+            result = await self._simulate_with_process(payload)
             result["match_setup"] = self._match_setup_summary(payload)
             return result
 
@@ -170,7 +170,7 @@ class MatchEngineClient:
 
         return await asyncio.gather(*(run_one(fixture_id, payload) for fixture_id, payload in payloads))
 
-    def _simulate_with_process(self, payload: dict[str, Any]) -> dict[str, Any]:
+    async def _simulate_with_process(self, payload: dict[str, Any]) -> dict[str, Any]:
         env = os.environ.copy()
         env.setdefault("GOCACHE", "/private/tmp/go-cache")
         engine_dir = self._engine_dir()
@@ -181,7 +181,9 @@ class MatchEngineClient:
         completed: subprocess.CompletedProcess[str] | None = None
         for command in commands:
             try:
-                completed = subprocess.run(
+                # 放到线程执行，避免同步 subprocess.run 阻塞 event loop
+                completed = await asyncio.to_thread(
+                    subprocess.run,
                     command,
                     cwd=str(engine_dir),
                     env=env,
@@ -282,6 +284,7 @@ class MatchEngineClient:
                 "bench_player_ids": list(record.bench_player_ids or []),
                 "tactics": instructions.get("legacy_team_sliders", instructions),
                 "team_instructions": instructions,
+                "set_piece_takers": dict(record.set_piece_takers or {}),
             }
         except Exception as exc:
             logger.warning(f"加载球队 {team_id} 战术失败，使用自动战术: {exc}")
@@ -420,6 +423,7 @@ class MatchEngineClient:
             "bench": list(bench_setups),
             "tactics": tactics,
             "team_instructions": team_instructions,
+            "set_piece_takers": saved.get("set_piece_takers", {}) if saved else {},
             "lineup_metrics": self._lineup_metrics(starters, bench),
         }
 

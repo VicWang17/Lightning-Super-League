@@ -1,4 +1,4 @@
-.PHONY: help infra-up infra-down infra-logs frontend backend match-engine dev init-system init-season dev-bootstrap console sim-status sim-next sim-matchday sim-season sim-results
+.PHONY: help infra-up infra-down infra-logs frontend backend match-engine dev init-system init-season dev-bootstrap console worker sim-status sim-next sim-matchday sim-season sim-results
 
 # 加载根目录 .env（如果存在）
 ifneq (,$(wildcard ./.env))
@@ -44,6 +44,7 @@ help:
 	@echo "  make backend       启动后端 (uvicorn)"
 	@echo "  make match-engine  启动 Go 比赛引擎服务"
 	@echo "  make console       打开一键开发控制台"
+	@echo "  make worker        本地常驻事件消费者（console watch 模式）"
 	@echo "  make sim-status    查看当前测试状态"
 	@echo "  make sim-next      推进下一个虚拟事件"
 	@echo "  make sim-matchday  推进到下一个比赛日并打印结果"
@@ -102,6 +103,10 @@ dev-bootstrap: infra-up
 
 console:
 	$(PYTHON) backend/scripts/console.py
+
+# 本地常驻事件消费者（生产对应 docker compose --profile worker 的 backend-worker）
+worker:
+	$(PYTHON) backend/scripts/console.py watch --mode continuous
 
 sim-status:
 	cd backend && PYTHONPATH=. $(PYTHON_IN_BACKEND) -m scripts.dev_sim status

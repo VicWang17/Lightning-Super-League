@@ -13,9 +13,25 @@ from sqlalchemy import select, func, and_
 from app.models.mail import Mail, MailCategory, MailPriority
 from app.models.team import Team
 from app.models.user import User
+from app.core.cache import KEY_PREFIX, cache_delete
 from app.core.logging import get_logger
 
 logger = get_logger("app.notification")
+
+# 未读数缓存 TTL（秒）：TTL + 主动失效双保险
+MAIL_UNREAD_CACHE_TTL = 60
+
+
+def mail_unread_cache_key(user_id: str) -> str:
+    return f"{KEY_PREFIX}mail:unread:{user_id}"
+
+
+async def invalidate_unread_count_cache(*user_ids: str) -> None:
+    """邮件写路径（新邮件/已读）后失效对应用户的未读数缓存
+
+    注：软删除路径当前不存在（无调用方），如未来新增需同步失效。
+    """
+    await cache_delete(*(mail_unread_cache_key(uid) for uid in user_ids if uid))
 
 
 class NotificationService:
@@ -129,6 +145,7 @@ class NotificationService:
             expires_at=expires_at,
         )
         self.db.add(mail)
+        await invalidate_unread_count_cache(user_id)
         logger.info(
             f"Mail sent: team={team_id}, category={category.value}, "
             f"priority={priority.value}, subject={subject}"
@@ -186,6 +203,9 @@ class NotificationService:
             )
             self.db.add(mail)
             sent += 1
+
+        if human_teams:
+            await invalidate_unread_count_cache(*human_teams.values())
 
         logger.info(
             f"Batch mail sent: category={category.value}, "

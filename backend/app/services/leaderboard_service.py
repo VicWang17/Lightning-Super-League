@@ -17,6 +17,29 @@ from app.schemas.leaderboard import (
     LeaderboardType, LeaderboardItem, LeaderboardConfig,
     TeamLeaderboardType, TeamLeaderboardItem, TeamLeaderboardConfig,
 )
+from app.core.cache import KEY_PREFIX, cache_get_json, cache_set_json, cache_delete_pattern
+
+# 排行榜缓存 TTL（秒）：TTL + 主动失效双保险
+LB_CACHE_TTL = 300
+# OVR 榜变更路径多，只做短 TTL 缓存，不做主动失效
+OVR_CACHE_TTL = 60
+
+
+async def invalidate_match_result_caches(
+    league_ids: List[str],
+    season_id: str,
+    cup_ids: List[str],
+) -> None:
+    """比赛结算后失效相关排行榜缓存
+
+    world / world_team 榜是跨赛季聚合，任何结算都失效它。
+    """
+    for league_id in league_ids:
+        await cache_delete_pattern(f"{KEY_PREFIX}lb:league:{league_id}:{season_id}:*")
+    for cup_id in cup_ids:
+        await cache_delete_pattern(f"{KEY_PREFIX}lb:cup:{cup_id}:{season_id}:*")
+    await cache_delete_pattern(f"{KEY_PREFIX}lb:world:*")
+    await cache_delete_pattern(f"{KEY_PREFIX}lb:world_team:*")
 
 
 # ==================== 排行榜配置表 ====================
@@ -164,6 +187,22 @@ class LeaderboardService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # ==================== 缓存辅助 ====================
+
+    async def _from_cache(self, key: str, item_cls) -> Optional[List]:
+        """尝试从缓存读取排行榜，命中则重构造 item 列表返回，未命中返回 None"""
+        data = await cache_get_json(key)
+        if data is None:
+            return None
+        try:
+            return [item_cls(**item) for item in data]
+        except Exception:
+            return None
+
+    async def _to_cache(self, key: str, items: List, ttl: int = LB_CACHE_TTL) -> None:
+        """将排行榜结果写入缓存"""
+        await cache_set_json(key, [item.model_dump() for item in items], ttl)
+
     # ==================== 赛季解析 ====================
 
     async def _resolve_season_for_league(self, league_id: str, season_id: Optional[str] = None) -> Optional[str]:
@@ -235,7 +274,12 @@ class LeaderboardService:
         config = LEADERBOARD_CONFIGS.get(lb_type)
         if not config:
             return []
-        
+
+        cache_key = f"{KEY_PREFIX}lb:cup:{cup_id}:{season_id}:{lb_type.value}:{limit}"
+        cached = await self._from_cache(cache_key, LeaderboardItem)
+        if cached is not None:
+            return cached
+
         ps = PlayerSeasonStats
         player = Player
         team = Team
@@ -301,7 +345,8 @@ class LeaderboardService:
                 value_label=config.value_label,
                 matches=matches or 0,
             ))
-        
+
+        await self._to_cache(cache_key, items)
         return items
 
     # ==================== 联赛级排行榜 ====================
@@ -321,7 +366,13 @@ class LeaderboardService:
         resolved_season_id = await self._resolve_season_for_league(league_id, season_id)
         if not resolved_season_id:
             return []
-        
+
+        # 缓存 key 必须用解析后的 season_id（否则赛季切换后 key 不变）
+        cache_key = f"{KEY_PREFIX}lb:league:{league_id}:{resolved_season_id}:{lb_type.value}:{limit}"
+        cached = await self._from_cache(cache_key, LeaderboardItem)
+        if cached is not None:
+            return cached
+
         ps = PlayerSeasonStats
         player = Player
         team = Team
@@ -387,7 +438,8 @@ class LeaderboardService:
                 value_label=config.value_label,
                 matches=matches or 0,
             ))
-        
+
+        await self._to_cache(cache_key, items)
         return items
 
     # ==================== 世界级排行榜 ====================
@@ -402,7 +454,12 @@ class LeaderboardService:
         config = LEADERBOARD_CONFIGS.get(lb_type)
         if not config:
             return []
-        
+
+        cache_key = f"{KEY_PREFIX}lb:world:{lb_type.value}:{limit}:{position or 'all'}"
+        cached = await self._from_cache(cache_key, LeaderboardItem)
+        if cached is not None:
+            return cached
+
         ps = PlayerSeasonStats
         player = Player
         team = Team
@@ -474,7 +531,8 @@ class LeaderboardService:
                 value_label=config.value_label,
                 matches=matches or 0,
             ))
-        
+
+        await self._to_cache(cache_key, items)
         return items
 
     # ==================== 球队世界排行榜 ====================
@@ -487,6 +545,11 @@ class LeaderboardService:
         config = TEAM_LEADERBOARD_CONFIGS.get(lb_type)
         if not config:
             return []
+
+        cache_key = f"{KEY_PREFIX}lb:world_team:{lb_type.value}:{limit}"
+        cached = await self._from_cache(cache_key, TeamLeaderboardItem)
+        if cached is not None:
+            return cached
 
         ls = LeagueStanding
         team = Team
@@ -531,6 +594,7 @@ class LeaderboardService:
                 matches=matches or 0,
             ))
 
+        await self._to_cache(cache_key, items)
         return items
 
     # ==================== OVR 排名（世界页专用） ====================
@@ -541,6 +605,12 @@ class LeaderboardService:
         position: Optional[str] = None,
     ) -> List[LeaderboardItem]:
         """获取球员 OVR 排名（从 Player 表直接查询）"""
+        # OVR 变更路径多，只做短 TTL 缓存，不做主动失效
+        cache_key = f"{KEY_PREFIX}lb:ovr:{limit}:{position or 'all'}"
+        cached = await self._from_cache(cache_key, LeaderboardItem)
+        if cached is not None:
+            return cached
+
         player = Player
         team = Team
         
@@ -573,7 +643,8 @@ class LeaderboardService:
                 age=p.age,
                 ovr=int(p.ovr),
             ))
-        
+
+        await self._to_cache(cache_key, items, ttl=OVR_CACHE_TTL)
         return items
 
     # ==================== 辅助方法 ====================
