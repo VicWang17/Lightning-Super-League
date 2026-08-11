@@ -14,6 +14,7 @@ import type {
   SituationalRule,
   SituationalRuleCondition,
   SituationalRuleOverride,
+  SetPieceTakers,
 } from '../../types/tactics'
 import {
   Cancel,
@@ -74,6 +75,10 @@ function defaultSituationalRules(): SituationalRule[] {
       override: { tempo: 1, defensive_line_height: 1, after_possession_won: 'hold_shape' },
     },
   ]
+}
+
+function defaultSetPieceTakers(): SetPieceTakers {
+  return { penalty: [], free_kick: [], corner: [] }
 }
 
 function normalizeTeamInstructions(value: unknown): TeamInstructions {
@@ -1632,6 +1637,87 @@ function SaveButton({ saved, onSave }: { saved: boolean; onSave: () => void | Pr
   )
 }
 
+const setPieceConfig: Record<
+  keyof SetPieceTakers,
+  { label: string; primaryAbility: keyof PlayerAbility; abilityLabel: string }
+> = {
+  penalty: { label: '点球', primaryAbility: 'pk', abilityLabel: '点球' },
+  free_kick: { label: '任意球', primaryAbility: 'fk', abilityLabel: '任意球' },
+  corner: { label: '角球', primaryAbility: 'cro', abilityLabel: '传中' },
+}
+
+function SetPiecePanel({
+  players,
+  value,
+  onChange,
+}: {
+  players: TacticalPlayer[]
+  value: SetPieceTakers
+  onChange: (next: SetPieceTakers) => void
+}) {
+  const outfield = useMemo(() => players.filter((p) => p.position !== 'GK'), [players])
+
+  const handleSelect = (kind: keyof SetPieceTakers, index: number, playerId: string) => {
+    const next = { ...value, [kind]: [...value[kind]] }
+    next[kind][index] = playerId
+    onChange(next)
+  }
+
+  return (
+    <div className="space-y-6">
+      {(Object.keys(setPieceConfig) as Array<keyof SetPieceTakers>).map((kind) => {
+        const cfg = setPieceConfig[kind]
+        const ordered = [...value[kind]]
+        while (ordered.length < 3) ordered.push('')
+        return (
+          <div key={kind} className="border-2 border-[#1F5F43] bg-[#FFF8DC] p-4 shadow-pixel">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-black text-[#173126]">{cfg.label}主罚手</h2>
+              <span className="text-[10px] font-black text-[#466353]">按优先级排序，最多 3 人</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[0, 1, 2].map((index) => {
+                const selectedId = ordered[index]
+                const selected = outfield.find((p) => p.id === selectedId)
+                return (
+                  <div key={index} className="space-y-1">
+                    <label className="text-[10px] font-black text-[#466353]">
+                      {index === 0 ? '第一主罚手' : index === 1 ? '第二主罚手' : '第三主罚手'}
+                    </label>
+                    <select
+                      value={selectedId || ''}
+                      onChange={(e) => handleSelect(kind, index, e.target.value)}
+                      className="w-full border-2 border-[#1F5F43] bg-[#ECFFD8] px-2 py-2 text-xs font-black text-[#173126] focus:border-[#FFC247] focus:outline-none"
+                    >
+                      <option value="">未指定</option>
+                      {outfield.map((player) => {
+                        const ability = player.abilities[cfg.primaryAbility]
+                        return (
+                          <option key={player.id} value={player.id}>
+                            {player.name} · {positionTone[player.position].label} · {cfg.abilityLabel} {ability}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    {selected && (
+                      <div className="flex gap-2 text-[9px] font-black text-[#466353]">
+                        <span>点球 {selected.abilities.pk}</span>
+                        <span>任意球 {selected.abilities.fk}</span>
+                        <span>传中 {selected.abilities.cro}</span>
+                        <span>镇定 {selected.abilities.com}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Tactics() {
   const [players, setPlayers] = useState<TacticalPlayer[]>([])
   const [loading, setLoading] = useState(true)
@@ -1639,6 +1725,7 @@ export default function Tactics() {
   const [formationId, setFormationId] = useState<FormationId>('F01')
   const [teamInstructions, setTeamInstructions] = useState<TeamInstructions>(presets[0].teamInstructions)
   const [activePreset, setActivePreset] = useState('balanced')
+  const [setPieceTakers, setSetPieceTakers] = useState<SetPieceTakers>(defaultSetPieceTakers())
   const [starterIds, setStarterIds] = useState<Array<string | null>>([])
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [panelPlayerId, setPanelPlayerId] = useState<string | null>(null)
@@ -1704,6 +1791,12 @@ export default function Tactics() {
               .slice(0, 8)
             setStarterIds([...validIds, ...Array(Math.max(0, 8 - validIds.length)).fill(null)])
           }
+          const loadedTakers = data.set_piece_takers || defaultSetPieceTakers()
+          setSetPieceTakers({
+            penalty: (loadedTakers.penalty || []).slice(0, 3),
+            free_kick: (loadedTakers.free_kick || []).slice(0, 3),
+            corner: (loadedTakers.corner || []).slice(0, 3),
+          })
           return
         }
       } catch {
@@ -1872,6 +1965,11 @@ export default function Tactics() {
       lineup_player_ids: validStarterIds,
       bench_player_ids: validBenchIds,
       team_instructions: teamInstructions,
+      set_piece_takers: {
+        penalty: setPieceTakers.penalty.slice(0, 3),
+        free_kick: setPieceTakers.free_kick.slice(0, 3),
+        corner: setPieceTakers.corner.slice(0, 3),
+      },
       set_piece_instructions: {},
       substitution_rules: {},
     }
@@ -2107,12 +2205,25 @@ export default function Tactics() {
 
       {/* Tab 3: Set piece */}
       {activeTab === 'setpiece' && (
-        <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="flex flex-col items-center gap-4 border-2 border-[#1F5F43] bg-[#ECFFD8] p-8 text-center shadow-pixel">
-            <h2 className="text-lg font-black text-[#173126]">定位球</h2>
-            <p className="text-sm font-bold text-[#466353]">角球 / 任意球 / 点球主罚人<br />暂未开发，敬请期待</p>
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-black text-[#173126]">定位球主罚手</h2>
+            <SaveButton saved={saved} onSave={handleSave} />
           </div>
-        </div>
+          {saveError && (
+            <div className="border-2 border-[#FF6F59] bg-[#FF6F59] px-3 py-2 text-xs font-black text-[#FF6F59]">
+              保存失败：{saveError}
+            </div>
+          )}
+          <SetPiecePanel
+            players={players}
+            value={setPieceTakers}
+            onChange={(next) => {
+              setSetPieceTakers(next)
+              setSaved(false)
+            }}
+          />
+        </>
       )}
 
       {/* Tab 4: Substitution */}

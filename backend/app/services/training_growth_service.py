@@ -82,6 +82,10 @@ _GROUP_FIT_MULTIPLIER = {
     "groups_3": 1.10,
 }
 
+# 全局成长缩放系数。
+# 目标：在保持年轻球员仍能成长的前提下，把 young_avg_attr_progress 压回到更健康的区间。
+_GLOBAL_GAIN_SCALING = 0.78
+
 # 全部属性名列表
 _ALL_ATTRIBUTES = [
     "sho", "pas", "dri", "spd", "str_", "sta", "acc", "hea", "bal",
@@ -340,6 +344,9 @@ class TrainingGrowthService:
         if training_item.is_recovery:
             gain = max(gain, 0.0)
             gain = min(gain, 0.02)
+
+        # 全局成长缩放（不要过度下调）
+        gain *= _GLOBAL_GAIN_SCALING
 
         # 单次训练成长/衰退上限保护
         gain = max(gain, -0.25)

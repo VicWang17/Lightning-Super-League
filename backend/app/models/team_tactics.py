@@ -41,7 +41,10 @@ class TeamTactics(Base):
     # 旧 12 字段战术配置（兼容现有 TacticalSetup）
     team_instructions: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
-    # 预留字段：定位球、换人规则
+    # 定位球主罚手排序（点球/任意球/角球各 3 人）
+    set_piece_takers: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+    # 预留字段：定位球战术、换人规则
     set_piece_instructions: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     substitution_rules: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models import TeamTactics, Player, PlayerPosition, PlayerStatus, Team
-from app.schemas.tactics import TeamTacticsUpdate, TacticsSetup, TeamInstructions
+from app.schemas.tactics import TeamTacticsUpdate, TacticsSetup, TeamInstructions, SetPieceTakers
 from app.core.logging import get_logger
 
 logger = get_logger("app.tactics")
@@ -207,6 +207,27 @@ def _choose_tactics(formation_id: str, starters: list[Player]) -> dict[str, int]
     return tactics
 
 
+def _set_piece_score(player: Player, kind: str) -> float:
+    """根据场景计算球员定位球能力分。"""
+    if kind == "penalty":
+        return player.pk * 0.6 + player.com * 0.25 + player.sho * 0.15
+    if kind == "free_kick":
+        return player.fk * 0.6 + player.sho * 0.2 + player.pas * 0.15 + player.com * 0.05
+    if kind == "corner":
+        return player.cro * 0.5 + player.pas * 0.3 + player.fk * 0.1 + player.vis * 0.1
+    return float(player.ovr)
+
+
+def _build_default_set_piece_takers(players: list[Player]) -> dict:
+    """为球队生成默认定位球主罚手排序，排除 GK。"""
+    outfield = [p for p in players if p.position != PlayerPosition.GK]
+    return {
+        "penalty": [p.id for p in sorted(outfield, key=lambda p: _set_piece_score(p, "penalty"), reverse=True)[:3]],
+        "free_kick": [p.id for p in sorted(outfield, key=lambda p: _set_piece_score(p, "free_kick"), reverse=True)[:3]],
+        "corner": [p.id for p in sorted(outfield, key=lambda p: _set_piece_score(p, "corner"), reverse=True)[:3]],
+    }
+
+
 def _normalize_team_instructions(value: dict | None) -> dict:
     """将 V1 或空记录转换为 V2 TeamInstructions 字典；任何异常都回退到默认"""
     try:
@@ -238,7 +259,42 @@ class TacticsService:
         record = result.scalar_one_or_none()
         if record is not None:
             record.team_instructions = _normalize_team_instructions(record.team_instructions)
+            record.set_piece_takers = await self._ensure_set_piece_takers(record)
         return record
+
+    async def _ensure_set_piece_takers(self, record: TeamTactics) -> dict:
+        """确保 set_piece_takers 合法且有默认值；剔除离队/不可用/GK 球员。"""
+        result = await self.db.execute(
+            select(Player).where(
+                Player.team_id == record.team_id,
+                Player.status == PlayerStatus.ACTIVE,
+            )
+        )
+        players = list(result.scalars().all())
+        outfield = [p for p in players if p.position != PlayerPosition.GK]
+        valid_ids = {p.id for p in players}
+
+        raw = record.set_piece_takers or {}
+        kinds = ["penalty", "free_kick", "corner"]
+        cleaned: dict[str, list[str]] = {}
+        changed = False
+
+        for kind in kinds:
+            ordered = [pid for pid in raw.get(kind, []) if pid in valid_ids]
+            ordered = [pid for pid in ordered if next((p for p in players if p.id == pid), None).position != PlayerPosition.GK]
+            # 补齐到 3 人
+            for p in sorted(outfield, key=lambda p, k=kind: _set_piece_score(p, k), reverse=True):
+                if p.id not in ordered and len(ordered) < 3:
+                    ordered.append(p.id)
+                    changed = True
+            cleaned[kind] = ordered
+            if ordered != raw.get(kind, []):
+                changed = True
+
+        if changed or not raw:
+            record.set_piece_takers = cleaned
+            await self.db.flush()
+        return cleaned
 
     async def get_or_create_default(self, team_id: str) -> TeamTactics:
         """获取或创建默认战术方案"""
@@ -275,6 +331,7 @@ class TacticsService:
             lineup_player_ids=starters_ids,
             bench_player_ids=bench_ids,
             team_instructions=team_instructions.model_dump(),
+            set_piece_takers=_build_default_set_piece_takers(players),
             set_piece_instructions={},
             substitution_rules={},
         )
@@ -296,10 +353,28 @@ class TacticsService:
             if errors:
                 raise ValueError(f"个人指令校验失败: {'; '.join(errors)}")
 
+        # 校验定位球主罚手
+        takers_data = data.set_piece_takers.model_dump()
+        cleaned_takers: dict[str, list[str]] = {}
+        taker_player_ids: list[str] = []
+        for kind in ("penalty", "free_kick", "corner"):
+            ids = [pid for pid in takers_data.get(kind, []) if pid]
+            cleaned_takers[kind] = ids[:3]
+            taker_player_ids.extend(ids[:3])
+        if taker_player_ids:
+            valid_players, errors = await self.validate_players(team_id, taker_player_ids)
+            if errors:
+                raise ValueError(f"定位球主罚手校验失败: {'; '.join(errors)}")
+            found = {p.id: p for p in valid_players}
+            gk_ids = [pid for pid in taker_player_ids if found.get(pid) and found[pid].position == PlayerPosition.GK]
+            if gk_ids:
+                raise ValueError("门将不能担任定位球主罚手")
+
         record.formation_id = data.formation_id
         record.lineup_player_ids = list(data.lineup_player_ids)
         record.bench_player_ids = list(data.bench_player_ids)
         record.team_instructions = data.team_instructions.model_dump()
+        record.set_piece_takers = cleaned_takers
         record.set_piece_instructions = dict(data.set_piece_instructions or {})
         record.substitution_rules = dict(data.substitution_rules or {})
         await self.db.flush()

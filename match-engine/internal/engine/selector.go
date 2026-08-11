@@ -398,3 +398,107 @@ func SelectSecondDefender(team *domain.TeamRuntime, primary *domain.PlayerRuntim
 
 	return weightedSelect(players, weights, r)
 }
+
+// setPieceKind identifies which attribute weights to use for fallback selection.
+type setPieceKind string
+
+const (
+	setPiecePenalty  setPieceKind = "penalty"
+	setPieceFreeKick setPieceKind = "free_kick"
+	setPieceCorner   setPieceKind = "corner"
+)
+
+func setPieceFallbackScore(p *domain.PlayerRuntime, kind setPieceKind) float64 {
+	switch kind {
+	case setPiecePenalty:
+		return p.GetAttrByName("SET")*0.45 + p.GetAttrByName("SHO")*0.30 + p.GetAttrByName("COM")*0.25
+	case setPieceFreeKick:
+		return p.GetAttrByName("SET")*0.50 + p.GetAttrByName("SHO")*0.25 + p.GetAttrByName("FIN")*0.15 + p.GetAttrByName("PAS")*0.10
+	case setPieceCorner:
+		return p.GetAttrByName("CRO")*0.50 + p.GetAttrByName("PAS")*0.30 + p.GetAttrByName("SET")*0.15 + p.GetAttrByName("VIS")*0.05
+	}
+	return 0
+}
+
+// SelectSetPieceTaker picks a taker using the team's ordered preference list.
+// If none of the preferred players are active, it falls back to the best available
+// outfield player by set-piece-relevant attributes. GK is only used as a last resort.
+func SelectSetPieceTaker(team *domain.TeamRuntime, ordered []string, zone [2]int, kind setPieceKind, r *rand.Rand) *domain.PlayerRuntime {
+	active := team.GetActivePlayers()
+	if len(active) == 0 {
+		return team.PlayerRuntimes[0]
+	}
+	activeByID := make(map[string]*domain.PlayerRuntime, len(active))
+	for _, p := range active {
+		activeByID[p.PlayerID] = p
+	}
+	for _, pid := range ordered {
+		if p, ok := activeByID[pid]; ok && p.Position != config.PosGK {
+			return p
+		}
+	}
+	// Fallback: ability-optimal outfield player.
+	var best *domain.PlayerRuntime
+	bestScore := -1.0
+	for _, p := range active {
+		if p.Position == config.PosGK {
+			continue
+		}
+		score := setPieceFallbackScore(p, kind)
+		if score > bestScore {
+			bestScore = score
+			best = p
+		}
+	}
+	if best != nil {
+		return best
+	}
+	// Last resort: any active player (only GK left).
+	return active[r.IntN(len(active))]
+}
+
+// SelectPenaltyShootoutTaker picks a taker for a penalty shootout round.
+// It tries the ordered list while avoiding players who already took a shot this shootout.
+// If none are available it falls back to the best penalty taker by attribute.
+func SelectPenaltyShootoutTaker(team *domain.TeamRuntime, ordered []string, taken map[string]bool, r *rand.Rand) *domain.PlayerRuntime {
+	active := team.GetActivePlayers()
+	if len(active) == 0 {
+		return team.PlayerRuntimes[0]
+	}
+	activeByID := make(map[string]*domain.PlayerRuntime, len(active))
+	for _, p := range active {
+		activeByID[p.PlayerID] = p
+	}
+	for _, pid := range ordered {
+		if taken[pid] {
+			continue
+		}
+		if p, ok := activeByID[pid]; ok && p.Position != config.PosGK {
+			return p
+		}
+	}
+	// Fallback to best available outfield player not yet taken.
+	var best *domain.PlayerRuntime
+	bestScore := -1.0
+	for _, p := range active {
+		if p.Position == config.PosGK || taken[p.PlayerID] {
+			continue
+		}
+		score := setPieceFallbackScore(p, setPiecePenalty)
+		if score > bestScore {
+			bestScore = score
+			best = p
+		}
+	}
+	if best != nil {
+		return best
+	}
+	// Only GK or already-taken players remain.
+	for _, p := range active {
+		if !taken[p.PlayerID] {
+			return p
+		}
+	}
+	// Should not happen; return random active player.
+	return active[r.IntN(len(active))]
+}

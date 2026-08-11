@@ -262,14 +262,20 @@ func (sim *Simulator) runPenaltyShootout(ms *domain.MatchState) *domain.Score {
 	awayGoals := 0
 	homeTaken := 0
 	awayTaken := 0
+	homeTakenIDs := make(map[string]bool)
+	awayTakenIDs := make(map[string]bool)
 
 	for i := 0; i < 5 || homeGoals == awayGoals; i++ {
+		homeTaker := SelectPenaltyShootoutTaker(ms.HomeTeam, ms.HomeTeam.SetPieceTakers.Penalty, homeTakenIDs, sim.r)
+		homeTakenIDs[homeTaker.PlayerID] = true
 		homeTaken++
-		if sim.r.Float64() < sim.penaltyShootoutChance(ms.HomeTeam, ms.AwayTeam) {
+		if sim.r.Float64() < sim.penaltyShootoutChance(homeTaker, ms.AwayTeam) {
 			homeGoals++
 		}
+		awayTaker := SelectPenaltyShootoutTaker(ms.AwayTeam, ms.AwayTeam.SetPieceTakers.Penalty, awayTakenIDs, sim.r)
+		awayTakenIDs[awayTaker.PlayerID] = true
 		awayTaken++
-		if sim.r.Float64() < sim.penaltyShootoutChance(ms.AwayTeam, ms.HomeTeam) {
+		if sim.r.Float64() < sim.penaltyShootoutChance(awayTaker, ms.HomeTeam) {
 			awayGoals++
 		}
 		if i >= 4 && homeGoals != awayGoals {
@@ -298,13 +304,11 @@ func (sim *Simulator) runPenaltyShootout(ms *domain.MatchState) *domain.Score {
 	return score
 }
 
-func (sim *Simulator) penaltyShootoutChance(attacking, defending *domain.TeamRuntime) float64 {
-	takers := attacking.GetActivePlayers()
+func (sim *Simulator) penaltyShootoutChance(taker *domain.PlayerRuntime, defending *domain.TeamRuntime) float64 {
 	keeper := defending.GetGK()
-	if len(takers) == 0 || keeper == nil {
+	if taker == nil || keeper == nil {
 		return 0.72
 	}
-	taker := takers[sim.r.IntN(len(takers))]
 	setPiece := taker.GetAttrByName("SET")
 	shooting := taker.GetAttrByName("SHO")
 	composure := taker.GetAttrByName("COM")
@@ -3564,11 +3568,17 @@ func (sim *Simulator) handleHalftime(ms *domain.MatchState) {
 
 func (sim *Simulator) doFreeKickEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime, zone [2]int) {
 	resetControlShift(ms)
-	taker := SelectPlayerByZone(possTeam, zone, sim.r)
-	setSkillContext(taker, config.EventFreeKick, zone, ms.Minute, ms.Half)
 
 	// Penalty: skip free kick setup, go straight to penalty drama
 	isPenalty := zone[0] == 0 && zone[1] == 1
+
+	var taker *domain.PlayerRuntime
+	if isPenalty {
+		taker = SelectSetPieceTaker(possTeam, possTeam.SetPieceTakers.Penalty, zone, setPiecePenalty, sim.r)
+	} else {
+		taker = SelectSetPieceTaker(possTeam, possTeam.SetPieceTakers.FreeKick, zone, setPieceFreeKick, sim.r)
+	}
+	setSkillContext(taker, config.EventFreeKick, zone, ms.Minute, ms.Half)
 	if !isPenalty {
 		// Setup phase: placing ball, wall positioning
 		sim.addEvent(ms, domain.MatchEvent{
@@ -4035,7 +4045,7 @@ func (sim *Simulator) doFreeKickPass(ms *domain.MatchState, possTeam, oppTeam *d
 
 func (sim *Simulator) doCornerEvent(ms *domain.MatchState, possTeam, oppTeam *domain.TeamRuntime) {
 	// Corner kick taker
-	taker := SelectPlayerByZone(possTeam, [2]int{0, 1}, sim.r)
+	taker := SelectSetPieceTaker(possTeam, possTeam.SetPieceTakers.Corner, [2]int{0, 1}, setPieceCorner, sim.r)
 	setSkillContext(taker, config.EventCorner, [2]int{0, 1}, ms.Minute, ms.Half)
 	ConsumeStamina(taker, 1.0)
 

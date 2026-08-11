@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Modal } from '../ui/Modal'
 import Button from '../ui/Button'
@@ -41,7 +41,7 @@ export default function PlayerActionBar({ player, myTeamId, onChange }: PlayerAc
 
   // 挂牌
   const [listOpen, setListOpen] = useState(false)
-  const [listPrice, setListPrice] = useState(String(Math.round((player.market_value || 0) / 10000)))
+  const [listPrice, setListPrice] = useState('')
   const [listLoading, setListLoading] = useState(false)
   const [listError, setListError] = useState<string | null>(null)
   const [listSuccess, setListSuccess] = useState(false)
@@ -57,10 +57,57 @@ export default function PlayerActionBar({ player, myTeamId, onChange }: PlayerAc
 
   // 报价
   const [offerOpen, setOfferOpen] = useState(false)
-  const [offerAmount, setOfferAmount] = useState(String(Math.round((player.market_value || 0) / 10000)))
+  const [offerAmount, setOfferAmount] = useState('')
   const [offerLoading, setOfferLoading] = useState(false)
   const [offerError, setOfferError] = useState<string | null>(null)
   const [offerSuccess, setOfferSuccess] = useState(false)
+
+  // 转会市场估价（与球员卡片的 system market_value 区分开）
+  const [transferMarketValue, setTransferMarketValue] = useState<number | null>(null)
+  const [valuationLoading, setValuationLoading] = useState(false)
+
+  // 打开弹窗时拉取真实转会市场估价
+  useEffect(() => {
+    if (!offerOpen && !listOpen) return
+    if (!player.id) return
+
+    // 先用球员卡片的 system market_value 兜底，避免接口慢时空白
+    const fallbackValue = player.market_value || 0
+    if (offerOpen && !offerAmount) {
+      setOfferAmount(String(Math.round(fallbackValue / 10000)))
+    }
+    if (listOpen && !listPrice) {
+      setListPrice(String(Math.round(fallbackValue / 10000)))
+    }
+
+    let cancelled = false
+    setValuationLoading(true)
+    api.getPlayerValuation(player.id, player.team_id || undefined)
+      .then(res => {
+        if (cancelled) return
+        if (res.success && res.data) {
+          const mv = res.data.market_value
+          setTransferMarketValue(mv)
+          if (offerOpen) {
+            setOfferAmount(String(Math.round(mv / 10000)))
+          }
+          if (listOpen) {
+            setListPrice(String(Math.round(mv / 10000)))
+          }
+        }
+      })
+      .catch(() => {
+        // 失败时保持 player.market_value 兜底
+        setTransferMarketValue(fallbackValue)
+      })
+      .finally(() => {
+        if (!cancelled) setValuationLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [offerOpen, listOpen, player.id, player.team_id])
 
   const handleList = async () => {
     if (!myTeamId) return
@@ -176,7 +223,7 @@ export default function PlayerActionBar({ player, myTeamId, onChange }: PlayerAc
           ) : (
             <>
               <Button variant="ghost" onClick={closeList}>取消</Button>
-              <Button onClick={handleList} isLoading={listLoading} disabled={!listPrice || Number(listPrice) <= 0}>确认挂牌</Button>
+              <Button onClick={handleList} isLoading={listLoading || valuationLoading} disabled={!listPrice || Number(listPrice) <= 0 || valuationLoading}>确认挂牌</Button>
             </>
           )
         }
@@ -186,8 +233,8 @@ export default function PlayerActionBar({ player, myTeamId, onChange }: PlayerAc
         ) : (
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-[#466353]">系统估值</span>
-              <strong className="text-[#173126]">{formatMoney(player.market_value || 0)}</strong>
+              <span className="text-[#466353]">市场估价</span>
+              <strong className="text-[#173126]">{formatMoney((transferMarketValue ?? player.market_value) || 0)}</strong>
             </div>
             <div>
               <label className="block text-xs font-bold text-[#466353] mb-1">挂牌价（万）</label>
@@ -274,7 +321,7 @@ export default function PlayerActionBar({ player, myTeamId, onChange }: PlayerAc
           ) : (
             <>
               <Button variant="ghost" onClick={closeOffer}>取消</Button>
-              <Button onClick={handleOffer} isLoading={offerLoading} disabled={!offerAmount || Number(offerAmount) <= 0}>确认报价</Button>
+              <Button onClick={handleOffer} isLoading={offerLoading || valuationLoading} disabled={!offerAmount || Number(offerAmount) <= 0 || valuationLoading}>确认报价</Button>
             </>
           )
         }
@@ -284,8 +331,8 @@ export default function PlayerActionBar({ player, myTeamId, onChange }: PlayerAc
         ) : (
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-[#466353]">系统估值</span>
-              <strong className="text-[#173126]">{formatMoney(player.market_value || 0)}</strong>
+              <span className="text-[#466353]">市场估价</span>
+              <strong className="text-[#173126]">{formatMoney((transferMarketValue ?? player.market_value) || 0)}</strong>
             </div>
             <div>
               <label className="block text-xs font-bold text-[#466353] mb-1">报价金额（万）</label>

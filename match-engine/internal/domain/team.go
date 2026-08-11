@@ -114,6 +114,13 @@ type SituationalRule struct {
 	Override  SituationalRuleOverride  `json:"override"`
 }
 
+// SetPieceTakers holds the ordered taker preference for penalties, free kicks and corners.
+type SetPieceTakers struct {
+	Penalty  []string `json:"penalty"`
+	FreeKick []string `json:"free_kick"`
+	Corner   []string `json:"corner"`
+}
+
 // TeamInstructions is the V2 phase-based team instructions container.
 type TeamInstructions struct {
 	LegacyTeamSliders      TacticalSetup                      `json:"legacy_team_sliders"`
@@ -257,6 +264,7 @@ type TeamSetup struct {
 	Bench            []PlayerSetup     `json:"bench"`        // substitutes
 	Tactics          TacticalSetup     `json:"tactics"`
 	TeamInstructions *TeamInstructions `json:"team_instructions,omitempty"`
+	SetPieceTakers   SetPieceTakers    `json:"set_piece_takers,omitempty"`
 }
 
 // TeamRuntime is mutable team state during match

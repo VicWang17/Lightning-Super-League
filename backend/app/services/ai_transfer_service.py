@@ -266,6 +266,67 @@ class AITransferService:
                 logger.warning(f"AI handle offer failed: {e}")
         return count
 
+    async def _is_ai_team(self, team_id: str) -> bool:
+        """判断指定球队是否为 AI 控制"""
+        result = await self.db.execute(
+            select(User.is_ai)
+            .join(Team, Team.user_id == User.id)
+            .where(Team.id == team_id)
+        )
+        return bool(result.scalar_one_or_none())
+
+    async def _resolve_ai_ai_offer_directly(
+        self,
+        negotiation: TransferNegotiation,
+        offer: TransferOffer,
+        is_listed: bool,
+    ) -> None:
+        """AI-AI 之间直接随机决策，跳过讨价还价链。
+
+        设计目标：
+        - 人类 vs AI / 人类 vs 人类 仍保留原有 counter/final 讨价还价逻辑。
+        - AI-AI 之间用一个随机区间直接判定成交/否决，提升成交率和性能。
+        """
+        offer_kind = offer.offer_kind
+        amount = offer.amount
+
+        if offer_kind in (OfferKind.INITIAL, OfferKind.FINAL):
+            # 卖方响应：报价落在 [floor, target] 区间时按线性概率接受，>= target 直接接受，< floor 否决
+            responder_id = negotiation.seller_team_id
+            ai_value = await self._evaluate_player_for_ai(responder_id, negotiation.player_id, is_selling=True)
+            floor = ai_value * Decimal("0.80")
+            target = ai_value * _random_decimal("0.88", "1.05")
+            if is_listed:
+                floor = ai_value * Decimal("0.78")
+                target = ai_value * _random_decimal("0.85", "1.00")
+            accept = False
+            if amount < floor:
+                accept = False
+            elif amount >= target:
+                accept = True
+            else:
+                span = target - floor
+                accept = random.random() < (float((amount - floor) / span) if span else 0.5)
+        else:
+            # COUNTER：买方响应，报价 <= target 直接接受，> ceiling 否决，中间按概率接受
+            responder_id = negotiation.buyer_team_id
+            ai_value = await self._evaluate_player_for_ai(responder_id, negotiation.player_id, is_selling=False)
+            ceiling = ai_value * Decimal("1.15")
+            target = ai_value * _random_decimal("0.95", "1.10")
+            accept = False
+            if amount > ceiling:
+                accept = False
+            elif amount <= target:
+                accept = True
+            else:
+                span = ceiling - target
+                accept = random.random() < (float((ceiling - amount) / span) if span else 0.5)
+
+        if accept and await self._can_settle_offer(negotiation, offer):
+            await self.transfer_service.accept_offer(offer.id, responder_id)
+        else:
+            await self.transfer_service.reject_offer(offer.id, responder_id)
+
     async def _evaluate_and_respond(self, negotiation: TransferNegotiation) -> None:
         """AI 评估单个报价链并做出决策"""
         player_id = negotiation.player_id
@@ -278,6 +339,11 @@ class AITransferService:
         # 是否是挂牌球员
         listing = await self.transfer_service._get_listing(negotiation.listing_id) if negotiation.listing_id else None
         is_listed = listing is not None and listing.status == TransferListingStatus.ACTIVE
+
+        # AI-AI 之间走简化的直接随机决策
+        if await self._is_ai_team(negotiation.buyer_team_id) and await self._is_ai_team(negotiation.seller_team_id):
+            await self._resolve_ai_ai_offer_directly(negotiation, current_offer, is_listed)
+            return
 
         if offer_kind == OfferKind.INITIAL:
             team_id = negotiation.seller_team_id
@@ -527,7 +593,23 @@ class AITransferService:
         listing, player, _ = best
 
         try:
-            offer_amount = max(_quantize(listing.list_price * Decimal("1.02")), _quantize(best[1].ovr * 10000 + 50000))
+            # AI-AI 交易：出价基于卖方估值的随机区间，而不是挂牌价。
+            # 这样能让报价直接落在卖方可接受范围内，提高成交率。
+            seller_value = await self._evaluate_player_for_ai(
+                listing.seller_team_id, player.id, is_selling=True
+            )
+            buyer_value = await self._evaluate_player_for_ai(
+                team_id, player.id, is_selling=False
+            )
+            # 目标：卖方估值的 90%~100%，同时不超过买方心理价位的 102%
+            target_amount = seller_value * _random_decimal("0.90", "1.00")
+            max_pay_amount = buyer_value * Decimal("1.02")
+            offer_amount = max(
+                listing.list_price,
+                min(target_amount, max_pay_amount),
+            )
+            offer_amount = _quantize(offer_amount)
+
             await self.transfer_service.create_offer(
                 player_id=player.id,
                 buyer_team_id=team_id,

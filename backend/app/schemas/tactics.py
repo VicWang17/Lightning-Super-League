@@ -192,6 +192,19 @@ class TeamInstructions(BaseSchema):
         )
 
 
+class SetPieceTakers(BaseSchema):
+    """定位球主罚手排序"""
+
+    penalty: List[str] = Field(default_factory=list, max_length=3, description="点球主罚手，最多 3 人")
+    free_kick: List[str] = Field(default_factory=list, max_length=3, description="任意球主罚手，最多 3 人")
+    corner: List[str] = Field(default_factory=list, max_length=3, description="角球主罚手，最多 3 人")
+
+    @field_validator("penalty", "free_kick", "corner")
+    @classmethod
+    def _limit_three(cls, v: List[str]) -> List[str]:
+        return list(v[:3])
+
+
 class TeamTacticsResponse(BaseSchema):
     """球队战术方案响应"""
 
@@ -200,6 +213,7 @@ class TeamTacticsResponse(BaseSchema):
     lineup_player_ids: List[str]
     bench_player_ids: List[str]
     team_instructions: TeamInstructions
+    set_piece_takers: SetPieceTakers
     set_piece_instructions: dict
     substitution_rules: dict
     ai_profile: dict | None = None
@@ -214,6 +228,7 @@ class TeamTacticsUpdate(BaseSchema):
     lineup_player_ids: List[str]
     bench_player_ids: List[str]
     team_instructions: TeamInstructions
+    set_piece_takers: SetPieceTakers = Field(default_factory=SetPieceTakers)
     set_piece_instructions: dict = Field(default_factory=dict)
     substitution_rules: dict = Field(default_factory=dict)
 

@@ -99,12 +99,19 @@ export type TeamInstructions = {
   situational_rules: SituationalRule[]
 }
 
+export type SetPieceTakers = {
+  penalty: string[]
+  free_kick: string[]
+  corner: string[]
+}
+
 export type TeamTactics = {
   team_id: string
   formation_id: string
   lineup_player_ids: string[]
   bench_player_ids: string[]
   team_instructions: TeamInstructions
+  set_piece_takers: SetPieceTakers
   set_piece_instructions: Record<string, unknown>
   substitution_rules: Record<string, unknown>
   ai_profile?: Record<string, unknown> | null
@@ -117,6 +124,7 @@ export type TeamTacticsUpdate = {
   lineup_player_ids: string[]
   bench_player_ids: string[]
   team_instructions: TeamInstructions
+  set_piece_takers?: SetPieceTakers
   set_piece_instructions?: Record<string, unknown>
   substitution_rules?: Record<string, unknown>
 }
